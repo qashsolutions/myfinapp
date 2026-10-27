@@ -70,7 +70,7 @@ Every device used by anyone with access to production or customer data (the owne
 
 ## 11. Logging and review
 
-- **Security-relevant actions are recorded** in an audit log with no financial data: sign-ins and failures, passkey and device changes, exports, deletion requests, email, plan and auto-lock changes, bank connections. AWS administrative actions are recorded by CloudTrail.
+- **Security-relevant actions are recorded** in an audit log with no financial data: sign-ins and failures, passkey and device changes, exports, deletion requests and each completed permanent deletion, email, plan and auto-lock changes, bank connections. AWS administrative actions are recorded by CloudTrail.
 - **Access reviews** happen yearly and whenever someone joins, leaves or changes role: every account and key with access to production is listed, anything unused is removed, multi-factor authentication is confirmed, and the review is recorded in `risk-assessment.md`. The first review took place on October 13, 2026.
 
 ## 12. Exceptions and enforcement
@@ -85,3 +85,4 @@ An exception needs the administrator's written approval with a reason and an end
 | 1.2 | 2026-10-18 | The in-app Tester role (tester tools for the administrator's own account) | Director, Qash Solutions Inc. |
 | 1.1 | 2026-10-16 | AWS access for people moved to AWS IAM Identity Center (passkey at every sign-in, short-lived credentials); the admin IAM user's access key and console password removed; pull requests only and every check before merge kept by process once the repository went private; both long-lived machine keys named | Director, Qash Solutions Inc. |
 | 1.3 | 2026-10-19 | End users may sign a computer in by approval from their signed-in phone after a fresh passkey check; the phishing trade-off and its safeguards are stated | Director, Qash Solutions Inc. (pending) |
+| 1.4 | 2026-10-27 | The security log also records each completed permanent account deletion | Director, Qash Solutions Inc. (pending) |

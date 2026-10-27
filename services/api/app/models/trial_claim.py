@@ -20,6 +20,7 @@ class TrialClaim(Base, StackdRow):
     __tablename__ = "trial_claims"
 
     email_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    # Written, not read by the app: which plan the trial started on, for investigating.
     plan: Mapped[str] = mapped_column(String(16))
     claimed_at: Mapped[datetime]
 

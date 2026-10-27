@@ -38,7 +38,6 @@ class AuditAction(StrEnum):
     GROUP_CODE_REGENERATED = "group_code_regenerated"
     BACKUP_ENABLED = "backup_enabled"
     BACKUP_DISABLED = "backup_disabled"
-    BACKUP_RESTORED = "backup_restored"
     HOUSEHOLD_INVITED = "household_invited"
     HOUSEHOLD_JOINED = "household_joined"
     HOUSEHOLD_LEFT = "household_left"
@@ -47,7 +46,6 @@ class AuditAction(StrEnum):
     BANK_AUTO_REVOKED = "bank_auto_revoked"  # chunk 3.4: 60 days without opening the app
     LOCK_CHANGED = "lock_changed"  # the auto-lock window (5 to 60 minutes)
     PURCHASE_CONSENT = "purchase_consent"  # "Before you subscribe" ticked (October 14, 2026)
-    ADMIN_ACTION = "admin_action"
     DEVICE_LINK_APPROVED = "device_link_approved"  # a phone approved a computer (Oct 19, 2026)
     DEVICE_LINK_DENIED = "device_link_denied"
 

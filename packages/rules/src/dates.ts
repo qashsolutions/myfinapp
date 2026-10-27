@@ -15,7 +15,6 @@ const ISO = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 const MS_PER_DAY = 86_400_000;
 export const CADENCES = ["weekly", "biweekly", "monthly", "payday"] as const;
 export type Cadence = (typeof CADENCES)[number];
-export const WEEK_STARTS: Record<string, number> = { monday: 0, sunday: 6 };
 const MAX_COUNT = 1000;
 
 function isInt(v: unknown): v is number {
@@ -85,15 +84,6 @@ export function addMonths(day: Day, months: unknown): Day {
 
 export function daysUntil(asOf: Day, target: Day): number {
   return toNumber(target) - toNumber(asOf);
-}
-
-export function weekBounds(asOf: Day, weekStarts: unknown = "monday"): [Day, Day] {
-  if (typeof weekStarts !== "string" || !(weekStarts in WEEK_STARTS)) {
-    throw new RuleError("invalid_week_start");
-  }
-  const offset = (((weekday(asOf) - (WEEK_STARTS[weekStarts] ?? 0)) % 7) + 7) % 7;
-  const start = addDays(asOf, -offset);
-  return [start, addDays(start, 6)];
 }
 
 type Schedule =

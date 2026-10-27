@@ -5,8 +5,11 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import select
 
 from app.db import get_session_factory
+from app.models.audit_log import AuditLog
+from app.models.user import User
 from app.services.deletion import purge_due
 from tests.auth_flow import new_client, outbox, send_code, sign_in_with_code, sign_up
 from tests.billing_helpers import grant_plan
@@ -79,6 +82,31 @@ def test_delete_soft_deletes_now_and_purges_after_the_grace_period() -> None:
     detail = bob.get(f"/api/groups/{group['id']}").json()
     assert detail["member_count"] == 1 and not any(m["former"] for m in detail["members"])
     assert detail["is_owner"] is True  # the group passed to Bob when Alice deleted her account
+
+
+def test_the_purge_is_audited_and_the_record_outlives_the_account() -> None:
+    """Invariant: a hard delete leaves an audit row naming the account, never anything else."""
+    client = new_client()
+    info = sign_up(client, fresh_email("gone"), FakeAuthenticator())
+    user_id = uuid.UUID(info["user"]["id"])
+    assert client.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
+
+    def completed(s):
+        return s.scalars(
+            select(AuditLog).where(
+                AuditLog.action == "delete_completed", AuditLog.target == f"user:{user_id}"
+            )
+        ).all()
+
+    with get_session_factory()() as s, s.begin():
+        purge_due(s, grace_days=30, now=datetime.now(UTC) + timedelta(days=29))
+        assert completed(s) == []  # still in the grace period: nothing erased, nothing logged
+        assert purge_due(s, grace_days=30, now=datetime.now(UTC) + timedelta(days=31)) >= 1
+    with get_session_factory()() as s:
+        assert s.get(User, user_id) is None
+        rows = completed(s)
+        assert len(rows) == 1
+        assert rows[0].actor_id is None and rows[0].ip_hash is None  # the job did it, not a person
 
 
 def test_change_email_sends_a_code_to_the_new_address() -> None:

@@ -43,4 +43,5 @@ class Backup(Base, StackdRow):
     key_version: Mapped[int]
     snapshot_at: Mapped[datetime]
     device_label: Mapped[str] = mapped_column(String(80))
+    # Written, not read by the app: which signed-in device uploaded it, for investigating.
     session_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)

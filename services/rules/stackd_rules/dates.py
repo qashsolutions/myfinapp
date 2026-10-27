@@ -17,7 +17,6 @@ from .errors import RuleError
 
 _ISO = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")  # ASCII only, see money.py
 CADENCES = ("weekly", "biweekly", "monthly", "payday")
-WEEK_STARTS = {"monday": 0, "sunday": 6}
 _MAX_COUNT = 1000
 
 
@@ -57,14 +56,6 @@ def add_days(day: date, days: int) -> date:
 def days_until(as_of: date, target: date) -> int:
     """Signed day count; negative when target is in the past."""
     return (target - as_of).days
-
-
-def week_bounds(as_of: date, week_starts: str = "monday") -> tuple[date, date]:
-    if week_starts not in WEEK_STARTS:
-        raise RuleError("invalid_week_start")
-    offset = (as_of.weekday() - WEEK_STARTS[week_starts]) % 7
-    start = as_of - timedelta(days=offset)
-    return start, start + timedelta(days=6)
 
 
 def _validated_schedule(schedule: object) -> dict:

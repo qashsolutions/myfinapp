@@ -1,6 +1,6 @@
 [project]
 name = "stackd-rules"
-version = "0.25.0"
+version = "0.26.0"
 description = "Stackd money math: pure, deterministic, versioned rules with golden tests."
 readme = "README.md"
 requires-python = ">=3.12"

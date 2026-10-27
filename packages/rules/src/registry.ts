@@ -84,11 +84,6 @@ export const RULES: Record<string, Rule> = {
     const { as_of, date } = args(input, ["as_of", "date"]);
     return { days: dates.daysUntil(dates.parseDate(as_of), dates.parseDate(date)) };
   },
-  "dates.week_bounds": (input) => {
-    const { as_of, week_starts } = args(input, ["as_of"], ["week_starts"]);
-    const [start, end] = dates.weekBounds(dates.parseDate(as_of), week_starts ?? "monday");
-    return { start: dates.iso(start), end: dates.iso(end) };
-  },
   "dates.next_paydays": (input) => {
     const { as_of, schedule, count } = args(input, ["as_of", "schedule", "count"]);
     return { dates: dates.nextPaydays(dates.parseDate(as_of), schedule, count).map(dates.iso) };

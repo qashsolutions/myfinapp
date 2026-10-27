@@ -1067,24 +1067,6 @@ export async function payoffPlan(
   });
 }
 
-export interface Growth {
-  future_value_cents: number;
-  contributed_cents: number;
-  months: number;
-}
-
-export async function compoundGrowth(
-  monthlyCents: number,
-  years: number,
-  rateBps: number,
-): Promise<Growth> {
-  return engine.call<Growth>("growth.compound", {
-    monthly_cents: monthlyCents,
-    years,
-    rate_bps: rateBps,
-  });
-}
-
 export interface LaterProjection {
   years: number;
   points: Array<{ age: number; contributed_cents: number; balances_cents: number[] }>;

@@ -15,7 +15,7 @@ All of Stackd's money math. Pure functions: inputs plus an explicit `as_of` go i
 | Module | Rules | Notes |
 |---|---|---|
 | `money.py` | `parse_amount`, `round_div`, `pct_of`, `allocate`, `ratio_bps` | Integer cents, half-even rounding in one place. |
-| `dates.py` | `month_bounds`, `add_months`, `days_until`, `week_bounds`, `next_paydays`, `periods_until` | Calendar maths for an explicit `as_of`. |
+| `dates.py` | `month_bounds`, `add_months`, `days_until`, `next_paydays`, `periods_until` | Calendar maths for an explicit `as_of`. |
 | `fingerprint.py` | `clean_description`, `row` | Dedupe keys for imported statement rows: FNV-1a 64 over account, date, cents and the cleaned description. Cleaning upper-cases ASCII letters only, because the TypeScript port must produce identical bytes. |
 | `categorize.py` | `match` | User rules first, then the keyword table; case-insensitive substring on the cleaned description, first match wins; flags likely transfers. The table is an input, so the rule stays pure. |
 | `cashflow.py` | `month_totals`, `period_totals`, `net_change`, `match_transfers` | Month (or any two dates inclusive: the weekly recap) In and Out (transfers excluded, refunds net against their category unless given an income category), Net = In − Out, by category and by account; the change versus last month; transfer suggestions (equal opposite amounts, different accounts, within 5 days, closest first, each entry once). Entries are passed in with their category kind. |
