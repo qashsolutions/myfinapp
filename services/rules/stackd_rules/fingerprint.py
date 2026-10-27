@@ -11,13 +11,11 @@ Unicode letters and the two engines must agree byte for byte.
 
 from __future__ import annotations
 
-import re
-
 from . import dates
 from .errors import RuleError
 from .money import _int
+from .text import collapse_spaces, trim_spaces
 
-_WS = re.compile(r"\s+")
 _ASCII_LOWER = str.maketrans("abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 FNV64_OFFSET = 0xCBF29CE484222325
 FNV64_PRIME = 0x100000001B3
@@ -28,7 +26,7 @@ def clean_description(text: str) -> str:
     """ "  Corner  Mkt #214 " -> "CORNER MKT #214": trimmed, single spaces, ASCII upper-case."""
     if not isinstance(text, str):
         raise RuleError("invalid_description")
-    return _WS.sub(" ", text).strip().translate(_ASCII_LOWER)
+    return trim_spaces(collapse_spaces(text)).translate(_ASCII_LOWER)
 
 
 def fnv1a_64(data: bytes) -> int:

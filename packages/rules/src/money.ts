@@ -4,6 +4,7 @@
  */
 
 import { RuleError } from "./errors.ts";
+import { trimSpaces } from "./text.ts";
 
 export function assertInt(value: unknown, code = "invalid_integer"): number {
   if (typeof value !== "number" || !Number.isInteger(value)) throw new RuleError(code);
@@ -15,21 +16,21 @@ const UNSIGNED_DECIMAL = /^[0-9]*\.?[0-9]*$/;
 /** Statement or form text -> cents. "$1,234.56" -> 123456; "(45.00)" and "99.99-" are negative. */
 export function parseAmount(text: unknown): number {
   if (typeof text !== "string") throw new RuleError("invalid_amount");
-  let s = text.trim().replaceAll(",", "").replaceAll("$", "");
+  let s = trimSpaces(text).replaceAll(",", "").replaceAll("$", "");
   let negative = false;
   if (s.startsWith("(") && s.endsWith(")")) {
     negative = true;
-    s = s.slice(1, -1).trim();
+    s = trimSpaces(s.slice(1, -1));
   }
   if (s.endsWith("-")) {
     negative = !negative;
-    s = s.slice(0, -1).trim();
+    s = trimSpaces(s.slice(0, -1));
   }
   if (s.startsWith("-")) {
     negative = !negative;
-    s = s.slice(1).trim();
+    s = trimSpaces(s.slice(1));
   } else if (s.startsWith("+")) {
-    s = s.slice(1).trim();
+    s = trimSpaces(s.slice(1));
   }
   if (!s || s === "." || !UNSIGNED_DECIMAL.test(s)) throw new RuleError("invalid_amount");
   const dot = s.indexOf(".");

@@ -128,11 +128,13 @@ function wordBuckets(clean: string, dim: number): number[] {
 }
 
 function hashedFeatures(clean: string, ngrams: number[], dim: number): number[] {
-  const padded = ` ${clean} `;
+  // Characters (code points) as Python counts them, never UTF-16 units, so an emoji is one
+  // character in both engines (invariant 10; October 27, 2026).
+  const padded = Array.from(` ${clean} `);
   const out = new Set<number>(wordBuckets(clean, dim));
   for (const n of ngrams) {
     for (let i = 0; i + n <= padded.length; i++) {
-      out.add(fnv1a32(encoder.encode(padded.slice(i, i + n))) % dim);
+      out.add(fnv1a32(encoder.encode(padded.slice(i, i + n).join(""))) % dim);
     }
   }
   return [...out].sort((a, b) => a - b);

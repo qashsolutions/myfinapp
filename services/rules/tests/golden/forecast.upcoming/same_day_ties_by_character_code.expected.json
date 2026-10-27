@@ -1,0 +1,33 @@
+{
+  "start": "2026-10-09",
+  "end": "2026-11-08",
+  "items": [
+    {
+      "date": "2026-10-20",
+      "series_id": "c",
+      "payee": "ZOO PASS",
+      "kind": "bill",
+      "amount_cents": 2000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2026-10-20",
+      "series_id": "a",
+      "payee": "_FEES",
+      "kind": "bill",
+      "amount_cents": 1000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2026-10-20",
+      "series_id": "b",
+      "payee": "\u00c9CLAIR CLUB",
+      "kind": "bill",
+      "amount_cents": 1500,
+      "matched": false,
+      "entry_id": null
+    }
+  ]
+}

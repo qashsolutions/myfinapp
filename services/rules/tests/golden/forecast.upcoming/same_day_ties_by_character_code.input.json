@@ -1,0 +1,31 @@
+{
+  "series": [
+    {
+      "id": "c",
+      "payee": "Zoo pass",
+      "kind": "bill",
+      "expected_cents": 2000,
+      "interval": "monthly",
+      "next_date": "2026-10-20"
+    },
+    {
+      "id": "a",
+      "payee": "_Fees",
+      "kind": "bill",
+      "expected_cents": 1000,
+      "interval": "monthly",
+      "next_date": "2026-10-20"
+    },
+    {
+      "id": "b",
+      "payee": "\u00c9clair club",
+      "kind": "bill",
+      "expected_cents": 1500,
+      "interval": "monthly",
+      "next_date": "2026-10-20"
+    }
+  ],
+  "entries": [],
+  "as_of": "2026-10-09",
+  "days": 30
+}

@@ -6,6 +6,7 @@
 import { addDays, addMonths, type Day, daysUntil, iso, monthBounds, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { assertInt, roundDiv } from "./money.ts";
+import { compareText } from "./text.ts";
 
 type Direction = "in" | "out";
 type Kind = "expense" | "income" | null;
@@ -229,11 +230,9 @@ function totals(start: Day, end: Day, parsed: Entry[]): MonthTotals {
   const categories = [...byCategory.entries()].sort((a, b) => {
     if (a[1] !== b[1]) return b[1] - a[1];
     if ((a[0] === null) !== (b[0] === null)) return a[0] === null ? 1 : -1;
-    return (a[0] ?? "") < (b[0] ?? "") ? -1 : (a[0] ?? "") > (b[0] ?? "") ? 1 : 0;
+    return compareText(a[0] ?? "", b[0] ?? "");
   });
-  const accounts = [...byAccount.entries()].sort((a, b) =>
-    a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0,
-  );
+  const accounts = [...byAccount.entries()].sort((a, b) => compareText(a[0], b[0]));
   return {
     start: startKey,
     end: endKey,
@@ -262,11 +261,8 @@ export function matchTransfers(rawEntries: unknown, windowDays: unknown = 5): Tr
   if (window < 0) throw new RuleError("invalid_window");
   const rows = entries(rawEntries).filter((e) => !e.is_transfer);
   if (rows.some((e) => e.id === null)) throw new RuleError("invalid_entry");
-  const byDateThenId = (a: Entry, b: Entry) => {
-    const ka = `${dayKey(a.date)}|${a.id}`;
-    const kb = `${dayKey(b.date)}|${b.id}`;
-    return ka < kb ? -1 : ka > kb ? 1 : 0;
-  };
+  const byDateThenId = (a: Entry, b: Entry) =>
+    compareText(dayKey(a.date), dayKey(b.date)) || compareText(a.id as string, b.id as string);
   const outs = rows.filter((e) => e.direction === "out").sort(byDateThenId);
   const ins = rows.filter((e) => e.direction === "in").sort(byDateThenId);
   const used = new Set<string>();

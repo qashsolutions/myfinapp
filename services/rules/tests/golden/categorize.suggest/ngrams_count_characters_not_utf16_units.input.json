@@ -1,0 +1,27 @@
+{
+  "description": "\ud83d\ude00",
+  "model": {
+    "version": 1,
+    "dim": 1,
+    "ngrams": [
+      4
+    ],
+    "scale": 100,
+    "labels": [
+      "cat-a",
+      "cat-b"
+    ],
+    "bias": [
+      0,
+      0
+    ],
+    "weights": {
+      "0": [
+        1000,
+        0
+      ]
+    },
+    "min_score": 0,
+    "min_margin": 0
+  }
+}

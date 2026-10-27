@@ -9,6 +9,7 @@ import { RuleError } from "./errors.ts";
 import { cleanDescription } from "./fingerprint.ts";
 import { assertInt, roundDiv } from "./money.ts";
 import { INTERVALS, step } from "./recurring.ts";
+import { compareText, trimSpaces } from "./text.ts";
 
 const LUMPY = new Set(["quarterly", "yearly"]);
 
@@ -183,11 +184,7 @@ export function vsUsual(
   flagged.sort((a, b) =>
     a.increase_cents !== b.increase_cents
       ? b.increase_cents - a.increase_cents
-      : a.category_id < b.category_id
-        ? -1
-        : a.category_id > b.category_id
-          ? 1
-          : 0,
+      : compareText(a.category_id, b.category_id),
   );
   return { months_used: used, flagged };
 }
@@ -249,15 +246,7 @@ export function lumpyBills(
     }
   }
   bills.sort((a, b) =>
-    a.due_date !== b.due_date
-      ? a.due_date < b.due_date
-        ? -1
-        : 1
-      : a.payee < b.payee
-        ? -1
-        : a.payee > b.payee
-          ? 1
-          : 0,
+    a.due_date !== b.due_date ? (a.due_date < b.due_date ? -1 : 1) : compareText(a.payee, b.payee),
   );
   return {
     bills,
@@ -369,7 +358,7 @@ function topRow(raw: unknown): TopRow {
   };
 }
 
-const byText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+const byText = compareText;
 
 /** The biggest single amounts out and the merchants paid most often between two dates. */
 export function topSpending(
@@ -405,7 +394,7 @@ export function topSpending(
     )[0] as TopRow;
     return {
       key,
-      name: (latest.payee ?? "").trim(),
+      name: trimSpaces(latest.payee ?? ""),
       count: items.length,
       total_cents: items.reduce((sum, r) => sum + r.cents, 0),
       last_date: latest.date,

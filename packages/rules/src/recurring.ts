@@ -4,6 +4,7 @@ import { addDays, addMonths, type Day, daysUntil, iso, parseDate } from "./dates
 import { RuleError } from "./errors.ts";
 import { cleanDescription } from "./fingerprint.ts";
 import { assertInt, roundDiv } from "./money.ts";
+import { compareText } from "./text.ts";
 
 export const INTERVALS = ["weekly", "biweekly", "monthly", "quarterly", "yearly"] as const;
 export type Interval = (typeof INTERVALS)[number];
@@ -110,13 +111,19 @@ export function detect(rawEntries: unknown, asOf: unknown): { series: Series[] }
     else groups.set(key, [e]);
   }
   const series: Series[] = [];
-  for (const key of [...groups.keys()].sort()) {
+  // Python sorts the (payee, direction) tuples: compare the parts, never the joined key.
+  const order = [...groups.entries()].sort(
+    ([, [a]], [, [b]]) =>
+      compareText((a as RecurringEntry).payee, (b as RecurringEntry).payee) ||
+      compareText((a as RecurringEntry).direction, (b as RecurringEntry).direction),
+  );
+  for (const [key] of order) {
     const items = groups.get(key) as RecurringEntry[];
     items.sort(
       (a, b) =>
-        iso(a.date).localeCompare(iso(b.date)) ||
+        compareText(iso(a.date), iso(b.date)) ||
         a.cents - b.cents ||
-        (a.id ?? "").localeCompare(b.id ?? ""),
+        compareText(a.id ?? "", b.id ?? ""),
     );
     if (items.length < 2) continue;
     const lastGap = daysUntil(

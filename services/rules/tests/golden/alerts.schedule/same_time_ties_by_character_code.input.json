@@ -1,0 +1,29 @@
+{
+  "inputs": {
+    "now_local": "2026-10-10T18:00",
+    "upcoming": [
+      {
+        "series_id": "_fees",
+        "date": "2026-10-25",
+        "kind": "bill",
+        "matched": false
+      },
+      {
+        "series_id": "Zoo",
+        "date": "2026-10-25",
+        "kind": "bill",
+        "matched": false
+      }
+    ],
+    "shortfall": null,
+    "challenges": [],
+    "goals": [],
+    "milestones": [],
+    "prefs": {
+      "upcoming_expense": {
+        "enabled": true,
+        "lead_days": 3
+      }
+    }
+  }
+}

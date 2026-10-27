@@ -3,6 +3,7 @@
 import { addDays, type Day, daysInMonth, iso, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { assertInt } from "./money.ts";
+import { compareText } from "./text.ts";
 
 export const TYPES = [
   "upcoming_expense",
@@ -51,7 +52,7 @@ export function fmtLocal(value: Local): string {
 }
 
 export function compareLocal(a: Local, b: Local): number {
-  const d = iso(a.day).localeCompare(iso(b.day));
+  const d = compareText(iso(a.day), iso(b.day));
   return d !== 0 ? d : a.minute - b.minute;
 }
 

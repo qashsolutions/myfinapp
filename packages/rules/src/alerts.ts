@@ -4,6 +4,7 @@ import { addDays, type Day, daysUntil, iso, parseDate, weekday } from "./dates.t
 import { RuleError } from "./errors.ts";
 import { assertInt, roundDiv } from "./money.ts";
 import { compareLocal, fmtLocal, type Local, parseClock, parseLocal } from "./notify.ts";
+import { compareText } from "./text.ts";
 
 export const HORIZON_DAYS = 30;
 export const SEND_TIME = "09:00"; // proposed: morning sends for dated alerts
@@ -139,9 +140,9 @@ export function schedule(inputs: unknown): { alerts: ScheduledAlert[] } {
 
   out.sort(
     (a, b) =>
-      a.due_local.localeCompare(b.due_local) ||
-      a.type.localeCompare(b.type) ||
-      a.dedupe_key.localeCompare(b.dedupe_key),
+      compareText(a.due_local, b.due_local) ||
+      compareText(a.type, b.type) ||
+      compareText(a.dedupe_key, b.dedupe_key),
   );
   return { alerts: out };
 }

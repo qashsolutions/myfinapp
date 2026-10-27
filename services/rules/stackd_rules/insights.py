@@ -17,6 +17,7 @@ from . import dates, money, recurring
 from .errors import RuleError
 from .fingerprint import clean_description
 from .money import _int
+from .text import trim_spaces
 
 LUMPY = ("quarterly", "yearly")
 
@@ -306,7 +307,7 @@ def top_spending(start: str, end: str, entries: list, limit: int) -> dict:
         merchants.append(
             {
                 "key": key,
-                "name": latest["payee"].strip(),
+                "name": trim_spaces(latest["payee"]),
                 "count": len(items),
                 "total_cents": sum(r["cents"] for r in items),
                 "last_date": latest["date"].isoformat(),

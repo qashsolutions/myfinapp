@@ -3,6 +3,7 @@
 import { addDays, type Day, iso, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { assertInt, ratioBps } from "./money.ts";
+import { compareText } from "./text.ts";
 
 export const GROUPS = {
   asset: ["cash", "savings", "investments", "retirement", "property", "vehicle", "other_asset"],
@@ -64,7 +65,7 @@ export function summary(items: unknown, previousNetCents: unknown): NetWorthSumm
   const groups = [...totals.values()].sort((a, b) => {
     if (order[a.kind] !== order[b.kind]) return order[a.kind] - order[b.kind];
     if (a.total !== b.total) return b.total - a.total;
-    return a.group < b.group ? -1 : a.group > b.group ? 1 : 0;
+    return compareText(a.group, b.group);
   });
   return {
     assets_cents: assets,
