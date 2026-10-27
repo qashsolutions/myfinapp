@@ -333,10 +333,6 @@ export const RULES: Record<string, Rule> = {
     const { debts, extra_cents, as_of } = args(input, ["debts", "extra_cents", "as_of"]);
     return { ...bills.payoffPlan(debts, extra_cents, as_of) };
   },
-  "growth.compound": (input) => {
-    const { monthly_cents, years, rate_bps } = args(input, ["monthly_cents", "years", "rate_bps"]);
-    return { ...growth.compound(monthly_cents, years, rate_bps) };
-  },
   "growth.projection": (input) => {
     const { age_now, retire_age, start_cents, monthly_cents, rates_bps, target_cents } = args(
       input,

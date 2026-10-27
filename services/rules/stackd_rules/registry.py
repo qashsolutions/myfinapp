@@ -271,10 +271,6 @@ def _bills_payoff_plan(debts: list, extra_cents: int, as_of: str) -> dict:
     return bills.payoff_plan(debts, extra_cents, as_of)
 
 
-def _growth_compound(monthly_cents: int, years: int, rate_bps: int) -> dict:
-    return growth.compound(monthly_cents, years, rate_bps)
-
-
 def _growth_projection(
     age_now: int,
     retire_age: int,
@@ -388,7 +384,6 @@ RULES: dict[str, Rule] = {
     "bills.payoff_plan": _bills_payoff_plan,
     "credit.utilization_bps": _credit_utilization_bps,
     "credit.pay_in_full": _credit_pay_in_full,
-    "growth.compound": _growth_compound,
     "growth.projection": _growth_projection,
     "notify.decide": _notify_decide,
     "alerts.schedule": _alerts_schedule,
