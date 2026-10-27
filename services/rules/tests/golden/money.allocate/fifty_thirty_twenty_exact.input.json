@@ -1,0 +1,9 @@
+{
+  "total_cents": 500000,
+  "weights_bps": [
+    5000,
+    3000,
+    2000
+  ],
+  "remainder_to": 2
+}

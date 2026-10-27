@@ -1,0 +1,260 @@
+/* PWA states (mockups PwaStates, PwaInstall): offline banner, update toast, install guide. */
+
+.offline-banner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  background: var(--c-offline-bg);
+  color: var(--c-offline-text);
+  margin: 0 0 12px;
+}
+.offline-banner__title {
+  font-weight: 700;
+}
+.offline-banner__sub {
+  font-size: 13px;
+  opacity: 0.9;
+}
+.update-toast {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 92px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--c-ink);
+  color: var(--c-bg);
+  box-shadow: var(--shadow-card);
+}
+@media (min-width: 600px) {
+  .update-toast {
+    left: auto;
+    right: 24px;
+    bottom: 24px;
+    max-width: 420px;
+  }
+}
+.install-benefits {
+  margin: 8px 0;
+  padding-left: 18px;
+}
+.install-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Pull to refresh (installed app only) */
+.pull-refresh {
+  position: fixed;
+  top: env(safe-area-inset-top);
+  left: 50%;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--c-card);
+  color: var(--c-ink);
+  box-shadow: var(--shadow-card);
+  font-size: 0.875rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+.pull-refresh__icon {
+  display: inline-block;
+  transition: transform 150ms ease;
+}
+.pull-refresh__icon--spin {
+  animation: pull-refresh-spin 900ms linear infinite;
+}
+@keyframes pull-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pull-refresh__icon,
+  .pull-refresh__icon--spin {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* Install page and guide: picture steps (October 19, 2026) */
+.isteps {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+.istep {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--radius-card);
+  background: var(--c-card);
+  border: var(--border-card);
+  box-shadow: var(--shadow-card);
+}
+.istep__pic {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--c-bg);
+}
+.istep__text {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+.istep__n {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+  font-weight: 700;
+}
+.istep__title {
+  display: block;
+  font-size: 1.0625rem;
+  color: var(--c-ink);
+}
+.istep__hint {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--c-sub);
+}
+.install-or {
+  margin: 8px 0 0;
+  text-align: center;
+}
+.mock-bar,
+.mock-top,
+.mock-menu {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 300px;
+  border-radius: 12px;
+  background: var(--c-card);
+  color: var(--c-ink);
+  font-size: 0.875rem;
+}
+.mock-bar {
+  justify-content: space-around;
+  padding: 8px;
+}
+.mock-bar__btn {
+  display: inline-grid;
+  place-items: center;
+  min-width: 40px;
+  height: 36px;
+  border-radius: 10px;
+  color: var(--c-a1);
+  font-size: 1.125rem;
+}
+.mock-menu {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 6px;
+  gap: 4px;
+}
+.mock-menu__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+.mock-top {
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+}
+.mock-top__title {
+  font-weight: 600;
+}
+.mock-top__add {
+  padding: 4px 10px;
+  border-radius: 8px;
+  color: var(--c-a1);
+  font-weight: 700;
+}
+.mock-url {
+  color: var(--c-sub);
+}
+.mock-tile {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--c-ink);
+}
+.mock-tile img {
+  border-radius: 10px;
+}
+/* The thing to tap glows. */
+.mock-glow {
+  outline: 2px solid var(--c-a1);
+  outline-offset: 2px;
+  animation: mock-glow 1.6s ease-in-out infinite;
+}
+@keyframes mock-glow {
+  50% {
+    outline-offset: 5px;
+  }
+}
+/* iPhone Safari: an arrow at the bottom of the screen, above Safari's toolbar. */
+.install-pointer {
+  position: fixed;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 50;
+  display: grid;
+  justify-items: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.install-pointer__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+.install-pointer__arrow {
+  color: var(--c-a1);
+  font-size: 2rem;
+  line-height: 1;
+  animation: install-bounce 1.2s ease-in-out infinite;
+}
+@keyframes install-bounce {
+  50% {
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mock-glow,
+  .install-pointer__arrow {
+    animation: none;
+  }
+}

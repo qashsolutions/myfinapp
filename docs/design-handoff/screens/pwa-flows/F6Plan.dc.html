@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 6 — Manage plan</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;align-items:center;gap:10px">
+    <a href="F6Settings.dc.html" aria-label="Back" style="{{S.icon}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+    <span style="font:700 22px Outfit,sans-serif">Your plan</span>
+  </header>
+
+  <section style="{{S.hero}}">
+    <span style="font-size:13px;font-weight:600;opacity:0.9">Current plan</span>
+    <span style="font:700 30px Outfit,sans-serif">Private · yearly</span>
+    <span style="font-size:14px;opacity:0.9">$23.88 a year · renews Oct 9, 2027</span>
+  </section>
+
+  <section style="{{S.list}}">
+    <div style="{{S.row}}"><span style="flex:1;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:600">Switch to monthly</span><span style="font-size:12px;color:{{m.sub}}">$3/month after this year ends</span></span><span style="color:{{m.sub}}">›</span></div>
+    <div style="{{S.row}}"><span style="flex:1;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:600">Connected</span><span style="font-size:12px;color:{{m.sub}}">Bank linking · $7.99/mo yearly · coming soon</span></span><span style="{{S.wait}}">On waitlist</span></div>
+    <div style="{{S.rowLast}}"><span style="flex:1;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:600">Receipts &amp; invoices</span><span style="font-size:12px;color:{{m.sub}}">Opens the secure billing page</span></span><span style="color:{{m.sub}}">↗</span></div>
+  </section>
+
+  <sc-if value="{{idle}}" hint-placeholder-val="{{ true }}">
+    <button onClick="{{ask}}" style="{{S.cancel}}">Cancel plan</button>
+  </sc-if>
+  <sc-if value="{{asking}}" hint-placeholder-val="{{ false }}">
+    <section role="dialog" aria-modal="false" aria-labelledby="cx" style="{{S.card}}">
+      <span id="cx" style="font:600 17px Outfit,sans-serif">If you cancel</span>
+      <div style="{{S.li}}"><span style="{{S.dot}}"></span>Private stays on until Oct 9, 2027, then Free</div>
+      <div style="{{S.li}}"><span style="{{S.dot}}"></span>Nothing is deleted. Jars beyond 3 become read-only</div>
+      <div style="{{S.li}}"><span style="{{S.dot}}"></span>Encrypted backup stops — export a copy first</div>
+      <div style="display:flex;gap:8px;margin-top:6px"><button onClick="{{keep}}" style="{{S.keep}}">Keep Private</button><button style="{{S.confirm}}">Cancel plan</button></div>
+    </section>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { asking: false }; }
+  renderVals() {
+    const dark = !!this.props.dark, a = this.state.asking;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', tint: '#1E2433', acc: '#8FA2FF', danger: '#FF6B7D' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE', danger: '#C4122F' };
+    const row = 'display:flex;align-items:center;gap:10px;min-height:62px;';
+    const btn = 'flex:1;min-height:48px;border-radius:14px;cursor:pointer;font:600 15px Outfit,sans-serif;';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:24px 18px 28px;display:flex;flex-direction:column;gap:12px;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      icon: 'width:44px;height:44px;flex-shrink:0;border-radius:50%;background:' + m.card + ';display:flex;align-items:center;justify-content:center',
+      hero: 'display:flex;flex-direction:column;gap:4px;padding:18px;border-radius:22px;background:#3D5AFE;color:#FFFFFF',
+      list: 'display:flex;flex-direction:column;padding:0 16px;border-radius:20px;background:' + m.card,
+      row: row + 'border-bottom:1px solid ' + m.line, rowLast: row,
+      wait: 'font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:' + m.tint + ';color:' + m.acc,
+      cancel: 'min-height:52px;border-radius:16px;cursor:pointer;background:transparent;border:1px solid ' + m.line + ';color:' + m.danger + ';font:600 15px Outfit,sans-serif',
+      card: 'display:flex;flex-direction:column;gap:8px;padding:16px;border-radius:20px;background:' + m.card + ';border:1px solid ' + m.line,
+      li: 'display:flex;align-items:center;gap:10px;font-size:14px', dot: 'width:7px;height:7px;border-radius:50%;flex-shrink:0;background:' + m.sub,
+      keep: btn + 'border:0;background:#3D5AFE;color:#FFFFFF', confirm: btn + 'background:transparent;border:1px solid ' + m.line + ';color:' + m.danger
+    };
+    return { S, m, idle: !a, asking: a, ask: () => this.setState({ asking: true }), keep: () => this.setState({ asking: false }) };
+  }
+}
+</script>
+</body>
+</html>

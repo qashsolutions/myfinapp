@@ -1,0 +1,19 @@
+{
+  "stalled": false,
+  "months": 0,
+  "debt_free_month": "2026-10",
+  "monthly_budget_cents": 2500,
+  "total_interest_cents": 0,
+  "total_paid_cents": 0,
+  "series_cents": [],
+  "order": [
+    {
+      "id": "z",
+      "label": "Old card",
+      "rank": 1,
+      "payoff_month": "2026-10",
+      "months": 0,
+      "interest_cents": 0
+    }
+  ]
+}

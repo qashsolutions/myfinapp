@@ -1,0 +1,19 @@
+{
+  "debts": [
+    {
+      "id": "c1",
+      "label": "Card",
+      "balance_cents": 100000,
+      "apr_bps": 2400,
+      "min_payment_cents": 2500
+    }
+  ],
+  "offer": {
+    "apr_bps": 1200,
+    "fee_bps": 0,
+    "promo_months": 0,
+    "promo_apr_bps": 0
+  },
+  "payment_cents": 50000,
+  "as_of": "2026-10-11"
+}

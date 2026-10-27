@@ -1,0 +1,12 @@
+---
+import PageHero from "../components/PageHero.astro";
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="Page not found" description="This page doesn't exist.">
+  <PageHero pill="404" title="This page" accent="doesn't exist" lede="It may have moved." />
+  <p class="ph__actions">
+    <a class="button" href="/">Home</a>
+    <a class="button button--secondary" href="/support">Support</a>
+  </p>
+</Base>

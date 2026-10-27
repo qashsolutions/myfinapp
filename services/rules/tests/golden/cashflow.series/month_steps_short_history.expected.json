@@ -1,0 +1,50 @@
+{
+  "start": "2026-08-01",
+  "end": "2026-10-20",
+  "step": "month",
+  "steps": [
+    {
+      "start": "2026-08-01",
+      "end": "2026-08-31",
+      "in_cents": 0,
+      "out_cents": 2000,
+      "net_cents": -2000,
+      "count": 1
+    },
+    {
+      "start": "2026-09-01",
+      "end": "2026-09-30",
+      "in_cents": 300000,
+      "out_cents": 49000,
+      "net_cents": 251000,
+      "count": 3
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2026-10-20",
+      "in_cents": 0,
+      "out_cents": 3000,
+      "net_cents": -3000,
+      "count": 1
+    }
+  ],
+  "in_cents": 300000,
+  "out_cents": 54000,
+  "net_cents": 246000,
+  "count": 5,
+  "by_category": [
+    {
+      "category_id": "cat-rent",
+      "out_cents": 50000
+    },
+    {
+      "category_id": "cat-dining",
+      "out_cents": 4000
+    }
+  ],
+  "active_months": 3,
+  "avg_in_cents": 100000,
+  "avg_out_cents": 18000,
+  "avg_net_cents": 82000,
+  "first_date": "2026-07-30"
+}

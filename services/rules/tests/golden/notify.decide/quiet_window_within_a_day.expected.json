@@ -1,0 +1,5 @@
+{
+  "action": "defer",
+  "reason": "quiet_hours",
+  "send_at_local": "2026-10-22T14:00"
+}

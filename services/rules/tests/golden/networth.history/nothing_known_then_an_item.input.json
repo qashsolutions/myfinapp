@@ -1,0 +1,27 @@
+{
+  "dates": [
+    "2026-09-30",
+    "2026-10-20"
+  ],
+  "accounts": [
+    {
+      "id": "cash",
+      "anchors": [],
+      "entries": [
+        {
+          "date": "2026-09-01",
+          "amount_cents": 1000,
+          "direction": "in"
+        }
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "fund",
+      "kind": "asset",
+      "value_cents": 5000,
+      "since": "2026-10-01"
+    }
+  ]
+}

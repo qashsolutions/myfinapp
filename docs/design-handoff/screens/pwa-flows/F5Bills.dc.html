@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 5 — Bills and debt</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;align-items:center;gap:10px">
+    <a href="F3Home.dc.html" aria-label="Back" style="{{S.icon}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+    <span style="flex:1;font:700 22px Outfit,sans-serif">Bills &amp; debt</span>
+    <button style="{{S.small}}">+ Add</button>
+  </header>
+
+  <div style="{{S.seg}}" role="group" aria-label="View">
+    <button onClick="{{showBills}}" aria-pressed="{{bSel}}" style="{{S.sB}}">Bills</button>
+    <button onClick="{{showDebt}}" aria-pressed="{{dSel}}" style="{{S.sD}}">Debt payoff</button>
+  </div>
+
+  <sc-if value="{{isBills}}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <section style="{{S.sugg}}">
+        <span style="font-size:12px;font-weight:600;color:{{m.sub}}">Looks recurring · found in your statements</span>
+        <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;font-size:15px">STREAMCO · $15.49 monthly</span><span style="font-size:13px;color:{{m.sub}}">next ~Oct 21</span></div>
+        <div style="display:flex;gap:8px"><button onClick="{{confirm}}" style="{{S.yes}}">{{confirmLabel}}</button><button style="{{S.no}}">Not a bill</button></div>
+      </section>
+      <section style="{{S.card}}">
+        <sc-for list="{{bills}}" as="b" hint-placeholder-count="5">
+          <div style="{{S.row}}"><span style="width:52px;font-size:12px;font-weight:600;color:{{m.sub}}">{{b.d}}</span><span style="flex:1;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:600">{{b.n}}</span><span style="font-size:12px;color:{{m.sub}}">{{b.k}}</span></span><span style="font-weight:600;font-variant-numeric:tabular-nums">{{b.v}}</span></div>
+        </sc-for>
+      </section>
+      <span style="font-size:12px;color:{{m.sub}};text-align:center">Bills feed your upcoming-expense alerts and 30-day forecast.</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isDebt}}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span style="font-size:14px;color:{{m.sub}};line-height:1.45">Avalanche order: pay minimums on everything, then put every extra dollar on the highest rate first.</span>
+      <sc-for list="{{debts}}" as="d" hint-placeholder-count="3">
+        <div style="{{d.card}}">
+          <div style="display:flex;justify-content:space-between;align-items:center"><span style="display:flex;align-items:center;gap:8px"><span style="{{d.rankSt}}">{{d.r}}</span><span style="font:600 16px Outfit,sans-serif">{{d.n}}</span></span><span style="font-weight:700;font-variant-numeric:tabular-nums">{{d.b}}</span></div>
+          <span style="font-size:13px;color:{{m.sub}}">{{d.s}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { tab: 'bills', ok: false }; }
+  renderVals() {
+    const dark = !!this.props.dark, st = this.state, bills = st.tab === 'bills';
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', tint: '#1E2433', acc: '#8FA2FF' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE' };
+    const seg = (on) => 'flex:1;min-height:44px;border:0;border-radius:12px;cursor:pointer;font:600 14px Outfit,sans-serif;' + (on ? 'background:' + m.card + ';color:' + m.ink + ';box-shadow:0 2px 6px rgba(0,0,0,0.12)' : 'background:transparent;color:' + m.sub);
+    const B = [['Oct 12', 'Phone bill', 'Monthly · checking', 45], ['Oct 14', 'Car insurance', 'Monthly · checking', 180], ['Oct 22', 'Utilities', 'Monthly · varies ±10%', 165], ['Oct 25', 'Rent', 'Monthly · checking', 1650]];
+    const list = B.map(([d, n, k, v]) => ({ d, n, k, v: '$' + v.toLocaleString('en-US') }));
+    if (st.ok) list.splice(3, 0, { d: 'Oct 21', n: 'STREAMCO', k: 'Monthly · card', v: '$15.49' });
+    const D = [['Card A', '27.99% APR · min $72', 2400, true], ['Store card', '24.90% APR · min $25', 600, false], ['Car loan', '6.40% APR · min $310', 8200, false]];
+    const debts = D.map(([n, s, b, first], i) => ({ n, s: first ? s + ' · extra payments go here' : s, r: i + 1, b: '$' + b.toLocaleString('en-US'),
+      card: 'display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:18px;background:' + m.card + (first ? ';border:2px solid #3D5AFE' : ''),
+      rankSt: 'width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px Outfit,sans-serif;' + (first ? 'background:#3D5AFE;color:#FFFFFF' : 'background:' + m.tint + ';color:' + m.acc) }));
+    const btn = 'flex:1;min-height:44px;border-radius:12px;cursor:pointer;font:600 14px Outfit,sans-serif;';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:24px 18px 28px;display:flex;flex-direction:column;gap:12px;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      icon: 'width:44px;height:44px;flex-shrink:0;border-radius:50%;background:' + m.card + ';display:flex;align-items:center;justify-content:center',
+      small: 'min-height:44px;padding:0 14px;border:0;border-radius:12px;cursor:pointer;background:' + m.card + ';font:600 14px Outfit,sans-serif;color:' + m.acc,
+      seg: 'display:flex;gap:4px;padding:4px;border-radius:14px;background:' + (dark ? '#1C1F28' : '#E7E9EF'), sB: seg(bills), sD: seg(!bills),
+      sugg: 'display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:18px;background:' + m.card + ';border:1px dashed ' + m.acc,
+      yes: btn + 'border:0;background:#3D5AFE;color:#FFFFFF', no: btn + 'background:transparent;color:' + m.ink + ';border:1px solid ' + m.line,
+      card: 'display:flex;flex-direction:column;padding:0 16px;border-radius:20px;background:' + m.card,
+      row: 'display:flex;align-items:center;gap:10px;min-height:58px;border-bottom:1px solid ' + m.line
+    };
+    return { S, m, bills: list, debts, isBills: bills, isDebt: !bills, bSel: bills ? 'true' : 'false', dSel: bills ? 'false' : 'true',
+      confirmLabel: st.ok ? 'Added ✓' : 'Yes, it\u2019s a bill', confirm: () => this.setState({ ok: true }),
+      showBills: () => this.setState({ tab: 'bills' }), showDebt: () => this.setState({ tab: 'debt' }) };
+  }
+}
+</script>
+</body>
+</html>

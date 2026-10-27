@@ -1,0 +1,11 @@
+{
+  "deposits": [
+    {
+      "date": "2026-10-03",
+      "amount_cents": 2500
+    }
+  ],
+  "as_of": "2026-10-10",
+  "target_cents": null,
+  "paydays": []
+}

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 3 — Money in and out</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;align-items:center;gap:10px">
+    <a href="F3Home.dc.html" aria-label="Back" style="{{S.icon}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+    <span style="flex:1;font:700 22px Outfit,sans-serif">Money in &amp; out</span>
+    <a href="F3Import.dc.html" style="{{S.small}}">Import</a>
+  </header>
+
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <button aria-label="Previous month" style="{{S.icon}}">‹</button>
+    <span style="font:600 17px Outfit,sans-serif">October 2026</span>
+    <button aria-label="Next month" style="{{S.icon}}">›</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+    <div style="{{S.stat}}"><span style="font-size:12px;color:{{m.sub}}">In</span><span style="{{S.inV}}">+$5,200</span></div>
+    <div style="{{S.stat}}"><span style="font-size:12px;color:{{m.sub}}">Out</span><span style="{{S.outV}}">−$4,788</span></div>
+    <div style="{{S.statNet}}"><span style="font-size:12px;opacity:0.9">Kept</span><span style="font:700 18px Outfit,sans-serif;font-variant-numeric:tabular-nums">$412</span></div>
+  </div>
+  <span style="font-size:12px;color:{{m.sub}}">vs September: you kept <b style="color:{{m.good}}">$96 more</b> · transfers excluded ($1,200 card payment)</span>
+
+  <div style="{{S.seg}}" role="group" aria-label="View">
+    <button onClick="{{showCats}}" aria-pressed="{{catSel}}" style="{{S.sC}}">Categories</button>
+    <button onClick="{{showTx}}" aria-pressed="{{txSel}}" style="{{S.sT}}">Transactions</button>
+  </div>
+
+  <sc-if value="{{isCats}}" hint-placeholder-val="{{ true }}">
+    <section style="{{S.card}}">
+      <sc-for list="{{cats}}" as="c" hint-placeholder-count="7">
+        <div style="display:flex;flex-direction:column;gap:6px;padding:7px 0">
+          <div style="display:flex;justify-content:space-between;font-size:14px"><span style="font-weight:600">{{c.n}}</span><span style="font-variant-numeric:tabular-nums">{{c.v}}</span></div>
+          <div style="height:6px;border-radius:3px;background:{{m.line}};overflow:hidden"><div style="{{c.bar}}"></div></div>
+        </div>
+      </sc-for>
+    </section>
+  </sc-if>
+  <sc-if value="{{isTx}}" hint-placeholder-val="{{ false }}">
+    <section style="{{S.card}}">
+      <sc-for list="{{tx}}" as="t" hint-placeholder-count="7">
+        <div style="{{t.row}}">
+          <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">{{t.n}}</span><span style="font-size:12px;color:{{m.sub}}">{{t.s}}</span></div>
+          <span style="{{t.vSt}}">{{t.v}}</span>
+        </div>
+      </sc-for>
+    </section>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { view: 'cats' }; }
+  renderVals() {
+    const dark = !!this.props.dark, cats = this.state.view === 'cats';
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', acc: '#8FA2FF', good: '#6FD39B', bad: '#FFB547' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', acc: '#3D5AFE', good: '#1E7A4C', bad: '#A85A00' };
+    const seg = (on) => 'flex:1;min-height:44px;border:0;border-radius:12px;cursor:pointer;font:600 14px Outfit,sans-serif;' + (on ? 'background:' + m.card + ';color:' + m.ink + ';box-shadow:0 2px 6px rgba(0,0,0,0.12)' : 'background:transparent;color:' + m.sub);
+    const stat = 'display:flex;flex-direction:column;gap:2px;padding:12px;border-radius:16px;background:' + m.card;
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:24px 18px;display:flex;flex-direction:column;gap:12px;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      icon: 'width:44px;height:44px;flex-shrink:0;border:0;border-radius:50%;cursor:pointer;background:' + m.card + ';color:' + m.ink + ';display:flex;align-items:center;justify-content:center;font:600 22px Outfit,sans-serif',
+      small: 'min-height:44px;padding:0 14px;display:flex;align-items:center;border-radius:12px;background:' + m.card + ';font:600 14px Outfit,sans-serif;color:' + m.acc,
+      stat, statNet: stat.replace('background:' + m.card, 'background:#3D5AFE;color:#FFFFFF'),
+      inV: 'font:700 18px Outfit,sans-serif;font-variant-numeric:tabular-nums;color:' + m.good,
+      outV: 'font:700 18px Outfit,sans-serif;font-variant-numeric:tabular-nums',
+      seg: 'display:flex;gap:4px;padding:4px;border-radius:14px;background:' + (dark ? '#1C1F28' : '#E7E9EF'),
+      sC: seg(cats), sT: seg(!cats),
+      card: 'display:flex;flex-direction:column;padding:8px 16px;border-radius:20px;background:' + m.card
+    };
+    const C = [['Rent', 1650], ['Groceries', 612], ['Fun', 450], ['Debt payments', 400], ['Shopping', 340], ['Dining', 284], ['5 more categories', 1052]];
+    const cats_ = C.map(([n, v]) => ({ n, v: '$' + v.toLocaleString('en-US'), bar: 'width:' + Math.round(v / 1650 * 100) + '%;height:100%;background:' + (n.indexOf('more') > -1 ? m.sub : '#3D5AFE') }));
+    const T = [['Paycheck', 'Oct 2 · Checking ••4821 · Income', 2400, 0], ['Corner Market', 'Oct 7 · Card ••1173 · Groceries', -42.17, 0], ['Card payment', 'Oct 6 · Checking → Card · Transfer', -1200, 1], ['Rent', 'Oct 1 · Checking ••4821 · Rent', -1650, 0], ['Bus pass', 'Oct 7 · Card ••1173 · Transport', -2.75, 0], ['Uncategorized', 'Oct 5 · Card ••1173 · Tap to categorize', -18.4, 2], ['Paycheck', 'Sep 18 · Checking ••4821 · Income', 2400, 0]];
+    const tx = T.map(([n, s, v, k]) => ({ n, s, v: (v > 0 ? '+$' : '−$') + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2 }),
+      row: 'display:flex;align-items:center;gap:10px;min-height:58px;border-bottom:1px solid ' + m.line + (k === 1 ? ';opacity:0.55' : ''),
+      vSt: 'font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:' + (k === 2 ? m.bad : v > 0 ? m.good : m.ink) }));
+    return { S, m, cats: cats_, tx, isCats: cats, isTx: !cats, catSel: cats ? 'true' : 'false', txSel: cats ? 'false' : 'true',
+      showCats: () => this.setState({ view: 'cats' }), showTx: () => this.setState({ view: 'tx' }) };
+  }
+}
+</script>
+</body>
+</html>

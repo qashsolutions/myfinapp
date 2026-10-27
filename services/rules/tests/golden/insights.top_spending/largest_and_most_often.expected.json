@@ -1,0 +1,46 @@
+{
+  "largest": [
+    {
+      "id": "d",
+      "date": "2026-10-03",
+      "amount_cents": 120000,
+      "payee": "City Rent"
+    },
+    {
+      "id": "g",
+      "date": "2026-10-18",
+      "amount_cents": 25000,
+      "payee": "Delta Air"
+    },
+    {
+      "id": "f",
+      "date": "2026-10-15",
+      "amount_cents": 8999,
+      "payee": "Costco"
+    }
+  ],
+  "merchants": [
+    {
+      "key": "BLUE BOTTLE",
+      "name": "BLUE BOTTLE",
+      "count": 3,
+      "total_cents": 1450,
+      "last_date": "2026-10-09"
+    },
+    {
+      "key": "COSTCO",
+      "name": "Costco",
+      "count": 2,
+      "total_cents": 17998,
+      "last_date": "2026-10-15"
+    },
+    {
+      "key": "CITY RENT",
+      "name": "City Rent",
+      "count": 1,
+      "total_cents": 120000,
+      "last_date": "2026-10-03"
+    }
+  ],
+  "count": 8
+}

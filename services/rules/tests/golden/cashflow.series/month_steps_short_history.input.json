@@ -1,0 +1,87 @@
+{
+  "start": "2026-08-01",
+  "end": "2026-10-20",
+  "step": "month",
+  "entries": [
+    {
+      "id": "a",
+      "date": "2026-07-30",
+      "amount_cents": 100000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-pay",
+      "category_kind": "income",
+      "account_id": "chk"
+    },
+    {
+      "id": "b",
+      "date": "2026-08-15",
+      "amount_cents": 2000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "chk"
+    },
+    {
+      "id": "c",
+      "date": "2026-09-01",
+      "amount_cents": 300000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-pay",
+      "category_kind": "income",
+      "account_id": "chk"
+    },
+    {
+      "id": "d",
+      "date": "2026-09-10",
+      "amount_cents": 50000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-rent",
+      "category_kind": "expense",
+      "account_id": "chk"
+    },
+    {
+      "id": "e",
+      "date": "2026-09-12",
+      "amount_cents": 1000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "chk"
+    },
+    {
+      "id": "f",
+      "date": "2026-09-20",
+      "amount_cents": 20000,
+      "direction": "out",
+      "is_transfer": true,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "chk"
+    },
+    {
+      "id": "g",
+      "date": "2026-10-20",
+      "amount_cents": 3000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "chk"
+    },
+    {
+      "id": "h",
+      "date": "2026-10-21",
+      "amount_cents": 9999,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "chk"
+    }
+  ]
+}

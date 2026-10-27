@@ -1,0 +1,25 @@
+{
+  "dates": [
+    "2026-09-18",
+    "2026-09-19"
+  ],
+  "accounts": [
+    {
+      "id": "card",
+      "anchors": [
+        {
+          "as_of": "2026-09-30",
+          "balance_cents": -40000
+        }
+      ],
+      "entries": [
+        {
+          "date": "2026-09-20",
+          "amount_cents": 10000,
+          "direction": "out"
+        }
+      ]
+    }
+  ],
+  "items": []
+}

@@ -1,0 +1,37 @@
+{
+  "start": "2025-11-15",
+  "end": "2026-04-10",
+  "step": "quarter",
+  "entries": [
+    {
+      "id": "a",
+      "date": "2025-12-01",
+      "amount_cents": 1000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "chk"
+    },
+    {
+      "id": "b",
+      "date": "2026-02-28",
+      "amount_cents": 2001,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "chk"
+    },
+    {
+      "id": "c",
+      "date": "2026-04-10",
+      "amount_cents": 5000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-pay",
+      "category_kind": "income",
+      "account_id": "chk"
+    }
+  ]
+}

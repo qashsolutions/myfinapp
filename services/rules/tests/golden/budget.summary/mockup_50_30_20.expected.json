@@ -1,0 +1,98 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-31",
+  "method": "50_30_20",
+  "take_home_cents": 520000,
+  "buckets": [
+    {
+      "bucket": "need",
+      "planned_cents": 260000,
+      "spent_cents": 306200,
+      "left_cents": -46200
+    },
+    {
+      "bucket": "want",
+      "planned_cents": 156000,
+      "spent_cents": 132600,
+      "left_cents": 23400
+    },
+    {
+      "bucket": "save",
+      "planned_cents": 104000,
+      "spent_cents": 40000,
+      "left_cents": 64000
+    }
+  ],
+  "categories": [
+    {
+      "category_id": "cat-rent",
+      "bucket": "need",
+      "planned_cents": null,
+      "spent_cents": 165000
+    },
+    {
+      "category_id": "cat-groceries",
+      "bucket": "need",
+      "planned_cents": null,
+      "spent_cents": 61200
+    },
+    {
+      "category_id": "cat-fun",
+      "bucket": "want",
+      "planned_cents": null,
+      "spent_cents": 45000
+    },
+    {
+      "category_id": "cat-debt-payoff",
+      "bucket": "save",
+      "planned_cents": null,
+      "spent_cents": 40000
+    },
+    {
+      "category_id": "cat-shopping",
+      "bucket": "want",
+      "planned_cents": null,
+      "spent_cents": 34000
+    },
+    {
+      "category_id": "cat-utilities",
+      "bucket": "need",
+      "planned_cents": null,
+      "spent_cents": 32500
+    },
+    {
+      "category_id": "cat-dining",
+      "bucket": "want",
+      "planned_cents": null,
+      "spent_cents": 28400
+    },
+    {
+      "category_id": "cat-transport",
+      "bucket": "need",
+      "planned_cents": null,
+      "spent_cents": 27500
+    },
+    {
+      "category_id": "cat-insurance",
+      "bucket": "need",
+      "planned_cents": null,
+      "spent_cents": 20000
+    },
+    {
+      "category_id": "cat-subscriptions",
+      "bucket": "want",
+      "planned_cents": null,
+      "spent_cents": 15000
+    },
+    {
+      "category_id": "cat-other",
+      "bucket": "want",
+      "planned_cents": null,
+      "spent_cents": 10200
+    }
+  ],
+  "uncategorized_cents": 0,
+  "total_spent_cents": 478800,
+  "left_to_assign_cents": null,
+  "kept_cents": 41200
+}

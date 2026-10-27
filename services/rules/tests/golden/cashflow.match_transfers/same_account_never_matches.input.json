@@ -1,0 +1,24 @@
+{
+  "entries": [
+    {
+      "id": "o1",
+      "date": "2026-10-06",
+      "amount_cents": 15000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "acct-chk"
+    },
+    {
+      "id": "i1",
+      "date": "2026-10-06",
+      "amount_cents": 15000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "acct-chk"
+    }
+  ]
+}

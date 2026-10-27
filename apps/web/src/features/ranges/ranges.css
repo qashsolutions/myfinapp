@@ -1,0 +1,151 @@
+/* Time ranges (October 20, 2026). */
+.range-picker {
+  display: flex;
+  gap: 4px;
+  border: 0;
+  margin: 0;
+  padding: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c-ink) 5%, var(--c-card));
+}
+.range-picker__option {
+  flex: 1;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 7px 0;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-sub);
+  cursor: pointer;
+}
+.range-picker__input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.range-picker__option:has(.range-picker__input:checked) {
+  background: var(--c-card);
+  color: var(--c-ink);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--c-ink) 14%, transparent);
+}
+.range-picker__option:has(.range-picker__input:focus-visible) {
+  outline: 2px solid var(--c-a1);
+  outline-offset: 1px;
+}
+
+.range-bars {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  height: 128px;
+  padding-top: 4px;
+}
+.range-bars__step {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+.range-bars__step--pick {
+  cursor: pointer;
+}
+.range-bars__step--pick:hover {
+  background: color-mix(in srgb, var(--c-ink) 4%, transparent);
+}
+.range-bars__pair {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+}
+.range-bars__bar {
+  width: min(14px, 40%);
+  border-radius: 4px 4px 1px 1px;
+}
+.range-bars__bar--in {
+  background: var(--c-success);
+}
+.range-bars__bar--out {
+  background: var(--c-danger);
+}
+.range-bars__label {
+  min-height: 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-sub);
+  white-space: nowrap;
+}
+.range-key {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--c-sub);
+}
+.range-key span::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-radius: 2px;
+  background: var(--c-success);
+}
+.range-key span + span::before {
+  background: var(--c-danger);
+}
+.range-note {
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.range-change--up {
+  color: var(--c-success);
+}
+.range-change--down {
+  color: var(--c-danger);
+}
+.range-h {
+  margin: 8px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+/* Earlier / Later (October 25, 2026). */
+.range-stepper {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+.range-stepper__label {
+  text-align: center;
+  font-weight: 700;
+}
+.range-stepper__btn {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  color: var(--c-a1);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.range-stepper__btn:disabled {
+  color: var(--c-sub);
+  cursor: default;
+  opacity: 0.5;
+}

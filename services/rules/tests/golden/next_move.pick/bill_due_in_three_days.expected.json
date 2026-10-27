@@ -1,0 +1,9 @@
+{
+  "id": "bill_due",
+  "params": {
+    "label": "Phone bill",
+    "date": "2026-10-13",
+    "amount_cents": 4500,
+    "days": 3
+  }
+}

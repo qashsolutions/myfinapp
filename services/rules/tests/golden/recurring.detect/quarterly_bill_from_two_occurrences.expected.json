@@ -1,0 +1,18 @@
+{
+  "series": [
+    {
+      "payee": "GEICO",
+      "kind": "bill",
+      "direction": "out",
+      "expected_cents": 78000,
+      "interval": "quarterly",
+      "last_date": "2026-04-15",
+      "next_date": "2026-07-15",
+      "occurrences": 2,
+      "entry_ids": [
+        "g1",
+        "g2"
+      ]
+    }
+  ]
+}

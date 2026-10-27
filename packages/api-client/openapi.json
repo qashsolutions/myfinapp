@@ -1,0 +1,6671 @@
+{
+  "components": {
+    "schemas": {
+      "AccountOut": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "look": {
+            "title": "Look",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "display_name",
+          "look"
+        ],
+        "title": "AccountOut",
+        "type": "object"
+      },
+      "AccountPatch": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "look": {
+            "anyOf": [
+              {
+                "enum": [
+                  "modern",
+                  "minimal",
+                  "retro",
+                  "pastel",
+                  "anime",
+                  "illustrative"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Look"
+          }
+        },
+        "title": "AccountPatch",
+        "type": "object"
+      },
+      "Ack": {
+        "properties": {
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "received": {
+            "title": "Received",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "received",
+          "outcome"
+        ],
+        "title": "Ack",
+        "type": "object"
+      },
+      "ActivityOut": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "device_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Label"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "kind"
+        ],
+        "title": "ActivityOut",
+        "type": "object"
+      },
+      "ApproveIn": {
+        "properties": {
+          "code": {
+            "pattern": "^[A-Za-z2-9\\- ]{8,11}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "confirm_different_network": {
+            "default": false,
+            "title": "Confirm Different Network",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "ApproveIn",
+        "type": "object"
+      },
+      "AssertOptionsRequest": {
+        "properties": {
+          "prf_salt": {
+            "anyOf": [
+              {
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prf Salt"
+          },
+          "purpose": {
+            "default": "unlock",
+            "enum": [
+              "unlock",
+              "step_up",
+              "sign_in"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          }
+        },
+        "title": "AssertOptionsRequest",
+        "type": "object"
+      },
+      "AssertResult": {
+        "properties": {
+          "locked": {
+            "default": false,
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "passkey_verified_at": {
+            "format": "date-time",
+            "title": "Passkey Verified At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "passkey_verified_at"
+        ],
+        "title": "AssertResult",
+        "type": "object"
+      },
+      "AssertVerifyRequest": {
+        "properties": {
+          "credential": {
+            "additionalProperties": true,
+            "title": "Credential",
+            "type": "object"
+          }
+        },
+        "required": [
+          "credential"
+        ],
+        "title": "AssertVerifyRequest",
+        "type": "object"
+      },
+      "BackupBlobIn": {
+        "properties": {
+          "ciphertext": {
+            "maxLength": 11184818,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Ciphertext",
+            "type": "string"
+          },
+          "key_version": {
+            "minimum": 1.0,
+            "title": "Key Version",
+            "type": "integer"
+          },
+          "snapshot_at": {
+            "format": "date-time",
+            "title": "Snapshot At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ciphertext",
+          "key_version",
+          "snapshot_at"
+        ],
+        "title": "BackupBlobIn",
+        "type": "object"
+      },
+      "BackupBlobOut": {
+        "properties": {
+          "ciphertext": {
+            "title": "Ciphertext",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "device_label": {
+            "title": "Device Label",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key_version": {
+            "title": "Key Version",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "snapshot_at": {
+            "format": "date-time",
+            "title": "Snapshot At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "size",
+          "key_version",
+          "snapshot_at",
+          "device_label",
+          "ciphertext"
+        ],
+        "title": "BackupBlobOut",
+        "type": "object"
+      },
+      "BackupOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "device_label": {
+            "title": "Device Label",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key_version": {
+            "title": "Key Version",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "snapshot_at": {
+            "format": "date-time",
+            "title": "Snapshot At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "size",
+          "key_version",
+          "snapshot_at",
+          "device_label"
+        ],
+        "title": "BackupOut",
+        "type": "object"
+      },
+      "BackupStatus": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/DeviceSync"
+            },
+            "title": "Devices",
+            "type": "array"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KeyOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BackupOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "enabled",
+          "available",
+          "key",
+          "latest",
+          "devices"
+        ],
+        "title": "BackupStatus",
+        "type": "object"
+      },
+      "BillingOut": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "cancel_at_period_end": {
+            "title": "Cancel At Period End",
+            "type": "boolean"
+          },
+          "downgrade_after_days": {
+            "default": 30,
+            "title": "Downgrade After Days",
+            "type": "integer"
+          },
+          "downgrade_from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Downgrade From"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "entitlements": {
+            "additionalProperties": true,
+            "title": "Entitlements",
+            "type": "object"
+          },
+          "founding": {
+            "additionalProperties": true,
+            "title": "Founding",
+            "type": "object"
+          },
+          "has_customer": {
+            "title": "Has Customer",
+            "type": "boolean"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "payment_pending": {
+            "default": false,
+            "title": "Payment Pending",
+            "type": "boolean"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "prices": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PriceOut"
+            },
+            "title": "Prices",
+            "type": "object"
+          },
+          "renews_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Renews At"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "store_products": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Store Products",
+            "type": "object"
+          },
+          "tester": {
+            "default": false,
+            "title": "Tester",
+            "type": "boolean"
+          },
+          "tester_plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tester Plan"
+          },
+          "trials": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "default": {},
+            "title": "Trials",
+            "type": "object"
+          }
+        },
+        "required": [
+          "plan",
+          "label",
+          "status",
+          "source",
+          "interval",
+          "renews_at",
+          "ends_at",
+          "cancel_at_period_end",
+          "available",
+          "has_customer",
+          "prices",
+          "founding",
+          "entitlements",
+          "store_products"
+        ],
+        "title": "BillingOut",
+        "type": "object"
+      },
+      "BlobSaved": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "version",
+          "updated_at"
+        ],
+        "title": "BlobSaved",
+        "type": "object"
+      },
+      "CancelIn": {
+        "properties": {
+          "consent": {
+            "$ref": "#/components/schemas/ConsentIn"
+          }
+        },
+        "required": [
+          "consent"
+        ],
+        "title": "CancelIn",
+        "type": "object"
+      },
+      "CardDetail": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "apr_bps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apr Bps"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "is_overdue": {
+            "title": "Is Overdue",
+            "type": "boolean"
+          },
+          "last_payment_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Payment Cents"
+          },
+          "last_payment_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Payment Date"
+          },
+          "limit_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Cents"
+          },
+          "minimum_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum Cents"
+          },
+          "statement_balance_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statement Balance Cents"
+          },
+          "statement_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statement Date"
+          }
+        },
+        "required": [
+          "account_id",
+          "statement_balance_cents",
+          "statement_date",
+          "due_date",
+          "minimum_cents",
+          "last_payment_cents",
+          "last_payment_date",
+          "limit_cents",
+          "apr_bps",
+          "is_overdue"
+        ],
+        "title": "CardDetail",
+        "type": "object"
+      },
+      "CardsOut": {
+        "properties": {
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/CardDetail"
+            },
+            "title": "Cards",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cards"
+        ],
+        "title": "CardsOut",
+        "type": "object"
+      },
+      "ChangeIn": {
+        "properties": {
+          "consent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConsentIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "interval": {
+            "enum": [
+              "monthly",
+              "yearly"
+            ],
+            "title": "Interval",
+            "type": "string"
+          },
+          "plan": {
+            "enum": [
+              "private",
+              "connected"
+            ],
+            "title": "Plan",
+            "type": "string"
+          },
+          "proration_date": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proration Date"
+          }
+        },
+        "required": [
+          "plan",
+          "interval"
+        ],
+        "title": "ChangeIn",
+        "type": "object"
+      },
+      "ChangePreviewOut": {
+        "properties": {
+          "credit_after_cents": {
+            "title": "Credit After Cents",
+            "type": "integer"
+          },
+          "disconnects_banks": {
+            "title": "Disconnects Banks",
+            "type": "boolean"
+          },
+          "due_now_cents": {
+            "title": "Due Now Cents",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "same",
+              "up",
+              "down"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "price_cents": {
+            "title": "Price Cents",
+            "type": "integer"
+          },
+          "proration_date": {
+            "title": "Proration Date",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "due_now_cents",
+          "credit_after_cents",
+          "price_cents",
+          "proration_date",
+          "disconnects_banks"
+        ],
+        "title": "ChangePreviewOut",
+        "type": "object"
+      },
+      "ChangeTarget": {
+        "properties": {
+          "interval": {
+            "enum": [
+              "monthly",
+              "yearly"
+            ],
+            "title": "Interval",
+            "type": "string"
+          },
+          "plan": {
+            "enum": [
+              "private",
+              "connected"
+            ],
+            "title": "Plan",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan",
+          "interval"
+        ],
+        "title": "ChangeTarget",
+        "type": "object"
+      },
+      "CheckoutIn": {
+        "properties": {
+          "consent": {
+            "$ref": "#/components/schemas/ConsentIn"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "enum": [
+                  "monthly",
+                  "yearly"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval"
+          },
+          "plan": {
+            "enum": [
+              "private",
+              "connected",
+              "founding"
+            ],
+            "title": "Plan",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan",
+          "consent"
+        ],
+        "title": "CheckoutIn",
+        "type": "object"
+      },
+      "CodeIn": {
+        "properties": {
+          "code": {
+            "pattern": "^[A-Za-z2-9\\- ]{8,11}$",
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "CodeIn",
+        "type": "object"
+      },
+      "CodeRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 12,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "CodeRequest",
+        "type": "object"
+      },
+      "CodeSent": {
+        "properties": {
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "resend_after_seconds": {
+            "title": "Resend After Seconds",
+            "type": "integer"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sent",
+          "resend_after_seconds",
+          "expires_in_seconds"
+        ],
+        "title": "CodeSent",
+        "type": "object"
+      },
+      "ConnectionOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "institution_name": {
+            "title": "Institution Name",
+            "type": "string"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          },
+          "status": {
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          },
+          "updates_available": {
+            "default": false,
+            "title": "Updates Available",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "institution_name",
+          "created_at"
+        ],
+        "title": "ConnectionOut",
+        "type": "object"
+      },
+      "ConsentIn": {
+        "description": "What the person read and ticked, as the app showed it (recorded verbatim).",
+        "properties": {
+          "accepted": {
+            "const": true,
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "agreement": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Agreement",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "version": {
+            "maxLength": 16,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "lines",
+          "agreement",
+          "accepted"
+        ],
+        "title": "ConsentIn",
+        "type": "object"
+      },
+      "ConsentOut": {
+        "properties": {
+          "agreed_at": {
+            "format": "date-time",
+            "title": "Agreed At",
+            "type": "string"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval"
+          },
+          "kind": {
+            "default": "purchase",
+            "title": "Kind",
+            "type": "string"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "price_cents": {
+            "title": "Price Cents",
+            "type": "integer"
+          },
+          "terms_text": {
+            "title": "Terms Text",
+            "type": "string"
+          },
+          "terms_version": {
+            "title": "Terms Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan",
+          "interval",
+          "price_cents",
+          "terms_version",
+          "terms_text",
+          "agreed_at"
+        ],
+        "title": "ConsentOut",
+        "type": "object"
+      },
+      "CreateGroupRequest": {
+        "properties": {
+          "month": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Month"
+          },
+          "name": {
+            "default": "",
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
+          "template_key": {
+            "default": "monthly_savings",
+            "enum": [
+              "monthly_savings",
+              "no_eat_out_week",
+              "dining_diet",
+              "no_spend_weekend",
+              "fifty_two_week"
+            ],
+            "title": "Template Key",
+            "type": "string"
+          }
+        },
+        "title": "CreateGroupRequest",
+        "type": "object"
+      },
+      "CreditOut": {
+        "properties": {
+          "credit_cents": {
+            "title": "Credit Cents",
+            "type": "integer"
+          },
+          "kept_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kept Until"
+          },
+          "refund_bank_fee_bps": {
+            "default": 80,
+            "title": "Refund Bank Fee Bps",
+            "type": "integer"
+          },
+          "refund_bank_fee_cap_cents": {
+            "default": 500,
+            "title": "Refund Bank Fee Cap Cents",
+            "type": "integer"
+          },
+          "refund_before_fee_cents": {
+            "default": 0,
+            "title": "Refund Before Fee Cents",
+            "type": "integer"
+          },
+          "refund_fee_bps": {
+            "default": 290,
+            "title": "Refund Fee Bps",
+            "type": "integer"
+          },
+          "refund_fee_fixed_cents": {
+            "default": 30,
+            "title": "Refund Fee Fixed Cents",
+            "type": "integer"
+          },
+          "refund_fee_method": {
+            "default": "card",
+            "enum": [
+              "card",
+              "bank"
+            ],
+            "title": "Refund Fee Method",
+            "type": "string"
+          },
+          "refund_if_deleted_cents": {
+            "title": "Refund If Deleted Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "credit_cents",
+          "refund_if_deleted_cents"
+        ],
+        "title": "CreditOut",
+        "type": "object"
+      },
+      "DeleteRequest": {
+        "properties": {
+          "confirm": {
+            "const": "DELETE",
+            "title": "Confirm",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirm"
+        ],
+        "title": "DeleteRequest",
+        "type": "object"
+      },
+      "DeviceOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "format": "date-time",
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "status": {
+            "default": "active",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "created_at",
+          "last_seen_at",
+          "current"
+        ],
+        "title": "DeviceOut",
+        "type": "object"
+      },
+      "DeviceSync": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "last_backup_at": {
+            "format": "date-time",
+            "title": "Last Backup At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "last_backup_at"
+        ],
+        "title": "DeviceSync",
+        "type": "object"
+      },
+      "EmailChangeRequest": {
+        "properties": {
+          "new_email": {
+            "format": "email",
+            "title": "New Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_email"
+        ],
+        "title": "EmailChangeRequest",
+        "type": "object"
+      },
+      "EmailIn": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "EmailIn",
+        "type": "object"
+      },
+      "EmailVerifyRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 6,
+            "minLength": 6,
+            "title": "Code",
+            "type": "string"
+          },
+          "new_email": {
+            "format": "email",
+            "title": "New Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_email",
+          "code"
+        ],
+        "title": "EmailVerifyRequest",
+        "type": "object"
+      },
+      "EndpointIn": {
+        "properties": {
+          "endpoint": {
+            "maxLength": 2000,
+            "minLength": 10,
+            "title": "Endpoint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint"
+        ],
+        "title": "EndpointIn",
+        "type": "object"
+      },
+      "ExportOut": {
+        "properties": {
+          "exported_at": {
+            "format": "date-time",
+            "title": "Exported At",
+            "type": "string"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/GroupSummary"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/PlanOut"
+          },
+          "plan_history": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PlanEventOut"
+            },
+            "title": "Plan History",
+            "type": "array"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/ExportProfile"
+          },
+          "purchase_consents": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ConsentOut"
+            },
+            "title": "Purchase Consents",
+            "type": "array"
+          }
+        },
+        "required": [
+          "exported_at",
+          "profile",
+          "groups",
+          "plan"
+        ],
+        "title": "ExportOut",
+        "type": "object"
+      },
+      "ExportProfile": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "look": {
+            "title": "Look",
+            "type": "string"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "receipt_retention": {
+            "title": "Receipt Retention",
+            "type": "string"
+          },
+          "simple_layout": {
+            "title": "Simple Layout",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "display_name",
+          "look",
+          "mode",
+          "simple_layout",
+          "receipt_retention",
+          "created_at"
+        ],
+        "title": "ExportProfile",
+        "type": "object"
+      },
+      "FinishIn": {
+        "properties": {
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "title": "FinishIn",
+        "type": "object"
+      },
+      "FinishOut": {
+        "properties": {
+          "already_linked": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Already Linked",
+            "type": "array"
+          },
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/LinkedConnection"
+            },
+            "title": "Connections",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "connections"
+        ],
+        "title": "FinishOut",
+        "type": "object"
+      },
+      "FoundingOut": {
+        "properties": {
+          "cap": {
+            "title": "Cap",
+            "type": "integer"
+          },
+          "left": {
+            "title": "Left",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cap",
+          "left"
+        ],
+        "title": "FoundingOut",
+        "type": "object"
+      },
+      "GlobalOut": {
+        "properties": {
+          "daily_max": {
+            "title": "Daily Max",
+            "type": "integer"
+          },
+          "paused_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused Until"
+          },
+          "quiet_end": {
+            "title": "Quiet End",
+            "type": "string"
+          },
+          "quiet_start": {
+            "title": "Quiet Start",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quiet_start",
+          "quiet_end",
+          "daily_max",
+          "paused_until",
+          "timezone"
+        ],
+        "title": "GlobalOut",
+        "type": "object"
+      },
+      "GlobalPatch": {
+        "properties": {
+          "daily_max": {
+            "anyOf": [
+              {
+                "maximum": 20.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Max"
+          },
+          "pause": {
+            "anyOf": [
+              {
+                "enum": [
+                  "none",
+                  "day",
+                  "week"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pause"
+          },
+          "paused_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused Until"
+          },
+          "quiet_end": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{2}:[0-9]{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet End"
+          },
+          "quiet_start": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{2}:[0-9]{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet Start"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          }
+        },
+        "title": "GlobalPatch",
+        "type": "object"
+      },
+      "GroupDetail": {
+        "properties": {
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "invite_code": {
+            "title": "Invite Code",
+            "type": "string"
+          },
+          "is_owner": {
+            "title": "Is Owner",
+            "type": "boolean"
+          },
+          "member_count": {
+            "title": "Member Count",
+            "type": "integer"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/MemberOut"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "my_progress_bps": {
+            "title": "My Progress Bps",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "template_key": {
+            "title": "Template Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "template_key",
+          "start_date",
+          "end_date",
+          "invite_code",
+          "is_owner",
+          "member_count",
+          "my_progress_bps",
+          "members"
+        ],
+        "title": "GroupDetail",
+        "type": "object"
+      },
+      "GroupPreview": {
+        "properties": {
+          "already_member": {
+            "title": "Already Member",
+            "type": "boolean"
+          },
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "member_count": {
+            "title": "Member Count",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "started_by": {
+            "title": "Started By",
+            "type": "string"
+          },
+          "template_key": {
+            "title": "Template Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "template_key",
+          "started_by",
+          "start_date",
+          "end_date",
+          "member_count",
+          "already_member"
+        ],
+        "title": "GroupPreview",
+        "type": "object"
+      },
+      "GroupSummary": {
+        "properties": {
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "invite_code": {
+            "title": "Invite Code",
+            "type": "string"
+          },
+          "is_owner": {
+            "title": "Is Owner",
+            "type": "boolean"
+          },
+          "member_count": {
+            "title": "Member Count",
+            "type": "integer"
+          },
+          "my_progress_bps": {
+            "title": "My Progress Bps",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "template_key": {
+            "title": "Template Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "template_key",
+          "start_date",
+          "end_date",
+          "invite_code",
+          "is_owner",
+          "member_count",
+          "my_progress_bps"
+        ],
+        "title": "GroupSummary",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HouseholdBlobIn": {
+        "properties": {
+          "ciphertext": {
+            "maxLength": 87389,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Ciphertext",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ciphertext",
+          "version"
+        ],
+        "title": "HouseholdBlobIn",
+        "type": "object"
+      },
+      "HouseholdBlobOut": {
+        "properties": {
+          "author_id": {
+            "format": "uuid",
+            "title": "Author Id",
+            "type": "string"
+          },
+          "ciphertext": {
+            "title": "Ciphertext",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "author_id",
+          "kind",
+          "ciphertext",
+          "version",
+          "updated_at"
+        ],
+        "title": "HouseholdBlobOut",
+        "type": "object"
+      },
+      "HouseholdMemberOut": {
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "initial": {
+            "title": "Initial",
+            "type": "string"
+          },
+          "is_me": {
+            "title": "Is Me",
+            "type": "boolean"
+          },
+          "joined_at": {
+            "format": "date-time",
+            "title": "Joined At",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "display_name",
+          "initial",
+          "is_me",
+          "joined_at"
+        ],
+        "title": "HouseholdMemberOut",
+        "type": "object"
+      },
+      "HouseholdOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "invite": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InviteOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/HouseholdMemberOut"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "owner_id": {
+            "format": "uuid",
+            "title": "Owner Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "owner_id",
+          "created_at",
+          "members",
+          "invite"
+        ],
+        "title": "HouseholdOut",
+        "type": "object"
+      },
+      "HouseholdStatus": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "household": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HouseholdOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "household",
+          "available"
+        ],
+        "title": "HouseholdStatus",
+        "type": "object"
+      },
+      "InviteOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "expires_at"
+        ],
+        "title": "InviteOut",
+        "type": "object"
+      },
+      "KeyIn": {
+        "properties": {
+          "key_version": {
+            "minimum": 1.0,
+            "title": "Key Version",
+            "type": "integer"
+          },
+          "passkey_credential_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passkey Credential Id"
+          },
+          "passkey_salt": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passkey Salt"
+          },
+          "passkey_wrapped": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passkey Wrapped"
+          },
+          "recovery_salt": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Recovery Salt",
+            "type": "string"
+          },
+          "recovery_wrapped": {
+            "maxLength": 512,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Recovery Wrapped",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key_version",
+          "recovery_wrapped",
+          "recovery_salt"
+        ],
+        "title": "KeyIn",
+        "type": "object"
+      },
+      "KeyOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "key_version": {
+            "minimum": 1.0,
+            "title": "Key Version",
+            "type": "integer"
+          },
+          "passkey_credential_id": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passkey Credential Id"
+          },
+          "passkey_salt": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passkey Salt"
+          },
+          "passkey_wrapped": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passkey Wrapped"
+          },
+          "recovery_salt": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Recovery Salt",
+            "type": "string"
+          },
+          "recovery_wrapped": {
+            "maxLength": 512,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Recovery Wrapped",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key_version",
+          "recovery_wrapped",
+          "recovery_salt",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "KeyOut",
+        "type": "object"
+      },
+      "LinkedAccount": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "mask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mask"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "subtype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtype"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "name",
+          "mask",
+          "type",
+          "subtype"
+        ],
+        "title": "LinkedAccount",
+        "type": "object"
+      },
+      "LinkedConnection": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/LinkedAccount"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "institution_name": {
+            "title": "Institution Name",
+            "type": "string"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          },
+          "status": {
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          },
+          "updates_available": {
+            "default": false,
+            "title": "Updates Available",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "institution_name",
+          "created_at",
+          "accounts"
+        ],
+        "title": "LinkedConnection",
+        "type": "object"
+      },
+      "LinkingOut": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionOut"
+            },
+            "title": "Connections",
+            "type": "array"
+          },
+          "max_connections": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Connections"
+          }
+        },
+        "required": [
+          "available",
+          "max_connections",
+          "connections"
+        ],
+        "title": "LinkingOut",
+        "type": "object"
+      },
+      "LockIn": {
+        "properties": {
+          "minutes": {
+            "maximum": 60.0,
+            "minimum": 5.0,
+            "title": "Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "minutes"
+        ],
+        "title": "LockIn",
+        "type": "object"
+      },
+      "LockOut": {
+        "properties": {
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "minutes"
+        ],
+        "title": "LockOut",
+        "type": "object"
+      },
+      "LookupOut": {
+        "properties": {
+          "device_label": {
+            "title": "Device Label",
+            "type": "string"
+          },
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "same_network": {
+            "title": "Same Network",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "device_label",
+          "requested_at",
+          "expires_in_seconds",
+          "same_network"
+        ],
+        "title": "LookupOut",
+        "type": "object"
+      },
+      "MemberOut": {
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "former": {
+            "title": "Former",
+            "type": "boolean"
+          },
+          "has_events": {
+            "title": "Has Events",
+            "type": "boolean"
+          },
+          "initial": {
+            "title": "Initial",
+            "type": "string"
+          },
+          "is_me": {
+            "title": "Is Me",
+            "type": "boolean"
+          },
+          "is_owner": {
+            "title": "Is Owner",
+            "type": "boolean"
+          },
+          "progress_bps": {
+            "title": "Progress Bps",
+            "type": "integer"
+          },
+          "reached_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reached At"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "display_name",
+          "initial",
+          "progress_bps",
+          "reached_at",
+          "has_events",
+          "is_me",
+          "is_owner",
+          "former"
+        ],
+        "title": "MemberOut",
+        "type": "object"
+      },
+      "NativeSubscriptionIn": {
+        "description": "An APNs or FCM device token from the native shell (chunk 2.3). Never money data.",
+        "properties": {
+          "platform": {
+            "enum": [
+              "ios",
+              "android"
+            ],
+            "title": "Platform",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 4096,
+            "minLength": 16,
+            "pattern": "^[A-Za-z0-9:_.\\-]+$",
+            "title": "Token",
+            "type": "string"
+          },
+          "user_agent": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Agent"
+          }
+        },
+        "required": [
+          "platform",
+          "token"
+        ],
+        "title": "NativeSubscriptionIn",
+        "type": "object"
+      },
+      "NativeSyncIn": {
+        "description": "A purchase or restore from the shell (chunk 2.4): the store's own proof.",
+        "properties": {
+          "jws": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jws"
+          },
+          "platform": {
+            "enum": [
+              "ios",
+              "android"
+            ],
+            "title": "Platform",
+            "type": "string"
+          },
+          "purchase_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Token"
+          }
+        },
+        "required": [
+          "platform"
+        ],
+        "title": "NativeSyncIn",
+        "type": "object"
+      },
+      "NativeTokenIn": {
+        "properties": {
+          "platform": {
+            "enum": [
+              "ios",
+              "android"
+            ],
+            "title": "Platform",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 4096,
+            "minLength": 16,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform",
+          "token"
+        ],
+        "title": "NativeTokenIn",
+        "type": "object"
+      },
+      "OptionsOut": {
+        "properties": {
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "options"
+        ],
+        "title": "OptionsOut",
+        "type": "object"
+      },
+      "OtpSendRequest": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "OtpSendRequest",
+        "type": "object"
+      },
+      "OtpSendResponse": {
+        "properties": {
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "resend_after_seconds": {
+            "title": "Resend After Seconds",
+            "type": "integer"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sent",
+          "resend_after_seconds",
+          "expires_in_seconds"
+        ],
+        "title": "OtpSendResponse",
+        "type": "object"
+      },
+      "OtpVerifyRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 6,
+            "minLength": 6,
+            "pattern": "^[0-9]{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "display_mode": {
+            "default": "browser",
+            "enum": [
+              "browser",
+              "standalone"
+            ],
+            "title": "Display Mode",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "code"
+        ],
+        "title": "OtpVerifyRequest",
+        "type": "object"
+      },
+      "PasskeyOptionsOut": {
+        "properties": {
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "options"
+        ],
+        "title": "PasskeyOptionsOut",
+        "type": "object"
+      },
+      "PasskeyOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "created_at",
+          "last_used_at"
+        ],
+        "title": "PasskeyOut",
+        "type": "object"
+      },
+      "PasskeySignInRequest": {
+        "properties": {
+          "credential": {
+            "additionalProperties": true,
+            "title": "Credential",
+            "type": "object"
+          },
+          "display_mode": {
+            "default": "browser",
+            "enum": [
+              "browser",
+              "standalone"
+            ],
+            "title": "Display Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "credential"
+        ],
+        "title": "PasskeySignInRequest",
+        "type": "object"
+      },
+      "PlanEventOut": {
+        "properties": {
+          "amount_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Cents"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval"
+          },
+          "kind": {
+            "enum": [
+              "trial_started",
+              "subscribed",
+              "switched",
+              "cancelled",
+              "resumed",
+              "ended"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          }
+        },
+        "required": [
+          "kind",
+          "plan",
+          "interval",
+          "amount_cents",
+          "until",
+          "at"
+        ],
+        "title": "PlanEventOut",
+        "type": "object"
+      },
+      "PlanOut": {
+        "properties": {
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval"
+          },
+          "name": {
+            "default": "free",
+            "title": "Name",
+            "type": "string"
+          },
+          "renews_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Renews At"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "title": "PlanOut",
+        "type": "object"
+      },
+      "PrefOut": {
+        "properties": {
+          "channel": {
+            "anyOf": [
+              {
+                "enum": [
+                  "push",
+                  "email",
+                  "both"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days"
+          },
+          "delivery": {
+            "anyOf": [
+              {
+                "enum": [
+                  "instant",
+                  "daily"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "lead_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Days"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold"
+          },
+          "time_of_day": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Of Day"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "PrefOut",
+        "type": "object"
+      },
+      "PrefPatch": {
+        "properties": {
+          "channel": {
+            "anyOf": [
+              {
+                "enum": [
+                  "push",
+                  "email",
+                  "both"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "pattern": "^[0-6](,[0-6])*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days"
+          },
+          "delivery": {
+            "anyOf": [
+              {
+                "enum": [
+                  "instant",
+                  "daily"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "lead_days": {
+            "anyOf": [
+              {
+                "maximum": 14.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Days"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "maximum": 4.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold"
+          },
+          "time_of_day": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{2}:[0-9]{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Of Day"
+          }
+        },
+        "title": "PrefPatch",
+        "type": "object"
+      },
+      "PreviewOut": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "initial": {
+            "title": "Initial",
+            "type": "string"
+          },
+          "invited_by": {
+            "title": "Invited By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "invited_by",
+          "initial",
+          "expires_at"
+        ],
+        "title": "PreviewOut",
+        "type": "object"
+      },
+      "PriceOut": {
+        "properties": {
+          "monthly_cents": {
+            "title": "Monthly Cents",
+            "type": "integer"
+          },
+          "yearly_cents": {
+            "title": "Yearly Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "monthly_cents",
+          "yearly_cents"
+        ],
+        "title": "PriceOut",
+        "type": "object"
+      },
+      "ProgressRequest": {
+        "properties": {
+          "progress_bps": {
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Progress Bps",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "progress_bps"
+        ],
+        "title": "ProgressRequest",
+        "type": "object"
+      },
+      "PushKeyOut": {
+        "properties": {
+          "public_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Key"
+          }
+        },
+        "required": [
+          "public_key"
+        ],
+        "title": "PushKeyOut",
+        "type": "object"
+      },
+      "PushOut": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "subscribed": {
+            "title": "Subscribed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "available",
+          "subscribed"
+        ],
+        "title": "PushOut",
+        "type": "object"
+      },
+      "PushTestOut": {
+        "properties": {
+          "delivered": {
+            "title": "Delivered",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "delivered"
+        ],
+        "title": "PushTestOut",
+        "type": "object"
+      },
+      "RegisterVerifyRequest": {
+        "properties": {
+          "credential": {
+            "additionalProperties": true,
+            "title": "Credential",
+            "type": "object"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "required": [
+          "credential"
+        ],
+        "title": "RegisterVerifyRequest",
+        "type": "object"
+      },
+      "ScheduleIn": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleItem"
+            },
+            "maxItems": 300,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ScheduleIn",
+        "type": "object"
+      },
+      "ScheduleItem": {
+        "properties": {
+          "dedupe_key": {
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9:_.-]+$",
+            "title": "Dedupe Key",
+            "type": "string"
+          },
+          "due_at": {
+            "format": "date-time",
+            "title": "Due At",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "upcoming_expense",
+              "shortfall_risk",
+              "challenge_checkin",
+              "goal_behind_pace",
+              "milestone_reached",
+              "weekly_recap"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "due_at",
+          "type",
+          "dedupe_key"
+        ],
+        "title": "ScheduleItem",
+        "type": "object"
+      },
+      "ScheduleOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "registered": {
+            "title": "Registered",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "registered",
+          "items"
+        ],
+        "title": "ScheduleOut",
+        "type": "object"
+      },
+      "ScheduleRow": {
+        "properties": {
+          "dedupe_key": {
+            "title": "Dedupe Key",
+            "type": "string"
+          },
+          "due_at": {
+            "format": "date-time",
+            "title": "Due At",
+            "type": "string"
+          },
+          "generic_label": {
+            "title": "Generic Label",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "due_at",
+          "type",
+          "generic_label",
+          "dedupe_key",
+          "status"
+        ],
+        "title": "ScheduleRow",
+        "type": "object"
+      },
+      "Sent": {
+        "properties": {
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sent",
+          "expires_in_seconds"
+        ],
+        "title": "Sent",
+        "type": "object"
+      },
+      "SessionInfo": {
+        "properties": {
+          "authenticated": {
+            "title": "Authenticated",
+            "type": "boolean"
+          },
+          "deleted_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "requested",
+                  "plan_ended"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted Reason"
+          },
+          "deleted_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted User Id"
+          },
+          "device_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Label"
+          },
+          "has_passkeys": {
+            "default": false,
+            "title": "Has Passkeys",
+            "type": "boolean"
+          },
+          "lock_after_seconds": {
+            "title": "Lock After Seconds",
+            "type": "integer"
+          },
+          "locked": {
+            "default": true,
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "passkey_verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passkey Verified At"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "step_up_max_age_seconds": {
+            "title": "Step Up Max Age Seconds",
+            "type": "integer"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "authenticated",
+          "lock_after_seconds",
+          "step_up_max_age_seconds"
+        ],
+        "title": "SessionInfo",
+        "type": "object"
+      },
+      "SettingsOut": {
+        "properties": {
+          "prefs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PrefOut"
+            },
+            "title": "Prefs",
+            "type": "object"
+          },
+          "push": {
+            "$ref": "#/components/schemas/PushOut"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/GlobalOut"
+          }
+        },
+        "required": [
+          "prefs",
+          "settings",
+          "push"
+        ],
+        "title": "SettingsOut",
+        "type": "object"
+      },
+      "SettingsPatch": {
+        "properties": {
+          "prefs": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/PrefPatch"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefs"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GlobalPatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "SettingsPatch",
+        "type": "object"
+      },
+      "SignedPayloadIn": {
+        "properties": {
+          "signedPayload": {
+            "title": "Signedpayload",
+            "type": "string"
+          }
+        },
+        "required": [
+          "signedPayload"
+        ],
+        "title": "SignedPayloadIn",
+        "type": "object"
+      },
+      "StatusOut": {
+        "properties": {
+          "session": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "denied",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "StatusOut",
+        "type": "object"
+      },
+      "SubscriptionIn": {
+        "properties": {
+          "endpoint": {
+            "maxLength": 2000,
+            "minLength": 10,
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "keys": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Keys",
+            "type": "object"
+          },
+          "user_agent": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Agent"
+          }
+        },
+        "required": [
+          "endpoint",
+          "keys"
+        ],
+        "title": "SubscriptionIn",
+        "type": "object"
+      },
+      "SyncBalance": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "current_cents": {
+            "title": "Current Cents",
+            "type": "integer"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "current_cents",
+          "type"
+        ],
+        "title": "SyncBalance",
+        "type": "object"
+      },
+      "SyncIn": {
+        "properties": {
+          "cursor": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cursor"
+          }
+        },
+        "title": "SyncIn",
+        "type": "object"
+      },
+      "SyncOut": {
+        "properties": {
+          "added": {
+            "items": {
+              "$ref": "#/components/schemas/SyncTxn"
+            },
+            "title": "Added",
+            "type": "array"
+          },
+          "balances": {
+            "items": {
+              "$ref": "#/components/schemas/SyncBalance"
+            },
+            "title": "Balances",
+            "type": "array"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "modified": {
+            "items": {
+              "$ref": "#/components/schemas/SyncTxn"
+            },
+            "title": "Modified",
+            "type": "array"
+          },
+          "next_cursor": {
+            "title": "Next Cursor",
+            "type": "string"
+          },
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Removed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "added",
+          "modified",
+          "removed",
+          "balances",
+          "next_cursor",
+          "has_more"
+        ],
+        "title": "SyncOut",
+        "type": "object"
+      },
+      "SyncTxn": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "amount_cents": {
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "boolean"
+          },
+          "pending_transaction_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Transaction Id"
+          },
+          "transaction_id": {
+            "title": "Transaction Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transaction_id",
+          "account_id",
+          "date",
+          "direction",
+          "amount_cents",
+          "description",
+          "pending",
+          "pending_transaction_id"
+        ],
+        "title": "SyncTxn",
+        "type": "object"
+      },
+      "TesterIn": {
+        "properties": {
+          "plan": {
+            "anyOf": [
+              {
+                "enum": [
+                  "free",
+                  "private",
+                  "connected",
+                  "founding"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
+          }
+        },
+        "required": [
+          "plan"
+        ],
+        "title": "TesterIn",
+        "type": "object"
+      },
+      "TrialIn": {
+        "properties": {
+          "plan": {
+            "enum": [
+              "private",
+              "connected"
+            ],
+            "title": "Plan",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan"
+        ],
+        "title": "TrialIn",
+        "type": "object"
+      },
+      "UrlOut": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "UrlOut",
+        "type": "object"
+      },
+      "UserOut": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "look": {
+            "title": "Look",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "display_name",
+          "look"
+        ],
+        "title": "UserOut",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VerifyIn": {
+        "properties": {
+          "code": {
+            "maxLength": 6,
+            "minLength": 6,
+            "pattern": "^[0-9]{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "code"
+        ],
+        "title": "VerifyIn",
+        "type": "object"
+      },
+      "app__routers__device_link__StartOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "expires_in_seconds"
+        ],
+        "title": "StartOut",
+        "type": "object"
+      },
+      "app__routers__linking__StartOut": {
+        "properties": {
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "url"
+        ],
+        "title": "StartOut",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Qash API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/account": {
+      "get": {
+        "operationId": "account_api_account_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Account",
+        "tags": [
+          "account"
+        ]
+      },
+      "patch": {
+        "operationId": "update_account_api_account_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Account",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/delete": {
+      "post": {
+        "description": "Soft delete now; the grace period and purge are `deletion.py`. The body must say DELETE.",
+        "operationId": "delete_account_api_account_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Account",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/email/send": {
+      "post": {
+        "description": "A one-time code to the new address; the old one stays until it is verified.",
+        "operationId": "email_change_send_api_account_email_send_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeSent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Email Change Send",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/email/verify": {
+      "post": {
+        "operationId": "email_change_verify_api_account_email_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Email Change Verify",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/account/export": {
+      "get": {
+        "description": "Server-held data for the ZIP the device builds. Needs a fresh passkey check.",
+        "operationId": "export_data_api_account_export_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Export Data",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/alerts/schedule": {
+      "get": {
+        "operationId": "get_schedule_api_alerts_schedule_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Schedule",
+        "tags": [
+          "alerts"
+        ]
+      },
+      "put": {
+        "operationId": "put_schedule_api_alerts_schedule_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Schedule",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/auth/link/approve": {
+      "post": {
+        "operationId": "approve_api_auth_link_approve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/link/deny": {
+      "post": {
+        "operationId": "deny_api_auth_link_deny_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Deny",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/link/lookup": {
+      "post": {
+        "operationId": "lookup_api_auth_link_lookup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lookup",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/link/start": {
+      "post": {
+        "operationId": "start_api_auth_link_start_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__routers__device_link__StartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Start",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/link/status": {
+      "get": {
+        "operationId": "link_status_api_auth_link_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Link Status",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/otp/send": {
+      "post": {
+        "operationId": "otp_send_api_auth_otp_send_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpSendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtpSendResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Otp Send",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/otp/verify": {
+      "post": {
+        "operationId": "otp_verify_api_auth_otp_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Otp Verify",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/passkey/options": {
+      "post": {
+        "description": "Sign in with a passkey the device already has (October 13, 2026): no email, no code.\nThe device shows its own picker of the passkeys it holds for this site.",
+        "operationId": "passkey_options_api_auth_passkey_options_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOptionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Passkey Options",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/passkey/verify": {
+      "post": {
+        "description": "A verified passkey (with Face ID, Touch ID, fingerprint or device passcode) signs in and\nunlocks in one step: it is the stronger of our two factors, and phishing-resistant. Same\naudit and new-sign-in alert as an email-code sign-in.",
+        "operationId": "passkey_sign_in_api_auth_passkey_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeySignInRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Passkey Sign In",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/session": {
+      "get": {
+        "description": "The app's first call on start-up. Never an error: `authenticated` says it all.",
+        "operationId": "session_info_api_auth_session_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Session Info",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/signout": {
+      "post": {
+        "operationId": "sign_out_api_auth_signout_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Sign Out",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/backup": {
+      "delete": {
+        "operationId": "backup_off_api_backup_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Backup Off",
+        "tags": [
+          "backup"
+        ]
+      },
+      "get": {
+        "operationId": "backup_status_api_backup_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Backup Status",
+        "tags": [
+          "backup"
+        ]
+      }
+    },
+    "/api/backup/blob": {
+      "put": {
+        "operationId": "put_blob_api_backup_blob_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupBlobIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Blob",
+        "tags": [
+          "backup"
+        ]
+      }
+    },
+    "/api/backup/blob/latest": {
+      "get": {
+        "description": "The newest backup, or with `before` the newest one older than that backup: a device that\ncan't open a copy steps back to the one before it (October 24, 2026).",
+        "operationId": "latest_blob_api_backup_blob_latest_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupBlobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Latest Blob",
+        "tags": [
+          "backup"
+        ]
+      }
+    },
+    "/api/backup/key": {
+      "put": {
+        "operationId": "put_key_api_backup_key_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Key",
+        "tags": [
+          "backup"
+        ]
+      }
+    },
+    "/api/billing": {
+      "get": {
+        "operationId": "billing_api_billing_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Billing",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/cancel": {
+      "post": {
+        "description": "Stop renewal. The plan stays on until the end of the period already paid for (a month\nfrom the last monthly charge, a year from the last yearly one), then the account is Free;\nnothing is deleted. Needs the ticked consent, recorded like a purchase's.",
+        "operationId": "cancel_api_billing_cancel_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/change": {
+      "post": {
+        "description": "Switch plan or billing period now (owner decision, October 17, 2026). Up (Private \u2192\nConnected, or monthly \u2192 yearly) is charged the difference; down leaves the unused part as\ncredit, opens 30 days after the plan started or last changed, and disconnects linked banks\nwhen the new plan doesn't link. Switching also undoes a cancellation.",
+        "operationId": "change_api_billing_change_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/change/preview": {
+      "post": {
+        "description": "What a switch costs before it happens: today's charge for an upgrade (the new price\nless the unused part of the old), or the credit a downgrade leaves for the next bills.",
+        "operationId": "change_preview_api_billing_change_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeTarget"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangePreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Preview",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/checkout": {
+      "post": {
+        "operationId": "checkout_api_billing_checkout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UrlOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Checkout",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/credit": {
+      "get": {
+        "description": "Credit waiting on the account, and what deleting the account now would refund: the\nmonths after the current one, at the price paid, plus the credit (shown before anyone\ndeletes).",
+        "operationId": "credit_api_billing_credit_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Credit",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/entitlements": {
+      "get": {
+        "operationId": "get_entitlements_api_billing_entitlements_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Entitlements Api Billing Entitlements Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Entitlements",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/history": {
+      "get": {
+        "description": "Plan history (owner decision, October 18, 2026): what happened to the plan, newest\nfirst.",
+        "operationId": "history_api_billing_history_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlanEventOut"
+                  },
+                  "title": "Response History Api Billing History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "History",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/native/sync": {
+      "post": {
+        "description": "Attach a store purchase to the signed-in account. No step-up here by design: the signed\ntransaction / verified token is stronger proof than a passkey check (the store already\nauthenticated the buyer, and a stolen session cannot fabricate one); the app still asks for\nstep-up before starting a purchase, like the web checkout.",
+        "operationId": "native_sync_api_billing_native_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NativeSyncIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Native Sync",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/portal": {
+      "post": {
+        "operationId": "portal_api_billing_portal_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UrlOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Portal",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/resume": {
+      "post": {
+        "description": "Undo a cancellation before the period ends: renewal continues as before.",
+        "operationId": "resume_api_billing_resume_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Resume",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/tester": {
+      "post": {
+        "description": "Tester tools (owner decision, October 18, 2026): an admin switches their own plan for\nfree, as often as they like, to test every plan; `plan: null` goes back to the real one.\nNothing is charged and Stripe is not involved. Anyone else gets 404, as if the route were\nnot there. Audited and alerted like any plan change.",
+        "operationId": "set_tester_plan_api_billing_tester_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TesterIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Tester Plan",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/trial": {
+      "post": {
+        "description": "Start the free trial the person picked (owner decision, October 14, 2026): once per\nemail, no card. Either plan runs 3 days (plans.yaml `trials`, since October 22, 2026).",
+        "operationId": "start_trial_api_billing_trial_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrialIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Start Trial Api Billing Trial Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Trial",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/groups": {
+      "get": {
+        "operationId": "list_groups_api_groups_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GroupSummary"
+                  },
+                  "title": "Response List Groups Api Groups Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Groups",
+        "tags": [
+          "groups"
+        ]
+      },
+      "post": {
+        "description": "Start a challenge of the chosen type; the creator is its first member.",
+        "operationId": "create_group_api_groups_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Group",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/join": {
+      "post": {
+        "operationId": "join_group_api_groups_join_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Group",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/lookup": {
+      "post": {
+        "description": "What a code points at, before joining. An unknown code is 404 like any other miss.",
+        "operationId": "lookup_group_api_groups_lookup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lookup Group",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}": {
+      "get": {
+        "operationId": "group_detail_api_groups__group_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Group Detail",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/code": {
+      "post": {
+        "description": "Owner only: the old code stops working at once.",
+        "operationId": "regenerate_code_api_groups__group_id__code_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Regenerate Code",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/leave": {
+      "post": {
+        "operationId": "leave_group_api_groups__group_id__leave_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leave Group",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/members/{user_id}": {
+      "delete": {
+        "description": "Owner only. Removing yourself is not leaving: use /leave.",
+        "operationId": "remove_member_api_groups__group_id__members__user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Member",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/progress": {
+      "put": {
+        "description": "The one number a device sends: percent of the member's own target. Never an amount.",
+        "operationId": "update_progress_api_groups__group_id__progress_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgressRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Progress",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/household": {
+      "get": {
+        "operationId": "household_status_api_household_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Household Status",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/household/blobs": {
+      "get": {
+        "operationId": "list_blobs_api_household_blobs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HouseholdBlobOut"
+                  },
+                  "title": "Response List Blobs Api Household Blobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Blobs",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/household/blobs/{kind}": {
+      "put": {
+        "operationId": "put_blob_api_household_blobs__kind__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "jars",
+                "summary"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdBlobIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlobSaved"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Blob",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/household/invites": {
+      "post": {
+        "operationId": "invite_api_household_invites_post",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Invite",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/household/join": {
+      "post": {
+        "operationId": "join_api_household_join_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/household/leave": {
+      "post": {
+        "operationId": "leave_api_household_leave_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Leave",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/household/lookup": {
+      "post": {
+        "operationId": "lookup_api_household_lookup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lookup",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/linking": {
+      "get": {
+        "operationId": "linking_status_api_linking_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Linking Status",
+        "tags": [
+          "linking"
+        ]
+      }
+    },
+    "/api/linking/finish": {
+      "post": {
+        "operationId": "finish_api_linking_finish_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinishIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinishOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Finish",
+        "tags": [
+          "linking"
+        ]
+      }
+    },
+    "/api/linking/start": {
+      "post": {
+        "operationId": "start_api_linking_start_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__routers__linking__StartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Start",
+        "tags": [
+          "linking"
+        ]
+      }
+    },
+    "/api/linking/{connection_id}": {
+      "delete": {
+        "description": "No step-up: leaving is never harder than joining (docs/security/linking.md). If the\nprovider can't be reached, the connection is hidden now and `stackd-api revoke-links`\nkeeps trying, so the user is never stuck with a connection they asked to drop.",
+        "operationId": "disconnect_api_linking__connection_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Disconnect",
+        "tags": [
+          "linking"
+        ]
+      }
+    },
+    "/api/linking/{connection_id}/cards": {
+      "post": {
+        "description": "Pass-through, like sync: the card facts go to the device and nowhere else.",
+        "operationId": "cards_api_linking__connection_id__cards_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cards",
+        "tags": [
+          "linking"
+        ]
+      }
+    },
+    "/api/linking/{connection_id}/relink": {
+      "post": {
+        "description": "Plaid update mode for a connection whose bank wants the user to sign in again. No\nstep-up: it restores what the user already allowed and reads nothing new.",
+        "operationId": "relink_api_linking__connection_id__relink_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__routers__linking__StartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Relink",
+        "tags": [
+          "linking"
+        ]
+      }
+    },
+    "/api/linking/{connection_id}/sync": {
+      "post": {
+        "description": "Pass-through: the provider's changes go to the device and nowhere else. Nothing about\nthe transactions is logged or stored; the connection only notes when it was last read.",
+        "operationId": "sync_api_linking__connection_id__sync_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sync",
+        "tags": [
+          "linking"
+        ]
+      }
+    },
+    "/api/notifications/push": {
+      "post": {
+        "operationId": "subscribe_api_notifications_push_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Subscribe",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/notifications/push/key": {
+      "get": {
+        "operationId": "push_key_api_notifications_push_key_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushKeyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Push Key",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/notifications/push/native": {
+      "post": {
+        "description": "An APNs / FCM device token from the shell: stored encrypted, like a Web Push one.",
+        "operationId": "subscribe_native_api_notifications_push_native_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NativeSubscriptionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Subscribe Native",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/notifications/push/native/unsubscribe": {
+      "post": {
+        "operationId": "unsubscribe_native_api_notifications_push_native_unsubscribe_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NativeTokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unsubscribe Native",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/notifications/push/test": {
+      "post": {
+        "description": "One push saying notifications are on: proves the channel, carries nothing else.",
+        "operationId": "push_test_api_notifications_push_test_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushTestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Push Test",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/notifications/push/unsubscribe": {
+      "post": {
+        "operationId": "unsubscribe_api_notifications_push_unsubscribe_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndpointIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unsubscribe",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/notifications/settings": {
+      "get": {
+        "operationId": "get_settings__api_notifications_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Settings ",
+        "tags": [
+          "notifications"
+        ]
+      },
+      "put": {
+        "operationId": "update_settings_api_notifications_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Settings",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/public/account/delete/send": {
+      "post": {
+        "operationId": "delete_send_api_public_account_delete_send_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Send",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/public/account/delete/verify": {
+      "post": {
+        "operationId": "delete_verify_api_public_account_delete_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Verify",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/public/plans/founding": {
+      "get": {
+        "operationId": "founding_api_public_plans_founding_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoundingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Founding",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/security/activity": {
+      "get": {
+        "description": "The last 30 days of sign-ins, failed sign-in attempts and security changes on this\naccount, newest first (at most 100), so a user can spot anything that was not them.",
+        "operationId": "activity_api_security_activity_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityOut"
+                  },
+                  "title": "Response Activity Api Security Activity Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Activity",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/security/devices": {
+      "get": {
+        "description": "Every device signed in now, then those whose session ended in the last 30 days, with\nwhen and how it ended. No IP addresses: only keyed hashes are stored.",
+        "operationId": "list_devices_api_security_devices_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceOut"
+                  },
+                  "title": "Response List Devices Api Security Devices Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Devices",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/security/devices/{session_id}": {
+      "delete": {
+        "operationId": "sign_out_device_api_security_devices__session_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sign Out Device",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/security/lock": {
+      "put": {
+        "description": "Auto-lock after this many idle minutes, on every device (owner decision, October 12,\n2026). The server enforces it too: an idle session past it is locked for every request.",
+        "operationId": "set_lock_api_security_lock_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LockIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LockOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Lock",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/security/passkeys": {
+      "get": {
+        "operationId": "list_passkeys_api_security_passkeys_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PasskeyOut"
+                  },
+                  "title": "Response List Passkeys Api Security Passkeys Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Passkeys",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/security/passkeys/assert/options": {
+      "post": {
+        "operationId": "assert_options_api_security_passkeys_assert_options_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssertOptionsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Assert Options",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/security/passkeys/assert/verify": {
+      "post": {
+        "operationId": "assert_verify_api_security_passkeys_assert_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssertVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssertResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Assert Verify",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/security/passkeys/register/options": {
+      "post": {
+        "operationId": "register_options_api_security_passkeys_register_options_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Register Options",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/security/passkeys/register/verify": {
+      "post": {
+        "operationId": "register_verify_api_security_passkeys_register_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Verify",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/security/passkeys/{passkey_id}": {
+      "delete": {
+        "operationId": "remove_passkey_api_security_passkeys__passkey_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "passkey_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Passkey Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Passkey",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/api/webhooks/apple": {
+      "post": {
+        "operationId": "apple_webhook_api_webhooks_apple_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignedPayloadIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apple Webhook",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/api/webhooks/google": {
+      "post": {
+        "operationId": "google_webhook_api_webhooks_google_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Google Webhook",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/api/webhooks/plaid": {
+      "post": {
+        "operationId": "plaid_webhook_api_webhooks_plaid_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Plaid Webhook",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/api/webhooks/stripe": {
+      "post": {
+        "operationId": "stripe_webhook_api_webhooks_stripe_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Stripe Webhook",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "live_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Live Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Live",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "ready_health_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Ready Health Ready Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready",
+        "tags": [
+          "health"
+        ]
+      }
+    }
+  }
+}

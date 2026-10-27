@@ -1,0 +1,78 @@
+---
+import PageHero from "../components/PageHero.astro";
+import SecIcon from "../components/visuals/SecIcon.astro";
+import Base from "../layouts/Base.astro";
+import { linkPlans } from "../data/linkPlans.ts";
+import { SECURITY_EMAIL } from "../data/site.ts";
+
+// Visual first (owner, October 15, 2026): one icon and one line per promise. Every line matches
+// what the app and the server do (docs/security/); change the product and this page together.
+const promises = [
+  { icon: "device", t: "Stays on your device", d: "Transactions, statements, receipts, budgets and jars live on your phone." },
+  { icon: "lock", t: "Encrypted before it leaves", d: "Backups are locked on your device with a key we never have." },
+  { icon: "fingerprint", t: "No passwords", d: "Face ID, Touch ID or your device PIN, or approve a computer from your phone. Passkeys can't be phished." },
+  { icon: "bank", t: "Read-only bank links", d: "Connected links through Plaid. Nothing can ever move money." },
+  { icon: "eyeoff", t: "We never see bank logins", d: "You sign in on your bank's own page, not ours." },
+  { icon: "people", t: "Groups see percentages", d: "Never your amounts, never your email." },
+  { icon: "bell", t: "Alerts you can't switch off", d: "A new sign-in, passkey, export or email change emails you." },
+  { icon: "noai", t: "No AI services, no trackers", d: "Everything runs on your device. No ads, no analytics." },
+] as const;
+
+const keep = [
+  "Your account: email, name, passkeys",
+  "Your plan and trial dates",
+  "Your challenge percentage",
+  "Alert dates and types, never amounts",
+  "Your backup, encrypted on your device",
+  "On Connected: an encrypted bank token",
+];
+const never = [
+  "Bank passwords or logins",
+  "Your transactions, stored",
+  "Card or account numbers",
+  "Location from receipt photos",
+  "Anything for advertising",
+];
+---
+
+<Base title="Security" description="How Qash protects your money data: it stays on your device, backups are encrypted before they leave, passkeys instead of passwords, read-only bank links.">
+  <PageHero pill="Security & privacy" title="Your money," accent="kept yours" lede="Built so your money data stays with you." />
+
+  <ul class="sec-grid">
+    {promises.map((p) => (
+      <li class="sec-tile">
+        <span class="sec-tile__icon"><SecIcon name={p.icon} /></span>
+        <h2>{p.t}</h2>
+        <p set:html={linkPlans(p.d)} />
+      </li>
+    ))}
+  </ul>
+
+  <section class="sec-split" aria-labelledby="what-we-hold">
+    <h2 id="what-we-hold" class="lp-h2">What our servers hold</h2>
+    <div class="sec-split__cols">
+      <div class="sec-list sec-list--keep">
+        <p class="sec-list__title"><span class="sec-list__mark"><SecIcon name="server" /></span>Only this</p>
+        <ul>
+          {keep.map((k) => <li><SecIcon name="check" /><span set:html={linkPlans(k)} /></li>)}
+        </ul>
+      </div>
+      <div class="sec-list sec-list--never">
+        <p class="sec-list__title"><span class="sec-list__mark"><SecIcon name="eyeoff" /></span>Never</p>
+        <ul>
+          {never.map((n) => <li><SecIcon name="x" />{n}</li>)}
+        </ul>
+      </div>
+    </div>
+    <p class="sec-note">On <a class="plan-link" href="/pricing#connected">Connected</a>, bank transactions pass through our server to your device; they're never stored. Details in the <a href="/privacy">privacy policy</a>.</p>
+  </section>
+
+  <section class="sec-report" aria-labelledby="vuln">
+    <span class="sec-report__icon"><SecIcon name="bug" /></span>
+    <div>
+      <h2 id="vuln">Found a vulnerability?</h2>
+      <p>Email <a href={`mailto:${SECURITY_EMAIL}`}>{SECURITY_EMAIL}</a>. Our policy is in <a href="/.well-known/security.txt">security.txt</a>.</p>
+      <p class="sec-report__warn">Never test against, or get into, another person's account. If we find that an account has, we permanently delete it and all its data.</p>
+    </div>
+  </section>
+</Base>

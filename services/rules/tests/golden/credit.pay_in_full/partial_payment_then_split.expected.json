@@ -1,0 +1,17 @@
+{
+  "status": "plan",
+  "remaining_cents": 31200,
+  "paid_cents": 10000,
+  "due_date": "2026-10-28",
+  "days_left": 16,
+  "payments": [
+    {
+      "date": "2026-10-15",
+      "amount_cents": 15600
+    },
+    {
+      "date": "2026-10-22",
+      "amount_cents": 15600
+    }
+  ]
+}

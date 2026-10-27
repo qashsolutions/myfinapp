@@ -1,0 +1,16 @@
+{
+  "goal": {
+    "kind": "save",
+    "start_date": "2026-10-01",
+    "target_cents": 200000,
+    "end_date": "2026-12-31",
+    "cadence": "payday"
+  },
+  "events": [],
+  "as_of": "2026-10-10",
+  "schedule": {
+    "kind": "every_n_days",
+    "anchor": "2026-10-16",
+    "n": 14
+  }
+}

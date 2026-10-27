@@ -1,0 +1,10 @@
+{
+  "goal": {
+    "kind": "payoff",
+    "target_cents": 240000,
+    "start_date": "2026-09-01",
+    "end_date": "2027-06-30"
+  },
+  "events": [],
+  "as_of": "2026-09-01"
+}

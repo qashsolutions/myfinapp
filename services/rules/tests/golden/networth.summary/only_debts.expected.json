@@ -1,0 +1,15 @@
+{
+  "assets_cents": 0,
+  "debts_cents": 30000,
+  "net_cents": -30000,
+  "debt_share_bps": null,
+  "change_cents": -30000,
+  "groups": [
+    {
+      "kind": "debt",
+      "group": "card",
+      "total_cents": 30000,
+      "count": 1
+    }
+  ]
+}

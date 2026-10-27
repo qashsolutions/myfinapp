@@ -1,0 +1,113 @@
+---
+import Legal from "../components/Legal.astro";
+import Base from "../layouts/Base.astro";
+import { BANK_REFUND_FEE, FOUNDING, PLANS, REFUND_FEE } from "../data/plans";
+
+// Every price and worked example comes from plans.ts (checked against plans.yaml), so the
+// terms can never quote a number the app doesn't charge.
+const plan = (key: "private" | "connected") => PLANS.find((p) => p.key === key) as (typeof PLANS)[number];
+const $ = (cents: number) => `$${(Math.round(cents) / 100).toFixed(2)}`;
+const priv = plan("private");
+const conn = plan("connected");
+const upAfter3 = ((conn.yearlyCents - priv.yearlyCents) * 9) / 12;
+const downAfter2 = ((conn.yearlyCents - priv.yearlyCents) * 10) / 12;
+// Owner decision, October 22, 2026: a yearly plan deleted early pays the monthly price for the
+// months used, this one included; the rest of the year comes back, never below zero.
+const deleteMonth3 = Math.max(0, conn.yearlyCents - 3 * conn.monthlyCents);
+const foundingMonth13 = Math.round(
+  (FOUNDING.oneTimeCents * (FOUNDING.years * 12 - 13)) / (FOUNDING.years * 12),
+);
+// The same sum the server does (stripe_billing.refund_fee_cents): % half up, plus the fixed part.
+const fee = (cents: number) =>
+  Math.min(cents, Math.floor((cents * REFUND_FEE.bps + 5000) / 10000) + REFUND_FEE.fixedCents);
+const feeText = `${REFUND_FEE.bps / 100}% of the refund + ${REFUND_FEE.fixedCents}¢`;
+const bankFeeText = `${BANK_REFUND_FEE.bps / 100}% of the refund, at most $${BANK_REFUND_FEE.capCents / 100}`;
+const yearlyBack = Math.round(deleteMonth3);
+---
+
+<Base title="Terms of service" description="The terms for using Qash, including subscriptions, renewal and cancellation.">
+  <Legal
+    title="Terms of"
+    accent="service"
+    lede="The deal, in plain words."
+    summary={[
+      "Qash is a budgeting app. It doesn't hold or move money and gives no financial, tax or legal advice.",
+      `Start with a free trial, no card needed: Private or Connected, ${priv.trialDays} days. If you don't choose a plan when it ends, the app locks for 7 days so you can subscribe or download your data, then the account closes and what we kept is deleted. What's on your phone stays there until you download or erase it.`,
+      "Plans renew automatically until you cancel; cancel any time in the app (Me → Plan), and your plan stays on until the end of the period you paid for. The same 7 days then apply.",
+      "Switch plans in the app. Switching up starts at once and you pay only the difference for the time left. Switching down also starts at once, from 30 days after you start or last switch, and the unused part becomes credit that pays your next bills.",
+      "The Founding member offer is a one-time payment for four years of Connected and does not renew.",
+      "If you delete your account, your plan ends at once. On a yearly plan the months used, this one included, cost the monthly price and the rest of the year comes back to your card, plus any credit; a monthly plan keeps its current month. The app shows the amount before you delete. Stripe's card fee comes off the refund. That is the only time we refund.",
+      "Your data is yours: export it any time, delete your account any time.",
+      "Don't use the service to harm others or break the law, and never try to get into another person's account. If an account does, we permanently delete it and all its data.",
+    ]}
+    sections={[
+      { id: "the-service", heading: "The service" },
+      { id: "your-account", heading: "Your account" },
+      {
+        id: "subscriptions",
+        heading: "Subscriptions, renewal and cancellation",
+        text: [
+          `Plans are sold on our website and paid through Stripe with a credit or debit card issued by a US bank (Visa, Mastercard, Amex or Discover), directly or through Apple Pay, Google Pay or Link, or with a US bank account; cards from other countries are declined for now. A bank payment takes up to 4 business days to clear, and the plan starts when it does; if it doesn't go through, the plan doesn't start and nothing is taken. We never see your card or bank details. If you dispute a payment with your bank, the plan it paid for is paused until the dispute is closed: withdrawn or decided in our favour, it comes back as it was; decided in yours, it ends and is never charged again, and that email inbox and card can't buy a plan from us again. While a payment is disputed, or after a dispute decided in yours, deleting your account refunds nothing more, because your bank has already returned the money. If the bank that issued a card tells us a payment may not have been made by the cardholder, we refund it in full, end the plan it paid for, and that inbox and card can't buy again. If you think one of these was a mistake, write to support. Nothing is deleted because of a dispute. Prices are in US dollars: Private is ${$(priv.monthlyCents)} a month or ${$(priv.yearlyCents)} a year, Connected ${$(conn.monthlyCents)} a month or ${$(conn.yearlyCents)} a year.`,
+          [
+            `Free trial: Private or Connected for ${priv.trialDays} days, once per email inbox (addresses that deliver to the same inbox, such as name+tag@ or, on Gmail, n.ame@, count as one), with no card to start. The app asks for a card near the end and emails you the day before the trial ends. If you add a card, the first charge is on the day the trial ends.`,
+            "Renewal: a monthly plan renews every month and a yearly plan every year, on the same day of the month it started, until you cancel. Each renewal is charged to your card on file.",
+            "Before you buy, the app shows the price, how renewal works and how to cancel, and you tick a box to agree. We keep a record of what you agreed to.",
+            "Cancelling: in the app, Me → Plan → Cancel plan. No more charges. Your plan keeps working until the end of the period you already paid for; cancelling doesn't refund the rest of that period, monthly or yearly. You can undo the cancellation before then.",
+            `Yearly plans cost less than twelve monthly payments only if you stay the year: Private ${$(priv.yearlyCents)} a year against ${$(12 * priv.monthlyCents)} monthly, Connected ${$(conn.yearlyCents)} against ${$(12 * conn.monthlyCents)}. If you delete your account early, the months used are charged at the monthly price (see Refunds). The app says this before you buy, and you tick a box to agree.`,
+            "When a trial or a paid plan ends without a new plan, the app locks for 7 days so you can subscribe again or download your data. We email you before it ends, when it ends, and once a day for the 7 days. After the 7 days the account is closed and what we kept is deleted, as if you had deleted it yourself (see Refunds), except that the data on your device stays there until you download or erase it.",
+            "If a renewal payment fails, Stripe tries it again. A plan that stays unpaid ends, and an unpaid period is never refunded.",
+          ],
+        ],
+      },
+      {
+        id: "changing-plans",
+        heading: "Changing plans",
+        text: [
+          "You can switch between Private and Connected, or between monthly and yearly billing, in the app (Me → Plan). You always have one plan at a time, never two. Before any switch the app shows exactly what it costs today, or the credit it leaves, and asks you to confirm.",
+          [
+            "Switching up (Private to Connected, or monthly to yearly) starts at once. You pay the new price less the unused part of what you already paid, worked out to the second, charged to your card the same day. If the card is declined, nothing changes.",
+            `For example: Private yearly (${$(priv.yearlyCents)}) to Connected yearly (${$(conn.yearlyCents)}) three months in costs about ${$(upAfter3)} that day, for the nine months left.`,
+            "Switching down (Connected to Private, or yearly to monthly) also starts at once. The unused part of what you paid, less the new plan's price for the same time, becomes credit on your account. Nothing is charged that day.",
+            `For example: Connected yearly to Private yearly two months in leaves about ${$(downAfter2)} credit.`,
+            "A switch down is available 30 days after your plan started or after your last switch. Until then you keep the plan you already paid for, and the app shows the date. Because switching down turns the unused part into credit, the 30 days stop plans being swapped back and forth, which keeps prices low for everyone. Switching up is never held back.",
+            "Private doesn't link banks or cards. Switching down to Private disconnects your linked banks at once. The accounts and entries on your device stay.",
+            "Switching cancels a cancellation: the new plan renews as usual.",
+          ],
+          "Credit is not cash. While your account is open it pays your next bills, before your card is charged, until it is used up. It is never paid out while the account is open. If you delete your account, credit left is refunded in full to your card (see Refunds). The app shows your credit on Me → Plan.",
+        ],
+      },
+      {
+        id: "founding-member",
+        heading: "Founding member offer",
+        text: [
+          `The Founding member offer is one payment of ${$(FOUNDING.oneTimeCents)} for ${FOUNDING.years} years of Connected, for the first ${FOUNDING.cap} people only. It does not renew and is never charged again. Before the ${FOUNDING.years} years end, you choose a plan if you want to keep going; nothing is deleted either way.`,
+          "If you already pay for a plan, cancel it first; it keeps running to the end of the period you paid for, and you can buy the Founding offer straight after.",
+        ],
+      },
+      {
+        id: "refunds",
+        heading: "Refunds",
+        text: [
+          "We refund in one case: when you delete your account. Cancelling a plan or switching plans never pays out cash (see above).",
+          "When you delete your account (in the app, or on our Delete your account page), any plan you pay for through our website ends at once and is never charged again. Here is what comes back, less Stripe's card fee, to the card you paid with:",
+          [
+            "The current month is the billing month you are in. It starts on the same day of the month your plan started (a plan started on the 9th has months from the 9th to the 9th).",
+            `A yearly plan (since October 22, 2026): the months used, the current one included, cost the monthly price, and the rest of what you paid for the year comes back; never less than zero, and nothing is charged on top. For example, Connected yearly (${$(conn.yearlyCents)}) started on January 9 and deleted on March 20 is in its third month (March 9 to April 9): 3 × ${$(conn.monthlyCents)} = ${$(3 * conn.monthlyCents)} used, so ${$(yearlyBack)} comes back, less a ${$(fee(yearlyBack))} fee: ${$(yearlyBack - fee(yearlyBack))}. From the month when the monthly price adds up to the yearly one, nothing comes back.`,
+            "A monthly plan: the current month is the whole period, so there is nothing after it to refund.",
+            `A Founding membership: the part of its ${FOUNDING.years} years after the current month. For example, deleted in month 13 of ${FOUNDING.years * 12}: about ${$(foundingMonth13)}, less a ${$(fee(foundingMonth13))} fee, so about ${$(foundingMonth13 - fee(foundingMonth13))} back.`,
+            "Credit on your account: refunded in full, in the same refund.",
+          ],
+          `Stripe's fee: Stripe, our payment processor, keeps its fee when a payment is refunded, so we take it off the refund: ${feeText} for a card, ${bankFeeText} for a US bank account, once per refund, never more than the refund itself. Refunding when you leave is something most apps don't do; the fee is the cost of doing it, and it is all we take.`,
+          "Amounts are worked out to the second by Stripe at the price you paid, so they can differ by a few cents from the examples. The Delete account screen shows the exact amount, the fee and the date your current month ends before you confirm. The refund is sent through Stripe straight away; your bank usually shows it within 5 to 10 days. A refund may be split across the payments you made, newest first. A plan that is behind on payment ends with no refund for the unpaid period.",
+          "The same applies when we delete an account 7 days after its plan ended (any credit left is refunded).",
+        ],
+      },
+      { id: "acceptable-use", heading: "Acceptable use" },
+      { id: "no-advice", heading: "No financial advice" },
+      { id: "liability", heading: "Liability" },
+      { id: "termination", heading: "Termination" },
+      { id: "changes", heading: "Changes to these terms" },
+      { id: "contact", heading: "Contact" },
+    ]}
+  />
+</Base>

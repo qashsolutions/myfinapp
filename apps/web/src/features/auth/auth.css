@@ -1,0 +1,520 @@
+/* Sign-in flow (Welcome, email, code, passkey, lock): one centred column, no tab bar. */
+
+.auth {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px 18px calc(24px + env(safe-area-inset-bottom));
+}
+.auth__top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font: 700 20px / 1 var(--font-display);
+}
+.auth__back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--c-card);
+  color: var(--c-ink);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+}
+.auth__hero {
+  font-size: clamp(32px, 9vw, 40px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-top: 8vh;
+}
+.auth__title {
+  font-size: 28px;
+  line-height: 1.15;
+}
+.auth__lead {
+  font-size: 17px;
+  color: var(--c-sub);
+}
+.auth__lead strong {
+  color: var(--c-ink);
+}
+.auth__spacer {
+  flex: 1;
+}
+.auth__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.auth__fineprint {
+  text-align: center;
+  font-size: 12px;
+  color: var(--c-sub);
+}
+.auth__fineprint a {
+  color: var(--c-a1);
+}
+.auth__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.auth__label {
+  font-weight: 600;
+  font-size: 14px;
+}
+.auth__input {
+  min-height: 52px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1.5px solid var(--c-line);
+  background: var(--c-card);
+  color: var(--c-ink);
+  font: 500 17px var(--font-body);
+}
+.auth__input:focus-visible {
+  border-color: var(--c-a1);
+}
+.auth__error {
+  color: var(--c-danger);
+  font-size: 14px;
+  font-weight: 600;
+}
+.auth__hint {
+  font-size: 14px;
+  color: var(--c-sub);
+}
+.auth__hint strong {
+  color: var(--c-ink);
+}
+.auth__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 600 15px var(--font-body);
+  color: var(--c-a1);
+  cursor: pointer;
+}
+.auth__centre {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.auth__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+  border-radius: 32px;
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+  margin: 6vh 0 12px;
+}
+.auth__badge--soft {
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
+  margin: 0;
+  background: color-mix(in srgb, var(--c-a1) 12%, var(--c-card));
+  color: var(--c-a1);
+}
+
+/* Welcome bullets and passkey checklist */
+.auth__points {
+  list-style: none;
+  margin: 0;
+  padding: 0 18px;
+}
+/* A plain list that keeps its bullets (Delete account's "This permanently deletes") */
+.auth__points--bulleted {
+  list-style: disc;
+  padding-left: 22px;
+}
+.auth__points--bulleted li + li {
+  margin-top: 6px;
+}
+.auth__point {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  min-height: 60px;
+  padding: 8px 0;
+}
+.auth__point + .auth__point {
+  border-top: 1px solid var(--c-line);
+}
+.auth__point-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--c-a1) 12%, var(--c-card));
+  color: var(--c-a1);
+  flex-shrink: 0;
+}
+.auth__point-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.auth__point-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+.auth__point-sub {
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.auth__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--c-success);
+  flex-shrink: 0;
+}
+
+/* The 6-digit code: one real input over six drawn boxes */
+.code {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+.code__box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+  border-radius: 14px;
+  border: 1.5px solid var(--c-line);
+  background: var(--c-card);
+  font: 700 26px var(--font-data);
+  font-variant-numeric: var(--numeric-data);
+}
+.code__box--active {
+  border-color: var(--c-a1);
+}
+.code__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  font-size: 24px;
+  letter-spacing: 2em;
+}
+.code__input:focus-visible + .code__boxes .code__box--active {
+  outline: 2px solid var(--c-a1);
+  outline-offset: 2px;
+}
+.code__boxes {
+  display: contents;
+}
+
+/* Linked banks: Sign in again and Disconnect side by side (chunk 3.4). */
+.link-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* Wordmark (a link to the website in a browser tab) and the slim footer (October 13, 2026) */
+.auth__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+.auth__footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--c-line);
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.auth__footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 700 15px var(--font-display);
+  color: var(--c-ink);
+}
+.auth__footer nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.auth__footer ul {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.auth__footer-legal a {
+  font-weight: 500;
+  font-size: 12px;
+}
+.auth__footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  color: var(--c-sub);
+  text-decoration: none;
+  font-weight: 600;
+}
+.auth__footer a:hover {
+  color: var(--c-a1);
+}
+.auth__footer p {
+  margin: 0;
+  font-size: 12px;
+}
+
+/* Welcome back: the remembered account, one tap to continue */
+.auth__back-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 20px 22px;
+  text-align: center;
+}
+.auth__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--c-a1),
+    color-mix(in srgb, var(--c-a1) 55%, var(--c-success))
+  );
+  color: var(--c-on-accent);
+  font: 700 30px / 1 var(--font-display);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--c-a1) 30%, transparent);
+}
+.auth__who {
+  font-weight: 600;
+  color: var(--c-ink);
+}
+.auth__fingerprint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Install first: a phone browser tab, before any data is added */
+.auth__install {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1.5px dashed color-mix(in srgb, var(--c-a1) 45%, var(--c-line));
+  background: color-mix(in srgb, var(--c-a1) 6%, var(--c-card));
+}
+.auth__install-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  font-size: 14px;
+  color: var(--c-sub);
+}
+.auth__install-text strong {
+  color: var(--c-ink);
+  font-size: 15px;
+}
+
+/* A gentle way on (not an error): e.g. no passkey on this device yet */
+.auth__note {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--c-a1) 8%, var(--c-card));
+  color: var(--c-ink);
+  font-size: 14px;
+  text-align: center;
+}
+.auth__note a {
+  color: var(--c-a1);
+  font-weight: 600;
+}
+
+/* No Touch ID on this computer: the phone-as-passkey guide (October 14, 2026) */
+.auth__nobio {
+  align-self: center;
+  font-size: 14px;
+}
+.nobio__art {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  margin: 4px auto 12px;
+}
+.nobio__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.nobio__steps li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.nobio__steps li > span:last-child {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  color: var(--c-sub);
+}
+.nobio__steps strong {
+  color: var(--c-ink);
+  font-size: 15px;
+}
+.nobio__n {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+  font-weight: 700;
+}
+.nobio__more {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--c-sub);
+}
+
+/* The Bluetooth hint in "Use your phone instead" (October 19, 2026) */
+.nobio__bt {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--c-bg);
+  font-size: 0.8125rem;
+  color: var(--c-sub);
+}
+.nobio__bt-icon {
+  flex: none;
+  color: var(--c-a1);
+}
+.nobio__bt > span {
+  display: grid;
+  gap: 2px;
+}
+.nobio__bt strong {
+  color: var(--c-ink);
+  font-size: 0.875rem;
+}
+
+/* Link with your phone, the computer's screen (B2, October 19, 2026). */
+.link__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+}
+.link__qr {
+  width: min(220px, 60vw);
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--c-bg);
+}
+.link__qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.link__qr-wait {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--c-line);
+  animation: link-pulse 1.2s ease-in-out infinite alternate;
+}
+@keyframes link-pulse {
+  to {
+    opacity: 0.4;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .link__qr-wait {
+    animation: none;
+  }
+}
+.link__code {
+  margin: 0;
+  font: 700 28px / 1.1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+  color: var(--c-ink);
+}
+.link__timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--c-sub);
+}
+.link__status {
+  min-height: 1.4em;
+  margin: 0;
+  text-align: center;
+  font-weight: 600;
+  color: var(--c-sub);
+}
+.link__end {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+}
+.link__end span {
+  color: var(--c-sub);
+}
+.auth__phone-link {
+  gap: 8px;
+  align-self: center;
+  text-decoration: none;
+}

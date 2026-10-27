@@ -1,0 +1,227 @@
+---
+import Legal from "../components/Legal.astro";
+import Base from "../layouts/Base.astro";
+import { DELETION_DAYS, DOMAIN } from "../data/site.ts";
+
+// Every statement here matches what the app and the server do (docs/security/, CLAUDE.md).
+// Change the product and this page together.
+const PRIVACY = `privacy@${DOMAIN}`;
+---
+
+<Base title="Privacy policy" description="What Qash collects, what stays on your device, how long we keep it, who processes it, and your rights to export and delete.">
+  <Legal
+    title="Privacy"
+    accent="policy"
+    lede="What we keep, what we never see, and your rights."
+    summary={[
+      "Your transactions, statements, receipts, budgets and jars are stored on your device, not on our servers.",
+      "We keep your account (email, display name, passkeys), your plan, the percentage you share in a group, a minimal alert schedule and, on Private and Connected, an encrypted backup we cannot open.",
+      "We send email codes, security alerts and, if you choose, push notifications with fixed generic wording. We never sell or share your data, and we set no advertising cookies.",
+      "If you link a bank or card (Connected only), Plaid reads your transactions and card details read-only and they pass through our server to your device. We keep only what keeps the connection working (an encrypted access token, Plaid's identifier for it and the bank's name), never the transactions or your bank login. Disconnect any time and the token is revoked.",
+      "You can export everything from the app and delete your account in the app (Me → Delete account) or from this site. Deletion completes within " + DELETION_DAYS + " days.",
+      "Cookies: this website sets none. The app sets one cookie that keeps you signed in and keeps your data in your browser's storage on your device. Neither tracks you or shows ads, so there is nothing to accept or opt out of, and a Global Privacy Control signal changes nothing because we never sell or share data.",
+      `Questions: ${PRIVACY}.`,
+    ]}
+    sections={[
+      {
+        id: "who-we-are",
+        heading: "Who we are and what this covers",
+        text: [
+          `Qash is provided by Qash Solutions Inc., a Delaware corporation ("we", "us"). This policy covers the Qash app at app.${DOMAIN}, its installable versions, and this website at ${DOMAIN}.`,
+          "Qash is built local-first: most of your financial information is kept and worked on only on your own device, and our servers hold as little as the service needs. This policy says exactly what that is.",
+        ],
+      },
+      {
+        id: "your-consent",
+        heading: "Your consent",
+        text: [
+          "By creating a Qash account you agree to this policy and our Terms; we tell you this before you sign up. Some things need your separate, explicit consent, and nothing happens until you give it:",
+          [
+            "Linking a bank or card: you start it, confirm with your passkey, and agree in Plaid's own screen, choosing each account to share.",
+            "Push notifications: your device asks your permission first.",
+            "Encrypted backup and household sharing: off until you turn them on.",
+          ],
+          "You can withdraw any of these at any time, as described in \"Your rights and choices\", and withdrawing never affects the rest of your account.",
+        ],
+      },
+      {
+        id: "what-stays-on-your-device",
+        heading: "What stays on your device",
+        text: [
+          "The following are stored only in the app's storage on your device, never on our servers:",
+          [
+            "Transactions and entries you add, import or link, with their categories, notes and splits. On Connected, transactions from a linked bank pass through our server on the way to your device and are not stored there (see Bank and card linking).",
+            "Bank and card statements you upload (CSV, OFX/QFX or PDF). They are read on your device; the files are never sent to us.",
+            "Receipt photos. Location, camera and time details are removed from each photo on your device before it is saved.",
+            "Budgets, savings jars and goals, bills, debts, forecasts, insights and the numbers the app calculates.",
+            "Card details from a linked card (statement balance, due date, minimum payment, credit limit, APR).",
+          ],
+          "All calculations run on your device, including category suggestions and, when you tap \"Read text from photo\", reading a receipt's text. We use no AI services, and nothing about your spending is sent anywhere to be analysed.",
+          "If you turn on encrypted backup (Private and Connected, including their free trials), a copy of this data is encrypted on your device before upload, with a key we never see. To let you restore on a new device, we also store copies of that key locked with your recovery key or your passkey, which we cannot unlock. We cannot open your backup.",
+        ],
+      },
+      {
+        id: "what-we-collect",
+        heading: "What we collect and why",
+        text: [
+          "Our servers hold only the following, each for the reason given:",
+          [
+            "Your email address: to send sign-in codes, security alerts and, if you choose, the weekly recap. Stripe also uses it for payment receipts.",
+            "Your display name, if you set one: shown to members of a challenge or household you join.",
+            "Your passkeys' public keys: to check it is you when you sign in or unlock. Your fingerprint, face and device passcode never leave your device; we never receive them.",
+            "Your signed-in devices: a device description (for example, \"Chrome on Mac\"), when each signed in and was last active, and how a session ended, so you can see and sign out devices. Network addresses (IP addresses) are stored only as a keyed hash we cannot reverse, used to limit abuse and investigate attacks.",
+            "Your settings: plan, look, auto-lock time, notification preferences and receipt-photo retention.",
+            "Your plan and billing status: plan, renewal and end dates, and Stripe's customer reference. Card numbers, bank account numbers and payment details are handled by Stripe (a bank account is connected through Stripe's own screen); we never see or store them.",
+            "Your free trial: which trial you chose and when it ends, and a keyed hash of your email inbox (your address with any +tag removed, and dots removed for Gmail; not the address itself) so each inbox gets one trial.",
+            "What you agreed to before paying: the \"Before you subscribe\" lines you were shown and ticked, the plan, price and time, with keyed hashes of your email and network address.",
+            "Challenges: your display name, initial, the percentage of your own target you have reached and when you reached it. Never amounts.",
+            "Notifications: if you turn on push, the address your browser or phone gives us for push messages, stored encrypted; a short schedule of upcoming alerts holding only a date, an alert type and fixed generic wording, never amounts or merchant names; and a record of alerts already sent (type and time), so none is sent twice.",
+            "Encrypted backups and household data: encrypted on your device; we hold only the encrypted copy, plus locked copies of your backup key that only your recovery key or passkey can open, and cannot read any of it.",
+            "Linked banks and cards (Connected plan, only if you choose to link): see the next section.",
+            "A security log: sign-ins, failed sign-in attempts and security changes (for example, a new passkey or an export), with the time and a keyed hash of the network address. It never contains financial information.",
+            "A request to sign in with your phone: the requesting browser and system (for example “Chrome on Mac”) and a keyed hash of its network, so your phone can show what is asking and warn when it is on a different network. It expires after 2 minutes and is deleted within 2 days.",
+          ],
+          "This website collects nothing: no cookies, no analytics, no tracking.",
+        ],
+      },
+      {
+        id: "bank-and-card-linking",
+        heading: "Bank and card linking (Plaid)",
+        text: [
+          "On the Connected plan you can choose to link banks and credit cards. Linking is optional, read-only and done through Plaid Inc.",
+          [
+            "You sign in on your bank's own page, or in Plaid's secure window, and choose which accounts to share. We never see your bank username or password.",
+            "We ask Plaid only for transactions and balances, and for cards the statement details (statement balance, due date, minimum payment, credit limit and APR). We never request account or routing numbers, your identity details, or any ability to move money.",
+            "Transactions, balances and card details pass through our server in memory to your device and are not stored on our servers.",
+            "For each connection we store Plaid's identifier for it, an access token encrypted under a key used only for this purpose, your bank's name, and the connection's status and dates. The list of accounts you shared (name, type and last four digits) passes through to your device and is not stored on our servers.",
+            "You can disconnect any time in one tap; we then revoke the access token at Plaid. We also revoke it when you delete your account, and automatically after 60 days in which you have not opened the app.",
+          ],
+          "Plaid's handling of your information is described in the Plaid End User Privacy Policy at plaid.com/legal.",
+        ],
+      },
+      {
+        id: "how-we-use-it",
+        heading: "How we use your information",
+        text: [
+          [
+            "To provide Qash: sign you in, keep your account secure, sync your encrypted backup, run challenges, and pull linked transactions to your device.",
+            "To send the messages you need or asked for: sign-in codes, security alerts (which cannot be turned off), and the notifications and recap you chose.",
+            "To bill you for your plan, through Stripe.",
+            "To protect the service and you: rate limits, the security log, and investigating abuse or attacks.",
+            "To meet legal obligations.",
+          ],
+          "We do not sell your information, share it for advertising, build advertising profiles, or use it to train AI models.",
+        ],
+      },
+      {
+        id: "sharing-and-processors",
+        heading: "Who we share it with",
+        text: [
+          "We use these service providers. Each receives only what its job needs and is bound by its terms to protect it:",
+          [
+            "Amazon Web Services (United States): hosting, the database, encrypted backup storage, and sending email.",
+            "Stripe: payments and subscription billing.",
+            "Plaid: bank and card linking, only if you link an account.",
+            "Apple, Google, Mozilla and Microsoft push services: delivering push notifications, only if you turn them on. They receive fixed generic wording, never amounts or names.",
+            "ImprovMX: forwarding email you send to our addresses, such as support or privacy, to our inbox.",
+          ],
+          "Other people see only what you choose to share: members of a challenge see your display name and percentage; a household partner sees the jars you share with them and, if you turn it on, your month totals.",
+          "We disclose information if the law requires it, and only what is required. If Qash Solutions Inc. is ever reorganised, merged or sold, this policy continues to apply to your information and we will tell you before anything changes.",
+        ],
+      },
+      {
+        id: "cookies",
+        heading: "Cookies and storage on your device",
+        text: [
+          [
+            "This website sets no cookies and loads nothing from other companies.",
+            "The app sets one cookie that keeps you signed in. It is secure and cannot be read by scripts.",
+            "The app keeps your data in your browser's storage on your device, and remembers display choices (such as dark mode) there.",
+          ],
+          "None of these track you or show ads, so there is nothing to accept or opt out of. Because we never sell or share data, a Global Privacy Control signal changes nothing.",
+        ],
+      },
+      {
+        id: "retention",
+        heading: "How long we keep it",
+        text: [
+          [
+            "Account, settings, plan, challenge and notification records: while your account exists, then deleted as described in the next section.",
+            "Free trials and plans: if your free trial or a plan you cancelled ends and you don't choose a plan, the app locks for 7 days so you can subscribe again or download your data. We email you the day before the end, when it ends, and once a day for the 7 days. After the 7 days your account is closed and what we kept is deleted, as described in the next section. The data on your device stays there until you download or erase it, and signing up again with the same email on that device offers to bring it into the new account.",
+            "One free trial per email inbox: we keep a keyed pseudonym of your inbox (your address with any +tag removed, and dots removed for Gmail; not the address itself) so it can't start a second trial, also after your account is deleted.",
+            "After a payment dispute decided in your favour, or a payment refunded because the card's bank flagged it as possibly not yours: a keyed pseudonym of your email inbox (not the address itself) so it can't buy a plan again, also after your account is deleted, until we lift it.",
+            "\"Before you subscribe\" agreements: what you were shown and ticked before paying, the plan, price and time, keyed pseudonyms of your email and IP address, and Stripe's reference for the customer that paid: 7 years, also after your account is deleted (for payment disputes and tax records).",
+            "Signed-in devices: shown to you for 30 days after a session ends; session records are deleted with your account.",
+            "Encrypted backups: the three newest are kept and older ones deleted automatically; all of them are deleted when you turn backup off or delete your account.",
+            "Plaid access tokens: until you disconnect, delete your account, or 60 days pass without you opening the app; then revoked at Plaid and deleted.",
+            "Linked transactions and card details: never kept on our servers.",
+            "Security log: 13 months, then deleted automatically.",
+            "Server logs: 30 days.",
+            "Receipt photos: on your device only, kept for 90 days, 1 year or forever, as you choose in the app.",
+            "Data on your device: until you delete it, delete your account on that device, or clear the app's storage.",
+          ],
+          "Scheduled jobs carry out these deletions automatically. We review these periods at least once a year.",
+        ],
+      },
+      {
+        id: "deleting-your-account",
+        heading: "Deleting your account",
+        text: [
+          `You can delete your account in the app (Me → Delete account) or, without signing in, at ${DOMAIN}/delete-account. It is also closed 7 days after a free trial or plan ends without a new plan; then the data on your device stays there until you decide.`,
+          [
+            "At once: any paid subscription ends with no further charges, every device is signed out, your passkeys and sign-in codes are deleted, your encrypted backups are deleted, your bank connections are revoked at Plaid, you leave any household, your display name is removed (challenges show \"Former member\"), and, when you delete from the app, the app's data on that device is erased. Any other device erases its copy the next time the app opens there, if that is within 30 days; after that, delete the app or clear its data on that device.",
+            `Within ${DELETION_DAYS} days: your remaining records are permanently deleted from our servers.`,
+          ],
+          "Security log entries are kept for their 13 months; they contain no financial information. Payment records held by Stripe are kept by Stripe as the law requires for financial records.",
+        ],
+      },
+      {
+        id: "your-rights",
+        heading: "Your rights and choices",
+        text: [
+          "Wherever you live, you can:",
+          [
+            "Access and export your data: Me → Download all my data creates a file with everything on your device plus your account details, plan and challenges from our servers. For a copy of anything else we hold about you, email us.",
+            "Correct it: edit your name, entries and settings in the app, or change your email (Me → Change email).",
+            "Delete it: delete entries, receipts or your whole account at any time.",
+            "Withdraw consent: disconnect a bank or card, turn off notifications, turn off backup, or leave a challenge or household, at any time.",
+            "Not be sold: we do not sell or share personal information, so there is nothing to opt out of.",
+          ],
+          `For any other request, including those under state privacy laws such as California's, email ${PRIVACY} from your account's address. We will confirm it is you, answer within 30 days, and never treat you differently for using your rights. If we decline a request, reply to our answer to appeal and we will respond within 45 days.`,
+        ],
+      },
+      {
+        id: "security",
+        heading: "How we protect it",
+        text: [
+          [
+            "Sign-up with an email code and a passkey, then sign-in with the passkey or, on a computer, approval from your phone where you're already signed in; no passwords. The app locks after the idle time you choose (5 to 60 minutes) and asks for your passkey again before sensitive actions such as exporting data, deleting your account or linking a bank.",
+            "Encryption in transit (TLS 1.2 or newer) on every connection, and at rest on our storage and database. Bank access tokens are encrypted again under a separate key; backups and household data are encrypted on your device.",
+            "Every request is checked so that you can reach only your own data, and this is tested automatically.",
+          ],
+          "No system is perfectly secure. If a breach affects your information, we will tell you and the authorities as the law requires.",
+        ],
+      },
+      {
+        id: "children",
+        heading: "Children",
+        text: `Qash is not intended for anyone under 18. We do not knowingly collect information from children under 13; if you believe a child has given us information, email ${PRIVACY} and we will delete it.`,
+      },
+      {
+        id: "where-processed",
+        heading: "Where your information is processed",
+        text: "Our servers are in the United States (Amazon Web Services). Our service providers process information under their own privacy and security commitments, which may include locations outside the United States; we choose providers that protect it to the standards in this policy. Qash is offered to people in the United States.",
+      },
+      {
+        id: "changes",
+        heading: "Changes to this policy",
+        text: "When we change this policy, we update the date at the top. If a change is significant, we tell you by email or in the app before it takes effect.",
+      },
+      {
+        id: "contact",
+        heading: "Contact",
+        text: `Email ${PRIVACY} with any question or request about your privacy. Qash Solutions Inc., a Delaware corporation.`,
+      },
+    ]}
+  />
+</Base>

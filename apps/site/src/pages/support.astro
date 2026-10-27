@@ -1,0 +1,67 @@
+---
+import PageHero from "../components/PageHero.astro";
+import SecIcon from "../components/visuals/SecIcon.astro";
+import Base from "../layouts/Base.astro";
+import { FAQ } from "../data/faq.ts";
+import { linkPlans } from "../data/linkPlans.ts";
+import { SUPPORT_EMAIL } from "../data/site.ts";
+
+// Visual first (owner, October 15, 2026): do-it-yourself tiles, questions, then a way to write.
+const selfServe = [
+  { icon: "cancel", t: "Cancel your plan", d: "Me → Plan → Cancel plan." },
+  { icon: "download", t: "Download your data", d: "Me → Download all my data." },
+  { icon: "trash", t: "Delete your account", d: "Me → Delete account.", extra: { href: "/delete-account", label: "Can't open the app?" } },
+] as const;
+---
+
+<Base title="Support" description="Answers to common questions about Qash, what you can do yourself in the app, and how to contact us.">
+  <PageHero pill="Help & support" title="How can we" accent="help?" lede="Most things are a few taps in the app." />
+
+  <ul class="sup-tiles">
+    {selfServe.map((s) => (
+      <li class="sec-tile">
+        <span class="sec-tile__icon"><SecIcon name={s.icon} /></span>
+        <h2>{s.t}</h2>
+        <p>{s.d}</p>
+        {"extra" in s ? <a class="sup-tile__link" href={s.extra.href}>{s.extra.label}</a> : null}
+      </li>
+    ))}
+  </ul>
+
+  <section class="sup-faq" aria-labelledby="faq">
+    <h2 id="faq" class="lp-h2">Common questions</h2>
+    {FAQ.map((item) => (
+      <details class="sup-q">
+        <summary>{item.q}</summary>
+        <p set:html={linkPlans(item.a)} />
+      </details>
+    ))}
+  </section>
+
+  <section class="sup-contact" aria-labelledby="contact">
+    <div class="sup-contact__head">
+      <span class="sec-tile__icon"><SecIcon name="chat" /></span>
+      <div>
+        <h2 id="contact">Write to us</h2>
+        <p><SecIcon name="clock" /> We reply within five to seven business days.</p>
+      </div>
+    </div>
+    <form action={`mailto:${SUPPORT_EMAIL}`} method="get" aria-label="Contact form">
+      <div class="field">
+        <label for="subject">How can we help?</label>
+        <input id="subject" name="subject" required />
+      </div>
+      <div class="field">
+        <label for="body">Details</label>
+        <textarea id="body" name="body" rows="5"></textarea>
+      </div>
+      <button class="button" type="submit">Send</button>
+      <p class="fine sup-contact__fine">
+        Opens your email app addressed to {SUPPORT_EMAIL}. Never send statements, card numbers or
+        passwords.
+      </p>
+    </form>
+  </section>
+
+  <p class="sup-more"><a href="/licenses">Open-source licenses</a></p>
+</Base>

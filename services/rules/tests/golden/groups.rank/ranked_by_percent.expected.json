@@ -1,0 +1,23 @@
+{
+  "ranked": [
+    {
+      "id": "maya",
+      "rank": 1,
+      "progress_bps": 8600,
+      "reached_at": null
+    },
+    {
+      "id": "dev",
+      "rank": 2,
+      "progress_bps": 6400,
+      "reached_at": null
+    },
+    {
+      "id": "sam",
+      "rank": 3,
+      "progress_bps": 4300,
+      "reached_at": null
+    }
+  ],
+  "hidden": []
+}

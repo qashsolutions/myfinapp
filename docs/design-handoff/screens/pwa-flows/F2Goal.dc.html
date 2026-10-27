@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 2 — First jar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <div style="display:flex;align-items:center;gap:12px">
+    <a href="F2Data.dc.html" aria-label="Back" style="{{S.back}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+    <div style="flex:1;display:flex;gap:6px" aria-label="Step 4 of 5">
+      <span style="{{S.on}}"></span><span style="{{S.on}}"></span><span style="{{S.on}}"></span><span style="{{S.on}}"></span><span style="{{S.off}}"></span>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;margin-top:24px">
+    <span style="font:700 30px Outfit,sans-serif;letter-spacing:-0.01em">Start your first jar</span>
+    <span style="font-size:16px;line-height:1.45;color:{{m.sub}}">A jar is money you set aside for one thing. It's a label — your money doesn't move.</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:20px">
+    <sc-for list="{{jars}}" as="j" hint-placeholder-count="4">
+      <button onClick="{{j.pick}}" aria-pressed="{{j.sel}}" style="{{j.st}}"><span style="font:600 15px Outfit,sans-serif">{{j.n}}</span><span style="font-size:12px;color:{{m.sub}}">{{j.s}}</span></button>
+    </sc-for>
+  </div>
+
+  <label for="amt" style="font-size:13px;font-weight:600;color:{{m.sub}};margin-top:18px">Target</label>
+  <div style="{{S.amount}}"><span style="font:600 24px Outfit,sans-serif;color:{{m.sub}}">$</span><input id="amt" inputmode="decimal" value="{{amt}}" onChange="{{setAmt}}" style="{{S.input}}"></div>
+
+  <span style="font-size:13px;font-weight:600;color:{{m.sub}};margin-top:16px">By when?</span>
+  <div style="display:flex;gap:6px;margin-top:8px">
+    <sc-for list="{{whens}}" as="w" hint-placeholder-count="4">
+      <button onClick="{{w.pick}}" aria-pressed="{{w.sel}}" style="{{w.st}}">{{w.n}}</button>
+    </sc-for>
+  </div>
+
+  <div style="{{S.pace}}">
+    <span style="font-size:13px;font-weight:600">{{paceLabel}}</span>
+    <span style="font:700 30px Outfit,sans-serif;font-variant-numeric:tabular-nums">{{pace}}</span>
+    <span style="font-size:13px">{{paceNote}}</span>
+  </div>
+
+  <div style="margin-top:auto;display:flex;flex-direction:column;gap:6px">
+    <a href="F2Plan.dc.html" style="{{S.primary}}">Create jar</a>
+    <a href="F2Plan.dc.html" style="{{S.link}}">Skip for now</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { jar: 'emergency', amt: '1,000', when: 6 }; }
+  renderVals() {
+    const dark = !!this.props.dark, st = this.state;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', tint: '#1E2433', acc: '#8FA2FF' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE' };
+    const sel = (on) => 'cursor:pointer;font-family:Outfit,sans-serif;color:' + m.ink + ';' + (on ? 'background:' + m.tint + ';border:2px solid #3D5AFE' : 'background:' + m.card + ';border:2px solid ' + m.line);
+    const J = [['emergency', 'Emergency', 'Starter $1,000', '1,000'], ['travel', 'Travel', 'A trip you want', '2,000'], ['card', 'Pay off a card', 'Clear a balance', '2,400'], ['custom', 'Something else', 'Name your own', '500']];
+    const jars = J.map(([k, n, s, a]) => ({ n, s, sel: st.jar === k ? 'true' : 'false', pick: () => this.setState({ jar: k, amt: a }),
+      st: sel(st.jar === k) + ';min-height:68px;border-radius:16px;padding:10px 12px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;text-align:left' }));
+    const W = [[3, '3 mo'], [6, '6 mo'], [12, '1 year'], [0, 'No date']];
+    const whens = W.map(([k, n]) => ({ n, sel: st.when === k ? 'true' : 'false', pick: () => this.setState({ when: k }),
+      st: sel(st.when === k) + ';flex:1;min-height:48px;border-radius:12px;font-weight:600;font-size:14px' }));
+    const amt = Number(String(st.amt).replace(/[^0-9.]/g, '')) || 0;
+    let pace, paceLabel, paceNote;
+    if (st.when === 0) { pace = '$50'; paceLabel = 'Suggested each paycheck'; paceNote = 'Change it anytime. No deadline, no pressure.'; }
+    else { const checks = Math.round(st.when * 26 / 12); pace = '$' + Math.ceil(amt / checks).toLocaleString('en-US'); paceLabel = 'Set aside each paycheck'; paceNote = checks + ' paychecks to $' + Math.round(amt).toLocaleString('en-US'); }
+    const bar = 'flex:1;height:6px;border-radius:3px;';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:28px 22px 30px;display:flex;flex-direction:column;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      back: 'width:44px;height:44px;flex-shrink:0;border-radius:50%;background:' + m.card + ';display:flex;align-items:center;justify-content:center',
+      on: bar + 'background:#3D5AFE', off: bar + 'background:' + m.line,
+      amount: 'margin-top:8px;display:flex;align-items:center;gap:6px;min-height:58px;padding:0 16px;border-radius:16px;background:' + m.card + ';border:2px solid ' + m.line,
+      input: 'flex:1;min-width:0;border:0;outline:none;background:transparent;font:700 24px Outfit,sans-serif;font-variant-numeric:tabular-nums;color:' + m.ink,
+      pace: 'margin-top:16px;display:flex;flex-direction:column;gap:2px;padding:16px;border-radius:18px;background:#3D5AFE;color:#FFFFFF',
+      primary: 'min-height:54px;display:flex;align-items:center;justify-content:center;border-radius:16px;font:600 16px Outfit,sans-serif;background:#3D5AFE;color:#FFFFFF',
+      link: 'min-height:44px;display:flex;align-items:center;justify-content:center;font:600 15px Outfit,sans-serif;color:' + m.sub
+    };
+    return { S, m, jars, whens, amt: st.amt, pace, paceLabel, paceNote, setAmt: (e) => this.setState({ amt: e.target.value }) };
+  }
+}
+</script>
+</body>
+</html>

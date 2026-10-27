@@ -1,0 +1,18 @@
+{
+  "inputs": {
+    "now_local": "2026-10-10T18:00",
+    "upcoming": [],
+    "shortfall": {
+      "first_short_date": "2026-10-25",
+      "short_by_cents": 18000
+    },
+    "challenges": [],
+    "goals": [],
+    "milestones": [],
+    "prefs": {
+      "shortfall_risk": {
+        "enabled": true
+      }
+    }
+  }
+}

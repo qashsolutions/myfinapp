@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 1 — Lock screen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center">
+    <span style="width:84px;height:84px;border-radius:24px;background:#3D5AFE;display:flex;align-items:center;justify-content:center"><svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="26" width="8" height="14" rx="3" fill="#FFFFFF" opacity="0.7"></rect><rect x="20" y="17" width="8" height="23" rx="3" fill="#FFFFFF" opacity="0.85"></rect><rect x="32" y="8" width="8" height="32" rx="3" fill="#FFFFFF"></rect></svg></span>
+    <span style="font:700 28px Outfit,sans-serif">Stackd is locked</span>
+    <span style="font-size:16px;line-height:1.45;color:{{m.sub}};max-width:290px">Locked after 5 minutes without activity. Unlock to pick up where you left off.</span>
+    <sc-if value="{{failed}}" hint-placeholder-val="{{ false }}">
+      <span role="alert" style="{{S.warn}}">Face ID didn't match. Try again, or use your device passcode.</span>
+    </sc-if>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <a href="../v3/Home.dc.html" style="{{S.primary}}">
+      <svg width="22" height="22" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 20V14a6 6 0 0 1 6-6h6M44 8h6a6 6 0 0 1 6 6v6M56 44v6a6 6 0 0 1-6 6h-6M20 56h-6a6 6 0 0 1-6-6v-6"></path><path d="M24 24v4M40 24v4M24 43c4.5 3 11.5 3 16 0"></path></svg>
+      Unlock with Face ID
+    </a>
+    <a href="../v3/Home.dc.html" style="{{S.ghost}}">Use device passcode</a>
+    <a href="F1Welcome.dc.html" style="{{S.link}}">Sign out</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"failed":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+    renderVals() {
+    const dark = !!this.props.dark;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', warnBg: '#3A2E12', warn: '#FFB547' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', warnBg: '#FFF4E0', warn: '#8A4B00' };
+    const btn = 'min-height:54px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:16px;font:600 16px Outfit,sans-serif;width:100%;box-sizing:border-box;cursor:pointer;';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:28px 22px 30px;display:flex;flex-direction:column;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      warn: 'font-size:14px;font-weight:600;padding:10px 14px;border-radius:12px;background:' + m.warnBg + ';color:' + m.warn,
+      primary: btn + 'background:#3D5AFE;color:#FFFFFF',
+      ghost: btn + 'background:transparent;color:' + m.ink + ';border:1px solid ' + m.line,
+      link: 'min-height:44px;display:flex;align-items:center;justify-content:center;font:600 15px Outfit,sans-serif;color:' + m.sub
+    };
+    return { S, m, failed: !!this.props.failed };
+  }
+}
+</script>
+</body>
+</html>

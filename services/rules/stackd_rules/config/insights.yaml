@@ -1,0 +1,10 @@
+# Insight thresholds (fast-follow 8; docs/spec.md "Rules added for money in & out, imports and
+# the forecast"). All proposed until [owner] confirms. The rules take these as input so they
+# stay pure. Edit, then: uv run python scripts/build_insights.py
+version: 1
+thresholds:
+  usual_increase_cents: 2500      # a category is "more than usual" from $25 over...
+  usual_increase_bps: 2500        # ...and 25% over the same days of recent months
+  lumpy_month_cents: 30000        # a month with $300+ of quarterly / yearly bills is "big"
+  seasonal_increase_cents: 10000  # last year's same month ran $100+ over...
+  seasonal_increase_bps: 2000     # ...and 20% over the usual month

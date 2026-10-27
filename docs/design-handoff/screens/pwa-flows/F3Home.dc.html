@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 3 — Home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;flex-direction:column"><span style="font-size:13px;color:{{m.sub}}">October 2026</span><span style="font:700 24px Outfit,sans-serif">Hi, [Name]</span></div>
+    <div style="display:flex;gap:8px"><a href="F3Import.dc.html" aria-label="Add entry or upload statement" style="{{S.fab}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></a><a href="F6Settings.dc.html" aria-label="Settings" style="{{S.avatar}}">N</a></div>
+  </header>
+
+  <a href="F3Money.dc.html" style="{{S.hero}}">
+    <span style="font-size:13px;font-weight:600;opacity:0.9">Kept this month so far</span>
+    <span style="font:700 50px Outfit,sans-serif;letter-spacing:-0.03em;line-height:1;font-variant-numeric:tabular-nums">$412</span>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <span style="{{S.pill}}">In <b>+$5,200</b></span><span style="{{S.pill}}">Out <b>−$4,788</b></span>
+    </div>
+    <span style="font-size:12px;opacity:0.85">Updated from your Oct 8 statement · tap for details</span>
+  </a>
+
+  <sc-if value="{{short}}" hint-placeholder-val="{{ true }}">
+    <a href="F3Forecast.dc.html" style="{{S.warn}}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"></path><path d="M12 10v4M12 17.5v.5"></path></svg>
+      <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-weight:600;font-size:15px">You may be short $180 around Oct 25</span><span style="font-size:13px">Rent is due before your Oct 30 payday. See options →</span></div>
+    </a>
+  </sc-if>
+  <sc-if value="{{noShort}}" hint-placeholder-val="{{ false }}">
+    <div style="{{S.card}}"><span style="font-size:12px;font-weight:600;color:{{m.sub}}">Next move</span><span style="font-weight:600;font-size:15px">Plan for Phone bill on Oct 12 — $45</span></div>
+  </sc-if>
+
+  <section style="{{S.card}}">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font:600 16px Outfit,sans-serif">Coming up</span><a href="F3Forecast.dc.html" style="{{S.link}}">All 30 days</a></div>
+    <sc-for list="{{up}}" as="u" hint-placeholder-count="3">
+      <div style="{{S.row}}"><span style="{{S.date}}">{{u.d}}</span><span style="flex:1;font-size:15px">{{u.n}}</span><span style="{{u.st}}">{{u.v}}</span></div>
+    </sc-for>
+  </section>
+
+  <section style="{{S.card}}">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font:600 16px Outfit,sans-serif">Jars</span><a href="F4Goals.dc.html" style="{{S.link}}">See all</a></div>
+    <sc-for list="{{jars}}" as="j" hint-placeholder-count="2">
+      <div style="display:flex;flex-direction:column;gap:6px;padding:6px 0"><div style="display:flex;justify-content:space-between;font-size:14px"><span style="font-weight:600">{{j.n}}</span><span style="color:{{m.sub}};font-variant-numeric:tabular-nums">{{j.p}}</span></div><div style="height:8px;border-radius:4px;background:{{m.line}};overflow:hidden"><div style="{{j.bar}}"></div></div></div>
+    </sc-for>
+  </section>
+
+  <nav style="{{S.nav}}">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5"><a href="{{t.h}}" style="{{t.st}}">{{t.n}}</a></sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"shortfall":{"editor":"boolean","default":true},"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark, short = this.props.shortfall !== false;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', acc: '#8FA2FF', good: '#6FD39B', warnBg: '#3A2E12', warn: '#FFB547' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', acc: '#3D5AFE', good: '#1E7A4C', warnBg: '#FFF4E0', warn: '#8A4B00' };
+    const sh = '0 6px 20px rgba(17,24,39,' + (dark ? '0.4' : '0.08') + ')';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:24px 18px 110px;display:flex;flex-direction:column;gap:12px;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      avatar: 'width:44px;height:44px;border-radius:50%;background:#7C3AED;color:#FFFFFF;font:700 17px Outfit,sans-serif;display:flex;align-items:center;justify-content:center',
+      hero: 'display:flex;flex-direction:column;gap:6px;padding:18px;border-radius:22px;background:#3D5AFE;color:#FFFFFF;box-shadow:' + sh,
+      pill: 'font-size:13px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.18);font-variant-numeric:tabular-nums',
+      warn: 'display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:18px;background:' + m.warnBg + ';color:' + m.warn,
+      card: 'display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:20px;background:' + m.card + ';box-shadow:' + sh,
+      link: 'min-height:44px;display:flex;align-items:center;font-size:14px;font-weight:600;color:' + m.acc,
+      row: 'display:flex;align-items:center;gap:12px;min-height:40px',
+      date: 'width:48px;font-size:12px;font-weight:600;color:' + m.sub,
+      fab: 'width:44px;height:44px;border-radius:14px;background:#3D5AFE;color:#FFFFFF;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px rgba(61,90,254,0.35)',
+      nav: 'position:absolute;left:16px;right:16px;bottom:18px;height:68px;padding:0 6px;display:flex;align-items:center;background:' + m.card + ';border-radius:26px;box-shadow:0 8px 24px rgba(0,0,0,' + (dark ? '0.4' : '0.10') + ')'
+    };
+    const up = [['Oct 12', 'Phone bill', -45], ['Oct 14', 'Car insurance', -180], ['Oct 16', 'Paycheck', 2400]]
+      .map(([d, n, v]) => ({ d, n, v: (v > 0 ? '+$' : '−$') + Math.abs(v).toLocaleString('en-US'), st: 'font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:' + (v > 0 ? m.good : m.ink) }));
+    const jars = [['Emergency', 0.62, '$620 / $1,000'], ['Travel', 0.32, '$640 / $2,000']]
+      .map(([n, f, p]) => ({ n, p, bar: 'width:' + Math.round(f * 100) + '%;height:100%;background:#3D5AFE' }));
+    const tabs = [['Home', 'F3Home.dc.html'], ['Budget', 'F5Budget.dc.html'], ['Goals', 'F4Goals.dc.html'], ['Learn', 'F5Learn.dc.html'], ['Me', 'F6Settings.dc.html']].map(([n, h], i) => ({ n, h,
+      st: 'flex:1;min-height:48px;display:flex;align-items:center;justify-content:center;border-radius:16px;font:600 12px Outfit,sans-serif;' + (i === 0 ? 'background:#3D5AFE;color:#FFFFFF' : 'color:' + m.sub) }));
+    return { S, m, short, noShort: !short, up, jars, tabs };
+  }
+}
+</script>
+</body>
+</html>

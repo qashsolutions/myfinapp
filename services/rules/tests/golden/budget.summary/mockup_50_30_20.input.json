@@ -1,0 +1,144 @@
+{
+  "as_of": "2026-10-20",
+  "method": "50_30_20",
+  "take_home_cents": 520000,
+  "lines": [],
+  "entries": [
+    {
+      "date": "2026-10-02",
+      "amount_cents": 240000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-paycheck",
+      "bucket": null
+    },
+    {
+      "date": "2026-10-01",
+      "amount_cents": 165000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-rent",
+      "bucket": "need"
+    },
+    {
+      "date": "2026-10-07",
+      "amount_cents": 4217,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "bucket": "need"
+    },
+    {
+      "date": "2026-10-14",
+      "amount_cents": 56983,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "bucket": "need"
+    },
+    {
+      "date": "2026-10-07",
+      "amount_cents": 27500,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-transport",
+      "bucket": "need"
+    },
+    {
+      "date": "2026-10-04",
+      "amount_cents": 32500,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-utilities",
+      "bucket": "need"
+    },
+    {
+      "date": "2026-10-10",
+      "amount_cents": 20000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-insurance",
+      "bucket": "need"
+    },
+    {
+      "date": "2026-10-11",
+      "amount_cents": 45000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-fun",
+      "bucket": "want"
+    },
+    {
+      "date": "2026-10-09",
+      "amount_cents": 36000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "bucket": "want"
+    },
+    {
+      "date": "2026-10-12",
+      "amount_cents": 2000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "bucket": "want"
+    },
+    {
+      "date": "2026-10-03",
+      "amount_cents": 28400,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "bucket": "want"
+    },
+    {
+      "date": "2026-10-08",
+      "amount_cents": 15000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-subscriptions",
+      "bucket": "want"
+    },
+    {
+      "date": "2026-10-13",
+      "amount_cents": 10200,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-other",
+      "bucket": "want"
+    },
+    {
+      "date": "2026-10-05",
+      "amount_cents": 40000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-debt-payoff",
+      "bucket": "save"
+    },
+    {
+      "date": "2026-10-06",
+      "amount_cents": 120000,
+      "direction": "out",
+      "is_transfer": true,
+      "category_id": null,
+      "bucket": null
+    },
+    {
+      "date": "2026-10-25",
+      "amount_cents": 99900,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-fun",
+      "bucket": "want"
+    },
+    {
+      "date": "2026-09-30",
+      "amount_cents": 99900,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-fun",
+      "bucket": "want"
+    }
+  ]
+}

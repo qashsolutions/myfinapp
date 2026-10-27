@@ -1,0 +1,53 @@
+{
+  "as_of": "2026-10-20",
+  "method": "zero_based",
+  "take_home_cents": 520000,
+  "lines": [
+    {
+      "category_id": "cat-rent",
+      "bucket": "need",
+      "planned_cents": 165000
+    },
+    {
+      "category_id": "cat-groceries",
+      "bucket": "need",
+      "planned_cents": 60000
+    },
+    {
+      "category_id": "cat-fun",
+      "bucket": "want",
+      "planned_cents": 30000
+    },
+    {
+      "category_id": "cat-savings",
+      "bucket": "save",
+      "planned_cents": 100000
+    }
+  ],
+  "entries": [
+    {
+      "date": "2026-10-01",
+      "amount_cents": 165000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-rent",
+      "bucket": "need"
+    },
+    {
+      "date": "2026-10-07",
+      "amount_cents": 70000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "bucket": "need"
+    },
+    {
+      "date": "2026-10-09",
+      "amount_cents": 1500,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": null,
+      "bucket": null
+    }
+  ]
+}

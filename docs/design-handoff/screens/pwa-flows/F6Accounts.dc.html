@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 6 — Accounts and imports</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;align-items:center;gap:10px">
+    <a href="F6Settings.dc.html" aria-label="Back" style="{{S.icon}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+    <span style="flex:1;font:700 22px Outfit,sans-serif">Accounts &amp; imports</span>
+    <a href="F3Import.dc.html" style="{{S.small}}">Import</a>
+  </header>
+
+  <sc-for list="{{accts}}" as="a" hint-placeholder-count="3">
+    <section style="{{S.card}}">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font:600 17px Outfit,sans-serif">{{a.n}}</span><span style="{{S.tag}}">{{a.t}}</span></div>
+      <div style="{{S.kv}}"><span style="color:{{m.sub}}">Balance</span><b style="font-variant-numeric:tabular-nums">{{a.b}}</b></div>
+      <div style="{{S.kv}}"><span style="color:{{m.sub}}">Last import</span><span>{{a.l}}</span></div>
+      <div style="{{S.kv}}"><span style="color:{{m.sub}}">Format</span><span>{{a.f}}</span></div>
+      <div style="display:flex;gap:8px;margin-top:6px"><a href="F3Import.dc.html" style="{{S.act}}">Import new file</a><button style="{{S.act2}}">Set balance</button></div>
+    </section>
+  </sc-for>
+
+  <button style="{{S.add}}">+ Add an account</button>
+  <span style="font-size:12px;color:{{m.sub}};text-align:center;line-height:1.45">Everything here lives on this device. Removing an account deletes its imported transactions after you confirm.</span>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', tint: '#1E2433', acc: '#8FA2FF' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE' };
+    const accts = [['Everyday checking', 'Checking ••4821', '$2,100.00 · from Oct 8 statement', 'Oct 8 · 45 added, 3 skipped', 'CSV · mapping saved'],
+      ['Rewards card', 'Card ••1173', '$1,212.40 owed', 'Oct 2 · 61 added', 'PDF · [bank] template'],
+      ['Savings', 'Savings ••0094', '$4,350.00 · you entered', 'Never imported', 'Manual balance']].map(([n, t, b, l, f]) => ({ n, t, b, l, f }));
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:24px 18px 28px;display:flex;flex-direction:column;gap:12px;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      icon: 'width:44px;height:44px;flex-shrink:0;border-radius:50%;background:' + m.card + ';display:flex;align-items:center;justify-content:center',
+      small: 'min-height:44px;padding:0 14px;display:flex;align-items:center;border-radius:12px;background:#3D5AFE;color:#FFFFFF;font:600 14px Outfit,sans-serif',
+      card: 'display:flex;flex-direction:column;gap:2px;padding:14px 16px;border-radius:20px;background:' + m.card,
+      tag: 'font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:' + m.tint + ';color:' + m.acc,
+      kv: 'display:flex;justify-content:space-between;align-items:center;min-height:30px;font-size:14px',
+      act: 'flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:' + m.tint + ';color:' + m.acc + ';font:600 14px Outfit,sans-serif',
+      act2: 'flex:1;min-height:44px;border-radius:12px;cursor:pointer;background:transparent;border:1px solid ' + m.line + ';color:' + m.ink + ';font:600 14px Outfit,sans-serif',
+      add: 'min-height:52px;border-radius:16px;cursor:pointer;background:transparent;border:2px dashed ' + m.line + ';color:' + m.acc + ';font:600 15px Outfit,sans-serif'
+    };
+    return { S, m, accts };
+  }
+}
+</script>
+</body>
+</html>

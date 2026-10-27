@@ -1,0 +1,10 @@
+{
+  "debts": [
+    {
+      "id": "a",
+      "balance_cents": 1,
+      "apr_bps": 0,
+      "min_payment_cents": 0
+    }
+  ]
+}

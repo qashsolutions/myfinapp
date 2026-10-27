@@ -1,0 +1,15 @@
+{
+  "inputs": {
+    "now_local": "2026-10-10T18:00",
+    "upcoming": [],
+    "shortfall": null,
+    "challenges": [],
+    "goals": [],
+    "milestones": [],
+    "prefs": {
+      "upcoming_expense": {
+        "enabled": "yes"
+      }
+    }
+  }
+}

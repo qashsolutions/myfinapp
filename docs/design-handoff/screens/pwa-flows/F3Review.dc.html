@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 3 — Review import</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;align-items:center;gap:10px">
+    <a href="F3Map.dc.html" aria-label="Back" style="{{S.icon}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+    <span style="flex:1;font:700 22px Outfit,sans-serif">Review import</span>
+    <span style="font-size:13px;color:{{m.sub}}">3 of 3</span>
+  </header>
+
+  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+    <div style="{{S.stat}}"><span style="font:700 22px Outfit,sans-serif">48</span><span style="font-size:12px;color:{{m.sub}}">rows found</span></div>
+    <div style="{{S.stat}}"><span style="font:700 22px Outfit,sans-serif;color:{{m.good}}">45</span><span style="font-size:12px;color:{{m.sub}}">new</span></div>
+    <div style="{{S.stat}}"><span style="font:700 22px Outfit,sans-serif">3</span><span style="font-size:12px;color:{{m.sub}}">already imported</span></div>
+  </div>
+
+  <span style="font:600 16px Outfit,sans-serif">Is this a transfer?</span>
+  <span style="font-size:13px;color:{{m.sub}};margin-top:-6px">Transfers between your own accounts aren't counted as money in or out.</span>
+  <sc-for list="{{pairs}}" as="p" hint-placeholder-count="2">
+    <div style="{{S.card}}">
+      <div style="display:flex;justify-content:space-between;font-size:14px"><span style="font-weight:600">{{p.n}}</span><span style="font-weight:600;font-variant-numeric:tabular-nums">{{p.v}}</span></div>
+      <span style="font-size:12px;color:{{m.sub}}">{{p.s}}</span>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button onClick="{{p.yes}}" aria-pressed="{{p.isYes}}" style="{{p.yesSt}}">Yes, transfer</button>
+        <button onClick="{{p.no}}" aria-pressed="{{p.isNo}}" style="{{p.noSt}}">No, spending</button>
+      </div>
+    </div>
+  </sc-for>
+
+  <div style="{{S.card}}">
+    <div style="display:flex;justify-content:space-between;align-items:center;min-height:36px"><span style="font-size:14px">Categorized automatically</span><b>41</b></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;min-height:36px"><span style="font-size:14px">Need a category</span><b style="color:{{m.warn}}">4 · review after</b></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;min-height:36px"><span style="font-size:14px">Ending balance (Oct 8)</span><b style="font-variant-numeric:tabular-nums">$2,100.00</b></div>
+  </div>
+
+  <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+    <a href="F3Money.dc.html" style="{{S.primary}}">Import 45 transactions</a>
+    <span style="text-align:center;font-size:12px;color:{{m.sub}}">Account number masked to ••4821. The file stays on this device.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { a: 'yes', b: null }; }
+  renderVals() {
+    const dark = !!this.props.dark, st = this.state;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', tint: '#1E2433', acc: '#8FA2FF', good: '#6FD39B', warn: '#FFB547' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE', good: '#1E7A4C', warn: '#A85A00' };
+    const b = (on) => 'flex:1;min-height:44px;border-radius:12px;cursor:pointer;font:600 14px Outfit,sans-serif;' + (on ? 'background:' + m.tint + ';color:' + m.acc + ';border:2px solid #3D5AFE' : 'background:transparent;color:' + m.ink + ';border:1px solid ' + m.line);
+    const P = [['a', 'PAYMENT TO CARD 1173', '−$1,200.00', 'Oct 6 · matches +$1,200.00 on Rewards card ••1173'], ['b', 'ONLINE TRANSFER 0094', '−$150.00', 'Oct 3 · Savings ••0094 not imported yet']];
+    const pairs = P.map(([k, n, v, s]) => ({ n, v, s, isYes: st[k] === 'yes' ? 'true' : 'false', isNo: st[k] === 'no' ? 'true' : 'false',
+      yesSt: b(st[k] === 'yes'), noSt: b(st[k] === 'no'), yes: () => this.setState({ [k]: 'yes' }), no: () => this.setState({ [k]: 'no' }) }));
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:24px 18px 28px;display:flex;flex-direction:column;gap:12px;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      icon: 'width:44px;height:44px;flex-shrink:0;border-radius:50%;background:' + m.card + ';display:flex;align-items:center;justify-content:center',
+      stat: 'display:flex;flex-direction:column;gap:2px;padding:12px;border-radius:16px;background:' + m.card,
+      card: 'display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:18px;background:' + m.card,
+      primary: 'min-height:54px;display:flex;align-items:center;justify-content:center;border-radius:16px;font:600 16px Outfit,sans-serif;background:#3D5AFE;color:#FFFFFF'
+    };
+    return { S, m, pairs };
+  }
+}
+</script>
+</body>
+</html>

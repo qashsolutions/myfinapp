@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PWA — App icon</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width:720px;height:360px;box-sizing:border-box;padding:32px;background:#F4F5F8;color:#111827;font-family:Outfit,'Helvetica Neue',sans-serif;display:flex;gap:36px;align-items:flex-end">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+    <div style="width:180px;height:180px;border-radius:40px;background:#3D5AFE;display:flex;align-items:center;justify-content:center">
+      <svg width="104" height="104" viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="26" width="8" height="14" rx="3" fill="#FFFFFF" opacity="0.7"></rect><rect x="20" y="17" width="8" height="23" rx="3" fill="#FFFFFF" opacity="0.85"></rect><rect x="32" y="8" width="8" height="32" rx="3" fill="#FFFFFF"></rect></svg>
+    </div>
+    <span style="font-size:13px;color:#5B6272">512 × 512 · any</span>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+    <div style="width:180px;height:180px;background:#3D5AFE;display:flex;align-items:center;justify-content:center;position:relative">
+      <div style="position:absolute;left:18px;top:18px;width:144px;height:144px;border-radius:50%;border:2px dashed rgba(255,255,255,0.55);box-sizing:border-box"></div>
+      <svg width="80" height="80" viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="26" width="8" height="14" rx="3" fill="#FFFFFF" opacity="0.7"></rect><rect x="20" y="17" width="8" height="23" rx="3" fill="#FFFFFF" opacity="0.85"></rect><rect x="32" y="8" width="8" height="32" rx="3" fill="#FFFFFF"></rect></svg>
+    </div>
+    <span style="font-size:13px;color:#5B6272">512 × 512 · maskable (safe zone dashed)</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:20px;align-items:flex-start">
+    <div style="display:flex;align-items:flex-end;gap:18px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+        <div style="width:60px;height:60px;border-radius:14px;background:#3D5AFE;display:flex;align-items:center;justify-content:center"><svg width="36" height="36" viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="26" width="8" height="14" rx="3" fill="#FFFFFF" opacity="0.7"></rect><rect x="20" y="17" width="8" height="23" rx="3" fill="#FFFFFF" opacity="0.85"></rect><rect x="32" y="8" width="8" height="32" rx="3" fill="#FFFFFF"></rect></svg></div>
+        <span style="font-size:12px;color:#5B6272">180 · Apple</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+        <div style="width:32px;height:32px;border-radius:8px;background:#3D5AFE;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="26" width="8" height="14" rx="3" fill="#FFFFFF" opacity="0.7"></rect><rect x="20" y="17" width="8" height="23" rx="3" fill="#FFFFFF" opacity="0.85"></rect><rect x="32" y="8" width="8" height="32" rx="3" fill="#FFFFFF"></rect></svg></div>
+        <span style="font-size:12px;color:#5B6272">32 · favicon</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;font-size:13px;color:#5B6272;max-width:200px">
+      <span style="font-weight:600;color:#111827">Manifest</span>
+      <span>theme_color #3D5AFE</span>
+      <span>background_color #3D5AFE</span>
+      <span>display standalone</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":720,"height":360}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

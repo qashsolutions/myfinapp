@@ -1,0 +1,51 @@
+/* Sort your spending (October 20, 2026). */
+.review__left {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.review__card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.review__merchant {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.review__amount {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+}
+.review__amount--in {
+  color: var(--c-success);
+}
+.review__meta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.review__ask {
+  width: 100%;
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+.review__chips .chip-option {
+  font: inherit;
+  cursor: pointer;
+}
+.review__suggested {
+  border-color: var(--c-a1);
+  color: var(--c-a1);
+  font-weight: 700;
+}
+.review__more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.review__done {
+  font-weight: 700;
+}

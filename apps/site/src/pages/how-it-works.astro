@@ -1,0 +1,111 @@
+---
+import Icon from "../components/visuals/Icon.astro";
+import StepArt from "../components/visuals/StepArt.astro";
+import Base from "../layouts/Base.astro";
+import { APP_LIVE, APP_URL, NAME } from "../data/site.ts";
+
+// Visual first (owner, October 13–14, 2026): a drawing per step and one line of value,
+// 8–9 words. The detail lives in the app, on Security and in the privacy policy.
+const steps = [
+  {
+    art: "bring",
+    t: "Bring in your money",
+    d: "Upload, snap or link: all your money, one place.",
+    tags: [
+      { label: "Private", sub: "statements read on your device", href: "/pricing#private" },
+      { label: "Connected", sub: "banks and cards update themselves", href: "/pricing#connected" },
+    ],
+  },
+  { art: "see", t: "See where it goes", d: "Know exactly what came in, went out, and stayed." },
+  { art: "ahead", t: "Look 30 days ahead", d: "Spot a short week before it happens, not after." },
+  { art: "save", t: "Save toward anything", d: "Pick a goal and date, get your weekly pace." },
+] as const;
+
+const formats = [
+  { k: "CSV", t: "Most banks" },
+  { k: "OFX", t: "Quicken downloads" },
+  { k: "PDF", t: "Text statements" },
+  { icon: "camera", t: "Receipt photos" },
+  { icon: "bank", t: "Bank & card link", href: "/pricing#connected" },
+] as const;
+
+const never = [
+  { icon: "key", t: "See your bank password" },
+  { icon: "noai", t: "Send your data to AI services" },
+  { icon: "device", t: "Move a single dollar" },
+  { icon: "nosell", t: "Sell your data or use it for ads" },
+] as const;
+---
+
+<Base title="How it works" description="Bring in your money, see where it goes, look 30 days ahead and save toward anything. Plain math, on your device.">
+  <section class="hiw-hero">
+    <p class="lp-pill">Four steps · on your device · no AI services</p>
+    <h1 class="lp-title">How <span class="lp-grad">{NAME}</span> works</h1>
+    <ol class="hiw-index" aria-label="The four steps">
+      {steps.map((s, i) => (
+        <li><a href={`#step-${i + 1}`}><span>{i + 1}</span>{s.t}</a></li>
+      ))}
+    </ol>
+  </section>
+
+  {steps.map((s, i) => (
+    <section class={`hiw-step ${i % 2 ? "hiw-step--flip" : ""}`} id={`step-${i + 1}`} aria-labelledby={`step-${i + 1}-t`}>
+      <div class="hiw-step__art">
+        <StepArt kind={s.art} />
+      </div>
+      <div class="hiw-step__copy">
+        <span class="hiw-step__n" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
+        <h2 id={`step-${i + 1}-t`}>{s.t}</h2>
+        <p class="hiw-step__d">{s.d}</p>
+        {"tags" in s && (
+          <ul class="hiw-tags">
+            {s.tags.map((tag) => (
+              <li>
+                <a href={tag.href} class={`hiw-tag hiw-tag--${tag.label.toLowerCase()}`}>
+                  <strong>{tag.label}</strong>
+                  <span>{tag.sub}</span>
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  ))}
+
+  <section class="lp-section" aria-labelledby="bring-in">
+    <h2 id="bring-in" class="lp-h2">Works with what you have</h2>
+    <ul class="hiw-formats">
+      {formats.map((f) => {
+        const body = (
+          <>
+            <span class="hiw-format__k" aria-hidden="true">{"icon" in f ? <Icon name={f.icon} /> : f.k}</span>
+            <span class="hiw-format__t">{f.t}</span>
+          </>
+        );
+        return <li>{"href" in f ? <a class="hiw-format" href={f.href}>{body}</a> : <span class="hiw-format">{body}</span>}</li>;
+      })}
+    </ul>
+  </section>
+
+  <section class="lp-always" aria-labelledby="never">
+    <h2 id="never" class="lp-h2">We never</h2>
+    <ul class="lp-always__list">
+      {never.map((n) => (
+        <li>
+          <span class="lp-always__icon hiw-never__icon"><Icon name={n.icon} /></span>
+          {n.t}
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  {APP_LIVE && (
+    <section class="lp-cta" aria-labelledby="start">
+      <h2 id="start">Try Qash free today.</h2>
+      <p>No card needed. Install it from your browser.</p>
+      <a class="button button--light button--lg" href={APP_URL}>Open {NAME}</a>
+    </section>
+  )}
+</Base>

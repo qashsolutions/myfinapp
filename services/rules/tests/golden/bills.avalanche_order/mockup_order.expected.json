@@ -1,0 +1,31 @@
+{
+  "order": [
+    {
+      "id": "a",
+      "label": "Card A",
+      "balance_cents": 240000,
+      "apr_bps": 2799,
+      "min_payment_cents": 7200,
+      "rank": 1
+    },
+    {
+      "id": "s",
+      "label": "Store card",
+      "balance_cents": 60000,
+      "apr_bps": 2490,
+      "min_payment_cents": 2500,
+      "rank": 2
+    },
+    {
+      "id": "c",
+      "label": "Car loan",
+      "balance_cents": 820000,
+      "apr_bps": 640,
+      "min_payment_cents": 31000,
+      "rank": 3
+    }
+  ],
+  "total_balance_cents": 1120000,
+  "total_min_payment_cents": 40700,
+  "max_apr_bps": 2799
+}

@@ -1,0 +1,12 @@
+{
+  "goal": {
+    "kind": "save",
+    "title": "aaaaaaaaaa",
+    "target_cents": 100000,
+    "start_date": "2026-10-10",
+    "end_date": "2026-12-10"
+  },
+  "days_left": 61,
+  "weeks_left": 9,
+  "weekly_pace": 11111
+}

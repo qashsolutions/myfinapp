@@ -1,0 +1,30 @@
+{
+  "candidate": {
+    "type": "group_activity",
+    "dedupe_key": "group_activity:x",
+    "due_local": "2026-10-22T09:00"
+  },
+  "settings": {
+    "quiet_start": "21:00",
+    "quiet_end": "08:00",
+    "daily_max": 3,
+    "paused_until": null,
+    "digest": {
+      "group_activity": "7pm"
+    }
+  },
+  "prefs": {
+    "upcoming_expense": true,
+    "shortfall_risk": true,
+    "challenge_checkin": true,
+    "goal_behind_pace": true,
+    "milestone_reached": true,
+    "group_activity": true,
+    "weekly_recap": true
+  },
+  "sent": {
+    "keys": [],
+    "today": 0
+  },
+  "now_local": "2026-10-22T12:00"
+}

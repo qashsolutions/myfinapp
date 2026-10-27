@@ -1,0 +1,9 @@
+{
+  "as_of": "2026-10-15",
+  "months": 3,
+  "thresholds": {
+    "usual_increase_cents": -1,
+    "usual_increase_bps": 2500
+  },
+  "entries": []
+}

@@ -1,0 +1,21 @@
+{
+  "as_of": "2026-05-01",
+  "entries": [
+    {
+      "id": "g1",
+      "date": "2026-01-15",
+      "amount_cents": 78000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "GEICO"
+    },
+    {
+      "id": "g2",
+      "date": "2026-04-15",
+      "amount_cents": 78000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "GEICO"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "stalled": false,
+  "months": 0,
+  "debt_free_month": null,
+  "monthly_budget_cents": 5000,
+  "total_interest_cents": 0,
+  "total_paid_cents": 0,
+  "series_cents": [],
+  "order": []
+}

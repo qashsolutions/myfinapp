@@ -1,0 +1,45 @@
+{
+  "assets_cents": 30850000,
+  "debts_cents": 23350000,
+  "net_cents": 7500000,
+  "debt_share_bps": 7569,
+  "change_cents": 100000,
+  "groups": [
+    {
+      "kind": "asset",
+      "group": "property",
+      "total_cents": 30000000,
+      "count": 1
+    },
+    {
+      "kind": "asset",
+      "group": "savings",
+      "total_cents": 600000,
+      "count": 2
+    },
+    {
+      "kind": "asset",
+      "group": "cash",
+      "total_cents": 250000,
+      "count": 1
+    },
+    {
+      "kind": "debt",
+      "group": "mortgage",
+      "total_cents": 22000000,
+      "count": 1
+    },
+    {
+      "kind": "debt",
+      "group": "auto_loan",
+      "total_cents": 1200000,
+      "count": 1
+    },
+    {
+      "kind": "debt",
+      "group": "card",
+      "total_cents": 150000,
+      "count": 1
+    }
+  ]
+}

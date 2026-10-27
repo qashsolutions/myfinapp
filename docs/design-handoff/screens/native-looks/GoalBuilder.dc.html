@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New goal</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&amp;family=Sora:wght@600;800&amp;family=Plus+Jakarta+Sans:wght@500;700;800&amp;family=Dela+Gothic+One&amp;family=DotGothic16&amp;family=M+PLUS+Rounded+1c:wght@500;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;align-items:center;gap:12px">
+    <button aria-label="Close" style="{{S.iconBtn}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+    <span style="{{S.h1}}">New goal</span>
+  </header>
+
+  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+    <sc-for list="{{kinds}}" as="k" hint-placeholder-count="4">
+      <button onClick="{{k.pick}}" aria-pressed="{{k.sel}}" style="{{k.st}}">{{k.n}}</button>
+    </sc-for>
+  </div>
+
+  <section style="{{S.card}}">
+    <span style="font-size:12px;font-weight:800;color:{{c.sub}}">Tap the highlighted words to change them</span>
+    <div style="{{S.sentence}}">
+      <span>{{w1}}</span>
+      <button onClick="{{cycleAmt}}" aria-label="Change amount" style="{{S.pillA}}">{{amtLabel}}</button>
+      <span>{{w2}}</span>
+      <button onClick="{{cycleThing}}" aria-label="Change what it's for" style="{{S.pillB}}">{{thing}}</button>
+      <span>{{w3}}</span>
+      <button onClick="{{cycleWhen}}" aria-label="Change deadline" style="{{S.pillC}}">{{when}}</button>
+    </div>
+  </section>
+
+  <section style="{{S.preview}}">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="{{S.h2}}">{{previewTitle}}</span>
+      <span style="{{S.tag}}">{{kindTag}}</span>
+    </div>
+    <span style="{{S.big}}">{{pace}}</span>
+    <span style="font-size:13px;font-weight:700">{{paceNote}}</span>
+    <div style="{{S.track}}"><div style="{{S.fill}}"></div></div>
+    <span style="font-size:12px;font-weight:700">Tracked by: {{tracking}}</span>
+  </section>
+
+  <div style="{{S.rowCard}}">
+    <div style="flex:1;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:800">Make it a group challenge</span><span style="font-size:12px;color:{{c.sub}}">Ranked by % of each person's own goal</span></div>
+    <button onClick="{{flipGroup}}" aria-label="Make it a group challenge" aria-pressed="{{groupStr}}" style="{{S.tog}}"><span style="{{S.knob}}"></span></button>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <span style="font-size:13px;font-weight:800;color:{{c.sub}}">Or start from a template</span>
+    <div style="display:flex;gap:8px;overflow:hidden">
+      <sc-for list="{{templates}}" as="t" hint-placeholder-count="4">
+        <button onClick="{{t.use}}" style="{{S.tpl}}">{{t.n}}</button>
+      </sc-for>
+    </div>
+  </div>
+
+  <button style="{{S.cta}}">Create goal</button>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"look":{"editor":"enum","options":["modern","bento","anime"],"default":"bento"},"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":900}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { kind: 'save', a: 2, th: 0, w: 1, group: false }; }
+  renderVals() {
+    const T = {
+      bento: { fd: 'Sora,sans-serif', fb: "'Plus Jakarta Sans',sans-serif", fn: 'Sora,sans-serif', r: 26, bw: 0, sh: () => 'none', a1: '#D9D2FF', a2: '#C9F2DE', a3: '#FFD9C2', on: '#16161D',
+        L: { bg: '#EEF0F4', card: '#FFFFFF', ink: '#16161D', sub: '#5C5C6B', line: '#DCDEE5' }, D: { bg: '#0F0F14', card: '#1B1B23', ink: '#F3F3F7', sub: '#A6A6B5', line: '#33333D' } },
+      modern: { n: 'Modern', fd: "Outfit,'Helvetica Neue',sans-serif", fb: "Outfit,'Helvetica Neue',sans-serif", fn: "Outfit,'Helvetica Neue',sans-serif", r: 22, bw: 0, sh: () => '0 6px 20px rgba(17,24,39,0.08)', a1: '#3D5AFE', a2: '#0B7A55', a3: '#7C3AED', on: '#FFFFFF',
+        L: { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', onInv: '#111827' }, D: { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', onInv: '#111827' } },
+      anime: { fd: "'Dela Gothic One',sans-serif", fb: "'M PLUS Rounded 1c',sans-serif", fn: 'DotGothic16,monospace', r: 14, bw: 3, sh: (i) => '0 5px 0 ' + i, a1: '#FFC531', a2: '#00B8D9', a3: '#FF3E7F', on: '#1B1E4B',
+        L: { bg: '#FDF1DC', card: '#FFFFFF', ink: '#1B1E4B', sub: '#55597F', line: '#1B1E4B' }, D: { bg: '#14163A', card: '#22265A', ink: '#FDF1DC', sub: '#C3C5E2', line: '#FDF1DC' } }
+    };
+    const look = this.props.look || 'bento', th = T[look] || T.modern, dark = !!this.props.dark, c = dark ? th.D : th.L, st = this.state;
+    const ac = { a1: c.a1 || th.a1, a2: c.a2 || th.a2, a3: c.a3 || th.a3, on: c.on || th.on, inv: c.onInv || '#FFFFFF' };
+    const bd = th.bw ? th.bw + 'px solid ' + c.ink : 'none', sh = th.sh(c.ink), rr = Math.max(10, th.r - 6) + 'px';
+
+    // One goal model, four kinds. Every number below is plain arithmetic.
+    const K = {
+      save:   { n: 'Save for something', tag: 'JAR', amts: [500, 1000, 2000, 5000], things: ['Travel', "Kids' education", 'Emergency fund', 'New car'], w1: 'Save', w2: 'for', w3: 'by', track: 'deposits you log' },
+      payoff: { n: 'Pay off a card', tag: 'PAYOFF', amts: [1200, 2400, 5000], things: ['Card A', 'Card B', 'Store card'], w1: 'Pay off', w2: 'on', w3: 'by', track: 'balance you update' },
+      spend:  { n: 'Spend less on', tag: 'CUT', amts: [50, 150, 300], things: ['Dining', 'Groceries', 'Shopping', 'Rideshare'], w1: 'Spend', w2: 'less on', w3: 'during', track: 'receipts + manual entries' },
+      habit:  { n: 'Build a habit', tag: 'STREAK', amts: [7, 14, 30], things: ['no eating out', 'no-spend days', 'packed lunch'], w1: 'Do', w2: 'days of', w3: 'starting', track: 'daily check-in' }
+    };
+    const dates = [{ n: 'Dec 2026', d: '2026-12-31' }, { n: 'Jun 2027', d: '2027-06-30' }, { n: 'Dec 2027', d: '2027-12-31' }];
+    const periods = ['this month', 'next month', 'this quarter'];
+    const starts = ['today', 'Monday', 'Nov 1'];
+    const k = K[st.kind], amt = k.amts[st.a % k.amts.length], thing = k.things[st.th % k.things.length];
+    const today = new Date('2026-10-09');
+    const money = (x) => '$' + Math.round(x).toLocaleString('en-US');
+    let when, pace, paceNote, title;
+    if (st.kind === 'save' || st.kind === 'payoff') {
+      const dl = dates[st.w % 3];
+      when = dl.n;
+      const weeks = Math.max(1, Math.ceil((new Date(dl.d) - today) / (7 * 864e5)));
+      pace = money(amt / weeks) + '/week';
+      paceNote = weeks + ' weeks to ' + money(amt);
+      title = st.kind === 'save' ? thing + ' jar' : thing + ' payoff';
+    } else if (st.kind === 'spend') {
+      when = periods[st.w % 3];
+      const weeks = st.w % 3 === 2 ? 13 : 4;
+      pace = money(amt / weeks) + ' less/week';
+      paceNote = 'vs. your average from the last 3 months';
+      title = 'Cut ' + thing;
+    } else {
+      when = starts[st.w % 3];
+      pace = amt + '-day streak';
+      paceNote = 'one tap a day to check in';
+      title = amt + ' days, ' + thing;
+    }
+    const amtLabel = st.kind === 'habit' ? String(amt) : money(amt);
+    const pill = (bg) => 'min-height:44px;padding:0 12px;cursor:pointer;font:800 18px ' + th.fd + ';background:' + bg + ';color:' + ac.on + ';border:' + (th.bw ? '2.5px solid ' + c.ink : '0') + ';border-radius:' + rr;
+    const S = {
+      root: 'width:390px;height:900px;position:relative;overflow:hidden;box-sizing:border-box;padding:26px 18px 30px;display:flex;flex-direction:column;gap:14px;background:' + c.bg + ';color:' + c.ink + ';font-family:' + th.fb,
+      h1: 'font-family:' + th.fd + ';font-size:26px;font-weight:800',
+      h2: 'font-family:' + th.fd + ';font-size:17px;font-weight:800',
+      iconBtn: 'width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:' + c.card + ';color:' + c.ink + ';border:' + bd + ';border-radius:' + (look === 'bento' ? '50%' : rr) + ';box-shadow:' + (th.bw ? sh : 'none'),
+      card: 'display:flex;flex-direction:column;gap:10px;padding:16px;background:' + c.card + ';border:' + bd + ';border-radius:' + th.r + 'px;box-shadow:' + sh,
+      sentence: 'display:flex;flex-wrap:wrap;align-items:center;gap:8px;font:800 20px ' + th.fd + ';line-height:1.3',
+      pillA: pill(ac.a1), pillB: pill(ac.a2), pillC: pill(ac.a3),
+      preview: 'display:flex;flex-direction:column;gap:6px;padding:16px;background:' + ac.a1 + ';color:' + ac.on + ';border:' + bd + ';border-radius:' + th.r + 'px;box-shadow:' + sh,
+      tag: 'font:700 11px ' + th.fb + ';padding:3px 8px;border-radius:6px;background:' + ac.on + ';color:' + ac.a1,
+      big: 'font:800 34px ' + th.fn + ';letter-spacing:-0.02em;line-height:1.1',
+      track: 'height:12px;border-radius:999px;background:rgba(0,0,0,0.14);overflow:hidden',
+      fill: 'width:4%;height:100%;background:' + ac.on,
+      rowCard: 'display:flex;align-items:center;gap:12px;padding:12px 16px;background:' + c.card + ';border:' + bd + ';border-radius:' + th.r + 'px;box-shadow:' + sh,
+      tog: 'width:58px;height:32px;flex-shrink:0;padding:0;cursor:pointer;display:flex;align-items:center;border:' + (th.bw ? '2.5px solid ' + c.ink : '0') + ';border-radius:' + (look === 'anime' ? '8px' : '999px') + ';background:' + (st.group ? (th.bw || ac.on === '#FFFFFF' ? ac.a2 : (dark ? ac.a1 : ac.on)) : (th.bw ? c.bg : (dark ? '#33333D' : '#D5D7DE'))),
+      knob: 'width:22px;height:22px;background:' + (th.bw ? c.ink : (st.group && dark && ac.on !== '#FFFFFF' ? '#16161D' : '#FFFFFF')) + ';border-radius:' + (look === 'anime' ? '4px' : '50%') + ';margin-left:' + (st.group ? (th.bw ? '28px' : '32px') : '4px'),
+      tpl: 'flex-shrink:0;min-height:48px;padding:0 14px;cursor:pointer;font:800 13px ' + th.fb + ';white-space:nowrap;background:' + c.card + ';color:' + c.ink + ';border:2px solid ' + c.line + ';border-radius:999px',
+      cta: 'min-height:56px;margin-top:auto;cursor:pointer;font:800 16px ' + th.fb + ';background:' + ac.a2 + ';color:' + ac.on + ';border:' + bd + ';border-radius:' + th.r + 'px;box-shadow:' + sh
+    };
+    const kinds = Object.keys(K).map(key => {
+      const sel = key === st.kind;
+      return { n: K[key].n, sel: sel ? 'true' : 'false', pick: () => this.setState({ kind: key, a: 1, th: 0, w: 1 }),
+        st: 'min-height:52px;padding:0 10px;cursor:pointer;font:800 13px ' + th.fb + ';border-radius:' + rr + ';' + (sel ? 'background:' + ac.a3 + ';color:' + ac.on + ';border:' + (th.bw ? '2.5px solid ' + c.ink : '2px solid ' + ac.a3) : 'background:' + c.card + ';color:' + c.ink + ';border:2px solid ' + c.line) };
+    });
+    const templates = [
+      { n: 'No-Eat-Out Week', s: { kind: 'habit', a: 0, th: 0, w: 1 } },
+      { n: '$1K starter fund', s: { kind: 'save', a: 1, th: 2, w: 0 } },
+      { n: 'Card crusher', s: { kind: 'payoff', a: 1, th: 0, w: 1 } },
+      { n: 'Dining diet', s: { kind: 'spend', a: 1, th: 0, w: 0 } }
+    ].map(t => ({ n: t.n, use: () => this.setState(t.s) }));
+    return {
+      S, c, kinds, templates, w1: k.w1, w2: k.w2, w3: k.w3, amtLabel, thing, when, pace, paceNote,
+      previewTitle: title, kindTag: k.tag, tracking: k.track, groupStr: st.group ? 'true' : 'false',
+      cycleAmt: () => this.setState({ a: st.a + 1 }), cycleThing: () => this.setState({ th: st.th + 1 }), cycleWhen: () => this.setState({ w: st.w + 1 }),
+      flipGroup: () => this.setState({ group: !st.group })
+    };
+  }
+}
+</script>
+</body>
+</html>

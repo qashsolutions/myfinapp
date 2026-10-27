@@ -1,0 +1,16 @@
+{
+  "goal": {
+    "kind": "habit",
+    "target_days": 7,
+    "start_date": "2026-10-05",
+    "end_date": null
+  },
+  "events": [
+    {
+      "type": "checkin",
+      "date": "2026-10-05",
+      "amount_cents": 1
+    }
+  ],
+  "as_of": "2026-10-09"
+}

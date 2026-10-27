@@ -1,0 +1,33 @@
+{
+  "points": [
+    {
+      "date": "2026-09-01",
+      "assets_cents": 1000,
+      "debts_cents": 0,
+      "net_cents": 1000,
+      "partial": false
+    },
+    {
+      "date": "2026-09-20",
+      "assets_cents": 3000,
+      "debts_cents": 0,
+      "net_cents": 3000,
+      "partial": false
+    },
+    {
+      "date": "2026-10-01",
+      "assets_cents": 5000,
+      "debts_cents": 0,
+      "net_cents": 5000,
+      "partial": false
+    },
+    {
+      "date": "2026-10-12",
+      "assets_cents": 4500,
+      "debts_cents": 0,
+      "net_cents": 4500,
+      "partial": false
+    }
+  ],
+  "change_cents": 3500
+}

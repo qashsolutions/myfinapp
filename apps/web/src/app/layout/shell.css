@@ -1,0 +1,310 @@
+/* The app frame. Phone first; the tab bar up to 899px, the rail from 900px (WIDE_QUERY). */
+
+.shell {
+  min-height: 100dvh;
+}
+
+.shell__main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 16px calc(104px + env(safe-area-inset-bottom));
+  outline: none;
+}
+
+/* Screen header ---------------------------------------------------------- */
+.screen-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+}
+.screen-header__back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--c-card);
+  color: var(--c-ink);
+  box-shadow: var(--shadow-card);
+}
+.screen-header__text {
+  display: flex;
+  flex: 1 1 10rem;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.screen-header__eyebrow {
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.screen-header__title {
+  font-size: 24px;
+  line-height: 1.15;
+  overflow-wrap: break-word;
+}
+.screen-header__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.add-btn {
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+  box-shadow: var(--shadow-card);
+  font: 600 15px / 1 var(--font-body);
+  text-decoration: none;
+}
+.add-btn__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Tab bar (phones) ------------------------------------------------------- */
+.tabbar {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  height: 68px;
+  padding: 0 6px;
+  border-radius: 26px;
+  /* Frosted 5% grey (owner, October 19, 2026: a white bar read as one more card). 92% opaque so
+   * the tab labels keep 4.5:1 over anything that scrolls behind, in every look and mode. */
+  --tabbar-grey: color-mix(in srgb, var(--c-ink) 5%, var(--c-card));
+  border: 1px solid var(--c-line);
+  background: color-mix(in srgb, var(--tabbar-grey) 92%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tabbar {
+    background: var(--tabbar-grey);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .tabbar {
+    background: var(--tabbar-grey);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+.tabbar__tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border-radius: 16px;
+  font: 600 12px / 1 var(--font-body);
+  color: var(--c-sub);
+  text-decoration: none;
+}
+.tabbar__tab--active {
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+}
+
+/* Side rail (900px and up) ---------------------------------------------- */
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex-shrink: 0;
+  width: 248px;
+  height: 100dvh;
+  position: sticky;
+  top: 0;
+  padding: 24px 16px;
+  background: var(--c-card);
+  border-right: 1px solid var(--c-line);
+}
+.rail__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 8px;
+  font: 700 20px / 1 var(--font-display);
+}
+/* The brand mark (Logo.tsx) draws its own indigo tile, the same in every look and mode. */
+.logo {
+  display: block;
+  flex: none;
+}
+.rail__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rail__link {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 14px;
+  font: 600 15px / 1 var(--font-body);
+  color: var(--c-ink);
+  text-decoration: none;
+}
+.rail__link:hover {
+  background: color-mix(in srgb, var(--c-a1) 6%, var(--c-card));
+}
+.rail__link--active {
+  background: color-mix(in srgb, var(--c-a1) 11%, var(--c-card));
+  color: var(--c-a1);
+}
+
+@media (min-width: 600px) {
+  .screen-header__title {
+    font-size: 30px;
+  }
+  .add-btn {
+    min-height: 48px;
+    padding: 0 18px;
+  }
+  .add-btn__label {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 900px) {
+  .shell {
+    display: flex;
+    align-items: flex-start;
+  }
+  .shell__main {
+    max-width: 800px;
+    margin: 0;
+    padding: 32px 36px 48px;
+    gap: 16px;
+  }
+  .rail__account {
+    margin-top: auto;
+    position: relative;
+  }
+  .rail__user {
+    width: 100%;
+    padding: 12px 14px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    border: 0;
+    border-radius: 14px;
+    background: none;
+    text-align: left;
+    font: inherit;
+    color: var(--c-ink-2);
+    font-size: 14px;
+    cursor: pointer;
+    min-width: 0;
+  }
+  .rail__user:hover,
+  .rail__user[aria-expanded="true"],
+  .rail__menu-item:hover {
+    background: color-mix(in srgb, var(--c-a1) 6%, var(--c-card));
+  }
+  .rail__menu {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 6px);
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    background: var(--c-card);
+    border: 1px solid var(--c-line);
+    border-radius: 14px;
+    box-shadow: var(--shadow-card);
+  }
+  .rail__menu-item {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    text-align: left;
+    text-decoration: none;
+    font: 600 15px / 1 var(--font-body);
+    color: var(--c-ink);
+    cursor: pointer;
+  }
+  .rail__user-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .rail__user-text span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Two panes (fast-follow 5; docs/spec.md "Desktop / tablet layout"): a wide main pane and a
+   side pane from 900px, one column below that and in Simple layout. */
+.two-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+@media (min-width: 900px) {
+  .shell__main {
+    max-width: 1160px;
+    gap: 20px;
+  }
+  .two-pane {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .pane {
+    gap: 16px;
+  }
+  [data-simple="1"] .two-pane {
+    grid-template-columns: 1fr;
+  }
+}

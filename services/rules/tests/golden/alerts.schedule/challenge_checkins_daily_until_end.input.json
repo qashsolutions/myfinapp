@@ -1,0 +1,21 @@
+{
+  "inputs": {
+    "now_local": "2026-10-10T18:00",
+    "upcoming": [],
+    "shortfall": null,
+    "challenges": [
+      {
+        "group_id": "g1",
+        "end_date": "2026-10-12"
+      }
+    ],
+    "goals": [],
+    "milestones": [],
+    "prefs": {
+      "challenge_checkin": {
+        "enabled": true,
+        "time": "19:30"
+      }
+    }
+  }
+}

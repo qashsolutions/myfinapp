@@ -1,0 +1,118 @@
+# Default merchant keyword -> category table (docs/spec.md "Statement import": categories come
+# from a keyword table; no machine learning). Matched case-insensitively as a substring of the
+# cleaned description, top to bottom, first match wins. `direction` limits a keyword to money
+# in or out. `transfer` words flag a likely transfer between the user's own accounts, which the
+# import review asks about. Category ids are the defaults in apps/web/src/data/defaults.ts.
+#
+# Edit this file, then `uv run python scripts/build_keywords.py` to refresh both keywords.json
+# copies (tests/test_keywords.py fails if they are stale). Proposed; tune from real statements.
+
+transfer:
+  - PAYMENT TO CARD
+  - CARD PAYMENT
+  - AUTOPAY PAYMENT
+  - PAYMENT - THANK YOU
+  - ONLINE TRANSFER
+  - TRANSFER TO
+  - TRANSFER FROM
+  - XFER
+  - ZELLE
+  - VENMO CASHOUT
+
+keywords:
+  # money in
+  - { match: PAYROLL, category_id: cat-paycheck, direction: in }
+  - { match: DIRECT DEP, category_id: cat-paycheck, direction: in }
+  - { match: SALARY, category_id: cat-paycheck, direction: in }
+  - { match: REFUND, category_id: cat-refund, direction: in }
+  - { match: REVERSAL, category_id: cat-refund, direction: in }
+  - { match: VENMO, category_id: cat-side-income, direction: in }
+  - { match: PAYPAL, category_id: cat-side-income, direction: in }
+  - { match: INTEREST, category_id: cat-other-income, direction: in }
+  # rent and home
+  - { match: RENT, category_id: cat-rent, direction: out }
+  - { match: APARTMENT, category_id: cat-rent, direction: out }
+  - { match: PROPERTY MGMT, category_id: cat-rent, direction: out }
+  - { match: MORTGAGE, category_id: cat-rent, direction: out }
+  # groceries
+  - { match: GROCER, category_id: cat-groceries, direction: out }
+  - { match: MARKET, category_id: cat-groceries, direction: out }
+  - { match: MKT, category_id: cat-groceries, direction: out }
+  - { match: WHOLE FOODS, category_id: cat-groceries, direction: out }
+  - { match: TRADER JOE, category_id: cat-groceries, direction: out }
+  - { match: KROGER, category_id: cat-groceries, direction: out }
+  - { match: SAFEWAY, category_id: cat-groceries, direction: out }
+  - { match: ALDI, category_id: cat-groceries, direction: out }
+  - { match: COSTCO, category_id: cat-groceries, direction: out }
+  - { match: H-E-B, category_id: cat-groceries, direction: out }
+  - { match: PUBLIX, category_id: cat-groceries, direction: out }
+  # utilities & phone
+  - { match: ELECTRIC, category_id: cat-utilities, direction: out }
+  - { match: POWER CO, category_id: cat-utilities, direction: out }
+  - { match: ENERGY, category_id: cat-utilities, direction: out }
+  - { match: WATER, category_id: cat-utilities, direction: out }
+  - { match: GAS CO, category_id: cat-utilities, direction: out }
+  - { match: COMCAST, category_id: cat-utilities, direction: out }
+  - { match: XFINITY, category_id: cat-utilities, direction: out }
+  - { match: SPECTRUM, category_id: cat-utilities, direction: out }
+  - { match: VERIZON, category_id: cat-utilities, direction: out }
+  - { match: AT&T, category_id: cat-utilities, direction: out }
+  - { match: T-MOBILE, category_id: cat-utilities, direction: out }
+  - { match: INTERNET, category_id: cat-utilities, direction: out }
+  # transport
+  - { match: TRANSIT, category_id: cat-transport, direction: out }
+  - { match: METRO, category_id: cat-transport, direction: out }
+  - { match: UBER, category_id: cat-transport, direction: out }
+  - { match: LYFT, category_id: cat-transport, direction: out }
+  - { match: SHELL, category_id: cat-transport, direction: out }
+  - { match: CHEVRON, category_id: cat-transport, direction: out }
+  - { match: EXXON, category_id: cat-transport, direction: out }
+  - { match: PARKING, category_id: cat-transport, direction: out }
+  - { match: TOLL, category_id: cat-transport, direction: out }
+  # insurance
+  - { match: INSURANCE, category_id: cat-insurance, direction: out }
+  - { match: GEICO, category_id: cat-insurance, direction: out }
+  - { match: STATE FARM, category_id: cat-insurance, direction: out }
+  - { match: PROGRESSIVE, category_id: cat-insurance, direction: out }
+  - { match: ALLSTATE, category_id: cat-insurance, direction: out }
+  # dining
+  - { match: RESTAURANT, category_id: cat-dining, direction: out }
+  - { match: CAFE, category_id: cat-dining, direction: out }
+  - { match: COFFEE, category_id: cat-dining, direction: out }
+  - { match: STARBUCKS, category_id: cat-dining, direction: out }
+  - { match: MCDONALD, category_id: cat-dining, direction: out }
+  - { match: CHIPOTLE, category_id: cat-dining, direction: out }
+  - { match: DOORDASH, category_id: cat-dining, direction: out }
+  - { match: GRUBHUB, category_id: cat-dining, direction: out }
+  - { match: UBER EATS, category_id: cat-dining, direction: out }
+  - { match: PIZZA, category_id: cat-dining, direction: out }
+  - { match: BAR & GRILL, category_id: cat-dining, direction: out }
+  # subscriptions
+  - { match: NETFLIX, category_id: cat-subscriptions, direction: out }
+  - { match: SPOTIFY, category_id: cat-subscriptions, direction: out }
+  - { match: HULU, category_id: cat-subscriptions, direction: out }
+  - { match: DISNEY PLUS, category_id: cat-subscriptions, direction: out }
+  - { match: APPLE.COM/BILL, category_id: cat-subscriptions, direction: out }
+  - { match: PRIME VIDEO, category_id: cat-subscriptions, direction: out }
+  - { match: AMAZON PRIME, category_id: cat-subscriptions, direction: out }
+  - { match: YOUTUBE PREMIUM, category_id: cat-subscriptions, direction: out }
+  # shopping
+  - { match: AMAZON, category_id: cat-shopping, direction: out }
+  - { match: AMZN, category_id: cat-shopping, direction: out }
+  - { match: TARGET, category_id: cat-shopping, direction: out }
+  - { match: WALMART, category_id: cat-shopping, direction: out }
+  - { match: BEST BUY, category_id: cat-shopping, direction: out }
+  - { match: IKEA, category_id: cat-shopping, direction: out }
+  # fun
+  - { match: CINEMA, category_id: cat-fun, direction: out }
+  - { match: AMC, category_id: cat-fun, direction: out }
+  - { match: TICKETMASTER, category_id: cat-fun, direction: out }
+  - { match: STEAM GAMES, category_id: cat-fun, direction: out }
+  - { match: PLAYSTATION, category_id: cat-fun, direction: out }
+  - { match: NINTENDO, category_id: cat-fun, direction: out }
+  # savings and debt payoff
+  - { match: SAVINGS, category_id: cat-savings, direction: out }
+  - { match: LOAN PAYMENT, category_id: cat-debt-payoff, direction: out }
+  - { match: STUDENT LOAN, category_id: cat-debt-payoff, direction: out }
+  - { match: NAVIENT, category_id: cat-debt-payoff, direction: out }
+  - { match: NELNET, category_id: cat-debt-payoff, direction: out }

@@ -1,0 +1,15 @@
+{
+  "series": [
+    {
+      "id": "a",
+      "payee": "X",
+      "kind": "bill",
+      "expected_cents": 100,
+      "interval": "fortnightly",
+      "next_date": "2026-10-10"
+    }
+  ],
+  "entries": [],
+  "as_of": "2026-10-10",
+  "days": 30
+}

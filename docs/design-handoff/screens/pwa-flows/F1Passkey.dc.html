@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 1 — Passkey setup</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:13px;font-weight:600;color:{{m.sub}}">Last step · Secure your account</span>
+  </div>
+
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:24px">
+    <div style="{{S.badge}}">
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 20V14a6 6 0 0 1 6-6h6M44 8h6a6 6 0 0 1 6 6v6M56 44v6a6 6 0 0 1-6 6h-6M20 56h-6a6 6 0 0 1-6-6v-6"></path><path d="M24 24v4M40 24v4M32 26v10h-3"></path><path d="M24 43c4.5 3 11.5 3 16 0"></path></svg>
+    </div>
+    <sc-if value="{{idle}}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:10px;text-align:center">
+        <span style="font:700 28px Outfit,sans-serif;letter-spacing:-0.01em">Protect Stackd with Face ID</span>
+        <span style="font-size:16px;line-height:1.45;color:{{m.sub}}">We'll create a passkey on this device. You'll unlock with Face ID, or your device passcode if Face ID isn't available. It's required to keep your money data safe.</span>
+      </div>
+    </sc-if>
+    <sc-if value="{{done}}" hint-placeholder-val="{{ false }}">
+      <div role="status" style="display:flex;flex-direction:column;gap:10px;text-align:center">
+        <span style="font:700 28px Outfit,sans-serif;letter-spacing:-0.01em">You're protected</span>
+        <span style="font-size:16px;line-height:1.45;color:{{m.sub}}">Passkey saved on this device. Stackd will lock after 5 minutes of inactivity and ask for Face ID to reopen.</span>
+      </div>
+    </sc-if>
+    <div style="{{S.card}}">
+      <div style="{{S.row}}"><span style="{{S.dot}}"></span><span style="font-size:15px">No password to remember or leak</span></div>
+      <div style="{{S.row}}"><span style="{{S.dot}}"></span><span style="font-size:15px">Can't be phished by fake sites</span></div>
+      <div style="{{S.rowLast}}"><span style="{{S.dot}}"></span><span style="font-size:15px">Your face never leaves your device</span></div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <sc-if value="{{idle}}" hint-placeholder-val="{{ true }}">
+      <button onClick="{{create}}" style="{{S.primary}}">Create passkey</button>
+    </sc-if>
+    <sc-if value="{{done}}" hint-placeholder-val="{{ false }}">
+      <a href="F2Pay.dc.html" style="{{S.primary}}">Continue to setup</a>
+    </sc-if>
+    <span style="text-align:center;font-size:12px;color:{{m.sub}}">Your device shows its own confirmation next. Stackd never sees your face or passcode.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { done: false }; }
+  renderVals() {
+    const dark = !!this.props.dark, done = this.state.done;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE' };
+    const row = 'display:flex;align-items:center;gap:12px;padding:13px 0;';
+    const btn = 'min-height:54px;display:flex;align-items:center;justify-content:center;border-radius:16px;font:600 16px Outfit,sans-serif;width:100%;box-sizing:border-box;cursor:pointer;';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:28px 22px 30px;display:flex;flex-direction:column;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      badge: 'align-self:center;width:124px;height:124px;border-radius:36px;display:flex;align-items:center;justify-content:center;color:#FFFFFF;background:' + (done ? '#0B7A55' : '#3D5AFE'),
+      card: 'background:' + m.card + ';border-radius:22px;padding:4px 18px;box-shadow:0 6px 20px rgba(17,24,39,' + (dark ? '0.4' : '0.08') + ')',
+      row: row + 'border-bottom:1px solid ' + m.line, rowLast: row,
+      dot: 'width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#0B7A55',
+      primary: btn + 'border:0;background:#3D5AFE;color:#FFFFFF'
+    };
+    return { S, m, idle: !done, done, create: () => this.setState({ done: true }) };
+  }
+}
+</script>
+</body>
+</html>

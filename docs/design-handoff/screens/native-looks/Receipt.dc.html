@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add receipt</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&amp;family=Sora:wght@600;800&amp;family=Plus+Jakarta+Sans:wght@500;700;800&amp;family=Dela+Gothic+One&amp;family=DotGothic16&amp;family=M+PLUS+Rounded+1c:wght@500;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;align-items:center;gap:12px">
+    <button aria-label="Back" style="{{S.iconBtn}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+    <span style="{{S.h1}}">Add receipt</span>
+  </header>
+
+  <section style="{{S.drop}}">
+    <div style="{{S.thumb}}">
+      <span style="height:6px;width:60%;background:#9A9AA5;border-radius:3px"></span>
+      <span style="height:4px;width:80%;background:#C9C9D1;border-radius:2px"></span>
+      <span style="height:4px;width:70%;background:#C9C9D1;border-radius:2px"></span>
+      <span style="height:4px;width:76%;background:#C9C9D1;border-radius:2px"></span>
+      <span style="height:6px;width:50%;background:#9A9AA5;border-radius:3px;margin-top:4px"></span>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+      <span style="font-size:14px;font-weight:800">receipt_1008.jpg</span>
+      <button style="{{S.smallBtn}}">Retake</button>
+      <button onClick="{{readText}}" style="{{S.readBtn}}">{{readLabel}}</button>
+    </div>
+  </section>
+
+  <sc-if value="{{suggested}}" hint-placeholder-val="{{ false }}">
+    <span style="{{S.notice}}">Filled from the photo's text. Check every field before saving.</span>
+  </sc-if>
+
+  <section style="{{S.card}}">
+    <label for="m" style="{{S.lab}}">Merchant</label>
+    <input id="m" value="{{merchant}}" onChange="{{setMerchant}}" placeholder="e.g. Corner Market" style="{{S.input}}">
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label for="d" style="{{S.lab}}">Date</label>
+        <input id="d" value="{{date}}" onChange="{{setDate}}" placeholder="MM/DD/YYYY" style="{{S.input}}">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label for="t" style="{{S.lab}}">Total ($)</label>
+        <input id="t" value="{{total}}" onChange="{{setTotal}}" inputmode="decimal" placeholder="0.00" style="{{S.inputNum}}">
+      </div>
+    </div>
+    <span style="{{S.lab}}">Category</span>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <sc-for list="{{cats}}" as="k" hint-placeholder-count="5">
+        <button onClick="{{k.pick}}" aria-pressed="{{k.sel}}" style="{{k.st}}">{{k.n}}</button>
+      </sc-for>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;min-height:52px">
+      <div style="flex:1;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:800">Count toward a challenge</span><span style="font-size:12px;color:{{c.sub}}">No-Eat-Out Week · Day 4</span></div>
+      <button onClick="{{flipCount}}" aria-label="Count toward a challenge" aria-pressed="{{countStr}}" style="{{S.track}}"><span style="{{S.knob}}"></span></button>
+    </div>
+  </section>
+
+  <button style="{{S.save}}">Save receipt</button>
+  <span style="text-align:center;font-size:12px;color:{{c.sub}};padding:0 10px">The text reader runs on your phone. Photos and amounts are never sent to an AI service.</span>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"look":{"editor":"enum","options":["modern","bento","anime"],"default":"modern"},"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { suggested: false, merchant: '', date: '', total: '', cat: 'Groceries', count: false }; }
+  renderVals() {
+    const T = {
+      bento: { fd: 'Sora,sans-serif', fb: "'Plus Jakarta Sans',sans-serif", fn: 'Sora,sans-serif', r: 26, bw: 0, sh: () => 'none', a1: '#D9D2FF', a2: '#C9F2DE', a3: '#FFD9C2', on: '#16161D',
+        L: { bg: '#EEF0F4', card: '#FFFFFF', ink: '#16161D', sub: '#5C5C6B', line: '#DCDEE5' }, D: { bg: '#0F0F14', card: '#1B1B23', ink: '#F3F3F7', sub: '#A6A6B5', line: '#33333D' } },
+      modern: { n: 'Modern', fd: "Outfit,'Helvetica Neue',sans-serif", fb: "Outfit,'Helvetica Neue',sans-serif", fn: "Outfit,'Helvetica Neue',sans-serif", r: 22, bw: 0, sh: () => '0 6px 20px rgba(17,24,39,0.08)', a1: '#3D5AFE', a2: '#0B7A55', a3: '#7C3AED', on: '#FFFFFF',
+        L: { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', onInv: '#111827' }, D: { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', onInv: '#111827' } },
+      anime: { fd: "'Dela Gothic One',sans-serif", fb: "'M PLUS Rounded 1c',sans-serif", fn: 'DotGothic16,monospace', r: 14, bw: 3, sh: (i) => '0 5px 0 ' + i, a1: '#FFC531', a2: '#00B8D9', a3: '#FF3E7F', on: '#1B1E4B',
+        L: { bg: '#FDF1DC', card: '#FFFFFF', ink: '#1B1E4B', sub: '#55597F', line: '#1B1E4B' }, D: { bg: '#14163A', card: '#22265A', ink: '#FDF1DC', sub: '#C3C5E2', line: '#FDF1DC' } }
+    };
+    const look = this.props.look || 'modern', th = T[look] || T.modern, dark = !!this.props.dark, c = dark ? th.D : th.L, st = this.state;
+    const ac = { a1: c.a1 || th.a1, a2: c.a2 || th.a2, a3: c.a3 || th.a3, on: c.on || th.on, inv: c.onInv || '#FFFFFF' };
+    const bd = th.bw ? th.bw + 'px solid ' + c.ink : 'none', sh = th.sh(c.ink), rr = Math.max(10, th.r - 8) + 'px';
+    const field = 'min-height:48px;padding:0 12px;box-sizing:border-box;width:100%;font:700 15px ' + th.fb + ';background:' + c.bg + ';color:' + c.ink + ';border:2px solid ' + c.line + ';border-radius:' + rr + (st.suggested ? ';outline:2px dashed ' + ac.a3 + ';outline-offset:2px' : '');
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:28px 18px 30px;display:flex;flex-direction:column;gap:14px;background:' + c.bg + ';color:' + c.ink + ';font-family:' + th.fb,
+      h1: 'font-family:' + th.fd + ';font-size:26px;font-weight:800',
+      iconBtn: 'width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:' + c.card + ';color:' + c.ink + ';border:' + bd + ';border-radius:' + (look === 'bento' ? '50%' : rr) + ';box-shadow:' + (th.bw ? sh : 'none'),
+      drop: 'display:flex;gap:14px;align-items:center;padding:14px;background:' + ac.a1 + ';color:' + ac.on + ';border:' + (th.bw ? th.bw + 'px dashed ' + ac.on : '2px dashed ' + c.sub) + ';border-radius:' + th.r + 'px',
+      thumb: 'width:92px;height:120px;flex-shrink:0;background:#FFFFFF;border-radius:6px;box-shadow:0 4px 10px rgba(0,0,0,0.15);padding:12px 10px;box-sizing:border-box;display:flex;flex-direction:column;gap:7px;align-items:center;transform:rotate(-4deg)',
+      smallBtn: 'min-height:44px;cursor:pointer;font:800 13px ' + th.fb + ';background:' + ac.inv + ';color:' + ac.on + ';border:0;border-radius:' + rr,
+      readBtn: 'min-height:44px;cursor:pointer;font:800 13px ' + th.fb + ';background:' + ac.on + ';color:' + ac.inv + ';border:0;border-radius:' + rr,
+      notice: 'font-size:13px;font-weight:800;padding:10px 12px;border-radius:' + rr + ';background:' + ac.a3 + ';color:' + ac.on,
+      card: 'display:flex;flex-direction:column;gap:8px;padding:16px;background:' + c.card + ';border:' + bd + ';border-radius:' + th.r + 'px;box-shadow:' + sh,
+      lab: 'font-size:12px;font-weight:800;color:' + c.sub,
+      input: field, inputNum: field + ';font-variant-numeric:tabular-nums',
+      track: 'width:58px;height:32px;flex-shrink:0;padding:0;cursor:pointer;display:flex;align-items:center;border:' + (th.bw ? '2.5px solid ' + c.ink : '0') + ';border-radius:' + (look === 'anime' ? '8px' : '999px') + ';background:' + (st.count ? (th.bw || ac.on === '#FFFFFF' ? ac.a2 : (dark ? ac.a1 : ac.on)) : (th.bw ? c.bg : (dark ? '#33333D' : '#D5D7DE'))),
+      knob: 'width:22px;height:22px;background:' + (th.bw ? c.ink : (st.count && dark && ac.on !== '#FFFFFF' ? '#16161D' : '#FFFFFF')) + ';border-radius:' + (look === 'anime' ? '4px' : '50%') + ';margin-left:' + (st.count ? (th.bw ? '28px' : '32px') : '4px'),
+      save: 'min-height:54px;cursor:pointer;font:800 16px ' + th.fb + ';background:' + ac.a2 + ';color:' + ac.on + ';border:' + bd + ';border-radius:' + th.r + 'px;box-shadow:' + sh
+    };
+    const cats = ['Groceries', 'Dining', 'Bills', 'Transport', 'Other'].map(n => {
+      const sel = st.cat === n;
+      return { n, sel: sel ? 'true' : 'false', pick: () => this.setState({ cat: n }),
+        st: 'min-height:44px;padding:0 14px;cursor:pointer;font:800 13px ' + th.fb + ';border-radius:999px;' + (sel ? 'background:' + ac.a1 + ';color:' + ac.on + ';border:2px solid ' + (th.bw ? c.ink : ac.a1) : 'background:transparent;color:' + c.ink + ';border:2px solid ' + c.line) };
+    });
+    return {
+      S, c, cats, suggested: st.suggested, merchant: st.merchant, date: st.date, total: st.total,
+      countStr: st.count ? 'true' : 'false',
+      readLabel: st.suggested ? 'Read again' : 'Read text from photo',
+      readText: () => this.setState({ suggested: true, merchant: 'Corner Market', date: '10/08/2026', total: '42.17', cat: 'Groceries' }),
+      setMerchant: (e) => this.setState({ merchant: e.target.value }),
+      setDate: (e) => this.setState({ date: e.target.value }),
+      setTotal: (e) => this.setState({ total: e.target.value }),
+      flipCount: () => this.setState({ count: !st.count })
+    };
+  }
+}
+</script>
+</body>
+</html>

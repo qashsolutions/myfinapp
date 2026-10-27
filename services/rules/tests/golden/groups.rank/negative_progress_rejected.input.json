@@ -1,0 +1,10 @@
+{
+  "members": [
+    {
+      "id": "a",
+      "progress_bps": -1,
+      "reached_at": null,
+      "has_events": true
+    }
+  ]
+}

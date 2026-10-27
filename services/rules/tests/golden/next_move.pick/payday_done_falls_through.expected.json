@@ -1,0 +1,7 @@
+{
+  "id": "starter_fund",
+  "params": {
+    "target_cents": 100000,
+    "remaining_cents": 52000
+  }
+}

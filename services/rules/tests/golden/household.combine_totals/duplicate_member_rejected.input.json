@@ -1,0 +1,14 @@
+{
+  "summaries": [
+    {
+      "member_id": "maya",
+      "in_cents": 1,
+      "out_cents": 1
+    },
+    {
+      "member_id": "maya",
+      "in_cents": 2,
+      "out_cents": 2
+    }
+  ]
+}

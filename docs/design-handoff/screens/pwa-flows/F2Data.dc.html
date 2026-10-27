@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 2 — Add your money data</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <div style="display:flex;align-items:center;gap:12px">
+    <a href="F2Method.dc.html" aria-label="Back" style="{{S.back}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+    <div style="flex:1;display:flex;gap:6px" aria-label="Step 3 of 5">
+      <span style="{{S.on}}"></span><span style="{{S.on}}"></span><span style="{{S.on}}"></span><span style="{{S.off}}"></span><span style="{{S.off}}"></span>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;margin-top:24px">
+    <span style="font:700 30px Outfit,sans-serif;letter-spacing:-0.01em">How should money come in?</span>
+    <span style="font-size:16px;line-height:1.45;color:{{m.sub}}">Pick one to start. You can mix all of them later.</span>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:22px">
+    <button onClick="{{pickUpload}}" aria-pressed="{{upSel}}" style="{{S.cUp}}">
+      <span style="{{S.ic}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6M12 18v-6M9 15l3-3 3 3"></path></svg></span>
+      <span style="flex:1;display:flex;flex-direction:column;gap:3px;text-align:left"><span style="font:600 17px Outfit,sans-serif">Upload a statement</span><span style="font-size:13px;color:{{m.sub}}">CSV, OFX or PDF from your bank. Read on this device — never sent to us.</span></span>
+    </button>
+    <button onClick="{{pickManual}}" aria-pressed="{{manSel}}" style="{{S.cMan}}">
+      <span style="{{S.ic}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg></span>
+      <span style="flex:1;display:flex;flex-direction:column;gap:3px;text-align:left"><span style="font:600 17px Outfit,sans-serif">Enter as I go</span><span style="font-size:13px;color:{{m.sub}}">Quick-add spending and income, or snap a receipt.</span></span>
+    </button>
+    <div style="{{S.cBank}}">
+      <span style="{{S.icMuted}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l9-6 9 6M5 10v8M19 10v8M9 10v8M15 10v8M3 20h18"></path></svg></span>
+      <span style="flex:1;display:flex;flex-direction:column;gap:3px;text-align:left"><span style="display:flex;align-items:center;gap:8px"><span style="font:600 17px Outfit,sans-serif">Link my bank</span><span style="{{S.soon}}">Coming soon</span></span><span style="font-size:13px;color:{{m.sub}}">Read-only, automatic updates on the Connected plan.</span>
+        <button onClick="{{join}}" style="{{S.wait}}">{{waitLabel}}</button></span>
+    </div>
+  </div>
+
+  <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+    <a href="F2Goal.dc.html" style="{{S.primary}}">{{cta}}</a>
+    <span style="text-align:center;font-size:12px;color:{{m.sub}}">We never ask for bank usernames or passwords.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { pick: 'upload', joined: false }; }
+  renderVals() {
+    const dark = !!this.props.dark, st = this.state;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', tint: '#1E2433', acc: '#8FA2FF' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE' };
+    const card = (on) => 'width:100%;box-sizing:border-box;display:flex;align-items:flex-start;gap:14px;padding:16px;border-radius:20px;cursor:pointer;font-family:Outfit,sans-serif;color:' + m.ink + ';background:' + m.card + ';border:2px solid ' + (on ? '#3D5AFE' : m.line);
+    const ic = 'width:44px;height:44px;flex-shrink:0;border-radius:14px;display:flex;align-items:center;justify-content:center;';
+    const bar = 'flex:1;height:6px;border-radius:3px;';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:28px 22px 30px;display:flex;flex-direction:column;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      back: 'width:44px;height:44px;flex-shrink:0;border-radius:50%;background:' + m.card + ';display:flex;align-items:center;justify-content:center',
+      on: bar + 'background:#3D5AFE', off: bar + 'background:' + m.line,
+      cUp: card(st.pick === 'upload'), cMan: card(st.pick === 'manual'),
+      cBank: card(false).replace('cursor:pointer;', '') + ';border-style:dashed',
+      ic: ic + 'background:' + m.tint + ';color:' + m.acc,
+      icMuted: ic + 'background:' + (dark ? '#1C1F28' : '#F0F1F4') + ';color:' + m.sub,
+      soon: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;background:' + (dark ? '#3A2E12' : '#FFF4E0') + ';color:' + (dark ? '#FFB547' : '#8A4B00'),
+      wait: 'margin-top:6px;align-self:flex-start;min-height:44px;padding:0 14px;border-radius:12px;font:600 14px Outfit,sans-serif;cursor:pointer;background:transparent;color:' + m.acc + ';border:1px solid ' + m.line,
+      primary: 'min-height:54px;display:flex;align-items:center;justify-content:center;border-radius:16px;font:600 16px Outfit,sans-serif;background:#3D5AFE;color:#FFFFFF'
+    };
+    return { S, m, upSel: st.pick === 'upload' ? 'true' : 'false', manSel: st.pick === 'manual' ? 'true' : 'false',
+      cta: st.pick === 'upload' ? 'Continue — upload after setup' : 'Continue',
+      waitLabel: st.joined ? 'On the waitlist ✓' : 'Join the waitlist',
+      pickUpload: () => this.setState({ pick: 'upload' }), pickManual: () => this.setState({ pick: 'manual' }),
+      join: () => this.setState({ joined: true }) };
+  }
+}
+</script>
+</body>
+</html>

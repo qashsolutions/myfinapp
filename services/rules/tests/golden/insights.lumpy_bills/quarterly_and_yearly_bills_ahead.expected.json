@@ -1,0 +1,47 @@
+{
+  "bills": [
+    {
+      "payee": "GEICO",
+      "interval": "quarterly",
+      "due_date": "2026-10-15",
+      "amount_cents": 78000,
+      "months_to_save": 1,
+      "per_month_cents": 78000
+    },
+    {
+      "payee": "STATE DMV",
+      "interval": "yearly",
+      "due_date": "2027-03-01",
+      "amount_cents": 15250,
+      "months_to_save": 6,
+      "per_month_cents": 2542
+    }
+  ],
+  "months": [
+    {
+      "month": "2026-10",
+      "total_cents": 78000,
+      "big": true
+    },
+    {
+      "month": "2027-01",
+      "total_cents": 78000,
+      "big": true
+    },
+    {
+      "month": "2027-03",
+      "total_cents": 15250,
+      "big": false
+    },
+    {
+      "month": "2027-04",
+      "total_cents": 78000,
+      "big": true
+    },
+    {
+      "month": "2027-07",
+      "total_cents": 78000,
+      "big": true
+    }
+  ]
+}

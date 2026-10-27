@@ -1,0 +1,39 @@
+{
+  "description": "abc",
+  "model": {
+    "version": 1,
+    "dim": 16,
+    "ngrams": [
+      3
+    ],
+    "scale": 100,
+    "labels": [
+      "cat-a",
+      "cat-b"
+    ],
+    "bias": [
+      0,
+      0
+    ],
+    "weights": {
+      "8": [
+        0,
+        100
+      ],
+      "11": [
+        0,
+        100
+      ],
+      "6": [
+        0,
+        100
+      ],
+      "28": [
+        0,
+        40
+      ]
+    },
+    "min_score": 100,
+    "min_margin": 100
+  }
+}

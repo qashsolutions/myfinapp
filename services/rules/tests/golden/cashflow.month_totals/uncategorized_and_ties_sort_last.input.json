@@ -1,0 +1,35 @@
+{
+  "as_of": "2026-10-20",
+  "entries": [
+    {
+      "id": "a",
+      "date": "2026-10-09",
+      "amount_cents": 1000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "acct-a"
+    },
+    {
+      "id": "b",
+      "date": "2026-10-09",
+      "amount_cents": 1000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-fun",
+      "category_kind": "expense",
+      "account_id": "acct-a"
+    },
+    {
+      "id": "c",
+      "date": "2026-10-09",
+      "amount_cents": 1000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "acct-a"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "members": [
+    "maya"
+  ],
+  "events": [
+    {
+      "member_id": "maya",
+      "type": "balance_update",
+      "amount_cents": 99900
+    },
+    {
+      "member_id": "maya",
+      "type": "deposit",
+      "amount_cents": 300
+    }
+  ]
+}

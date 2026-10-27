@@ -1,0 +1,23 @@
+{
+  "order": [
+    {
+      "id": "y",
+      "label": "Card Y",
+      "balance_cents": 30000,
+      "apr_bps": 2000,
+      "min_payment_cents": 1000,
+      "rank": 1
+    },
+    {
+      "id": "x",
+      "label": "Card X",
+      "balance_cents": 50000,
+      "apr_bps": 2000,
+      "min_payment_cents": 1000,
+      "rank": 2
+    }
+  ],
+  "total_balance_cents": 80000,
+  "total_min_payment_cents": 2000,
+  "max_apr_bps": 2000
+}

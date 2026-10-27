@@ -1,0 +1,39 @@
+{
+  "facts": {
+    "shortfall": {
+      "short_by_cents": 18000,
+      "date": "2026-10-25"
+    },
+    "take_home_cents": null,
+    "payday": {
+      "paycheck_cents": 240000,
+      "suggested_cents": 48000,
+      "set_aside_this_period": false
+    },
+    "emergency_saved_cents": 100000,
+    "max_apr_bps": null,
+    "next_bill": null,
+    "runway_tenths": null
+  },
+  "config": {
+    "version": 1,
+    "order": [
+      "shortfall",
+      "set_pay",
+      "payday_set_aside",
+      "starter_fund",
+      "high_apr",
+      "bill_due",
+      "grow_runway",
+      "start_goal"
+    ],
+    "thresholds": {
+      "starter_fund_cents": 100000,
+      "high_apr_bps": 1500,
+      "bill_due_within_days": 3,
+      "runway_min_tenths": 30,
+      "set_aside_share_bps": 1000
+    }
+  },
+  "as_of": "2026-10-10"
+}

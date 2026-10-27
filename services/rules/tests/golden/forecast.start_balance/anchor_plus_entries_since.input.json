@@ -1,0 +1,28 @@
+{
+  "anchor": {
+    "as_of": "2026-10-05",
+    "balance_cents": 210000
+  },
+  "entries": [
+    {
+      "date": "2026-10-06",
+      "amount_cents": 4500,
+      "direction": "out"
+    },
+    {
+      "date": "2026-10-08",
+      "amount_cents": 240000,
+      "direction": "in"
+    },
+    {
+      "date": "2026-10-05",
+      "amount_cents": 9999,
+      "direction": "out"
+    },
+    {
+      "date": "2026-10-10",
+      "amount_cents": 180000,
+      "direction": "out"
+    }
+  ]
+}

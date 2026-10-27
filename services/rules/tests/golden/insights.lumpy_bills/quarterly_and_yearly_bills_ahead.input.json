@@ -1,0 +1,37 @@
+{
+  "as_of": "2026-10-11",
+  "months": 12,
+  "thresholds": {
+    "lumpy_month_cents": 30000
+  },
+  "series": [
+    {
+      "payee": "GEICO",
+      "kind": "bill",
+      "expected_cents": 78000,
+      "interval": "quarterly",
+      "next_date": "2026-07-15"
+    },
+    {
+      "payee": "State DMV",
+      "kind": "bill",
+      "expected_cents": 15250,
+      "interval": "yearly",
+      "next_date": "2027-03-01"
+    },
+    {
+      "payee": "NETFLIX",
+      "kind": "bill",
+      "expected_cents": 1549,
+      "interval": "monthly",
+      "next_date": "2026-10-20"
+    },
+    {
+      "payee": "PAYROLL",
+      "kind": "income",
+      "expected_cents": 240000,
+      "interval": "yearly",
+      "next_date": "2026-12-15"
+    }
+  ]
+}

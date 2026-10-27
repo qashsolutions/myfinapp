@@ -1,0 +1,41 @@
+{
+  "inputs": {
+    "now_local": "2026-10-10T18:00",
+    "upcoming": [
+      {
+        "series_id": "rent",
+        "date": "2026-10-25",
+        "kind": "bill",
+        "matched": false
+      },
+      {
+        "series_id": "phone",
+        "date": "2026-10-12",
+        "kind": "bill",
+        "matched": false
+      },
+      {
+        "series_id": "car",
+        "date": "2026-10-14",
+        "kind": "bill",
+        "matched": true
+      },
+      {
+        "series_id": "pay",
+        "date": "2026-10-16",
+        "kind": "income",
+        "matched": false
+      }
+    ],
+    "shortfall": null,
+    "challenges": [],
+    "goals": [],
+    "milestones": [],
+    "prefs": {
+      "upcoming_expense": {
+        "enabled": true,
+        "lead_days": 3
+      }
+    }
+  }
+}

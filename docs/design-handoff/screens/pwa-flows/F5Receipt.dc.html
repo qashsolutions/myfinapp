@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 5 — Add entry or receipt</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;align-items:center;gap:10px">
+    <a href="F3Home.dc.html" aria-label="Close" style="{{S.icon}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></a>
+    <span style="font:700 22px Outfit,sans-serif">Add entry</span>
+  </header>
+
+  <div style="{{S.seg}}" role="group" aria-label="Direction">
+    <button onClick="{{goOut}}" aria-pressed="{{outSel}}" style="{{S.sO}}">Money out</button>
+    <button onClick="{{goIn}}" aria-pressed="{{inSel}}" style="{{S.sI}}">Money in</button>
+  </div>
+
+  <div style="{{S.amount}}"><span style="font:600 30px Outfit,sans-serif;color:{{m.sub}}">$</span><label for="amt" style="position:absolute;left:-9999px">Amount</label><input id="amt" inputmode="decimal" value="{{amt}}" onChange="{{setAmt}}" style="{{S.big}}"></div>
+
+  <section style="{{S.card}}">
+    <div style="{{S.row}}"><label for="mer" style="width:96px;font-size:14px;color:{{m.sub}}">Merchant</label><input id="mer" value="Corner Market" style="{{S.field}}"></div>
+    <div style="{{S.row}}"><label for="dt" style="width:96px;font-size:14px;color:{{m.sub}}">Date</label><input id="dt" value="Oct 9, 2026" style="{{S.field}}"></div>
+    <div style="{{S.row}}"><span style="width:96px;font-size:14px;color:{{m.sub}}">Account</span><span style="flex:1;font-size:15px;font-weight:600">Rewards card ••1173</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 0">
+      <sc-for list="{{cats}}" as="c" hint-placeholder-count="5"><button onClick="{{c.pick}}" aria-pressed="{{c.sel}}" style="{{c.st}}">{{c.n}}</button></sc-for>
+    </div>
+  </section>
+
+  <section style="{{S.receipt}}">
+    <div style="{{S.thumb}}"><span style="height:5px;width:60%;background:#9AA1B2;border-radius:3px"></span><span style="height:4px;width:80%;background:#D0D4DD;border-radius:2px"></span><span style="height:4px;width:70%;background:#D0D4DD;border-radius:2px"></span><span style="height:5px;width:50%;background:#9AA1B2;border-radius:3px;margin-top:4px"></span></div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px"><span style="font-weight:600;font-size:15px">Receipt photo attached</span><span style="font-size:12px;color:{{m.sub}}">Kept on this device for 90 days</span>
+      <button disabled style="{{S.ocr}}">Read text from photo · soon</button></div>
+  </section>
+
+  <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+    <a href="F3Money.dc.html" style="{{S.primary}}">Save</a>
+    <span style="text-align:center;font-size:12px;color:{{m.sub}}">Saved on this device only.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { dir: 'out', amt: '42.17', cat: 'Groceries' }; }
+  renderVals() {
+    const dark = !!this.props.dark, st = this.state, out = st.dir === 'out';
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', tint: '#1E2433', acc: '#8FA2FF' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE' };
+    const seg = (on) => 'flex:1;min-height:44px;border:0;border-radius:12px;cursor:pointer;font:600 14px Outfit,sans-serif;' + (on ? 'background:' + m.card + ';color:' + m.ink + ';box-shadow:0 2px 6px rgba(0,0,0,0.12)' : 'background:transparent;color:' + m.sub);
+    const chip = (on) => 'min-height:44px;padding:0 14px;border-radius:999px;cursor:pointer;font:600 14px Outfit,sans-serif;' + (on ? 'background:' + m.tint + ';color:' + m.acc + ';border:2px solid #3D5AFE' : 'background:transparent;color:' + m.ink + ';border:2px solid ' + m.line);
+    const cats = (out ? ['Groceries', 'Dining', 'Transport', 'Bills', 'Other'] : ['Paycheck', 'Side income', 'Refund', 'Other']).map(n => ({ n, sel: st.cat === n ? 'true' : 'false', st: chip(st.cat === n), pick: () => this.setState({ cat: n }) }));
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:24px 18px 28px;display:flex;flex-direction:column;gap:12px;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      icon: 'width:44px;height:44px;flex-shrink:0;border-radius:50%;background:' + m.card + ';display:flex;align-items:center;justify-content:center',
+      seg: 'display:flex;gap:4px;padding:4px;border-radius:14px;background:' + (dark ? '#1C1F28' : '#E7E9EF'), sO: seg(out), sI: seg(!out),
+      amount: 'position:relative;display:flex;align-items:center;gap:6px;min-height:76px;padding:0 18px;border-radius:18px;background:' + m.card + ';border:2px solid #3D5AFE',
+      big: 'flex:1;min-width:0;border:0;outline:none;background:transparent;font:700 36px Outfit,sans-serif;font-variant-numeric:tabular-nums;color:' + m.ink,
+      card: 'display:flex;flex-direction:column;padding:0 16px;border-radius:20px;background:' + m.card,
+      row: 'display:flex;align-items:center;gap:8px;min-height:54px;border-bottom:1px solid ' + m.line,
+      field: 'flex:1;min-height:44px;border:0;outline:none;background:transparent;font:600 15px Outfit,sans-serif;color:' + m.ink,
+      receipt: 'display:flex;gap:14px;align-items:center;padding:14px 16px;border-radius:20px;background:' + m.card,
+      thumb: 'width:64px;height:84px;flex-shrink:0;border-radius:6px;background:#FFFFFF;box-shadow:0 3px 8px rgba(0,0,0,0.15);padding:10px 8px;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;align-items:center;transform:rotate(-4deg)',
+      ocr: 'align-self:flex-start;min-height:40px;padding:0 12px;border-radius:10px;border:1px dashed ' + m.line + ';background:transparent;color:' + m.sub + ';font:600 13px Outfit,sans-serif',
+      primary: 'min-height:54px;display:flex;align-items:center;justify-content:center;border-radius:16px;font:600 16px Outfit,sans-serif;background:#3D5AFE;color:#FFFFFF'
+    };
+    return { S, m, cats, amt: st.amt, outSel: out ? 'true' : 'false', inSel: out ? 'false' : 'true',
+      goOut: () => this.setState({ dir: 'out', cat: 'Groceries' }), goIn: () => this.setState({ dir: 'in', cat: 'Paycheck' }), setAmt: (e) => this.setState({ amt: e.target.value }) };
+  }
+}
+</script>
+</body>
+</html>

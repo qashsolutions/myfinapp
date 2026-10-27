@@ -1,0 +1,331 @@
+{
+  "version": 1,
+  "events": {
+    "jar_deposit": {
+      "when": "Money is added to a jar (a deposit, or Home's one-tap set-aside)",
+      "vars": [
+        "amount",
+        "jar"
+      ],
+      "toast": [
+        "Ka-ching! {amount} into {jar}.",
+        "{amount} into {jar}. Future you says thanks.",
+        "Nice. {jar} just grew by {amount}.",
+        "{amount} set aside for {jar}. That's how it adds up."
+      ],
+      "effects": {
+        "sound": "kaching",
+        "confetti": "small"
+      },
+      "once": "always"
+    },
+    "income_logged": {
+      "when": "A money-in entry is saved by hand",
+      "vars": [
+        "amount"
+      ],
+      "toast": [
+        "Ka-ching! {amount} in.",
+        "{amount} came in. Nice.",
+        "Logged {amount} in. Payday feeling."
+      ],
+      "effects": {
+        "sound": "kaching",
+        "confetti": "small"
+      },
+      "once": "always"
+    },
+    "goal_reached": {
+      "when": "A jar reaches its target",
+      "vars": [
+        "jar"
+      ],
+      "toast": [
+        "You did it! {jar} is fully funded.",
+        "{jar}: done. Every deposit got you here."
+      ],
+      "effects": {
+        "sound": "kaching",
+        "confetti": "big"
+      },
+      "once": "always"
+    },
+    "milestone_reached": {
+      "when": "A jar passes one of its milestones",
+      "vars": [
+        "jar",
+        "percent"
+      ],
+      "push": "You reached a milestone",
+      "settings": "Milestone reached",
+      "toast": [
+        "{jar} is {percent} of the way there.",
+        "Milestone! {jar} hit {percent}."
+      ],
+      "effects": {
+        "sound": "chime",
+        "confetti": "small"
+      },
+      "once": "always"
+    },
+    "debt_paid_down": {
+      "when": "A payoff goal's balance is updated lower than before",
+      "vars": [
+        "amount",
+        "jar"
+      ],
+      "toast": [
+        "{amount} less owed on {jar}. Keep going.",
+        "Down {amount} on {jar}. That's real progress."
+      ],
+      "effects": {
+        "sound": "kaching",
+        "confetti": "small"
+      },
+      "once": "always"
+    },
+    "checkin_done": {
+      "when": "A habit goal's daily check-in",
+      "vars": [
+        "jar"
+      ],
+      "toast": [
+        "Checked in on {jar}. One more day.",
+        "{jar}: today counts."
+      ],
+      "effects": {
+        "sound": "chime",
+        "confetti": "none"
+      },
+      "once": "per_day"
+    },
+    "spending_up": {
+      "when": "A category is running higher than the same days of recent months",
+      "vars": [
+        "category"
+      ],
+      "toast": [
+        "{category} is running a bit higher than usual. That happens. A few quiet days even it out.",
+        "Heads up: {category} is ahead of your usual pace. Noticing it is the hard part, and you just did.",
+        "{category} is up this month. No stress. Small swaps add up fast."
+      ],
+      "card": [
+        "Spending more some months is normal. Seeing it early is what keeps it small.",
+        "You're keeping an eye on it, which is most of the work."
+      ],
+      "action": {
+        "label": "See where",
+        "to": "/money"
+      },
+      "effects": {
+        "sound": "none",
+        "confetti": "none"
+      },
+      "once": "per_month"
+    },
+    "over_plan": {
+      "when": "A budget bucket is over its plan this month",
+      "vars": [
+        "bucket"
+      ],
+      "card": [
+        "{bucket} went over this month. Plans bend. Next month starts fresh.",
+        "Over on {bucket}. It happens to everyone. You know where to look now."
+      ],
+      "effects": {
+        "sound": "none",
+        "confetti": "none"
+      },
+      "once": "per_month"
+    },
+    "card_paid": {
+      "when": "A linked card's statement is paid in full (chunk 3.5)",
+      "vars": [
+        "card"
+      ],
+      "toast": [
+        "{card}: statement paid in full. Clean slate.",
+        "Paid in full on {card}. That's the move."
+      ],
+      "card": [
+        "Paid in full. Nice."
+      ],
+      "effects": {
+        "sound": "kaching",
+        "confetti": "small"
+      },
+      "once": "per_month"
+    },
+    "card_plan": {
+      "when": "A linked card has a statement balance still to pay before its due date",
+      "vars": [
+        "amount",
+        "date"
+      ],
+      "card": [
+        "Pay {amount} by {date} to clear the statement."
+      ],
+      "effects": {
+        "sound": "none",
+        "confetti": "none"
+      },
+      "once": "always"
+    },
+    "card_no_payday": {
+      "when": "A statement balance is due before the next payday",
+      "vars": [
+        "amount",
+        "date"
+      ],
+      "card": [
+        "Pay {amount} by {date}. There's no payday before then."
+      ],
+      "effects": {
+        "sound": "none",
+        "confetti": "none"
+      },
+      "once": "always"
+    },
+    "card_past_due": {
+      "when": "A linked card's due date has passed with a balance left",
+      "vars": [
+        "date"
+      ],
+      "card": [
+        "The due date ({date}) has passed. Your card issuer can tell you where things stand."
+      ],
+      "effects": {
+        "sound": "none",
+        "confetti": "none"
+      },
+      "once": "always"
+    },
+    "card_no_due_date": {
+      "when": "The card issuer sent no due date",
+      "vars": [],
+      "card": [
+        "Your card issuer didn't share a due date this time."
+      ],
+      "effects": {
+        "sound": "none",
+        "confetti": "none"
+      },
+      "once": "always"
+    },
+    "upcoming_expense": {
+      "when": "An expected bill or recurring expense is a few days away",
+      "vars": [],
+      "push": "An expected expense is coming up",
+      "settings": "Upcoming expense"
+    },
+    "shortfall_risk": {
+      "when": "The forecast dips below the user's buffer",
+      "vars": [],
+      "push": "Your forecast shows a possible shortfall",
+      "settings": "Shortfall risk"
+    },
+    "challenge_checkin": {
+      "when": "Daily check-in time for a challenge",
+      "vars": [],
+      "push": "Time for your challenge check-in",
+      "settings": "Challenge check-in"
+    },
+    "goal_behind_pace": {
+      "when": "A jar is behind the pace its date needs",
+      "vars": [],
+      "push": "A goal is behind pace",
+      "settings": "Goal behind pace"
+    },
+    "group_activity": {
+      "when": "Someone joins the user's challenge, or it ends",
+      "vars": [],
+      "push": "Something happened in your group",
+      "settings": "Group activity"
+    },
+    "weekly_recap": {
+      "when": "The weekly recap is ready",
+      "vars": [],
+      "push": "Your weekly recap is ready",
+      "settings": "Weekly recap"
+    }
+  },
+  "push_summary": "You have {n} updates waiting",
+  "push_summary_one": "You have 1 update waiting",
+  "push_plan_ended": "Your Qash trial has wrapped up. Your data is safe on your phone.",
+  "nudges": {
+    "set_pay": {
+      "vars": [],
+      "title": "Set your monthly pay",
+      "detail": "Tell Budget what you take home and when. Everything here gets sharper.",
+      "cta": "Set it up",
+      "to": "/budget"
+    },
+    "payday_set_aside": {
+      "vars": [
+        "amount"
+      ],
+      "title": "Payday. Set aside {amount} before it goes.",
+      "detail": "One tap records it in your jar. Your money stays where it is; you decide where it lives.",
+      "cta": "Log {amount} set aside",
+      "to": "/goals"
+    },
+    "starter_fund": {
+      "vars": [
+        "remaining"
+      ],
+      "title": "Build your $1K starter fund",
+      "detail": "{remaining} to go. One surprise bill is what it's for.",
+      "cta": "Open jars",
+      "to": "/emergency"
+    },
+    "high_apr": {
+      "vars": [
+        "apr"
+      ],
+      "title": "Attack your highest-APR card",
+      "detail": "{apr} APR costs the most each month.",
+      "cta": "See bills & debt",
+      "to": "/bills"
+    },
+    "bill_due": {
+      "vars": [
+        "label",
+        "date",
+        "amount",
+        "when"
+      ],
+      "title": "Plan for {label} on {date}",
+      "detail": "{amount} {when}.",
+      "cta": "See the next 30 days",
+      "to": "/forecast"
+    },
+    "goal_behind_pace": {
+      "vars": [
+        "title",
+        "behind",
+        "per_period",
+        "id"
+      ],
+      "title": "Catch up on {title}",
+      "detail": "{behind} behind pace. {per_period} each time keeps the date.",
+      "cta": "Open jar",
+      "to": "/goals/{id}"
+    },
+    "grow_runway": {
+      "vars": [
+        "runway"
+      ],
+      "title": "Grow your emergency fund",
+      "detail": "{runway} months of essentials saved. Three is the usual floor.",
+      "cta": "Open jars",
+      "to": "/emergency"
+    },
+    "start_goal": {
+      "vars": [],
+      "title": "Start a savings goal",
+      "detail": "Pick something to save for and the pace shows up here.",
+      "cta": "New goal",
+      "to": "/goals/new"
+    }
+  }
+}

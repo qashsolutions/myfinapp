@@ -1,0 +1,11 @@
+{
+  "as_of": "2026-02-01",
+  "schedule": {
+    "kind": "monthly_days",
+    "days": [
+      30,
+      31
+    ]
+  },
+  "count": 3
+}

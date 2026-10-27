@@ -1,0 +1,135 @@
+---
+import PlanIcon from "../components/visuals/PlanIcon.astro";
+import Base from "../layouts/Base.astro";
+import { dollars, FOUNDING, PLANS, yearlySavingPercent } from "../data/plans.ts";
+import { API_URL, APP_LIVE, APP_URL } from "../data/site.ts";
+
+// Visual first (owner, October 14, 2026): an icon per plan and per feature, one line of value,
+// the Founding offer with live places left, the terms as four icons.
+const saving = yearlySavingPercent();
+const perMonth = (cents: number) => dollars(Math.round(cents / 12));
+// The yearly badge: what a year costs against twelve monthly payments (owner, October 14, 2026).
+const yearlySave = (p: (typeof PLANS)[number]) =>
+  Math.round((100 * (p.monthlyCents * 12 - p.yearlyCents)) / (p.monthlyCents * 12));
+// Owner, October 14, 2026: the Founding value is the saving against 4 years of Connected yearly.
+const connectedYearly = PLANS.find((p) => p.key === "connected")?.yearlyCents ?? 0;
+const foundingTerm = connectedYearly * FOUNDING.years;
+const foundingSaving = foundingTerm - FOUNDING.oneTimeCents;
+const foundingPct = Math.round((100 * foundingSaving) / foundingTerm);
+const wholeDollars = (cents: number) => `$${Math.floor(cents / 100)}`;
+const terms = [
+  { icon: "card", t: "No card during the trial" },
+  { icon: "renew", t: "Renews until you cancel" },
+  { icon: "cancel", t: "Cancel anytime in the app" },
+  { icon: "card", t: "A US credit or debit card (Visa, Mastercard, Amex, Discover) or a US bank account. Paid through Stripe; we never see your card or bank details." },
+] as const;
+---
+
+<Base title="Pricing" description={`Try Private or Connected free for 3 days, no card needed. Yearly saves up to ${saving}%. Founding member: $150 once for four years of Connected, the first ${FOUNDING.cap} only.`}>
+  <section class="pr-hero">
+    <p class="lp-pill">Try free · no card needed</p>
+    <h1 class="lp-title">Pick your <span class="lp-grad">plan</span></h1>
+    <fieldset class="segmented pr-period" id="period">
+      <legend class="sr-only">Billing period</legend>
+      <label><input type="radio" name="period" value="yearly" checked /> Yearly · save {saving}%</label>
+      <label><input type="radio" name="period" value="monthly" /> Monthly</label>
+    </fieldset>
+  </section>
+
+  <div class="pr-plans">
+    {PLANS.map((p) => (
+      <article class={`pr-plan pr-plan--${p.key} plan`} id={p.key} aria-label={p.name}>
+        <div class="pr-plan__head">
+          <span class="pr-plan__mark"><PlanIcon name={p.key} /></span>
+          <h2>{p.name}</h2>
+          <span class="pr-plan__save" data-yearly-only>Save {yearlySave(p)}%</span>
+        </div>
+        <p class="pr-plan__trial">
+          <span>Free for {p.trialDays} days</span>
+          {p.tag ? <span class="pr-plan__tag">{p.tag}</span> : null}
+        </p>
+        <p class="pr-plan__price">
+          <span data-yearly={dollars(p.yearlyCents)} data-monthly={dollars(p.monthlyCents)}>{dollars(p.yearlyCents)}</span>
+          <small data-yearly={p.yearlyCents ? "/year" : ""} data-monthly={p.monthlyCents ? "/month" : ""}>{p.yearlyCents ? "/year" : ""}</small>
+        </p>
+        <p
+          class="pr-plan__billed"
+          data-yearly={`${perMonth(p.yearlyCents)} a month, billed yearly`}
+          data-monthly="Billed monthly"
+        >
+          {`${perMonth(p.yearlyCents)} a month, billed yearly`}
+        </p>
+        <p class="pr-plan__value">{p.value}</p>
+        <ul class="pr-plan__features">
+          {p.features.map((f) => (
+            <li><span class="pr-plan__ficon"><PlanIcon name={f.icon} /></span>{f.t}</li>
+          ))}
+        </ul>
+        {APP_LIVE && <a class="button pr-plan__cta" href={APP_URL}>{p.cta}</a>}
+      </article>
+    ))}
+    <article class="pr-plan pr-founding" id="founding" aria-labelledby="founding-name">
+      <div class="pr-plan__head">
+        <span class="pr-plan__mark pr-founding__mark"><PlanIcon name="connected" /></span>
+        <h2 id="founding-name">Founding member</h2>
+      </div>
+      <p class="pr-plan__trial"><span>First {FOUNDING.cap} members only</span></p>
+      <p class="pr-founding__price">{dollars(FOUNDING.oneTimeCents)} <small>once · {FOUNDING.years} years of Connected</small></p>
+      <p class="pr-founding__pct">{foundingPct}% savings vs the annual Connected plan</p>
+      <ul class="pr-founding__points">
+        <li><PlanIcon name="dollar" />One payment covers all {FOUNDING.years} years (works out to {dollars(Math.round(FOUNDING.oneTimeCents / FOUNDING.years))} a year)</li>
+        <li><PlanIcon name="check" />Save {wholeDollars(foundingSaving)} over {FOUNDING.years} years</li>
+        <li><PlanIcon name="check" />Everything in Connected</li>
+      </ul>
+      <div class="pr-founding__meter" data-founding-api={`${API_URL}/api/public/plans/founding`} data-cap={FOUNDING.cap}>
+        <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+          <circle cx="60" cy="60" r="50" class="pr-ring__track" />
+          <circle cx="60" cy="60" r="50" class="pr-ring__fill" pathLength="100" stroke-dasharray="100 100" stroke-dashoffset="0" />
+        </svg>
+        <p class="pr-founding__count" aria-live="polite">
+          <strong data-left>{FOUNDING.cap}</strong>
+          <span>of {FOUNDING.cap} places left</span>
+        </p>
+      </div>
+      {APP_LIVE && <a class="button button--light pr-plan__cta" href={`${APP_URL}/me/plan`}>Become a Founding member</a>}
+    </article>
+  </div>
+
+
+  <section class="pr-terms" aria-labelledby="before">
+    <h2 id="before" class="lp-h2">Before you buy</h2>
+    <ul>
+      {terms.map((t) => (
+        <li><span class="pr-terms__icon"><PlanIcon name={t.icon} /></span>{t.t}</li>
+      ))}
+    </ul>
+    <p class="pr-terms__fine">Prices in US dollars; taxes may apply. A plan runs to the end of the period you paid for; when a trial or plan ends without a new one, you have 7 days to subscribe or download your data, with a short note each day; then the account closes and what we kept is deleted. What's on your phone stays there until you download or erase it. You agree to these terms in the app before you pay.</p>
+  </section>
+
+  <script>
+    const prices = document.querySelectorAll<HTMLElement>("[data-yearly]");
+    document.querySelectorAll<HTMLInputElement>('input[name="period"]').forEach((input) => {
+      input.addEventListener("change", () => {
+        const period = input.value === "monthly" ? "monthly" : "yearly";
+        for (const el of prices) el.textContent = el.dataset[period] ?? "";
+        for (const el of document.querySelectorAll<HTMLElement>("[data-yearly-only]"))
+          el.hidden = period !== "yearly";
+      });
+    });
+    // Founding places left, live from the API (counts only; cached for a minute).
+    const meter = document.querySelector<HTMLElement>("[data-founding-api]");
+    if (meter) {
+      fetch(meter.dataset.foundingApi ?? "")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { cap: number; left: number } | null) => {
+          if (!d) return;
+          const left = meter.querySelector<HTMLElement>("[data-left]");
+          if (left) left.textContent = String(d.left);
+          const fill = meter.querySelector<SVGCircleElement>(".pr-ring__fill");
+          if (fill) fill.setAttribute("stroke-dashoffset", String(100 - (100 * d.left) / d.cap));
+          if (d.left === 0) meter.classList.add("is-sold-out");
+        })
+        .catch(() => {});
+    }
+  </script>
+</Base>

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "thresholds": {
+    "usual_increase_cents": 2500,
+    "usual_increase_bps": 2500,
+    "lumpy_month_cents": 30000,
+    "seasonal_increase_cents": 10000,
+    "seasonal_increase_bps": 2000
+  }
+}

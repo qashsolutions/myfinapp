@@ -1,0 +1,44 @@
+{
+  "entries": [
+    {
+      "id": "o1",
+      "date": "2026-10-07",
+      "amount_cents": 15000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "acct-chk"
+    },
+    {
+      "id": "i-b",
+      "date": "2026-10-08",
+      "amount_cents": 15000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "acct-sav"
+    },
+    {
+      "id": "i-a",
+      "date": "2026-10-06",
+      "amount_cents": 15000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "acct-sav"
+    },
+    {
+      "id": "i-c",
+      "date": "2026-10-06",
+      "amount_cents": 15000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "acct-sav"
+    }
+  ]
+}

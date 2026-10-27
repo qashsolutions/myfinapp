@@ -1,0 +1,162 @@
+---
+/**
+ * The landing page's hero: the app's Home screen drawn as SVG (example numbers), with two
+ * floating chips. Colours are token variables through the `v-*` classes in site.css, so the
+ * drawing follows light and dark mode. Motion is CSS only and stops under reduced motion.
+ */
+---
+
+<svg
+  class="hero-art"
+  viewBox="-70 -10 580 620"
+  role="img"
+  aria-labelledby="hero-art-title"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <title id="hero-art-title">
+    Example of the Qash home screen: $412 kept this month, a warning that the balance may be
+    short by $180 around October 25, and three savings jars.
+  </title>
+  <defs>
+    <filter id="hp-blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="42"></feGaussianBlur>
+    </filter>
+    <filter id="hp-shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-opacity="0.18"></feDropShadow>
+    </filter>
+    <linearGradient id="hp-area" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" class="v-stop-a1" stop-opacity="0.32"></stop>
+      <stop offset="1" class="v-stop-a1" stop-opacity="0"></stop>
+    </linearGradient>
+    <linearGradient id="hp-gloss" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" class="v-stop-on" stop-opacity="0.16"></stop>
+      <stop offset="0.45" class="v-stop-on" stop-opacity="0"></stop>
+    </linearGradient>
+    <radialGradient id="hp-coin" cx="0.35" cy="0.3" r="0.75">
+      <stop offset="0" class="v-stop-gold-hi"></stop>
+      <stop offset="1" class="v-stop-gold"></stop>
+    </radialGradient>
+    <symbol id="hp-coin-s" viewBox="-20 -20 40 40">
+      <circle r="19" fill="url(#hp-coin)"></circle>
+      <circle r="14" fill="none" class="v-on-stroke" stroke-width="1.5" opacity="0.55"></circle>
+      <text y="6" text-anchor="middle" class="v-t v-on" font-size="17" font-weight="700">$</text>
+    </symbol>
+    <symbol id="hp-bill-s" viewBox="0 0 84 44">
+      <rect width="84" height="44" rx="6" class="v-a2"></rect>
+      <rect x="5" y="5" width="74" height="34" rx="4" fill="none" class="v-on-stroke" stroke-width="1.4" opacity="0.5"></rect>
+      <circle cx="42" cy="22" r="10" class="v-on-fill" opacity="0.25"></circle>
+      <text x="42" y="27" text-anchor="middle" class="v-t v-on" font-size="13" font-weight="700">$</text>
+    </symbol>
+    <linearGradient id="hp-hero" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" class="v-stop-a1"></stop>
+      <stop offset="1" class="v-stop-a3"></stop>
+    </linearGradient>
+  </defs>
+
+  <!-- Glow behind the phone -->
+  <circle cx="330" cy="150" r="150" class="v-a1" opacity="0.22" filter="url(#hp-blur)"></circle>
+  <circle cx="110" cy="470" r="130" class="v-a3" opacity="0.18" filter="url(#hp-blur)"></circle>
+
+  <!-- Phone -->
+  <g class="v-float">
+    <rect x="66" y="128" width="6" height="34" rx="3" class="v-frame"></rect>
+    <rect x="66" y="176" width="6" height="56" rx="3" class="v-frame"></rect>
+    <rect x="368" y="160" width="6" height="76" rx="3" class="v-frame"></rect>
+    <rect x="70" y="20" width="300" height="560" rx="48" class="v-frame" filter="url(#hp-shadow)"></rect>
+    <rect x="73" y="23" width="294" height="554" rx="45" fill="none" class="v-on-stroke" stroke-width="1.2" opacity="0.18"></rect>
+    <rect x="82" y="32" width="276" height="536" rx="38" class="v-bg"></rect>
+    <rect x="182" y="42" width="76" height="22" rx="11" class="v-frame"></rect>
+    <text x="104" y="58" class="v-t v-ink" font-size="11" font-weight="600">9:41</text>
+
+    <text x="100" y="98" class="v-t v-ink" font-size="16" font-weight="700">Hi, Maya</text>
+    <text x="100" y="116" class="v-t v-sub" font-size="11">Sunday, October 12</text>
+
+    <!-- Kept this month -->
+    <rect x="98" y="130" width="244" height="112" rx="22" fill="url(#hp-hero)"></rect>
+    <text x="116" y="156" class="v-t v-on" font-size="11" opacity="0.9">Kept this month</text>
+    <text x="114" y="196" class="v-t v-on" font-size="36" font-weight="700">$412</text>
+    <text x="116" y="224" class="v-t v-on" font-size="10.5" opacity="0.9">In +$5,200 · Out −$4,788</text>
+    <g class="v-on-fill" opacity="0.85">
+      <rect x="282" y="186" width="8" height="22" rx="4"></rect>
+      <rect x="296" y="174" width="8" height="34" rx="4"></rect>
+      <rect x="310" y="166" width="8" height="42" rx="4"></rect>
+      <rect x="324" y="156" width="8" height="52" rx="4"></rect>
+    </g>
+
+    <!-- Next 30 days -->
+    <rect x="98" y="254" width="244" height="150" rx="22" class="v-card"></rect>
+    <text x="116" y="280" class="v-t v-ink" font-size="12" font-weight="700">Next 30 days</text>
+    <rect x="246" y="266" width="82" height="22" rx="11" class="v-pending-bg"></rect>
+    <text x="287" y="281" text-anchor="middle" class="v-t v-pending" font-size="10" font-weight="700">
+      Short $180
+    </text>
+    <g transform="translate(116 296)">
+      <line x1="0" y1="62" x2="210" y2="62" class="v-danger-stroke" stroke-width="1.5" stroke-dasharray="4 4"></line>
+      <path d="M0 26 C 20 28, 40 34, 60 40 S 100 56, 118 68 S 130 74, 135 72 S 146 68, 150 62 L 160 24 C 175 26, 195 30, 210 34 L 210 90 L 0 90 Z" fill="url(#hp-area)"></path>
+      <path class="v-draw v-a1-stroke" d="M0 26 C 20 28, 40 34, 60 40 S 100 56, 118 68 S 130 74, 135 72 S 146 68, 150 62 L 160 24 C 175 26, 195 30, 210 34" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+      <circle cx="135" cy="72" r="10" class="v-danger v-pulse" opacity="0.22"></circle>
+      <circle cx="135" cy="72" r="4.5" class="v-danger"></circle>
+      <text x="0" y="104" class="v-t v-sub" font-size="9">Today</text>
+      <text x="135" y="104" text-anchor="middle" class="v-t v-sub" font-size="9">Oct 25</text>
+      <text x="210" y="104" text-anchor="end" class="v-t v-sub" font-size="9">Nov 11</text>
+    </g>
+
+    <!-- Jars -->
+    <rect x="98" y="416" width="244" height="98" rx="22" class="v-card"></rect>
+    <g transform="translate(140 462)">
+      <circle r="19" class="v-line-stroke" fill="none" stroke-width="6"></circle>
+      <circle r="19" class="v-ring v-a1-stroke" fill="none" stroke-width="6" pathLength="100" stroke-dasharray="32 100" stroke-linecap="round" transform="rotate(-90)"></circle>
+      <text y="4" text-anchor="middle" class="v-t v-ink" font-size="10" font-weight="700">32%</text>
+      <text y="40" text-anchor="middle" class="v-t v-sub" font-size="10">Travel</text>
+    </g>
+    <g transform="translate(220 462)">
+      <circle r="19" class="v-line-stroke" fill="none" stroke-width="6"></circle>
+      <circle r="19" class="v-ring v-a2-stroke" fill="none" stroke-width="6" pathLength="100" stroke-dasharray="64 100" stroke-linecap="round" transform="rotate(-90)"></circle>
+      <text y="4" text-anchor="middle" class="v-t v-ink" font-size="10" font-weight="700">64%</text>
+      <text y="40" text-anchor="middle" class="v-t v-sub" font-size="10">Rainy day</text>
+    </g>
+    <g transform="translate(300 462)">
+      <circle r="19" class="v-line-stroke" fill="none" stroke-width="6"></circle>
+      <circle r="19" class="v-ring v-a3-stroke" fill="none" stroke-width="6" pathLength="100" stroke-dasharray="85 100" stroke-linecap="round" transform="rotate(-90)"></circle>
+      <text y="4" text-anchor="middle" class="v-t v-ink" font-size="10" font-weight="700">85%</text>
+      <text y="40" text-anchor="middle" class="v-t v-sub" font-size="10">New car</text>
+    </g>
+
+    <!-- Glass reflection over the screen -->
+    <rect x="82" y="32" width="276" height="536" rx="38" fill="url(#hp-gloss)" pointer-events="none"></rect>
+
+    <!-- Tab bar -->
+    <line x1="98" y1="528" x2="342" y2="528" class="v-line-stroke" stroke-width="1"></line>
+    <g transform="translate(0 548)">
+      <path d="M112 2 L120 -6 L128 2 V10 H112 Z" class="v-a1"></path>
+      <circle cx="170" cy="2" r="8" class="v-sub-stroke" fill="none" stroke-width="2"></circle>
+      <circle cx="220" cy="2" r="8" class="v-sub-stroke" fill="none" stroke-width="2"></circle>
+      <circle cx="220" cy="2" r="3" class="v-sub-fill"></circle>
+      <rect x="262" y="-6" width="16" height="16" rx="3" class="v-sub-stroke" fill="none" stroke-width="2"></rect>
+      <circle cx="320" cy="-1" r="4.5" class="v-sub-stroke" fill="none" stroke-width="2"></circle>
+      <path d="M312 11 C 312 4, 328 4, 328 11" class="v-sub-stroke" fill="none" stroke-width="2"></path>
+    </g>
+  </g>
+
+  <!-- Coins and notes in the air -->
+  <g class="v-spin v-spin--a"><use href="#hp-coin-s" x="404" y="54" width="46" height="46"></use></g>
+  <g class="v-spin v-spin--b"><use href="#hp-coin-s" x="-44" y="150" width="34" height="34"></use></g>
+  <g class="v-spin v-spin--c"><use href="#hp-coin-s" x="420" y="300" width="28" height="28"></use></g>
+  <g class="v-spin v-spin--b"><use href="#hp-coin-s" x="-30" y="520" width="40" height="40"></use></g>
+  <g class="v-flutter"><use href="#hp-bill-s" x="392" y="170" width="84" height="44" transform="rotate(16 434 192)"></use></g>
+  <g class="v-flutter v-flutter--late"><use href="#hp-bill-s" x="-58" y="40" width="76" height="40" transform="rotate(-18 -20 60)"></use></g>
+
+  <!-- Floating chips -->
+  <g class="v-float v-float--slow" filter="url(#hp-shadow)">
+    <rect x="-64" y="300" width="184" height="46" rx="23" class="v-card"></rect>
+    <rect x="-50" y="316" width="14" height="12" rx="3" class="v-a2"></rect>
+    <path d="M-47 316 V312 a4 4 0 0 1 8 0 V316" class="v-a2-stroke" fill="none" stroke-width="2.2"></path>
+    <text x="-28" y="328" class="v-t v-ink" font-size="11.5" font-weight="700">No ads. No AI services.</text>
+  </g>
+  <g class="v-float v-float--late" filter="url(#hp-shadow)">
+    <rect x="334" y="440" width="154" height="46" rx="23" class="v-card"></rect>
+    <circle cx="356" cy="463" r="10" class="v-a2"></circle>
+    <path d="M351 463 l3.5 3.5 l6.5 -7" class="v-on-stroke" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+    <text x="374" y="467" class="v-t v-ink" font-size="11.5" font-weight="700">+$76 to Travel</text>
+  </g>
+</svg>

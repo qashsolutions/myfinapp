@@ -1,0 +1,21 @@
+{
+  "as_of": "2026-05-01",
+  "entries": [
+    {
+      "id": "n1",
+      "date": "2026-03-01",
+      "amount_cents": 1549,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "NETFLIX"
+    },
+    {
+      "id": "n2",
+      "date": "2026-04-01",
+      "amount_cents": 1549,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "NETFLIX"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!docs",
+      "!**/dist",
+      "!**/.turbo",
+      "!pnpm-lock.yaml",
+      "!**/tests/golden",
+      "!packages/api-client/openapi.json",
+      "!packages/api-client/src/schema.ts",
+      "!packages/rules/src/keywords.json",
+      "!services/rules/stackd_rules/config/keywords.json",
+      "!packages/rules/src/moments.json",
+      "!services/rules/stackd_rules/config/moments.json",
+      "!packages/rules/src/categorizer.json",
+      "!packages/rules/src/insights.json",
+      "!services/rules/stackd_rules/config/insights.json",
+      "!services/rules/stackd_rules/config/categorizer.json",
+      "!**/public",
+      "!apps/site/**/*.astro",
+      "!apps/site/.astro",
+      "!apps/site/src/data/licenses.json",
+      "!apps/mobile/android",
+      "!apps/mobile/ios"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended"
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always"
+    }
+  }
+}

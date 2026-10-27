@@ -1,0 +1,69 @@
+{
+  "start": "2026-10-09",
+  "end": "2026-11-08",
+  "items": [
+    {
+      "date": "2026-10-12",
+      "series_id": "phone",
+      "payee": "PHONE BILL",
+      "kind": "bill",
+      "amount_cents": 4500,
+      "matched": true,
+      "entry_id": "ph1"
+    },
+    {
+      "date": "2026-10-14",
+      "series_id": "car",
+      "payee": "CAR INSURANCE",
+      "kind": "bill",
+      "amount_cents": 18000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2026-10-16",
+      "series_id": "pay",
+      "payee": "PAYCHECK",
+      "kind": "income",
+      "amount_cents": 240000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2026-10-22",
+      "series_id": "util",
+      "payee": "UTILITIES",
+      "kind": "bill",
+      "amount_cents": 16500,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2026-10-25",
+      "series_id": "rent",
+      "payee": "RENT",
+      "kind": "bill",
+      "amount_cents": 165000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2026-10-30",
+      "series_id": "gym",
+      "payee": "GYM",
+      "kind": "bill",
+      "amount_cents": 3000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2026-10-30",
+      "series_id": "pay",
+      "payee": "PAYCHECK",
+      "kind": "income",
+      "amount_cents": 240000,
+      "matched": false,
+      "entry_id": null
+    }
+  ]
+}

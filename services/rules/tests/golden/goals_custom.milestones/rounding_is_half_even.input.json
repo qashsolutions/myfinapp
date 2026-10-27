@@ -1,0 +1,7 @@
+{
+  "target_cents": 33333,
+  "current_cents": 8333,
+  "checkpoints_bps": [
+    2500
+  ]
+}

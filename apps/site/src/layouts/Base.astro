@@ -1,0 +1,71 @@
+---
+import "@fontsource/outfit/400.css";
+import "@fontsource/outfit/500.css";
+import "@fontsource/outfit/600.css";
+import "@fontsource/outfit/700.css";
+import "@stackd/tokens/tokens.css";
+import "../styles/site.css";
+import Logo from "../components/Logo.astro";
+import { APP_LIVE, APP_URL, COMPANY, FOOTER_LEGAL, FOOTER_PRODUCT, INSTALL_URL, NAME, NAV } from "../data/site.ts";
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+// With build.format "file" the pathname carries ".html"; links and the canonical never do.
+const path = Astro.url.pathname.replace(/\.html$/, "").replace(/\/index$/, "/").replace(/\/$/, "") || "/";
+---
+
+<!doctype html>
+<html lang="en" data-look="modern">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title === NAME ? NAME : `${title} · ${NAME}`}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#F4F5F8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#14163A" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="canonical" href={new URL(path, Astro.site)} />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="wrap header">
+      <a class="brand" href="/" aria-label={`${NAME} home`}><Logo size={34} /><span>{NAME}</span></a>
+      <nav class="nav" aria-label="Primary">
+        {NAV.map((item) => (
+          <a href={item.href} aria-current={path === item.href ? "page" : undefined}>
+            {item.label}
+          </a>
+        ))}
+        {APP_LIVE ? <a class="button" href={APP_URL}>Open the app</a> : <a class="button" href={INSTALL_URL}>Install the app</a>}
+      </nav>
+    </header>
+    <main id="main" class="wrap" tabindex="-1">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <div class="wrap site-footer__inner">
+        <a class="brand site-footer__brand" href="/" aria-label={`${NAME} home`}><Logo size={28} /><span>{NAME}</span></a>
+        <nav class="site-footer__links" aria-label="Footer">
+          <ul>
+            {FOOTER_PRODUCT.map((item) => (
+              <li><a href={item.href}>{item.label}</a></li>
+            ))}
+          </ul>
+          <ul>
+            {FOOTER_LEGAL.map((item) => (
+              <li><a href={item.href}>{item.label}</a></li>
+            ))}
+          </ul>
+        </nav>
+        <p class="site-footer__fine">© 2026 {COMPANY}</p>
+      </div>
+    </footer>
+  </body>
+</html>

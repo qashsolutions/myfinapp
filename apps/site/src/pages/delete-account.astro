@@ -1,0 +1,106 @@
+---
+import PageHero from "../components/PageHero.astro";
+import Base from "../layouts/Base.astro";
+import { API_URL, DELETION_DAYS, NAME } from "../data/site.ts";
+---
+
+<Base title="Delete your account" description="Delete your Qash account from the web with a code sent to your email, when you cannot open the app.">
+  <PageHero pill="Account" title="Delete your" accent={`${NAME} account`} lede="In the app it's Me → Delete account. Use this page if you can't open the app." />
+  <form id="send" class="card" aria-label="Request a confirmation code">
+    <div class="field">
+      <label for="email">Your account email</label>
+      <input id="email" name="email" type="email" autocomplete="email" required />
+    </div>
+    <button class="button" type="submit">Email me a confirmation code</button>
+    <p class="fine" style="margin:12px 0 0">
+      If an account exists, we've emailed a code and a confirmation link. Deletion starts only
+      after you confirm.
+    </p>
+  </form>
+  <form id="verify" class="card" aria-label="Confirm the deletion" hidden>
+    <p>Enter the 6-digit code from the email to delete the account.</p>
+    <div class="field">
+      <label for="code">Confirmation code</label>
+      <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required />
+    </div>
+    <button class="button" type="submit">Delete my account</button>
+  </form>
+  <p id="note" class="notice" role="status" hidden></p>
+  <h2>What deletion does</h2>
+  <p>
+    Deleting removes your account, passkeys, plan, encrypted backup and group memberships, and
+    revokes any bank connections. Deletion completes within {DELETION_DAYS} days; the deleted
+    account cannot be signed into or recovered, and signing in later with the same email starts a
+    new, empty account. Data kept only on your devices stays there until you remove it: delete
+    {NAME} or clear its data on any device you used and haven't opened in the 30 days since; a device opened sooner erases its copy by itself.
+  </p>
+  <script define:vars={{ apiUrl: API_URL }}>
+    const send = document.getElementById("send");
+    const verify = document.getElementById("verify");
+    const note = document.getElementById("note");
+    const email = document.getElementById("email");
+    const code = document.getElementById("code");
+    const say = (text, danger = false) => {
+      note.textContent = text;
+      note.hidden = false;
+      note.classList.toggle("notice--danger", danger);
+    };
+    const post = async (path, body) => {
+      const r = await fetch(`${apiUrl}${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      return { ok: r.ok, status: r.status, data: await r.json().catch(() => ({})) };
+    };
+    // The emailed link lands here with the address and code in the fragment (never sent to a
+    // server); read them, then drop them from the address bar and history.
+    const params = new URLSearchParams(location.hash.slice(1));
+    if (params.get("email")) email.value = params.get("email");
+    if (params.get("code")) {
+      code.value = params.get("code");
+      verify.hidden = false;
+    }
+    if (location.hash) history.replaceState(null, "", location.pathname);
+    send.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      send.querySelector("button").disabled = true;
+      try {
+        const r = await post("/api/public/account/delete/send", { email: email.value.trim() });
+        if (r.ok) {
+          verify.hidden = false;
+          say("If an account exists for that address, a code is on its way. It expires in 10 minutes.");
+          code.focus();
+        } else if (r.status === 429) say("Too many requests. Wait a few minutes and try again.", true);
+        else say("Couldn't send a code right now. Try again in a moment.", true);
+      } catch {
+        say("Couldn't reach the server. Check your connection and try again.", true);
+      } finally {
+        send.querySelector("button").disabled = false;
+      }
+    });
+    verify.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      verify.querySelector("button").disabled = true;
+      try {
+        const r = await post("/api/public/account/delete/verify", {
+          email: email.value.trim(),
+          code: code.value.trim(),
+        });
+        if (r.ok) {
+          verify.hidden = true;
+          send.hidden = true;
+          say("Your account is being deleted. Each device you used erases its copy the next time the app opens there, within 30 days; otherwise delete the app or clear its data on it.");
+        } else if (r.status === 400) {
+          const left = r.data?.detail?.attempts_left;
+          say(left ? `That code didn't match. ${left} ${left === 1 ? "try" : "tries"} left.` : "That code didn't match or has expired. Request a new one.", true);
+        } else if (r.status === 429) say("Too many tries. Wait a few minutes and request a new code.", true);
+        else say("Couldn't confirm right now. Try again in a moment.", true);
+      } catch {
+        say("Couldn't reach the server. Check your connection and try again.", true);
+      } finally {
+        verify.querySelector("button").disabled = false;
+      }
+    });
+  </script>
+</Base>

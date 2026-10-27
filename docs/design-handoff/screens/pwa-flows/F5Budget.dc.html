@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 5 — Budget</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;flex-direction:column"><span style="font:700 26px Outfit,sans-serif">Budget</span><span style="font-size:13px;color:{{m.sub}}">October · $5,200 take-home · 50/30/20</span></div>
+    <a href="F3Money.dc.html" style="{{S.small}}">In &amp; out</a>
+  </header>
+
+  <sc-for list="{{buckets}}" as="b" hint-placeholder-count="3">
+    <section style="{{S.card}}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:600 17px Outfit,sans-serif">{{b.n}}</span><span style="font-size:14px;font-variant-numeric:tabular-nums"><b>{{b.spent}}</b> of {{b.plan}}</span></div>
+      <div style="height:12px;border-radius:6px;background:{{m.line}};overflow:hidden"><div style="{{b.bar}}"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:{{m.sub}}">{{b.cats}}</span><span style="{{b.noteSt}}">{{b.note}}</span></div>
+    </section>
+  </sc-for>
+
+  <section style="{{S.tip}}">
+    <span style="font-weight:600;font-size:15px">Needs are $462 over plan</span>
+    <span style="font-size:13px;line-height:1.45">Rent alone is 32% of take-home. That's common — 50/30/20 is a guide, not a rule. You could switch to zero-based to set your own split.</span>
+    <a href="F2Method.dc.html" style="{{S.tipLink}}">Change budget style</a>
+  </section>
+
+  <nav style="{{S.nav}}">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5"><a href="{{t.h}}" style="{{t.st}}">{{t.n}}</a></sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', tint: '#1E2433', acc: '#8FA2FF', good: '#6FD39B', warn: '#FFB547', warnBg: '#3A2E12' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE', good: '#1E7A4C', warn: '#8A4B00', warnBg: '#FFF4E0' };
+    const B = [['Needs · 50%', 3062, 2600, 'Rent, groceries, transport, bills', '#3D5AFE'], ['Wants · 30%', 1326, 1560, 'Fun, shopping, dining, other', '#7C3AED'], ['Save + pay down · 20%', 400, 1040, 'Debt payments, jars', '#0B7A55']];
+    const money = (v) => '$' + v.toLocaleString('en-US');
+    const buckets = B.map(([n, s, p, cats, c]) => { const over = s > p; return { n, cats, spent: money(s), plan: money(p),
+      bar: 'width:' + Math.min(100, Math.round(s / p * 100)) + '%;height:100%;background:' + (over ? (dark ? '#FFB547' : '#C2410C') : c),
+      note: over ? money(s - p) + ' over' : money(p - s) + ' left', noteSt: 'font-weight:600;color:' + (over ? m.warn : m.good) }; });
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:24px 18px 110px;display:flex;flex-direction:column;gap:12px;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      small: 'min-height:44px;padding:0 14px;display:flex;align-items:center;border-radius:12px;background:' + m.card + ';font:600 14px Outfit,sans-serif;color:' + m.acc,
+      card: 'display:flex;flex-direction:column;gap:8px;padding:16px;border-radius:20px;background:' + m.card,
+      tip: 'display:flex;flex-direction:column;gap:6px;padding:16px;border-radius:20px;background:' + m.warnBg + ';color:' + m.warn,
+      tipLink: 'min-height:44px;display:flex;align-items:center;font:600 14px Outfit,sans-serif;text-decoration:underline',
+      nav: 'position:absolute;left:16px;right:16px;bottom:18px;height:68px;padding:0 6px;display:flex;align-items:center;background:' + m.card + ';border-radius:26px;box-shadow:0 8px 24px rgba(0,0,0,' + (dark ? '0.4' : '0.10') + ')'
+    };
+    const tabs = [['Home', 'F3Home.dc.html'], ['Budget', 'F5Budget.dc.html'], ['Goals', 'F4Goals.dc.html'], ['Learn', 'F5Learn.dc.html'], ['Me', 'F6Settings.dc.html']].map(([n, h], i) => ({ n, h,
+      st: 'flex:1;min-height:48px;display:flex;align-items:center;justify-content:center;border-radius:16px;font:600 12px Outfit,sans-serif;' + (i === 1 ? 'background:#3D5AFE;color:#FFFFFF' : 'color:' + m.sub) }));
+    return { S, m, buckets, tabs };
+  }
+}
+</script>
+</body>
+</html>

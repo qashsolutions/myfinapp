@@ -1,0 +1,37 @@
+/* Make Qash yours (October 20, 2026). */
+.setup-hub__lead {
+  margin: 0 0 12px;
+  color: var(--c-sub);
+}
+.setup-hub__progress {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+.setup-hub__dot {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--c-line);
+}
+.setup-hub__dot--done {
+  background: var(--c-success);
+}
+.setup-hub__row {
+  gap: 12px;
+}
+.setup-hub__mark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c-a1) 12%, var(--c-card));
+  color: var(--c-a1);
+  font-weight: 700;
+}
+.setup-hub__mark--done {
+  background: var(--c-success);
+  color: var(--c-on-accent);
+}

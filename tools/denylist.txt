@@ -1,0 +1,66 @@
+# AI / LLM / ML-as-a-service packages that may never appear in any manifest or lockfile.
+# Hard constraint 2 in docs/spec.md. Matched case-insensitively against normalized package
+# names (underscores become hyphens). Glob syntax: * matches anything, including "/".
+# Both npm and PyPI names are listed here; the checker applies every pattern to every file.
+
+# Model vendors
+openai
+@openai/*
+openai-*
+anthropic
+@anthropic-ai/*
+anthropic-*
+google-generativeai
+google-genai
+@google/generative-ai
+@google/genai
+@google-cloud/aiplatform
+@google-cloud/vertexai
+google-cloud-aiplatform
+vertexai
+cohere
+cohere-ai
+cohere-*
+mistralai
+@mistralai/*
+groq
+groq-sdk
+together
+together-ai
+replicate
+@replicate/*
+deepseek
+xai-sdk
+@xai/*
+ollama
+@azure/openai
+@azure-rest/ai-inference
+@azure/ai-inference
+azure-ai-inference
+@aws-sdk/client-bedrock-runtime
+@aws-sdk/client-bedrock
+@huggingface/inference
+huggingface-hub
+
+# Gateways and aggregators
+openrouter
+@openrouter/*
+litellm
+portkey-ai
+ai
+@ai-sdk/*
+
+# Agent and orchestration frameworks
+langchain*
+@langchain/*
+langgraph*
+llamaindex
+llama-index*
+instructor
+dspy
+dspy-ai
+autogen
+pyautogen
+crewai
+semantic-kernel
+haystack-ai

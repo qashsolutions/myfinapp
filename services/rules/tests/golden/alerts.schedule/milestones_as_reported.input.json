@@ -1,0 +1,20 @@
+{
+  "inputs": {
+    "now_local": "2026-10-10T18:00",
+    "upcoming": [],
+    "shortfall": null,
+    "challenges": [],
+    "goals": [],
+    "milestones": [
+      {
+        "goal_id": "jar-ef",
+        "key": "starter"
+      }
+    ],
+    "prefs": {
+      "milestone_reached": {
+        "enabled": true
+      }
+    }
+  }
+}

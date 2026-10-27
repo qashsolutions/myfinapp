@@ -1,0 +1,22 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-31",
+  "in_cents": 2000,
+  "out_cents": 36000,
+  "net_cents": -34000,
+  "transfers_out_cents": 0,
+  "count": 2,
+  "by_category": [
+    {
+      "category_id": "cat-shopping",
+      "out_cents": 36000
+    }
+  ],
+  "by_account": [
+    {
+      "account_id": "acct-card",
+      "in_cents": 2000,
+      "out_cents": 36000
+    }
+  ]
+}

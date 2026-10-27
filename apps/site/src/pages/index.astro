@@ -1,0 +1,284 @@
+---
+import FeatureArt from "../components/visuals/FeatureArt.astro";
+import HeroPhone from "../components/visuals/HeroPhone.astro";
+import Icon from "../components/visuals/Icon.astro";
+import WaysArt from "../components/visuals/WaysArt.astro";
+import Base from "../layouts/Base.astro";
+import { dollars, PLANS } from "../data/plans.ts";
+import { APP_LIVE, APP_URL, INSTALL_URL, NAME } from "../data/site.ts";
+
+// Visual first: every block is a drawing with a few words. The detail lives on How it works
+// and Security.
+const features = [
+  { art: "money", t: "Money in & out", d: "Upload a statement. See where it went." },
+  { art: "forecast", t: "30-day forecast", d: "Know about a short week before it comes." },
+  { art: "jars", t: "Jars & challenges", d: "Save toward anything, alone or with friends." },
+] as const;
+const steps = [
+  { icon: "upload", t: "Upload", d: "A statement, or add as you go" },
+  { icon: "chart", t: "See", d: "In, out, kept and what's coming" },
+  { icon: "jar", t: "Save", d: "A jar, a date, a pace" },
+] as const;
+const perMonth = (key: "private" | "connected") => {
+  const plan = PLANS.find((p) => p.key === key);
+  return plan ? `${dollars(Math.round(plan.yearlyCents / 12))}/mo, billed yearly` : "";
+};
+// Two lanes (docs/spec.md "Plans & billing"): Private never links; Connected links banks and
+// cards read-only through Plaid (owner decision, October 12, 2026: at launch).
+const ways = [
+  {
+    key: "private",
+    name: "Private",
+    tag: "Read on your device, never linked",
+    points: ["Statements read on your device", "Every insight, no linking ever", "Backup encrypted on your device"],
+    price: perMonth("private"),
+  },
+  {
+    key: "connected",
+    name: "Connected",
+    tag: "Banks & cards update on their own",
+    points: ["Banks and cards update on their own", "Every account in one view", "Couples and shared jars"],
+    price: perMonth("connected"),
+  },
+] as const;
+// Everything else, one line each (owner, October 20, 2026: user value and a picture, simple and
+// true word for word). Each line is checked against what is built; plan-limited ones say so.
+const more = [
+  { icon: "budget", t: "Budget your way", d: "50/30/20, or give every dollar a job." },
+  { icon: "debt", t: "Debt payoff plan", d: "Which debt first, and your debt-free month." },
+  { icon: "networth", t: "Net worth", d: "What you own minus what you owe." },
+  { icon: "bills", t: "Bills found for you", d: "Repeat bills and pay spotted. You confirm." },
+  { icon: "insight", t: "Insights from your history", d: "What's higher than usual, and safe to spend." },
+  { icon: "camera", t: "Receipts", d: "Snap it. Location and camera details removed." },
+  { icon: "tag", t: "Tags and notes", d: "Tag a trip. See it across categories." },
+  { icon: "layout", t: "Your Home, your way", d: "Drag the cards you care about to the top." },
+  { icon: "couple", t: "Couples", d: "Share jars with your partner. On Connected." },
+] as const;
+
+// Where each kind of data lives (docs/security, the privacy page). "Kept on your phone", never
+// "never leaves" for every plan: on Connected, bank data passes through our server to the phone.
+const onPhone = ["Transactions and statements", "Receipt photos", "Budgets, jars and net worth", "Notes and tags"];
+const onServer = ["Your email and plan", "Your challenge percentage", "Alert dates, never amounts", "Optional backup, locked on your phone first"];
+const neverKept = ["Bank passwords", "Ads or trackers", "Selling your data", "AI services"];
+
+// The promises most apps don't make, up front (owner, October 20, 2026). Word for word true:
+// "No AI services" (the on-device category table is fixed, not a service), read-only by design,
+// cancel in the app with the plan running to the end of what was paid, unused months refunded on
+// deletion less Stripe's card fee (terms: "Refunds").
+const promises = [
+  { icon: "noai", t: "No AI services", d: "Your money is never sent to an AI. Not to chat, not to train." },
+  { icon: "bank", t: "Read-only", d: "Qash can't move money. Not a cent, ever." },
+  { icon: "cancel", t: "Cancel in the app", d: "No calls, no forms. Your plan runs to the end of what you paid." },
+  { icon: "refund", t: "Unused months back", d: "Delete your account and we refund what you didn't use, less the card fee." },
+] as const;
+
+const trust = [
+  { icon: "rules", t: "Same numbers in, same answer out" },
+  { icon: "steps", t: "The forecast shows how it was worked out" },
+  { icon: "check", t: "Fixed, tested rules for every total" },
+] as const;
+const fair = [
+  { icon: "card", t: "Free trial, no card needed" },
+  { icon: "switch", t: "Switch down: the unused part becomes credit" },
+  { icon: "export", t: "Export all your data, any plan" },
+] as const;
+
+const always = [
+  { icon: "passkey", t: "Passkey sign-in" },
+  { icon: "key", t: "We never see bank passwords" },
+  { icon: "device", t: "Your data kept on your phone" },
+] as const;
+---
+
+<Base title={NAME} description="See money in and out, spot a shortfall before it happens, save into jars. Private by design: statements are read on your device, we never see your bank password, and no AI services.">
+  <section class="lp-hero">
+    <div class="lp-hero__copy">
+      <p class="lp-pill">Private or connected. Your choice.</p>
+      <h1 class="lp-title">Keep more of <span class="lp-grad">what you earn.</span></h1>
+      <p class="lp-lede">See it. Plan it. Keep it. Upload a statement, or link your bank and cards.</p>
+      <p class="lp-actions">
+        {APP_LIVE ? <a class="button button--lg" href={APP_URL}>Start your free trial</a> : <a class="button button--lg" href={INSTALL_URL}>Install the app</a>}
+        <a class="button button--secondary button--lg" href="/how-it-works">How it works</a>
+      </p>
+      <ul class="lp-promise-chips" aria-label="Our promises">
+        <li><Icon name="noai" />No AI services</li>
+        <li><Icon name="bank" />Can't move your money</li>
+        <li><Icon name="refund" />Unused months refunded</li>
+      </ul>
+      <ul class="lp-trust" aria-label="Works on">
+        <li>iPhone</li>
+        <li>Android</li>
+        <li>Desktop</li>
+      </ul>
+    </div>
+    <div class="lp-hero__art">
+      <HeroPhone />
+    </div>
+  </section>
+
+  <section class="lp-section" aria-labelledby="promises">
+    <h2 id="promises" class="lp-h2">Our promises</h2>
+    <ul class="lp-promises">
+      {
+        promises.map((p) => (
+          <li class="lp-promise">
+            <span class="lp-promise__icon">
+              <Icon name={p.icon} />
+            </span>
+            <strong>{p.t}</strong>
+            <span>{p.d}</span>
+          </li>
+        ))
+      }
+    </ul>
+    <p class="lp-center"><a href="/terms">Read it in our terms</a></p>
+  </section>
+
+  <section class="lp-section" aria-labelledby="features">
+    <h2 id="features" class="lp-h2">Everything at a glance</h2>
+    <div class="lp-features">
+      {
+        features.map((f) => (
+          <div class="lp-feature">
+            <div class="lp-feature__art">
+              <FeatureArt kind={f.art} />
+            </div>
+            <h3>{f.t}</h3>
+            <p>{f.d}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="lp-section lp-more" aria-labelledby="more">
+    <h2 id="more" class="lp-h2">And plenty more</h2>
+    <ul class="lp-more__grid">
+      {
+        more.map((m) => (
+          <li class="lp-more__item">
+            <span class="lp-more__icon">
+              <Icon name={m.icon} />
+            </span>
+            <span>
+              <strong>{m.t}</strong>
+              <span class="lp-more__d">{m.d}</span>
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="lp-section" aria-labelledby="steps">
+    <h2 id="steps" class="lp-h2">Three steps</h2>
+    <ol class="lp-steps">
+      {
+        steps.map((s, i) => (
+          <li class="lp-step">
+            <span class="lp-step__icon">
+              <Icon name={s.icon} />
+              <span class="lp-step__n" aria-hidden="true">{i + 1}</span>
+            </span>
+            <strong>{s.t}</strong>
+            <span class="lp-step__d">{s.d}</span>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+
+  <section class="lp-section" aria-labelledby="where">
+    <h2 id="where" class="lp-h2">Where your data lives</h2>
+    <div class="lp-where">
+      <div class="lp-where__col lp-where__col--phone">
+        <span class="lp-where__icon"><Icon name="device" /></span>
+        <h3>On your phone</h3>
+        <ul>{onPhone.map((x) => <li>{x}</li>)}</ul>
+      </div>
+      <div class="lp-where__col lp-where__col--server">
+        <span class="lp-where__icon"><Icon name="lock" /></span>
+        <h3>With us</h3>
+        <ul>{onServer.map((x) => <li>{x}</li>)}</ul>
+        <p class="lp-where__note">We can't open your backup. Only you hold the key.</p>
+      </div>
+      <div class="lp-where__col lp-where__col--never">
+        <span class="lp-where__icon"><Icon name="nosell" /></span>
+        <h3>Never</h3>
+        <ul>{neverKept.map((x) => <li>{x}</li>)}</ul>
+      </div>
+    </div>
+    <p class="lp-where__connected">
+      On Connected, new bank transactions pass through us to your phone. We don't keep them.
+    </p>
+    <p class="lp-where__proof">
+      <span class="lp-where__proof-icon"><Icon name="check" /></span>
+      Automated tests check this every time the app changes.
+    </p>
+  </section>
+
+  <section class="lp-section" aria-labelledby="ways">
+    <h2 id="ways" class="lp-h2">Two ways to use {NAME}</h2>
+    <div class="lp-ways">
+      {
+        ways.map((w) => (
+          <a class={`lp-way lp-way--${w.key}`} href={`/pricing#${w.key}`} aria-label={`${w.name} plan`}>
+            <div class="lp-way__art">
+              <WaysArt kind={w.key} />
+            </div>
+            <p class="lp-way__tag">{w.tag}</p>
+            <h3>{w.name}</h3>
+            <ul class="lp-way__points">
+              {w.points.map((pt) => <li class="lp-way__point">{pt}</li>)}
+            </ul>
+            <p class="lp-way__price">{w.price} <span aria-hidden="true">→</span></p>
+          </a>
+        ))
+      }
+    </div>
+    <p class="lp-center"><a href="/pricing">Compare plans · try either free</a></p>
+  </section>
+
+  <section class="lp-section lp-pair" aria-label="Numbers you can trust, and fair by design">
+    <div class="lp-pair__card">
+      <h2 class="lp-pair__h">Numbers you can trust</h2>
+      <ul class="lp-pair__list">
+        {trust.map((x) => <li><span class="lp-always__icon"><Icon name={x.icon} /></span>{x.t}</li>)}
+      </ul>
+    </div>
+    <div class="lp-pair__card">
+      <h2 class="lp-pair__h">Fair by design</h2>
+      <ul class="lp-pair__list">
+        {fair.map((x) => <li><span class="lp-always__icon"><Icon name={x.icon} /></span>{x.t}</li>)}
+      </ul>
+    </div>
+  </section>
+
+  <section class="lp-always" aria-labelledby="always">
+    <h2 id="always" class="sr-only">On every plan</h2>
+    <p class="lp-always__label" aria-hidden="true">On every plan</p>
+    <ul class="lp-always__list">
+      {
+        always.map((a) => (
+          <li>
+            <span class="lp-always__icon">
+              <Icon name={a.icon} />
+            </span>
+            {a.t}
+          </li>
+        ))
+      }
+    </ul>
+    <p class="lp-center"><a href="/security">How we protect your data</a></p>
+  </section>
+
+  {APP_LIVE && (
+    <section class="lp-cta" aria-labelledby="start">
+      <h2 id="start">Try Qash free today.</h2>
+      <p>No card needed. Install it from your browser.</p>
+      <a class="button button--light button--lg" href={APP_URL}>Open {NAME}</a>
+    </section>
+  )}
+
+  <p class="fine lp-fine">Example numbers.</p>
+</Base>

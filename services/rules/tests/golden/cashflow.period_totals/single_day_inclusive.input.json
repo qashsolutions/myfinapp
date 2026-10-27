@@ -1,0 +1,16 @@
+{
+  "start": "2026-10-10",
+  "end": "2026-10-10",
+  "entries": [
+    {
+      "id": "e1",
+      "date": "2026-10-10",
+      "amount_cents": 500,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "chk"
+    }
+  ]
+}

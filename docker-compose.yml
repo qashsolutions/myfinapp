@@ -1,0 +1,123 @@
+# Local development stack: Postgres, S3-compatible storage (RustFS), a test mail inbox
+# (Mailpit) and the API, as docs/spec.md "Top-level tree" asks for.
+#
+#   docker compose up --build --wait     then open http://localhost:8000/health/ready
+#   docker compose down --volumes        stops everything and wipes the data volumes
+#
+# The credentials below are development-only and bound to 127.0.0.1. Production values
+# live in the managed secret store, never in this repository.
+#
+# No Docker on this machine? services/api/README.md shows the same stack from Homebrew.
+
+name: stackd
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: stackd
+      POSTGRES_PASSWORD: stackd
+      POSTGRES_DB: stackd
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./services/api/scripts/postgres-init.sql:/docker-entrypoint-initdb.d/10-stackd.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stackd -d stackd"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  storage:
+    # S3-compatible object storage. RustFS is a MinIO-style server whose images are
+    # still published (MinIO's were withdrawn from Docker Hub and Quay in 2026).
+    # Any S3-compatible store works for the API; only STACKD_S3_* change.
+    image: rustfs/rustfs:1.0.1
+    environment:
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
+      RUSTFS_ACCESS_KEY: stackd
+      RUSTFS_SECRET_KEY: stackd-dev-storage
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - storage-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  mail:
+    # Catches every email the API sends in development: SMTP on 1025, inbox UI on 8025.
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    environment:
+      STACKD_ENV: dev
+      STACKD_DATABASE_URL: postgresql+psycopg://stackd:stackd@db:5432/stackd
+      STACKD_S3_ENDPOINT_URL: http://storage:9000
+      STACKD_S3_REGION: us-east-1
+      STACKD_S3_BUCKET: stackd-backups
+      STACKD_S3_ACCESS_KEY: stackd
+      STACKD_S3_SECRET_KEY: stackd-dev-storage
+      STACKD_IP_HASH_KEY: stackd-dev-ip-hash-key
+      STACKD_SECRET_KEY: stackd-dev-secret-key
+      STACKD_RP_ID: localhost
+      STACKD_ORIGINS: '["http://localhost:5173", "http://localhost:4173"]'
+      STACKD_SITE_ORIGIN: http://localhost:4321
+      # Production sets this to the header CloudFront adds; empty means the check is off.
+      STACKD_ORIGIN_VERIFY: ${STACKD_ORIGIN_VERIFY:-}
+      STACKD_EMAIL_BACKEND: smtp
+      STACKD_SMTP_HOST: mail
+      STACKD_SMTP_PORT: "1025"
+      # Stripe test mode: set these in the shell to turn billing on; empty means off.
+      STACKD_STRIPE_SECRET_KEY: ${STACKD_STRIPE_SECRET_KEY:-}
+      STACKD_STRIPE_WEBHOOK_SECRET: ${STACKD_STRIPE_WEBHOOK_SECRET:-}
+      STACKD_STRIPE_PRICE_PRIVATE_MONTHLY: ${STACKD_STRIPE_PRICE_PRIVATE_MONTHLY:-}
+      STACKD_STRIPE_PRICE_PRIVATE_YEARLY: ${STACKD_STRIPE_PRICE_PRIVATE_YEARLY:-}
+      STACKD_STRIPE_PRICE_CONNECTED_MONTHLY: ${STACKD_STRIPE_PRICE_CONNECTED_MONTHLY:-}
+      STACKD_STRIPE_PRICE_CONNECTED_YEARLY: ${STACKD_STRIPE_PRICE_CONNECTED_YEARLY:-}
+      STACKD_STRIPE_PRICE_FOUNDING: ${STACKD_STRIPE_PRICE_FOUNDING:-}
+      STACKD_STRIPE_PAYMENT_METHOD_CONFIG: ${STACKD_STRIPE_PAYMENT_METHOD_CONFIG:-}
+      STACKD_BILLING_OPEN: ${STACKD_BILLING_OPEN:-}
+      # Plaid sandbox (Phase 3): set these in the shell to turn linking on; empty means off.
+      STACKD_PLAID_CLIENT_ID: ${STACKD_PLAID_CLIENT_ID:-}
+      STACKD_PLAID_SECRET: ${STACKD_PLAID_SECRET:-}
+      STACKD_PLAID_ENV: ${STACKD_PLAID_ENV:-sandbox}
+      STACKD_PLAID_WEBHOOK_URL: ${STACKD_PLAID_WEBHOOK_URL:-}
+      STACKD_LINK_TOKEN_KEY: ${STACKD_LINK_TOKEN_KEY:-}
+    command: >
+      sh -c "stackd-api migrate && stackd-api init-storage
+      && uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-server-header"
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3).status == 200 else 1)"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+volumes:
+  db-data:
+  storage-data:

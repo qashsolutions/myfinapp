@@ -1,0 +1,10 @@
+{
+  "as_of": "2026-10-09",
+  "schedule": {
+    "kind": "monthly_days",
+    "days": [
+      1
+    ]
+  },
+  "count": 0
+}

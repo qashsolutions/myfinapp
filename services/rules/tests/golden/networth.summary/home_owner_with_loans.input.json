@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "id": "a1",
+      "kind": "asset",
+      "group": "cash",
+      "value_cents": 250000
+    },
+    {
+      "id": "a2",
+      "kind": "asset",
+      "group": "savings",
+      "value_cents": 500000
+    },
+    {
+      "id": "a3",
+      "kind": "asset",
+      "group": "savings",
+      "value_cents": 100000
+    },
+    {
+      "id": "a4",
+      "kind": "asset",
+      "group": "property",
+      "value_cents": 30000000
+    },
+    {
+      "id": "d1",
+      "kind": "debt",
+      "group": "mortgage",
+      "value_cents": 22000000
+    },
+    {
+      "id": "d2",
+      "kind": "debt",
+      "group": "card",
+      "value_cents": 150000
+    },
+    {
+      "id": "d3",
+      "kind": "debt",
+      "group": "auto_loan",
+      "value_cents": 1200000
+    }
+  ],
+  "previous_net_cents": 7400000
+}

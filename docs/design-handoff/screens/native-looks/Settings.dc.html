@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings — store-ready</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&amp;family=Sora:wght@600;800&amp;family=Plus+Jakarta+Sans:wght@500;700;800&amp;family=Dela+Gothic+One&amp;family=DotGothic16&amp;family=M+PLUS+Rounded+1c:wght@500;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="{{S.root}}">
+
+  <header style="display:flex;flex-direction:column;gap:2px">
+    <span style="font-size:13px;font-weight:700;color:{{c.sub}}">Account &amp; app</span>
+    <span style="{{S.h1}}">Settings</span>
+  </header>
+
+  <section style="{{S.card}}">
+    <div style="display:flex;align-items:center;gap:14px">
+      <span style="{{S.avatar}}">N</span>
+      <div style="flex:1;display:flex;flex-direction:column"><span style="{{S.h2}}">[Name]</span><span style="font-size:13px;color:{{c.sub}}">[email@domain.com]</span></div>
+      <button style="{{S.smallBtn}}">Edit</button>
+    </div>
+  </section>
+
+  <sc-if value="{{isPwa}}" hint-placeholder-val="{{ false }}">
+    <section style="{{S.card}}">
+      <span style="{{S.h2}}">App look</span>
+      <span style="font-size:14px;line-height:1.45;color:{{c.sub}}">More looks — Pastel and Anime — are available in the iOS and Android apps.</span>
+    </section>
+  </sc-if>
+  <sc-if value="{{showPicker}}" hint-placeholder-val="{{ true }}">
+  <section style="{{S.card}}">
+    <span style="{{S.h2}}">App look</span>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+      <sc-for list="{{looks}}" as="l" hint-placeholder-count="3">
+        <button onClick="{{l.pick}}" aria-pressed="{{l.sel}}" style="{{l.st}}"><span style="{{l.sw}}"></span><span>{{l.n}}</span></button>
+      </sc-for>
+    </div>
+  </section>
+  </sc-if>
+
+  <section style="{{S.accentCard}}">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="{{S.h2}}">Invite to a group</span><span style="font-size:12px;font-weight:800">3 groups</span></div>
+    <div style="display:flex;gap:8px">
+      <span style="{{S.code}}">STK-4F9Q</span>
+      <button style="{{S.darkBtn}}">Share link</button>
+    </div>
+    <button style="{{S.ghostOnAccent}}">Manage groups &amp; members</button>
+  </section>
+
+  <sc-for list="{{groups}}" as="g" hint-placeholder-count="5">
+    <section style="display:flex;flex-direction:column;gap:8px">
+      <span style="{{S.label}}">{{g.h}}</span>
+      <div style="{{S.list}}">
+        <sc-for list="{{g.rows}}" as="r" hint-placeholder-count="3">
+          <sc-if value="{{r.isT}}" hint-placeholder-val="{{ false }}">
+            <div style="{{S.row}}">
+              <div style="flex:1;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:800">{{r.n}}</span><span style="font-size:12px;color:{{c.sub}}">{{r.s}}</span></div>
+              <button onClick="{{r.act}}" aria-label="{{r.n}}" aria-pressed="{{r.on}}" style="{{r.track}}"><span style="{{r.knob}}"></span></button>
+            </div>
+          </sc-if>
+          <sc-if value="{{r.isB}}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{r.act}}" style="{{S.rowBtn}}">
+              <span style="flex:1;display:flex;flex-direction:column;text-align:left"><span style="font-size:15px;font-weight:800">{{r.n}}</span><span style="font-size:12px;color:{{c.sub}}">{{r.s}}</span></span>
+              <span style="{{r.vSt}}">{{r.v}}</span>
+            </button>
+          </sc-if>
+        </sc-for>
+      </div>
+    </section>
+  </sc-for>
+
+  <button style="{{S.outBtn}}">Log out</button>
+  <button onClick="{{openDelete}}" style="{{S.dangerBtn}}">Delete account</button>
+  <span style="text-align:center;font-size:12px;color:{{c.sub}}">{{versionLabel}}</span>
+
+  <sc-if value="{{showDelete}}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:flex-start;justify-content:center;padding:360px 16px 0;box-sizing:border-box">
+      <section role="dialog" aria-modal="true" aria-labelledby="delTitle" style="{{S.sheet}}">
+        <span id="delTitle" style="{{S.h2}}">Delete your account?</span>
+        <span style="font-size:14px;line-height:1.45">This permanently removes your profile, budgets, challenges, group memberships and every receipt photo. Group leaderboards will show you as "Former member".</span>
+        <button onClick="{{doExport}}" style="{{S.ghostBtn}}">Download my data first</button>
+        <label for="confirmDel" style="font-size:13px;font-weight:800">Type DELETE to confirm</label>
+        <input id="confirmDel" value="{{typed}}" onChange="{{onType}}" autocomplete="off" style="{{S.input}}">
+        <div style="display:flex;gap:8px">
+          <button onClick="{{closeDelete}}" style="{{S.ghostBtnFlex}}">Cancel</button>
+          <button onClick="{{closeDelete}}" disabled="{{delDisabled}}" style="{{S.dangerFlex}}">Delete forever</button>
+        </div>
+        <span style="font-size:12px;color:{{c.sub}}">[Policy: deletion completes within X days. Confirm with legal.]</span>
+      </section>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"look":{"editor":"enum","options":["modern","bento","anime"],"default":"anime"},"platform":{"editor":"enum","options":["native","pwa"],"default":"native"},"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":2300}}'>
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.state = { look: (p && p.platform === 'pwa') ? 'modern' : (p && p.look && ['modern','bento','anime'].includes(p.look)) ? p.look : 'anime', dark: !!(p && p.dark), sys: false, simple: false, pass: true, tfa: true, push: true, recap: false, keep: '90 days', exported: false, showDelete: false, typed: '' };
+  }
+  renderVals() {
+    const T = {
+      bento: { n: 'Pastel', fd: 'Sora,sans-serif', fb: "'Plus Jakarta Sans',sans-serif", fn: 'Sora,sans-serif', r: 26, bw: 0, sh: () => 'none', a1: '#D9D2FF', a2: '#C9F2DE', a3: '#FFD9C2', on: '#16161D',
+        L: { bg: '#EEF0F4', card: '#FFFFFF', ink: '#16161D', sub: '#5C5C6B', line: '#ECEDF2' }, D: { bg: '#0F0F14', card: '#1B1B23', ink: '#F3F3F7', sub: '#A6A6B5', line: '#262630' } },
+      modern: { n: 'Modern', fd: "Outfit,'Helvetica Neue',sans-serif", fb: "Outfit,'Helvetica Neue',sans-serif", fn: "Outfit,'Helvetica Neue',sans-serif", r: 22, bw: 0, sh: () => '0 6px 20px rgba(17,24,39,0.08)', a1: '#3D5AFE', a2: '#0B7A55', a3: '#7C3AED', on: '#FFFFFF',
+        L: { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', onInv: '#111827' }, D: { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', onInv: '#111827' } },
+      anime: { n: 'Anime', fd: "'Dela Gothic One',sans-serif", fb: "'M PLUS Rounded 1c',sans-serif", fn: 'DotGothic16,monospace', r: 14, bw: 3, sh: (i) => '0 5px 0 ' + i, a1: '#FFC531', a2: '#00B8D9', a3: '#FF3E7F', on: '#1B1E4B',
+        L: { bg: '#FDF1DC', card: '#FFFFFF', ink: '#1B1E4B', sub: '#55597F', line: '#E7DCC6' }, D: { bg: '#14163A', card: '#22265A', ink: '#FDF1DC', sub: '#C3C5E2', line: '#3A3F7A' } }
+    };
+    const st = this.state, th = T[st.look] || T.modern, dark = st.dark, c = dark ? th.D : th.L;
+    const ac = { a1: c.a1 || th.a1, a2: c.a2 || th.a2, a3: c.a3 || th.a3, on: c.on || th.on, inv: c.onInv || '#FFFFFF' };
+    const bd = th.bw ? th.bw + 'px solid ' + c.ink : 'none';
+    const sh = th.sh(c.ink);
+    const panel = (bg, fg) => 'background:' + bg + ';color:' + fg + ';border:' + bd + ';border-radius:' + th.r + 'px;box-shadow:' + sh + ';padding:16px;display:flex;flex-direction:column;gap:12px';
+    const btn = (bg, fg, extra) => 'min-height:48px;padding:0 16px;cursor:pointer;font:800 14px ' + th.fb + ';background:' + bg + ';color:' + fg + ';border:' + (th.bw ? th.bw + 'px solid ' + c.ink : '0') + ';border-radius:' + Math.max(10, th.r - 6) + 'px;' + (extra || '');
+    const S = {
+      root: 'width:390px;height:2300px;position:relative;overflow:hidden;box-sizing:border-box;padding:28px 18px 40px;display:flex;flex-direction:column;gap:16px;background:' + c.bg + ';color:' + c.ink + ';font-family:' + th.fb,
+      h1: 'font-family:' + th.fd + ';font-size:30px;font-weight:800;letter-spacing:-0.01em',
+      h2: 'font-family:' + th.fd + ';font-size:18px;font-weight:800',
+      label: 'font-family:' + th.fd + ';font-size:13px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;padding-left:4px',
+      card: panel(c.card, c.ink), accentCard: panel(ac.a3, ac.on),
+      avatar: 'width:58px;height:58px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font:800 22px ' + th.fd + ';background:' + ac.a1 + ';color:' + ac.on + ';border:' + bd + ';border-radius:' + (st.look === 'bento' ? '50%' : th.r - 4 + 'px'),
+      smallBtn: btn(ac.a2, ac.on, 'min-height:44px'),
+      code: 'flex:1;display:flex;align-items:center;justify-content:center;font:700 18px ' + th.fb + ';letter-spacing:0.12em;background:#FFFFFF;color:#111;border-radius:' + Math.max(10, th.r - 6) + 'px;border:' + (th.bw ? '2.5px dashed ' + ac.on : '0'),
+      darkBtn: btn(ac.on, ac.inv), ghostOnAccent: 'min-height:44px;border:0;border-radius:12px;background:rgba(127,127,127,0.18);color:' + ac.on + ';font:800 13px ' + th.fb + ';cursor:pointer',
+      list: 'background:' + c.card + ';border:' + bd + ';border-radius:' + th.r + 'px;box-shadow:' + sh + ';overflow:hidden',
+      row: 'display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:56px;box-sizing:border-box;border-bottom:1px solid ' + c.line,
+      rowBtn: 'width:100%;display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:56px;box-sizing:border-box;border:0;border-bottom:1px solid ' + c.line + ';background:transparent;color:' + c.ink + ';font-family:' + th.fb + ';cursor:pointer',
+      outBtn: btn(c.card, c.ink, 'box-shadow:' + sh + ';min-height:54px'),
+      dangerBtn: btn('#C4122F', '#FFFFFF', 'box-shadow:' + sh + ';min-height:54px'),
+      sheet: panel(c.card, c.ink).replace('gap:12px', 'gap:12px;width:100%;max-width:358px;box-sizing:border-box;padding:20px'),
+      input: 'min-height:48px;padding:0 12px;font:700 16px ' + th.fb + ';letter-spacing:0.1em;background:' + c.bg + ';color:' + c.ink + ';border:2px solid ' + c.ink + ';border-radius:10px;box-sizing:border-box;width:100%',
+      ghostBtn: btn('transparent', c.ink, 'border:2px solid ' + c.ink),
+      ghostBtnFlex: btn('transparent', c.ink, 'flex:1;border:2px solid ' + c.ink),
+      dangerFlex: btn(st.typed === 'DELETE' ? '#C4122F' : (dark ? '#4A2A33' : '#E8C4CB'), st.typed === 'DELETE' ? '#FFFFFF' : (dark ? '#B79AA2' : '#7A4450'), 'flex:1')
+    };
+    const looks = ['modern', 'bento', 'anime'].map(k => {
+      const x = T[k], sel = k === st.look;
+      return {
+        n: x.n, sel: sel ? 'true' : 'false',
+        sw: 'display:block;width:100%;height:36px;border-radius:6px;background:linear-gradient(90deg,' + x.a1 + ' 0 33%,' + x.a2 + ' 33% 66%,' + x.a3 + ' 66%)',
+        st: 'min-height:76px;padding:8px;display:flex;flex-direction:column;gap:6px;cursor:pointer;font:800 13px ' + x.fb + ';color:' + c.ink + ';background:' + (sel ? (dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)') : 'transparent') + ';border:' + (sel ? '3px solid ' + c.ink : '2px solid ' + c.line) + ';border-radius:12px',
+        pick: () => this.setState({ look: k })
+      };
+    });
+    const tog = (k, n, s) => ({ t: true, k, n, s });
+    const b = (n, s, v, act, tone) => ({ t: false, n, s, v, act, tone });
+    const pwa = this.props.platform === 'pwa';
+    const G = [
+      ...(pwa ? [{ h: 'App', rows: [b('Install Stackd', 'Add to your Home Screen for full screen and notifications', '›')] }] : []),
+      { h: 'Display', rows: [tog('dark', 'Dark mode', 'Works with every look'), tog('sys', 'Match system', 'Follow your phone setting'), tog('simple', 'Simple layout', 'Hide decorations, show plain lists')] },
+      { h: 'Sign-in & security', rows: [b('Sign-in method', 'Email + one-time code (OTP)', 'OTP', null, 'pill'), b('Passkeys', 'Face ID or device passcode · required', '2 ›'), b('Active devices', 'This phone + 1 browser', '2 ›'), b('Change email or phone', 'Re-verify with a code', '›')] },
+      { h: 'Money', rows: [b('Accounts & imports', '3 accounts · last import Oct 8', '›'), b('Categories & rules', '12 categories · 5 of your rules', '›')] },
+      { h: 'Plan & backup', rows: [b('Private · yearly', 'Renews Oct 9, 2027', '›'), b('Encrypted backup', 'Last backup 2 hours ago', 'On', null, 'pill')] },
+      { h: 'Receipts & your data', rows: [
+        b('Keep receipt photos', 'Amounts stay after photos are removed', st.keep + ' ›', () => this.setState({ keep: st.keep === '90 days' ? '1 year' : st.keep === '1 year' ? 'Forever' : '90 days' })),
+        b('Delete all receipt photos', 'Your entered amounts are kept', '›'),
+        b('Download all my data', st.exported ? 'Requested · link sent to your email' : 'JSON + CSV, includes receipt photos', st.exported ? 'SENT' : '›', () => this.setState({ exported: true }), st.exported ? 'pill' : '') ] },
+      { h: 'Notifications', rows: [tog('push', 'Push alerts', pwa ? 'iPhone: add Stackd to your Home Screen first' : 'Challenges, bill due dates'), tog('recap', 'Weekly recap email', 'Sunday mornings')] },
+      { h: 'Privacy & legal', rows: [b('Privacy policy', 'What we collect and why', '↗'), b('Terms of service', '', '↗'), b('Data we never collect', 'No bank logins, no selling data', '›'), b('Open-source licenses', '', '›'), b('Help & contact', 'support@[domain]', '›')] }
+    ];
+    const groups = G.map(g => ({ h: g.h, rows: g.rows.map(r => {
+      if (r.t) {
+        const on = !!st[r.k];
+        return { isT: true, isB: false, n: r.n, s: r.s, on: on ? 'true' : 'false',
+          track: 'width:58px;height:32px;flex-shrink:0;padding:0;cursor:pointer;display:flex;align-items:center;border:' + (th.bw ? '2.5px solid ' + c.ink : '0') + ';border-radius:' + (st.look === 'anime' ? '8px' : '999px') + ';background:' + (on ? (th.bw || ac.on === '#FFFFFF' ? ac.a2 : (dark ? ac.a1 : ac.on)) : (th.bw ? c.bg : (dark ? '#33333D' : '#D5D7DE'))),
+          knob: 'width:22px;height:22px;background:' + (th.bw ? c.ink : (on && dark && ac.on !== '#FFFFFF' ? '#16161D' : '#FFFFFF')) + ';border-radius:' + (st.look === 'anime' ? '4px' : '50%') + ';margin-left:' + (on ? (th.bw ? '28px' : '32px') : '4px'),
+          act: () => this.setState({ [r.k]: !on }) };
+      }
+      return { isT: false, isB: true, n: r.n, s: r.s || '', v: r.v,
+        vSt: r.tone === 'pill' ? 'font:700 12px ' + th.fb + ';padding:4px 10px;border-radius:999px;background:' + ac.a1 + ';color:' + ac.on : 'font:800 14px ' + th.fb + ';color:' + c.sub,
+        act: r.act || (() => {}) };
+    }) }));
+    return {
+      S, c, looks, groups, isPwa: pwa, showPicker: !pwa, versionLabel: 'Stackd v1.0.0 (' + (pwa ? 'web app' : 'iOS / Android') + ') · [Company legal name]',
+      showDelete: st.showDelete, typed: st.typed, delDisabled: st.typed !== 'DELETE',
+      openDelete: () => this.setState({ showDelete: true, typed: '' }),
+      closeDelete: () => this.setState({ showDelete: false, typed: '' }),
+      onType: (e) => this.setState({ typed: e.target.value }),
+      doExport: () => this.setState({ exported: true, showDelete: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

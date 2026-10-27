@@ -1,0 +1,19 @@
+{
+  "series": [
+    {
+      "payee": "CITY UTILITIES",
+      "kind": "bill",
+      "direction": "out",
+      "expected_cents": 16000,
+      "interval": "monthly",
+      "last_date": "2026-09-22",
+      "next_date": "2026-10-22",
+      "occurrences": 3,
+      "entry_ids": [
+        "a",
+        "b",
+        "c"
+      ]
+    }
+  ]
+}

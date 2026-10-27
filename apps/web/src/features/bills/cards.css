@@ -1,0 +1,82 @@
+/* Chunk 3.5: linked card facts. One column at every width; the fact grid keeps three cells
+   that wrap their text instead of overflowing on a phone. */
+.linked-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.card-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.card-facts__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.card-facts__name {
+  font-weight: 700;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.card-facts__balance {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font: 700 30px / 1.1 var(--font-hero, var(--font-display));
+  font-variant-numeric: var(--numeric-data);
+}
+.card-facts__sub {
+  font: 500 14px / 1.3 var(--font-body);
+  color: var(--c-sub);
+}
+.card-facts__use {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.card-facts__hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.card-facts__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.card-facts__grid div {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--c-ink) 5%, var(--c-card));
+}
+.card-facts__grid dt {
+  font-size: 12px;
+  color: var(--c-sub);
+}
+.card-facts__grid dd {
+  margin: 2px 0 0;
+  font-weight: 700;
+  font-variant-numeric: var(--numeric-data);
+  overflow-wrap: anywhere;
+}
+.card-facts__split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.card-facts__split li {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--c-line);
+  font-size: 14px;
+}

@@ -1,0 +1,66 @@
+name: guards
+
+# Hard constraints from docs/spec.md that must fail CI when broken.
+# Includes the WCAG AA contrast check over every look x mode (chunk 0.2).
+# One job (October 19, 2026: each job bills at least a minute). Each guard runs when the files
+# it reads changed; the Monday scheduled run, and any run without a readable base, runs all three.
+
+# A change to Markdown or the mockup pictures alone runs nothing here; security.yml still scans
+# it for secrets.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/design-handoff/previews/**", "docs/design-handoff/screens/**"]
+  pull_request:
+    paths-ignore: ["**/*.md", "docs/design-handoff/previews/**", "docs/design-handoff/screens/**"]
+  schedule:
+    - cron: "30 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: guards-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guards:
+    name: guards (no AI packages · allowlisted hosts · contrast)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: f
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: >-
+          .github/scripts/changed.sh
+          'denylist=(package\.json|pnpm-lock\.yaml|pyproject\.toml|uv\.lock|requirements[^/]*\.txt|^tools/|^\.github/)'
+          'allowlist=^(services/|tools/|\.github/)'
+          'contrast=^(packages/tokens/|tools/|\.github/)'
+      - uses: actions/setup-python@v5
+        if: steps.f.outputs.denylist == 'true' || steps.f.outputs.allowlist == 'true'
+        with:
+          python-version: "3.12"
+      - name: "No AI / LLM packages: self-test (planted packages must be caught)"
+        if: steps.f.outputs.denylist == 'true'
+        run: python3 tools/check_ai_denylist.py --self-test
+      - name: "No AI / LLM packages: every manifest and lockfile"
+        if: steps.f.outputs.denylist == 'true'
+        run: python3 tools/check_ai_denylist.py
+      - name: Backend calls only allowlisted hosts
+        if: steps.f.outputs.allowlist == 'true'
+        run: python3 tools/check_network_allowlist.py
+      - uses: pnpm/action-setup@v4
+        if: steps.f.outputs.contrast == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.f.outputs.contrast == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - if: steps.f.outputs.contrast == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: WCAG AA contrast, every look x mode
+        if: steps.f.outputs.contrast == 'true'
+        run: pnpm contrast

@@ -1,0 +1,124 @@
+# Invariants
+
+Rules that must hold whatever the person does and in whatever order. Each names the tests that
+guard it. A change that touches one of these data paths is not done until its rule still has a
+test that would fail if the change broke it.
+
+Most of the defects found in review (October 25, 2026) were one of two kinds: a fix applied to one
+path but not its sibling, or two features that each work but break together. The rules below are
+written against both.
+
+## Money is counted once
+
+1. **Every bank cent counts once.** An imported, linked, split, renamed or posted entry, plus its
+   split parts, adds up to the bank's row. Split parts never carry `provider_txn_id`; sync sets
+   the entry to the bank's amount minus its parts.
+   `apps/web/tests/invariants/money-month.test.tsx` · `linked-sync.test.tsx` "a split linked entry"
+   · `money.test.tsx` "splits an entry into two parts that still add up"
+2. **A transfer is both sides or neither.** Marking, matching or unmarking one side does the same
+   to the other, linked by `transfer_pair_id`.
+   Marking by hand (the entry editor, Sort your spending) pairs the matching other side through
+   `entries/transfers.ts`, the same rule import and sync use. A split part (or a split parent) is never
+   a transfer side; both sides posting in one sync page stay paired; when one side goes
+   (deleted, with its account, or by the bank) the other counts again (`releasePartners`).
+   `import-flow.test.tsx` "a confirmed transfer marks both sides…", "unmarking one side…",
+   "marking an entry a transfer by hand…" · `review.test.tsx` "a transfer marks and pairs…" ·
+   `linked-sync.test.tsx` "a split part is never taken…", "both sides … in the same page…",
+   "a row the bank removes…" · `import-flow.test.tsx` "deleting one side of a transfer…" ·
+   `money-month.test.tsx` "a transfer marked by hand…" ·
+   `linked-sync.test.tsx` "a card payment from checking pairs…", "a posted transfer stays paired…"
+3. **Every screen shows the same month.** Home, Money in & out, Insights and the recap read one
+   set of rules over the same entries (`counted()`, transfers out), so their numbers agree.
+   `money-month.test.tsx`
+4. **Don't count leaves spending, never balances or net worth.**
+   `not-counted.test.tsx`
+5. **A jar's balance is deposits minus withdrawals, everywhere; moving between jars sets nothing
+   aside.** Any reader of `goal_events` reads withdrawals; "set aside" counts `newMoneyIn`.
+   `home.test.tsx` "money moved out of a jar…" · `recap.test.tsx` · `money-month.test.tsx`
+
+## What the person did survives
+
+6. **Edits survive a sync.** A name, category, note, tags, Don't count, transfer and recurring
+   marks, a receipt and a split survive an update and a pending row posting.
+   `linked-sync.test.tsx` "keeps the person's names…", "a posted row keeps what the person did…"
+7. **A queued server value is never lost to an older send.**
+   `server-queue.test.ts`
+18. **A write applies to what is stored now, and the newest input wins.** Budget moves, assigns,
+    their undos and Start from last month read the stored line inside their transaction, never
+    a screen's snapshot; an undo reverses its own amount and keeps edits made since; a screen
+    that saves on every keystroke (Later) saves only the newest one.
+    `seams.test.ts` · `later-order.test.tsx`
+
+## Nothing hangs, nothing leaks
+
+8. **No screen waits forever for a number, or shows one for something else.** The engine
+   answers or fails every call, also when the worker cannot load (one call that throws fails
+   alone, and a worker that crashes after working is replaced, so heavy calls stay off the
+   page); a screen never asks it for a range that ends before it starts (Money in & out stops
+   at this month), and a hidden card's picture (the what-if line) goes with it.
+   `engine.test.ts` · `money.test.tsx` "never steps past this month…" · `forecast.test.tsx`
+   "drops the what-if line when the Try card is hidden…"
+9. **Money data never leaves the device** (statements, entries, receipts, amounts, merchants);
+   only ciphertext, group percentages and dates / types / keys for alerts do.
+   `leak-sweep.test.tsx` · `import-flow.test.tsx` `onlySessionReads` · `groups.test.tsx` ·
+   `notifications.test.tsx`
+10. **The two engines agree.** Python and TypeScript answer every golden case the same way, and
+   no rule returns an amount past 2^53 − 1 cents (JavaScript's largest exact integer): the growth
+   rules answer `too_large` there, with goldens on both sides of the line.
+   `services/rules/tests` · `packages/rules` · `apps/web/tests/engine/golden.test.ts`
+
+11. **An error never fails silently.** On the server it emails the admins (type and place only,
+    throttled, never raising itself); in the app a broken screen shows a way out and sends nothing.
+    A new payment dispute always reaches the admins, also when no plan in the app matches it,
+    since Stripe wants evidence before its deadline either way.
+    `services/api/tests/test_ops_alerts.py` · `crash-screen.test.tsx` · `test_billing_hardening.py`
+    "a dispute on a charge no plan matches still reaches the admins"
+
+## Accounts and money on the server
+
+12. **Every deletion path locks the person before their plans**, the order every Stripe webhook
+    uses (`deletion._lock_person`, `stripe_billing._lock_person`); one account failing never stops
+    a purge batch. A deletion Stripe couldn't be told about is retried within the hour and
+    refunded as of the deletion day; a charge made after it is refunded in full.
+    A refund that can never be paid (the payment was disputed meanwhile) is dropped, never
+    retried for ever.
+    `test_billing.py` "the purge takes the person before their plans…", "one account failing in
+    the purge…" · `test_billing_hardening.py` "a founding payment disputed after its deletion…" · `test_billing_change.py` "deleting while Stripe is down…", "a late retry still
+    refunds as of the day…", "a renewal charged after the deletion…"
+13. **A webhook delivered twice, late or out of order changes nothing more; a refund is paid once.**
+    Stripe dates events to the second, so two in the same second are settled by reading the
+    subscription from Stripe, never by which arrived last. A plan starts only once its money
+    has arrived, and a payment that failed stays failed, whatever order its events come in.
+    `test_billing_hardening.py` "a late checkout completion…", "events in order…", "a founding
+    refund is paid once…", "two events in the same second apply what Stripe holds now", "a failed first bank payment delivered before its checkout…", "a bank-funded subscription announced before its checkout…"
+14. **A limit has one count, read the same way everywhere, and is taken under a lock.** The
+    Founding places shown on the pricing page are the ones the webhook will grant; the count and
+    the row that takes a place happen under one lock for the offer.
+    `test_billing_hardening.py` "a failed bank payment never shrinks the cap…", "two buyers
+    paying for the last place at once…"
+15. **Every access state says what is true and has a way forward.** Paused only while a dispute
+    is open (it can come back); a lost one is `ended`, open and never closed for it, as the terms
+    say; lapsed closes after the grace period with emails that never invite a blocked inbox to
+    buy.
+    `test_billing_hardening.py` "a lost dispute ends the plan but the account stays open…", "a
+    fraud refund lapses with honest notes…" · `trials.test.tsx` "a lost dispute ends the plan…"
+16. **Every route needs a session unless it is public on purpose, and someone else's row is 404.**
+    `tests/security/test_route_guards.py` · `tests/authz/`
+17. **A purchase block follows the person.** After a lost dispute or a fraud refund, every
+    inbox the person bought with can't buy again: across an email change, a deletion and the
+    purge (found through their purchase records). A card or bank block Stripe couldn't take is
+    said to the admins, never silent.
+    `test_purchase_blocks.py` · `test_billing_hardening.py` "after a lost dispute the inbox and
+    card cannot buy again…"
+
+## Working to these rules
+
+- **Before fixing**, name the rule the defect broke, and write the failing test first (a
+  two-connection test for a lock, a real flow for a cross-feature bug).
+- **Sibling check:** find every other path that reads or writes the same data or takes the same
+  lock, and fix or confirm each. Where two paths must agree, give them one helper. The commit
+  message lists what was checked.
+- **Then** run the test against the old code and see it fail, and add a rule here when a new
+  kind of defect appears.
+- A new money path (a new import kind, a new sync step, a new screen total) joins
+  `money-month.test.tsx`.

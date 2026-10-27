@@ -1,0 +1,8 @@
+{
+  "as_of": "2026-10-10",
+  "start_balance_cents": 50000,
+  "daily_cents": 1000,
+  "upcoming": [],
+  "buffer_cents": 30000,
+  "days": 30
+}

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 4 — Challenge</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;align-items:center;gap:10px">
+    <a href="F4Goals.dc.html" aria-label="Back" style="{{S.icon}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+    <span style="flex:1;font:700 22px Outfit,sans-serif">No-Eat-Out Week</span>
+    <button style="{{S.small}}">Invite</button>
+  </header>
+
+  <section style="{{S.hero}}">
+    <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600"><span>Group · 12 people · ends Sat</span><span>You: #{{rank}}</span></div>
+    <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px">
+      <sc-for list="{{days}}" as="d" hint-placeholder-count="7"><div style="{{d.st}}"><span style="font-size:11px">{{d.n}}</span><span style="font:700 14px Outfit,sans-serif">{{d.m}}</span></div></sc-for>
+    </div>
+    <sc-if value="{{canCheck}}" hint-placeholder-val="{{ true }}">
+      <button onClick="{{checkIn}}" style="{{S.check}}">Check in for today — no eating out</button>
+    </sc-if>
+    <sc-if value="{{checked}}" hint-placeholder-val="{{ false }}">
+      <span role="status" style="{{S.done}}">Checked in for Friday ✓</span>
+    </sc-if>
+  </section>
+
+  <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:600 17px Outfit,sans-serif">Leaderboard</span><span style="font-size:12px;color:{{m.sub}}">% of each person's own goal</span></div>
+  <section style="{{S.card}}">
+    <sc-for list="{{board}}" as="b" hint-placeholder-count="5">
+      <div style="{{b.row}}">
+        <span style="width:22px;font-weight:700;color:{{m.sub}}">{{b.r}}</span>
+        <span style="{{b.av}}">{{b.i}}</span>
+        <div style="flex:1;display:flex;flex-direction:column;gap:5px"><span style="font-size:15px;font-weight:600">{{b.n}}</span><div style="height:6px;border-radius:3px;background:{{m.line}};overflow:hidden"><div style="{{b.bar}}"></div></div></div>
+        <span style="font:700 15px Outfit,sans-serif;font-variant-numeric:tabular-nums">{{b.p}}</span>
+      </div>
+    </sc-for>
+  </section>
+  <span style="font-size:12px;color:{{m.sub}};text-align:center">Members see your name and % only — never your dollars.</span>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { checked: false }; }
+  renderVals() {
+    const dark = !!this.props.dark, ck = this.state.checked;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', tint: '#1E2433', acc: '#8FA2FF' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE' };
+    const done = ck ? 6 : 5;
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((n, i) => ({ n, m: i < done ? '✓' : (i === done ? '•' : ''),
+      st: 'min-height:56px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;' + (i < done ? 'background:#FFFFFF;color:#7C3AED' : 'background:rgba(255,255,255,0.18);color:#FFFFFF') }));
+    const me = Math.round(done / 7 * 100);
+    const P = [['Maya R.', 'MR', 86, '#C2410C'], ['Dev P.', 'DP', 64, '#0B7A55'], ['You', 'N', me, '#7C3AED'], ['Sam K.', 'SK', 43, '#BE185D'], ['Jo L.', 'JL', 29, '#3D5AFE']].sort((a, b) => b[2] - a[2]);
+    let rank = 0;
+    const board = P.map(([n, i, p, c], idx) => { if (n === 'You') rank = idx + 1; return { r: idx + 1, n, i, p: p + '%',
+      av: 'width:36px;height:36px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px Outfit,sans-serif;color:#FFFFFF;background:' + c,
+      bar: 'width:' + p + '%;height:100%;background:' + (n === 'You' ? '#7C3AED' : m.sub),
+      row: 'display:flex;align-items:center;gap:10px;min-height:60px;border-bottom:1px solid ' + m.line + (n === 'You' ? ';background:' + m.tint + ';margin:0 -16px;padding:0 16px' : '') }; });
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:24px 18px 28px;display:flex;flex-direction:column;gap:12px;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      icon: 'width:44px;height:44px;flex-shrink:0;border-radius:50%;background:' + m.card + ';display:flex;align-items:center;justify-content:center',
+      small: 'min-height:44px;padding:0 14px;border:0;border-radius:12px;cursor:pointer;background:' + m.card + ';font:600 14px Outfit,sans-serif;color:' + m.acc,
+      hero: 'display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:22px;background:#7C3AED;color:#FFFFFF',
+      check: 'min-height:52px;border:0;border-radius:14px;cursor:pointer;background:#FFFFFF;color:#7C3AED;font:600 15px Outfit,sans-serif',
+      done: 'min-height:52px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:rgba(255,255,255,0.18);font:600 15px Outfit,sans-serif',
+      card: 'display:flex;flex-direction:column;padding:0 16px;border-radius:20px;background:' + m.card + ';overflow:hidden'
+    };
+    return { S, m, days, board, rank, canCheck: !ck, checked: ck, checkIn: () => this.setState({ checked: true }) };
+  }
+}
+</script>
+</body>
+</html>

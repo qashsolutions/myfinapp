@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PWA — Notifications</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:24px">
+    <div style="align-self:center;width:132px;height:132px;border-radius:40px;background:#3D5AFE;display:flex;align-items:center;justify-content:center;position:relative">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"></path></svg>
+      <span style="position:absolute;top:18px;right:18px;width:22px;height:22px;border-radius:50%;background:#0B7A55;border:3px solid #3D5AFE"></span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;text-align:center">
+      <span style="font:700 28px Outfit,sans-serif;letter-spacing:-0.01em">Stay on track</span>
+      <span style="font-size:16px;line-height:1.45;color:{{m.sub}}">A few useful nudges. No spam, no marketing.</span>
+    </div>
+    <div style="{{S.card}}">
+      <div style="{{S.row}}"><span style="{{S.ic}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></span><div style="flex:1;display:flex;flex-direction:column"><span style="font-weight:600;font-size:15px">Challenge check-ins</span><span style="font-size:13px;color:{{m.sub}}">One reminder a day, at a time you pick</span></div></div>
+      <div style="{{S.row}}"><span style="{{S.ic}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg></span><div style="flex:1;display:flex;flex-direction:column"><span style="font-weight:600;font-size:15px">Bills due soon</span><span style="font-size:13px;color:{{m.sub}}">3 days before a bill you've added</span></div></div>
+      <div style="{{S.rowLast}}"><span style="{{S.ic}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg></span><div style="flex:1;display:flex;flex-direction:column"><span style="font-weight:600;font-size:15px">Weekly recap</span><span style="font-size:13px;color:{{m.sub}}">Sunday mornings: what you kept</span></div></div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <button style="{{S.primary}}">Turn on notifications</button>
+    <button style="{{S.ghost}}">Not now</button>
+    <span style="text-align:center;font-size:12px;color:{{m.sub}}">Change anytime in Settings. On iPhone, Stackd must be on your Home Screen first.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark;
+    const m = dark
+      ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36' }
+      : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE' };
+    const row = 'display:flex;align-items:center;gap:12px;padding:12px 0;';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:40px 22px 32px;display:flex;flex-direction:column;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      card: 'background:' + m.card + ';border-radius:22px;padding:4px 16px;box-shadow:0 6px 20px rgba(17,24,39,' + (dark ? '0.4' : '0.08') + ')',
+      row: row + 'border-bottom:1px solid ' + m.line, rowLast: row,
+      ic: 'width:40px;height:40px;flex-shrink:0;border-radius:12px;background:' + (dark ? '#1E2433' : '#EEF1FF') + ';color:' + (dark ? '#8FA2FF' : '#3D5AFE') + ';display:flex;align-items:center;justify-content:center',
+      primary: 'min-height:54px;border:0;border-radius:16px;background:#3D5AFE;color:#FFFFFF;font:600 16px Outfit,sans-serif;cursor:pointer',
+      ghost: 'min-height:48px;border:0;border-radius:16px;background:transparent;color:' + m.ink + ';font:600 16px Outfit,sans-serif;cursor:pointer'
+    };
+    return { S, m };
+  }
+}
+</script>
+</body>
+</html>

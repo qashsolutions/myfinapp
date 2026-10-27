@@ -1,0 +1,125 @@
+/* Moments: the toast and the confetti canvas. Phone first: the toast sits above the floating
+   tab bar, full width less the gutters; from 900px (side rail, no tab bar) it is a card in
+   the bottom-right corner. Text wraps; nothing is cut off at any width. */
+.moment-toast-region {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(100px + env(safe-area-inset-bottom));
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.moment-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  max-width: 480px;
+  padding: 14px 12px 14px 18px;
+  border-radius: 18px;
+  border: var(--border-card);
+  background: var(--c-ink);
+  color: var(--c-bg);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  font: 600 15px / 1.35 var(--font-body);
+  overflow-wrap: break-word;
+  animation: moment-in 220ms ease-out;
+}
+.moment-toast__text {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+.moment-toast__close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font: 400 22px / 1 var(--font-body);
+  cursor: pointer;
+}
+.moment-toast__close:focus-visible {
+  outline: 2px solid var(--c-bg);
+}
+.moment-confetti {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  z-index: 50;
+  pointer-events: none;
+}
+@keyframes moment-in {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .moment-toast {
+    animation: none;
+  }
+}
+@media (min-width: 900px) {
+  .moment-toast-region {
+    left: auto;
+    right: 24px;
+    bottom: 24px;
+    width: 400px;
+    justify-content: flex-end;
+  }
+}
+
+/* The catalog's encouragement line inside an insight card (Running higher than usual, over
+   plan): warm, set apart from the numbers, wraps at any width. */
+.insight__kind {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--c-a2) 10%, var(--c-card));
+  color: var(--c-ink);
+  font-weight: 600;
+  overflow-wrap: break-word;
+}
+
+/* Me → Display: the bell beside Sounds plays the ka-ching (visual first: an icon, named for
+   screen readers). It sits between the words and the switch, so every switch in the list
+   stays in one column. */
+.sound-row {
+  position: relative;
+}
+.sound-row .sk-toggle__text {
+  padding-right: 56px;
+}
+.sound-preview {
+  position: absolute;
+  top: 50%;
+  right: 77px; /* the switch (52px), the hidden input (1px) and two 12px gaps */
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: var(--border-card);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c-a1) 12%, var(--c-card));
+  color: var(--c-a1);
+  cursor: pointer;
+}
+.sound-preview:active svg {
+  transform: rotate(-12deg);
+}
+.moment-toast__link {
+  color: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  white-space: nowrap;
+}

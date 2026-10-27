@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Home — themed</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&amp;family=Sora:wght@600;800&amp;family=Plus+Jakarta+Sans:wght@500;700;800&amp;family=Dela+Gothic+One&amp;family=DotGothic16&amp;family=M+PLUS+Rounded+1c:wght@500;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;flex-direction:column"><span style="font-size:13px;font-weight:700;color:{{c.sub}}">Good morning</span><span style="{{S.h1}}">[Name]</span></div>
+    <button aria-label="Settings" style="{{S.avatar}}">N</button>
+  </header>
+
+  <section style="{{S.hero}}">
+    <sc-if value="{{hasDeco}}" hint-placeholder-val="{{ false }}"><div style="{{S.deco}}"></div></sc-if>
+    <span style="font-size:13px;font-weight:800">Kept this month</span>
+    <span style="{{S.num}}">$412</span>
+    <div style="{{S.track}}"><div style="{{S.fill}}"></div></div>
+    <span style="font-size:12px;font-weight:700">69% of $600 · 23 days left</span>
+  </section>
+
+  <sc-if value="{{rich}}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+        <div style="{{S.tA}}"><span style="font-size:12px;font-weight:800">Budget 50/30/20</span><span style="{{S.h2}}">On track</span></div>
+        <div style="{{S.tB}}"><span style="font-size:12px;font-weight:800">Runway</span><span style="{{S.h2}}">1.8 mo</span></div>
+      </div>
+      <section style="{{S.card}}">
+        <span style="font-size:12px;font-weight:800;color:{{c.sub}}">Group challenge · day 4/7</span>
+        <span style="{{S.h2}}">No-Eat-Out Week</span>
+        <div style="display:flex;gap:5px">
+          <span style="{{S.dotOn}}"></span><span style="{{S.dotOn}}"></span><span style="{{S.dotOn}}"></span><span style="{{S.dotOn}}"></span><span style="{{S.dotOff}}"></span><span style="{{S.dotOff}}"></span><span style="{{S.dotOff}}"></span>
+        </div>
+        <span style="font-size:13px;font-weight:700">You're #3 of 12 · +$86</span>
+      </section>
+      <section style="{{S.card}}">
+        <span style="{{S.h2}}">Coming up</span>
+        <div style="display:flex;justify-content:space-between;min-height:40px;align-items:center"><span style="font-weight:700">Phone bill · Oct 12</span><span style="{{S.pill}}">$45</span></div>
+      </section>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{simple}}" hint-placeholder-val="{{ false }}">
+    <section style="{{S.list}}">
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+        <button style="{{S.row}}"><span style="flex:1;text-align:left;font-size:15px;font-weight:700">{{r.n}}</span><span style="font-size:14px;color:{{c.sub}}">{{r.v}}</span></button>
+      </sc-for>
+    </section>
+  </sc-if>
+
+  <nav style="{{S.nav}}">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+      <button style="{{t.st}}">{{t.n}}</button>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"look":{"editor":"enum","options":["modern","bento","anime"],"default":"modern"},"dark":{"editor":"boolean","default":false},"simple":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const T = {
+      bento: { fd: 'Sora,sans-serif', fb: "'Plus Jakarta Sans',sans-serif", fn: 'Sora,sans-serif', r: 26, bw: 0, sh: () => 'none', a1: '#D9D2FF', a2: '#C9F2DE', a3: '#FFD9C2', on: '#16161D',
+        L: { bg: '#EEF0F4', card: '#FFFFFF', ink: '#16161D', sub: '#5C5C6B', line: '#DCDEE5' }, D: { bg: '#0F0F14', card: '#1B1B23', ink: '#F3F3F7', sub: '#A6A6B5', line: '#33333D' } },
+      modern: { fd: "Outfit,'Helvetica Neue',sans-serif", fb: "Outfit,'Helvetica Neue',sans-serif", fn: "Outfit,'Helvetica Neue',sans-serif", r: 22, bw: 0, sh: () => '0 6px 20px rgba(17,24,39,0.08)', a1: '#3D5AFE', a2: '#0B7A55', a3: '#7C3AED', on: '#FFFFFF',
+        L: { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE' }, D: { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36' } },
+      anime: { deco: 'radial-gradient(rgba(27,30,75,0.35) 2px,transparent 2.4px) 0 0/10px 10px', fd: "'Dela Gothic One',sans-serif", fb: "'M PLUS Rounded 1c',sans-serif", fn: 'DotGothic16,monospace', r: 14, bw: 3, sh: (i) => '0 5px 0 ' + i, a1: '#FFC531', a2: '#00B8D9', a3: '#FF3E7F', on: '#1B1E4B',
+        L: { bg: '#FDF1DC', card: '#FFFFFF', ink: '#1B1E4B', sub: '#55597F', line: '#E7DCC6' }, D: { bg: '#14163A', card: '#22265A', ink: '#FDF1DC', sub: '#C3C5E2', line: '#3A3F7A' } }
+    };
+    const look = this.props.look || 'modern', th = T[look] || T.modern, dark = !!this.props.dark, simple = !!this.props.simple, c = dark ? th.D : th.L;
+    const bd = th.bw ? th.bw + 'px solid ' + c.ink : 'none', sh = th.sh(c.ink);
+    const box = (bg, fg) => 'background:' + bg + ';color:' + fg + ';border:' + bd + ';border-radius:' + th.r + 'px;box-shadow:' + sh + ';padding:16px;display:flex;flex-direction:column;gap:6px';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:26px 18px 110px;display:flex;flex-direction:column;gap:16px;background:' + c.bg + ';color:' + c.ink + ';font-family:' + th.fb,
+      h1: 'font-family:' + th.fd + ';font-size:26px;font-weight:700',
+      h2: 'font-family:' + th.fd + ';font-size:19px;font-weight:700',
+      avatar: 'width:48px;height:48px;cursor:pointer;font:700 18px ' + th.fd + ';background:' + th.a3 + ';color:' + th.on + ';border:' + bd + ';border-radius:50%',
+      hero: box(th.a1, th.on).replace('padding:16px', 'padding:20px;position:relative;overflow:hidden'),
+      deco: 'position:absolute;right:-30px;top:-30px;width:130px;height:130px;border-radius:50%;background:' + (th.deco || 'none') + ';opacity:0.9',
+      num: 'position:relative;font-family:' + th.fn + ';font-size:58px;line-height:1;font-weight:700;letter-spacing:-0.03em',
+      track: 'position:relative;height:14px;border-radius:999px;background:rgba(0,0,0,0.16);overflow:hidden',
+      fill: 'width:69%;height:100%;background:' + th.on,
+      tA: box(th.a2, th.on), tB: box(th.a3, th.on), card: box(c.card, c.ink).replace('gap:6px', 'gap:10px'),
+      dotOn: 'flex:1;height:10px;border-radius:4px;background:' + th.a3,
+      dotOff: 'flex:1;height:10px;border-radius:4px;background:' + c.line,
+      pill: 'font:700 13px ' + th.fb + ';padding:4px 10px;border-radius:999px;background:' + th.a2 + ';color:' + th.on,
+      list: 'background:' + c.card + ';border:' + bd + ';border-radius:' + th.r + 'px;box-shadow:' + sh + ';overflow:hidden',
+      row: 'width:100%;display:flex;align-items:center;gap:10px;min-height:58px;padding:0 16px;border:0;border-bottom:1px solid ' + c.line + ';background:transparent;color:' + c.ink + ';font-family:' + th.fb + ';cursor:pointer',
+      nav: 'position:absolute;left:16px;right:16px;bottom:18px;height:68px;padding:0 6px;display:flex;align-items:center;background:' + c.card + ';border:' + bd + ';border-radius:' + (th.r + 4) + 'px;box-shadow:' + (th.bw ? sh : '0 8px 24px rgba(0,0,0,0.10)')
+    };
+    const rows = [['Budget', 'On track'], ['Emergency fund', '1.8 months'], ['No-Eat-Out Week', 'Day 4 · #3'], ['Coming up: phone bill', 'Oct 12 · $45']].map(([n, v]) => ({ n, v }));
+    const tabs = ['Home', 'Budget', 'Goals', 'Learn', 'Me'].map((n, i) => ({ n,
+      st: 'flex:1;min-height:48px;border:0;cursor:pointer;border-radius:' + Math.max(10, th.r - 8) + 'px;font:700 12px ' + th.fb + ';' + (i === 0 ? 'background:' + th.a1 + ';color:' + th.on : 'background:transparent;color:' + c.sub) }));
+    return { S, c, rows, tabs, rich: !simple, simple, hasDeco: !!th.deco && !simple };
+  }
+}
+</script>
+</body>
+</html>

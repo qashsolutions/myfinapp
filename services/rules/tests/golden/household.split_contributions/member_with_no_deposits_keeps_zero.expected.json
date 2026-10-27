@@ -1,0 +1,13 @@
+{
+  "contributions": [
+    {
+      "member_id": "maya",
+      "cents": 1000
+    },
+    {
+      "member_id": "dev",
+      "cents": 0
+    }
+  ],
+  "total_cents": 1000
+}

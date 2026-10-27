@@ -1,0 +1,21 @@
+{
+  "assets_cents": 2000,
+  "debts_cents": 0,
+  "net_cents": 2000,
+  "debt_share_bps": 0,
+  "change_cents": -500,
+  "groups": [
+    {
+      "kind": "asset",
+      "group": "cash",
+      "total_cents": 1000,
+      "count": 1
+    },
+    {
+      "kind": "asset",
+      "group": "savings",
+      "total_cents": 1000,
+      "count": 1
+    }
+  ]
+}

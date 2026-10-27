@@ -1,0 +1,80 @@
+{
+  "dates": [
+    "2026-08-31",
+    "2026-09-30",
+    "2026-10-20"
+  ],
+  "accounts": [
+    {
+      "id": "chk",
+      "anchors": [
+        {
+          "as_of": "2026-10-15",
+          "balance_cents": 100000
+        }
+      ],
+      "entries": [
+        {
+          "date": "2026-08-10",
+          "amount_cents": 50000,
+          "direction": "in"
+        },
+        {
+          "date": "2026-09-05",
+          "amount_cents": 20000,
+          "direction": "out"
+        },
+        {
+          "date": "2026-10-01",
+          "amount_cents": 5000,
+          "direction": "out"
+        },
+        {
+          "date": "2026-10-18",
+          "amount_cents": 3000,
+          "direction": "in"
+        }
+      ]
+    },
+    {
+      "id": "card",
+      "anchors": [
+        {
+          "as_of": "2026-09-30",
+          "balance_cents": -40000
+        }
+      ],
+      "entries": [
+        {
+          "date": "2026-09-20",
+          "amount_cents": 10000,
+          "direction": "out"
+        },
+        {
+          "date": "2026-10-05",
+          "amount_cents": 40000,
+          "direction": "in"
+        },
+        {
+          "date": "2026-10-10",
+          "amount_cents": 2500,
+          "direction": "out"
+        }
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "car",
+      "kind": "asset",
+      "value_cents": 1500000,
+      "since": "2026-10-01"
+    },
+    {
+      "id": "loan",
+      "kind": "debt",
+      "value_cents": 200000,
+      "since": "2026-09-15"
+    }
+  ]
+}

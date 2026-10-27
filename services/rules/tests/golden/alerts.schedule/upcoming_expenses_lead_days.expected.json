@@ -1,0 +1,14 @@
+{
+  "alerts": [
+    {
+      "type": "upcoming_expense",
+      "due_local": "2026-10-10T18:00",
+      "dedupe_key": "upcoming:phone:2026-10-12"
+    },
+    {
+      "type": "upcoming_expense",
+      "due_local": "2026-10-22T09:00",
+      "dedupe_key": "upcoming:rent:2026-10-25"
+    }
+  ]
+}

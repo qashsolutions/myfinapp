@@ -1,0 +1,195 @@
+{
+  "as_of": "2026-10-09",
+  "entries": [
+    {
+      "id": "e01",
+      "date": "2026-10-02",
+      "amount_cents": 240000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-paycheck",
+      "category_kind": "income",
+      "account_id": "acct-chk"
+    },
+    {
+      "id": "e02",
+      "date": "2026-10-16",
+      "amount_cents": 280000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-paycheck",
+      "category_kind": "income",
+      "account_id": "acct-chk"
+    },
+    {
+      "id": "e03",
+      "date": "2026-10-01",
+      "amount_cents": 165000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-rent",
+      "category_kind": "expense",
+      "account_id": "acct-chk"
+    },
+    {
+      "id": "e04",
+      "date": "2026-10-07",
+      "amount_cents": 4217,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense",
+      "account_id": "acct-card"
+    },
+    {
+      "id": "e05",
+      "date": "2026-10-14",
+      "amount_cents": 56983,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense",
+      "account_id": "acct-card"
+    },
+    {
+      "id": "e06",
+      "date": "2026-10-11",
+      "amount_cents": 45000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-fun",
+      "category_kind": "expense",
+      "account_id": "acct-card"
+    },
+    {
+      "id": "e07",
+      "date": "2026-10-05",
+      "amount_cents": 40000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-debt-payoff",
+      "category_kind": "expense",
+      "account_id": "acct-chk"
+    },
+    {
+      "id": "e08",
+      "date": "2026-10-09",
+      "amount_cents": 36000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense",
+      "account_id": "acct-card"
+    },
+    {
+      "id": "e09",
+      "date": "2026-10-12",
+      "amount_cents": 2000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense",
+      "account_id": "acct-card"
+    },
+    {
+      "id": "e10",
+      "date": "2026-10-03",
+      "amount_cents": 28400,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "acct-card"
+    },
+    {
+      "id": "e11",
+      "date": "2026-10-04",
+      "amount_cents": 32000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-utilities",
+      "category_kind": "expense",
+      "account_id": "acct-chk"
+    },
+    {
+      "id": "e12",
+      "date": "2026-10-07",
+      "amount_cents": 27500,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-transport",
+      "category_kind": "expense",
+      "account_id": "acct-card"
+    },
+    {
+      "id": "e13",
+      "date": "2026-10-08",
+      "amount_cents": 15000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-subscriptions",
+      "category_kind": "expense",
+      "account_id": "acct-card"
+    },
+    {
+      "id": "e14",
+      "date": "2026-10-10",
+      "amount_cents": 20000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-insurance",
+      "category_kind": "expense",
+      "account_id": "acct-chk"
+    },
+    {
+      "id": "e15",
+      "date": "2026-10-13",
+      "amount_cents": 10700,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-other",
+      "category_kind": "expense",
+      "account_id": "acct-card"
+    },
+    {
+      "id": "e16",
+      "date": "2026-10-06",
+      "amount_cents": 120000,
+      "direction": "out",
+      "is_transfer": true,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "acct-chk"
+    },
+    {
+      "id": "e17",
+      "date": "2026-10-06",
+      "amount_cents": 120000,
+      "direction": "in",
+      "is_transfer": true,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "acct-card"
+    },
+    {
+      "id": "e18",
+      "date": "2026-09-30",
+      "amount_cents": 99900,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-fun",
+      "category_kind": "expense",
+      "account_id": "acct-card"
+    },
+    {
+      "id": "e19",
+      "date": "2026-11-01",
+      "amount_cents": 99900,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-paycheck",
+      "category_kind": "income",
+      "account_id": "acct-chk"
+    }
+  ]
+}

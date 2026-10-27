@@ -1,0 +1,10 @@
+{
+  "age_now": 60,
+  "retire_age": 101,
+  "start_cents": 0,
+  "monthly_cents": 100,
+  "rates_bps": [
+    500
+  ],
+  "target_cents": 0
+}

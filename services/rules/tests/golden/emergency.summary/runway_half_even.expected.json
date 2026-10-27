@@ -1,0 +1,31 @@
+{
+  "saved_cents": 125000,
+  "essentials_cents": 500000,
+  "runway_tenths": 2,
+  "target_months": 3,
+  "monthly_plan_cents": 0,
+  "milestones": [
+    {
+      "key": "starter",
+      "target_cents": 100000,
+      "progress_bps": 10000,
+      "reached": true,
+      "eta_months": 0
+    },
+    {
+      "key": "one_month",
+      "target_cents": 500000,
+      "progress_bps": 2500,
+      "reached": false,
+      "eta_months": null
+    },
+    {
+      "key": "target",
+      "target_cents": 1500000,
+      "progress_bps": 833,
+      "reached": false,
+      "eta_months": null,
+      "months": 3
+    }
+  ]
+}

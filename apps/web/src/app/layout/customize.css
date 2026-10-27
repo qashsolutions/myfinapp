@@ -1,0 +1,67 @@
+/* Customize a screen's cards (Home since October 19, 2026; every screen since October 25). */
+.customize {
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--c-line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.customize__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--c-card);
+}
+.customize__row + .customize__row {
+  border-top: 1px solid var(--c-line);
+}
+.customize__row--dragging {
+  background: color-mix(in srgb, var(--c-a1) 10%, var(--c-card));
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+  position: relative;
+  z-index: 1;
+}
+.customize__row--off .sk-toggle__label {
+  color: var(--c-sub);
+}
+.customize__handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--c-sub);
+  cursor: grab;
+  touch-action: none;
+}
+.customize__handle:active {
+  cursor: grabbing;
+}
+.customize__moves {
+  display: flex;
+  flex-direction: column;
+}
+.customize__move {
+  width: 36px;
+  height: 22px;
+  border: 0;
+  background: none;
+  color: var(--c-a1);
+  font-size: 15px;
+  cursor: pointer;
+}
+.customize__move:disabled {
+  color: var(--c-line);
+  cursor: default;
+}
+.arranged__customize {
+  align-self: center;
+  margin: 4px auto;
+  display: block;
+}

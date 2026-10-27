@@ -1,0 +1,11 @@
+{
+  "goal": {
+    "kind": "save",
+    "start_date": "2026-10-01",
+    "target_cents": 1000,
+    "end_date": null,
+    "cadence": "daily"
+  },
+  "events": [],
+  "as_of": "2026-10-10"
+}

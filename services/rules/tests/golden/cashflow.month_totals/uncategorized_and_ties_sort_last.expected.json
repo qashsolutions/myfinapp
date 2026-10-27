@@ -1,0 +1,30 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-31",
+  "in_cents": 0,
+  "out_cents": 3000,
+  "net_cents": -3000,
+  "transfers_out_cents": 0,
+  "count": 3,
+  "by_category": [
+    {
+      "category_id": "cat-dining",
+      "out_cents": 1000
+    },
+    {
+      "category_id": "cat-fun",
+      "out_cents": 1000
+    },
+    {
+      "category_id": null,
+      "out_cents": 1000
+    }
+  ],
+  "by_account": [
+    {
+      "account_id": "acct-a",
+      "in_cents": 0,
+      "out_cents": 3000
+    }
+  ]
+}

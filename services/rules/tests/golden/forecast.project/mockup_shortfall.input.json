@@ -1,0 +1,51 @@
+{
+  "as_of": "2026-10-09",
+  "start_balance_cents": 210000,
+  "daily_cents": 4200,
+  "upcoming": [
+    {
+      "date": "2026-10-12",
+      "kind": "bill",
+      "amount_cents": 4500,
+      "matched": false
+    },
+    {
+      "date": "2026-10-14",
+      "kind": "bill",
+      "amount_cents": 18000,
+      "matched": false
+    },
+    {
+      "date": "2026-10-16",
+      "kind": "income",
+      "amount_cents": 240000,
+      "matched": false
+    },
+    {
+      "date": "2026-10-20",
+      "kind": "bill",
+      "amount_cents": 180000,
+      "matched": false
+    },
+    {
+      "date": "2026-10-22",
+      "kind": "bill",
+      "amount_cents": 16500,
+      "matched": false
+    },
+    {
+      "date": "2026-10-25",
+      "kind": "bill",
+      "amount_cents": 165000,
+      "matched": false
+    },
+    {
+      "date": "2026-10-30",
+      "kind": "income",
+      "amount_cents": 240000,
+      "matched": false
+    }
+  ],
+  "buffer_cents": 0,
+  "days": 30
+}

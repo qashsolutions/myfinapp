@@ -1,0 +1,18 @@
+{
+  "days": [
+    {
+      "date": "2026-10-10",
+      "balance_cents": -500
+    },
+    {
+      "date": "2026-10-11",
+      "balance_cents": -500
+    }
+  ],
+  "lowest_cents": -500,
+  "lowest_date": "2026-10-10",
+  "end_cents": -500,
+  "shortfall": true,
+  "short_by_cents": 500,
+  "first_short_date": "2026-10-10"
+}

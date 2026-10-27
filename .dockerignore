@@ -1,0 +1,10 @@
+# The API image is built from the repo root (it needs services/rules); keep the context small.
+*
+!services/api/**
+!services/rules/**
+services/**/.venv
+services/**/__pycache__
+services/**/.pytest_cache
+services/**/.ruff_cache
+services/api/tests
+services/rules/tests

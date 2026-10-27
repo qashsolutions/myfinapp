@@ -1,0 +1,25 @@
+{
+  "inputs": {
+    "now_local": "2026-10-10T18:00",
+    "upcoming": [],
+    "shortfall": null,
+    "challenges": [],
+    "goals": [
+      {
+        "id": "trip",
+        "kind": "save",
+        "start_date": "2026-09-01",
+        "end_date": "2026-11-24",
+        "target_cents": 120000,
+        "current_cents": 35000
+      }
+    ],
+    "milestones": [],
+    "prefs": {
+      "goal_behind_pace": {
+        "enabled": true,
+        "periods": 2
+      }
+    }
+  }
+}

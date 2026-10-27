@@ -1,0 +1,117 @@
+{
+  "as_of": "2026-10-11",
+  "thresholds": {
+    "seasonal_increase_cents": 10000,
+    "seasonal_increase_bps": 2000
+  },
+  "entries": [
+    {
+      "id": "m0",
+      "date": "2025-10-10",
+      "amount_cents": 200000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense"
+    },
+    {
+      "id": "m1",
+      "date": "2025-11-10",
+      "amount_cents": 200000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense"
+    },
+    {
+      "id": "m2",
+      "date": "2025-12-10",
+      "amount_cents": 320000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense"
+    },
+    {
+      "id": "m3",
+      "date": "2026-01-10",
+      "amount_cents": 200000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense"
+    },
+    {
+      "id": "m4",
+      "date": "2026-02-10",
+      "amount_cents": 200000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense"
+    },
+    {
+      "id": "m5",
+      "date": "2026-03-10",
+      "amount_cents": 200000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense"
+    },
+    {
+      "id": "m6",
+      "date": "2026-04-10",
+      "amount_cents": 200000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense"
+    },
+    {
+      "id": "m7",
+      "date": "2026-05-10",
+      "amount_cents": 200000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense"
+    },
+    {
+      "id": "m8",
+      "date": "2026-06-10",
+      "amount_cents": 200000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense"
+    },
+    {
+      "id": "m9",
+      "date": "2026-07-10",
+      "amount_cents": 200000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense"
+    },
+    {
+      "id": "m10",
+      "date": "2026-08-10",
+      "amount_cents": 200000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense"
+    },
+    {
+      "id": "m11",
+      "date": "2026-09-10",
+      "amount_cents": 200000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "pairs": [
+    {
+      "out_id": "o1",
+      "in_id": "i-near",
+      "days_apart": 1
+    },
+    {
+      "out_id": "o2",
+      "in_id": "i-far",
+      "days_apart": 5
+    }
+  ]
+}

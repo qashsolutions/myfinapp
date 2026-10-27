@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stackd website</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="{{S.header}}">
+    <button onClick="{{goHome}}" style="{{S.logoBtn}}"><span style="{{S.logo}}"><svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="26" width="8" height="14" rx="3" fill="#FFFFFF" opacity="0.7"></rect><rect x="20" y="17" width="8" height="23" rx="3" fill="#FFFFFF" opacity="0.85"></rect><rect x="32" y="8" width="8" height="32" rx="3" fill="#FFFFFF"></rect></svg></span>Stackd</button>
+    <nav style="display:flex;gap:4px;margin-left:auto">
+      <sc-for list="{{navs}}" as="n" hint-placeholder-count="4"><button onClick="{{n.go}}" aria-current="{{n.cur}}" style="{{n.st}}">{{n.n}}</button></sc-for>
+    </nav>
+    <a href="../flows/F1Welcome.dc.html" style="{{S.cta}}">Open the app</a>
+  </header>
+
+  <main style="flex:1;display:flex;flex-direction:column">
+    <sc-if value="{{isHome}}" hint-placeholder-val="{{ true }}">
+      <section style="{{S.heroWrap}}">
+        <div style="flex:1;display:flex;flex-direction:column;gap:20px">
+          <span style="{{S.kicker}}">Budgeting that stays on your device</span>
+          <h1 style="{{S.h1}}">See money in and out. Spot a shortfall before it happens.</h1>
+          <p style="{{S.lead}}">Upload a bank statement or add spending as you go. Stackd shows what you kept, warns you before you run short, and helps you save into jars — with no bank passwords and no AI reading your money.</p>
+          <div style="display:flex;gap:12px"><a href="../flows/F1Welcome.dc.html" style="{{S.ctaBig}}">Start free</a><button onClick="{{goHow}}" style="{{S.ghostBig}}">How it works</button></div>
+          <span style="font-size:14px;color:{{m.sub}}">Works on iPhone, Android and desktop · Install from your browser</span>
+        </div>
+        <div style="{{S.phone}}">
+          <div style="{{S.pHero}}"><span style="font-size:12px;font-weight:600;opacity:0.9">Kept this month so far</span><span style="font:700 40px Outfit,sans-serif">$412</span><span style="font-size:12px">In +$5,200 · Out −$4,788</span></div>
+          <div style="{{S.pWarn}}"><b style="font-size:13px">You may be short $180 around Oct 25</b><span style="font-size:11px">Rent lands before your next paycheck</span></div>
+          <div style="{{S.pCard}}"><b style="font-size:13px">Travel jar</b><div style="height:8px;border-radius:4px;background:{{m.line}};overflow:hidden"><div style="width:32%;height:100%;background:#3D5AFE"></div></div><span style="font-size:11px;color:{{m.sub}}">$640 of $2,000 · $76 a paycheck</span></div>
+        </div>
+      </section>
+      <section style="{{S.band}}">
+        <sc-for list="{{features}}" as="f" hint-placeholder-count="3">
+          <div style="{{S.feature}}"><span style="{{S.fIc}}">{{f.i}}</span><h3 style="{{S.h3}}">{{f.t}}</h3><p style="{{S.p}}">{{f.d}}</p></div>
+        </sc-for>
+      </section>
+      <section style="{{S.privacy}}">
+        <h2 style="{{S.h2light}}">Private by design</h2>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px">
+          <sc-for list="{{promises}}" as="p" hint-placeholder-count="3"><div style="display:flex;flex-direction:column;gap:8px"><b style="font-size:18px">{{p.t}}</b><span style="font-size:15px;line-height:1.5;opacity:0.85">{{p.d}}</span></div></sc-for>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isHow}}" hint-placeholder-val="{{ false }}">
+      <section style="{{S.page}}">
+        <h1 style="{{S.h1sm}}">How Stackd works</h1>
+        <p style="{{S.lead}}">Four steps, all calculated on your device with plain rules you can check.</p>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:12px">
+          <sc-for list="{{steps}}" as="s" hint-placeholder-count="4"><div style="{{S.feature}}"><span style="{{S.num}}">{{s.n}}</span><h3 style="{{S.h3}}">{{s.t}}</h3><p style="{{S.p}}">{{s.d}}</p></div></sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+          <div style="{{S.box}}"><h3 style="{{S.h3}}">Statements we read</h3><p style="{{S.p}}">CSV and OFX/QFX from any bank. PDF statements from [launch bank list]. Pay stubs aren't read — income comes from deposits or what you enter.</p></div>
+          <div style="{{S.box}}"><h3 style="{{S.h3}}">What we never do</h3><p style="{{S.p}}">Ask for bank passwords. Sell or share your data. Use AI to read your money. Move money for you — jars are labels on money you set aside.</p></div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isPricing}}" hint-placeholder-val="{{ false }}">
+      <section style="{{S.page}}">
+        <h1 style="{{S.h1sm}}">Simple pricing</h1>
+        <div style="{{S.toggle}}" role="group" aria-label="Billing period"><button onClick="{{goAnnual}}" aria-pressed="{{aSel}}" style="{{S.tA}}">Yearly · save up to 34%</button><button onClick="{{goMonthly}}" aria-pressed="{{mSel}}" style="{{S.tM}}">Monthly</button></div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
+          <sc-for list="{{plans}}" as="p" hint-placeholder-count="3">
+            <div style="{{p.st}}">
+              <div style="display:flex;align-items:center;gap:8px"><h3 style="{{S.h3}}">{{p.n}}</h3><span style="{{p.tagSt}}">{{p.tag}}</span></div>
+              <div style="display:flex;align-items:baseline;gap:6px"><span style="font:700 40px Outfit,sans-serif">{{p.price}}</span><span style="color:{{m.sub}}">{{p.per}}</span></div>
+              <span style="font-size:14px;color:{{m.sub}};min-height:20px">{{p.bill}}</span>
+              <sc-for list="{{p.f}}" as="x" hint-placeholder-count="4"><span style="display:flex;gap:10px;font-size:15px;line-height:1.4"><span style="color:#0B7A55;font-weight:700">✓</span>{{x}}</span></sc-for>
+              <a href="../flows/F1Welcome.dc.html" style="{{p.btn}}">{{p.cta}}</a>
+            </div>
+          </sc-for>
+        </div>
+        <p style="{{S.small}}">Paid plans renew automatically until cancelled. Cancel anytime in Settings in two taps. Prices in USD; taxes may apply.</p>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isSecurity}}" hint-placeholder-val="{{ false }}">
+      <section style="{{S.page}}">
+        <h1 style="{{S.h1sm}}">Security &amp; privacy</h1>
+        <p style="{{S.lead}}">Here is exactly how Stackd protects your money data — written to match what we built.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">
+          <sc-for list="{{sec}}" as="s" hint-placeholder-count="6"><div style="{{S.box}}"><h3 style="{{S.h3}}">{{s.t}}</h3><p style="{{S.p}}">{{s.d}}</p></div></sc-for>
+        </div>
+        <p style="{{S.small}}">Found a vulnerability? Email security@[domain] — see /.well-known/security.txt.</p>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isLegal}}" hint-placeholder-val="{{ false }}">
+      <section style="{{S.legal}}">
+        <aside style="width:240px;flex-shrink:0;display:flex;flex-direction:column;gap:4px">
+          <span style="font-size:13px;font-weight:600;color:{{m.sub}};margin-bottom:6px">On this page</span>
+          <sc-for list="{{toc}}" as="t" hint-placeholder-count="7"><span style="min-height:36px;display:flex;align-items:center;font-size:15px;color:{{m.acc}}">{{t}}</span></sc-for>
+        </aside>
+        <article style="flex:1;max-width:680px;display:flex;flex-direction:column;gap:14px">
+          <h1 style="{{S.h1sm}}">{{legalTitle}}</h1>
+          <span style="font-size:14px;color:{{m.sub}}">Last updated [date] · Plain-language summary first, full text below</span>
+          <div style="{{S.box}}"><h3 style="{{S.h3}}">The short version</h3><p style="{{S.p}}">{{legalSummary}}</p></div>
+          <sc-for list="{{toc}}" as="t" hint-placeholder-count="7"><div style="display:flex;flex-direction:column;gap:6px"><h2 style="{{S.h2}}">{{t}}</h2><p style="{{S.p}}">[Full text for this section.]</p></div></sc-for>
+        </article>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isDelete}}" hint-placeholder-val="{{ false }}">
+      <section style="{{S.narrow}}">
+        <h1 style="{{S.h1sm}}">Delete your Stackd account</h1>
+        <p style="{{S.lead}}">You can also do this in the app: Me → Delete account. This page is for when you can't open the app.</p>
+        <div style="{{S.box}}">
+          <label for="del-email" style="font-size:14px;font-weight:600">Your account email</label>
+          <input id="del-email" value="{{delEmail}}" onChange="{{setDelEmail}}" placeholder="you@example.com" style="{{S.input}}">
+          <sc-if value="{{delSent}}" hint-placeholder-val="{{ false }}"><span role="status" style="font-size:14px;color:#1E7A4C;font-weight:600">If an account exists, we've emailed a code and a confirmation link. Deletion starts only after you confirm.</span></sc-if>
+          <button onClick="{{sendDel}}" style="{{S.danger}}">Email me a confirmation code</button>
+        </div>
+        <p style="{{S.p}}">Deleting removes your account, passkeys, plan, encrypted backup and group memberships. Data stored only on your devices is erased the next time each device opens Stackd. Deletion completes within [X] days.</p>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isSupport}}" hint-placeholder-val="{{ false }}">
+      <section style="{{S.page}}">
+        <h1 style="{{S.h1sm}}">Help &amp; support</h1>
+        <div style="display:grid;grid-template-columns:3fr 2fr;gap:24px">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{faq}}" as="q" hint-placeholder-count="5">
+              <div style="{{S.faq}}"><button onClick="{{q.toggle}}" aria-expanded="{{q.open}}" style="{{S.faqQ}}"><span style="flex:1;text-align:left">{{q.q}}</span><span>{{q.mark}}</span></button>
+                <sc-if value="{{q.isOpen}}" hint-placeholder-val="{{ false }}"><p style="{{S.p}}">{{q.a}}</p></sc-if></div>
+            </sc-for>
+          </div>
+          <div style="{{S.box}}">
+            <h3 style="{{S.h3}}">Contact us</h3>
+            <label for="s-email" style="font-size:14px;font-weight:600">Email</label><input id="s-email" style="{{S.input}}">
+            <label for="s-msg" style="font-size:14px;font-weight:600">How can we help?</label><textarea id="s-msg" rows="5" style="{{S.textarea}}"></textarea>
+            <span style="font-size:13px;color:{{m.sub}}">Never send statements, card numbers or passwords.</span>
+            <button style="{{S.ctaBtn}}">Send</button>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{is404}}" hint-placeholder-val="{{ false }}">
+      <section style="{{S.narrow}};align-items:center;text-align:center">
+        <span style="font:700 96px Outfit,sans-serif;color:{{m.acc}}">404</span>
+        <h1 style="{{S.h1sm}}">This page doesn't exist</h1>
+        <p style="{{S.lead}}">It may have moved. Try one of these instead.</p>
+        <div style="display:flex;gap:12px;justify-content:center"><button onClick="{{goHome}}" style="{{S.ctaBtn}}">Home</button><button onClick="{{goSupport}}" style="{{S.ghostBig}}">Help</button></div>
+      </section>
+    </sc-if>
+  </main>
+
+  <footer style="{{S.footer}}">
+    <span style="font-weight:600">Stackd</span>
+    <div style="display:flex;gap:20px;flex-wrap:wrap">
+      <sc-for list="{{foot}}" as="f" hint-placeholder-count="6"><button onClick="{{f.go}}" style="{{S.footLink}}">{{f.n}}</button></sc-for>
+    </div>
+    <span style="font-size:13px;color:{{m.sub}}">© 2026 [Company legal name] · Not a bank. Not financial advice.</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"page":{"editor":"enum","options":["home","how","pricing","security","privacy","terms","delete","support","404"],"default":"home"},"$preview":{"width":1280,"height":1300}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { page: (p && p.page) || 'home', annual: true, delEmail: '', delSent: false, open: 0 }; }
+  renderVals() {
+    const st = this.state, pg = st.page;
+    const m = { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE' };
+    const go = (p) => () => this.setState({ page: p });
+    const NAV = [['how', 'How it works'], ['pricing', 'Pricing'], ['security', 'Security'], ['support', 'Support']];
+    const navs = NAV.map(([k, n]) => ({ n, cur: pg === k ? 'page' : 'false', go: go(k),
+      st: 'min-height:44px;padding:0 14px;border:0;border-radius:10px;cursor:pointer;font:500 15px Outfit,sans-serif;' + (pg === k ? 'background:' + m.tint + ';color:' + m.acc : 'background:transparent;color:' + m.ink) }));
+    const foot = [['how', 'How it works'], ['pricing', 'Pricing'], ['security', 'Security'], ['privacy', 'Privacy policy'], ['terms', 'Terms'], ['delete', 'Delete account'], ['support', 'Support']].map(([k, n]) => ({ n, go: go(k) }));
+    const a = st.annual;
+    const btn = (primary) => 'margin-top:auto;min-height:52px;display:flex;align-items:center;justify-content:center;border-radius:14px;font:600 16px Outfit,sans-serif;' + (primary ? 'background:#3D5AFE;color:#FFFFFF' : 'background:transparent;color:' + m.ink + ';border:1px solid ' + m.line);
+    const card = (hl) => 'display:flex;flex-direction:column;gap:12px;padding:28px;border-radius:24px;background:' + m.card + ';border:2px solid ' + (hl ? '#3D5AFE' : m.line) + ';min-height:440px;box-sizing:border-box';
+    const tag = (t) => t ? 'font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:' + (t === 'Coming soon' ? '#FFF4E0;color:#8A4B00' : m.tint + ';color:' + m.acc) : 'display:none';
+    const plans = [
+      { n: 'Free', tag: '', price: '$0', per: '', bill: 'Free forever', f: ['Manual entry + 1 statement account', 'Money in & out, budget', 'Upcoming expenses + shortfall alerts', '3 jars, join group challenges'], cta: 'Start free', hl: false },
+      { n: 'Private', tag: 'Most popular', price: a ? '$1.99' : '$3', per: '/month', bill: a ? '$23.88 billed yearly' : 'Billed monthly', f: ['Everything in Free', 'Unlimited accounts and jars', 'Create group challenges', 'Encrypted backup + sync across devices'], cta: 'Get Private', hl: true },
+      { n: 'Connected', tag: 'Coming soon', price: a ? '$7.99' : '$9.99', per: '/month', bill: a ? '$95.88 billed yearly' : 'Billed monthly', f: ['Everything in Private', 'Read-only bank linking, up to 3 banks', 'Automatic updates 1–4 times a day', 'No bank passwords shared with us'], cta: 'Join the waitlist', hl: false }
+    ].map(p => ({ n: p.n, tag: p.tag, price: p.price, per: p.per, bill: p.bill, f: p.f, cta: p.cta, st: card(p.hl), tagSt: tag(p.tag), btn: btn(p.hl) }));
+    const FAQ = [['Do you need my bank password?', 'No. Stackd never asks for bank usernames or passwords. You upload statements you download yourself, or enter spending by hand.'], ['Where is my data stored?', 'On your device. Statements and receipts are read in your browser and never uploaded. Paid plans add an encrypted backup we can\u2019t read.'], ['What happens if I clear my browser?', 'Unbacked-up data on that device can be lost. Install Stackd to your Home Screen, allow lasting storage, and export or back up regularly.'], ['Is the forecast a guarantee?', 'No. It\u2019s an estimate from your own history and the bills you confirm. We show exactly how it was calculated.'], ['How do I cancel?', 'Settings → Your plan → Cancel plan. Nothing is deleted when you cancel.']];
+    const faq = FAQ.map(([q, ans], i) => ({ q, a: ans, isOpen: st.open === i, open: st.open === i ? 'true' : 'false', mark: st.open === i ? '−' : '+', toggle: () => this.setState({ open: st.open === i ? -1 : i }) }));
+    const legal = pg === 'terms' ? ['Using Stackd', 'Plans and billing', 'Automatic renewal and cancellation', 'Your content', 'Not financial advice', 'Limits of liability', 'Contact'] : ['What we collect', 'What stays on your device', 'How we use data', 'Who we share with', 'Retention and deletion', 'Your rights', 'Contact'];
+    const H = { home: 1300, how: 1000, pricing: 900, security: 1150, privacy: 1300, terms: 1300, delete: 900, support: 1000, '404': 800 };
+    const seg = (on) => 'min-height:44px;padding:0 18px;border:0;border-radius:12px;cursor:pointer;font:600 14px Outfit,sans-serif;' + (on ? 'background:' + m.card + ';color:' + m.ink + ';box-shadow:0 2px 6px rgba(0,0,0,0.12)' : 'background:transparent;color:' + m.sub);
+    const S = {
+      root: 'width:1280px;min-height:' + H[pg] + 'px;display:flex;flex-direction:column;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      header: 'display:flex;align-items:center;gap:16px;padding:18px 64px;background:' + m.card + ';border-bottom:1px solid ' + m.line,
+      logoBtn: 'display:flex;align-items:center;gap:10px;min-height:44px;border:0;background:transparent;cursor:pointer;font:700 20px Outfit,sans-serif;color:' + m.ink,
+      logo: 'width:34px;height:34px;border-radius:10px;background:#3D5AFE;display:flex;align-items:center;justify-content:center',
+      cta: 'min-height:44px;padding:0 18px;display:flex;align-items:center;border-radius:12px;background:#3D5AFE;color:#FFFFFF;font:600 15px Outfit,sans-serif',
+      heroWrap: 'display:flex;align-items:center;gap:64px;padding:72px 64px',
+      kicker: 'font-size:14px;font-weight:600;color:' + m.acc,
+      h1: 'margin:0;font:700 56px Outfit,sans-serif;letter-spacing:-0.02em;line-height:1.05;max-width:640px',
+      h1sm: 'margin:0;font:700 44px Outfit,sans-serif;letter-spacing:-0.02em',
+      h2: 'margin:12px 0 0;font:600 22px Outfit,sans-serif', h2light: 'margin:0 0 24px;font:700 34px Outfit,sans-serif',
+      h3: 'margin:0;font:600 19px Outfit,sans-serif',
+      lead: 'margin:0;font-size:19px;line-height:1.55;color:' + m.sub + ';max-width:640px',
+      p: 'margin:0;font-size:16px;line-height:1.6;color:' + m.sub,
+      small: 'margin:8px 0 0;font-size:14px;color:' + m.sub,
+      ctaBig: 'min-height:56px;padding:0 28px;display:flex;align-items:center;border-radius:16px;background:#3D5AFE;color:#FFFFFF;font:600 17px Outfit,sans-serif',
+      ghostBig: 'min-height:56px;padding:0 28px;border-radius:16px;cursor:pointer;background:transparent;border:1px solid ' + m.line + ';color:' + m.ink + ';font:600 17px Outfit,sans-serif',
+      ctaBtn: 'min-height:52px;padding:0 24px;border:0;border-radius:14px;cursor:pointer;background:#3D5AFE;color:#FFFFFF;font:600 16px Outfit,sans-serif',
+      phone: 'width:340px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;padding:24px 18px;border-radius:40px;background:' + m.bg + ';border:10px solid #111827;box-shadow:0 30px 60px rgba(17,24,39,0.25)',
+      pHero: 'display:flex;flex-direction:column;gap:4px;padding:16px;border-radius:18px;background:#3D5AFE;color:#FFFFFF',
+      pWarn: 'display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:14px;background:#FFF4E0;color:#8A4B00',
+      pCard: 'display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:14px;background:' + m.card,
+      band: 'display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;padding:0 64px 72px',
+      feature: 'display:flex;flex-direction:column;gap:10px;padding:28px;border-radius:24px;background:' + m.card,
+      fIc: 'width:48px;height:48px;border-radius:14px;background:' + m.tint + ';color:' + m.acc + ';display:flex;align-items:center;justify-content:center;font:700 20px Outfit,sans-serif',
+      num: 'width:40px;height:40px;border-radius:50%;background:#3D5AFE;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font:700 17px Outfit,sans-serif',
+      privacy: 'padding:64px;background:#111827;color:#F9FAFB',
+      page: 'display:flex;flex-direction:column;gap:16px;padding:64px',
+      narrow: 'display:flex;flex-direction:column;gap:18px;padding:72px 64px;max-width:720px;margin:0 auto;box-sizing:border-box',
+      box: 'display:flex;flex-direction:column;gap:10px;padding:24px;border-radius:20px;background:' + m.card,
+      toggle: 'align-self:flex-start;display:flex;gap:4px;padding:4px;border-radius:14px;background:#E7E9EF', tA: seg(a), tM: seg(!a),
+      legal: 'display:flex;gap:48px;padding:64px',
+      input: 'min-height:52px;padding:0 14px;border-radius:12px;border:1px solid ' + m.line + ';font:500 16px Outfit,sans-serif;color:' + m.ink,
+      textarea: 'padding:12px 14px;border-radius:12px;border:1px solid ' + m.line + ';font:500 16px Outfit,sans-serif;color:' + m.ink + ';resize:vertical',
+      danger: 'min-height:52px;border:0;border-radius:14px;cursor:pointer;background:#C4122F;color:#FFFFFF;font:600 16px Outfit,sans-serif',
+      faq: 'display:flex;flex-direction:column;gap:6px;padding:4px 20px 12px;border-radius:16px;background:' + m.card,
+      faqQ: 'display:flex;align-items:center;gap:12px;min-height:56px;border:0;background:transparent;cursor:pointer;font:600 17px Outfit,sans-serif;color:' + m.ink,
+      footer: 'display:flex;align-items:center;gap:32px;padding:28px 64px;border-top:1px solid ' + m.line + ';background:' + m.card,
+      footLink: 'min-height:44px;border:0;background:transparent;cursor:pointer;font:500 14px Outfit,sans-serif;color:' + m.sub
+    };
+    return { S, m, navs, foot, plans, faq, toc: legal,
+      isHome: pg === 'home', isHow: pg === 'how', isPricing: pg === 'pricing', isSecurity: pg === 'security', isLegal: pg === 'privacy' || pg === 'terms', isDelete: pg === 'delete', isSupport: pg === 'support', is404: pg === '404',
+      features: [{ i: '±', t: 'Money in & out', d: 'Upload a CSV, OFX or PDF statement — or add as you go. See what came in, what went out, and what you kept.' }, { i: '!', t: 'Shortfall warning', d: 'A 30-day forecast from your bills and paychecks warns you before your balance dips — and shows its math.' }, { i: '◎', t: 'Jars & challenges', d: 'Save toward anything with jars, or join friends in challenges ranked by % of each person\u2019s own goal.' }],
+      promises: [{ t: 'Stays on your device', d: 'Statements and receipts are read in your browser. They never reach our servers.' }, { t: 'No bank passwords', d: 'Sign in with an email code and Face ID. We never ask for your bank login.' }, { t: 'No AI, no ads', d: 'Plain, published rules do the math. We don\u2019t sell or share your data.' }],
+      steps: [{ n: '1', t: 'Add your money', d: 'Upload a statement or add entries. Files are read on your device.' }, { n: '2', t: 'See in & out', d: 'Transfers and card payments are matched so nothing counts twice.' }, { n: '3', t: 'Get warned early', d: 'Confirm your bills; the forecast flags a shortfall before it happens.' }, { n: '4', t: 'Save into jars', d: 'Split what you kept into jars and track each one.' }],
+      sec: [{ t: 'Your data stays on your device', d: 'Transactions, statements and receipt photos are stored in your browser. Our servers keep only your account, plan, group % progress and a date-only alert schedule.' }, { t: 'Email code + Face ID', d: 'No passwords. Every account uses a passkey, unlocked with Face ID or your device passcode. The app locks after 5 minutes.' }, { t: 'Encrypted backup', d: 'On paid plans, backups are encrypted on your device before upload. We store only data we can\u2019t read.' }, { t: 'Encrypted in transit and at rest', d: 'TLS for every connection; server data and backups encrypted at rest.' }, { t: 'Bank linking (coming soon)', d: 'Read-only, through a regulated provider. Your bank password is never shared with us.' }, { t: 'What we never collect', d: 'Bank usernames or passwords, full card numbers, or your location. No ad trackers.' }],
+      legalTitle: pg === 'terms' ? 'Terms of service' : 'Privacy policy',
+      legalSummary: pg === 'terms' ? 'Stackd is a budgeting tool, not a bank or financial adviser. Paid plans renew until you cancel, and you can cancel anytime in Settings.' : 'Your money data stays on your device. We keep only what we need to run your account, and we never sell or share your data.',
+      aSel: a ? 'true' : 'false', mSel: a ? 'false' : 'true', goAnnual: () => this.setState({ annual: true }), goMonthly: () => this.setState({ annual: false }),
+      delEmail: st.delEmail, delSent: st.delSent, setDelEmail: (e) => this.setState({ delEmail: e.target.value }), sendDel: () => this.setState({ delSent: true }),
+      goHome: go('home'), goHow: go('how'), goSupport: go('support') };
+  }
+}
+</script>
+</body>
+</html>

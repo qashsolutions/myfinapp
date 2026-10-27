@@ -1,0 +1,17 @@
+{
+  "items": [
+    {
+      "id": "a",
+      "kind": "asset",
+      "group": "cash",
+      "value_cents": 50000
+    },
+    {
+      "id": "d",
+      "kind": "debt",
+      "group": "student_loan",
+      "value_cents": 2000000
+    }
+  ],
+  "previous_net_cents": null
+}

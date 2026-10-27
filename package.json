@@ -1,0 +1,25 @@
+{
+  "name": "stackd",
+  "private": true,
+  "packageManager": "pnpm@11.4.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm -C packages/tokens build && pnpm -C apps/web dev",
+    "api:schema": "cd services/api && uv run stackd-api openapi -o ../../packages/api-client/openapi.json && cd ../.. && pnpm -C packages/api-client generate",
+    "lint": "biome ci .",
+    "format": "biome format --write .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "build": "turbo run build",
+    "guards": "python3 tools/check_ai_denylist.py && python3 tools/check_network_allowlist.py && tsx tools/check_contrast.ts",
+    "contrast": "tsx tools/check_contrast.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "tsx": "^4.23.15",
+    "turbo": "^2.11.7",
+    "typescript": "^7.0.2"
+  }
+}

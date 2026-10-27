@@ -1,0 +1,9 @@
+{
+  "name": "engine-prototype",
+  "private": true,
+  "type": "module",
+  "description": "Chunk 0.6 measurement: Pyodide vs TypeScript port. Standalone, not a workspace package. Run: pnpm install --ignore-workspace && node measure.mjs",
+  "dependencies": {
+    "pyodide": "^314.0.7"
+  }
+}

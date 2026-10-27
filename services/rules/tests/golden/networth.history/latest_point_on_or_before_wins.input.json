@@ -1,0 +1,36 @@
+{
+  "dates": [
+    "2026-09-01",
+    "2026-09-20",
+    "2026-10-01",
+    "2026-10-12"
+  ],
+  "accounts": [
+    {
+      "id": "sav",
+      "anchors": [
+        {
+          "as_of": "2026-10-01",
+          "balance_cents": 5000
+        },
+        {
+          "as_of": "2026-09-01",
+          "balance_cents": 1000
+        }
+      ],
+      "entries": [
+        {
+          "date": "2026-09-15",
+          "amount_cents": 2000,
+          "direction": "in"
+        },
+        {
+          "date": "2026-10-10",
+          "amount_cents": 500,
+          "direction": "out"
+        }
+      ]
+    }
+  ],
+  "items": []
+}

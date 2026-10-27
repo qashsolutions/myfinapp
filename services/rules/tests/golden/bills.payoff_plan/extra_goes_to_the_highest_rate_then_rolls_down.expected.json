@@ -1,0 +1,33 @@
+{
+  "stalled": false,
+  "months": 5,
+  "debt_free_month": "2027-03",
+  "monthly_budget_cents": 9000,
+  "total_interest_cents": 1545,
+  "total_paid_cents": 41545,
+  "series_cents": [
+    31600,
+    23050,
+    14347,
+    5490,
+    0
+  ],
+  "order": [
+    {
+      "id": "a",
+      "label": "Card",
+      "rank": 1,
+      "payoff_month": "2027-01",
+      "months": 3,
+      "interest_cents": 801
+    },
+    {
+      "id": "b",
+      "label": "Loan",
+      "rank": 2,
+      "payoff_month": "2027-03",
+      "months": 5,
+      "interest_cents": 744
+    }
+  ]
+}

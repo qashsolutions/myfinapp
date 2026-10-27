@@ -1,0 +1,168 @@
+/* Goals (mockups F4Goals, F4Builder, F4Detail). */
+
+.goal-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.goal-card__title {
+  font: 700 18px var(--font-display);
+}
+.goal-card__sub {
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.goal-card__bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+.goal-card__amount {
+  font-weight: 700;
+  font-variant-numeric: var(--numeric-data);
+}
+.goal-card__pace {
+  color: var(--c-sub);
+  font-variant-numeric: var(--numeric-data);
+}
+.ring {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.ring__pct {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 8px solid rgba(255, 255, 255, 0.3);
+  font: 700 24px var(--font-display);
+  flex-shrink: 0;
+}
+.ring__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ring__big {
+  font: 700 32px var(--font-hero);
+  font-variant-numeric: var(--numeric-data);
+}
+.quick-amounts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.event-row {
+  display: flex;
+  justify-content: space-between;
+  min-height: 44px;
+  align-items: center;
+  font-size: 15px;
+}
+.event-row + .event-row {
+  border-top: 1px solid var(--c-line);
+}
+.event-row__amount {
+  font-weight: 700;
+  font-variant-numeric: var(--numeric-data);
+  color: var(--c-success);
+}
+/* Chips wrap rather than scroll: every choice stays visible at any width. min-width: 0 undoes
+   the fieldset default (min-content), which otherwise widened the page on phones. */
+.kind-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  padding-bottom: 4px;
+}
+
+/* fast-follow 3 */
+.goal-why {
+  font-style: italic;
+  color: var(--c-ink-2);
+}
+.reorder-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--c-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 8px;
+}
+.milestone-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+/* Goals tab groups (October 18, 2026): plan usage, the one-line jars, folded Paused / Reached. */
+.jar-usage {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 0 12px;
+  color: var(--c-sub);
+  font-size: 0.875rem;
+}
+.goal-ring {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, var(--c-card) 76%, transparent 78%),
+    conic-gradient(var(--c-a1) var(--goal-pct), var(--c-line) 0);
+  color: var(--c-ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.jar-group {
+  margin-top: 12px;
+}
+.jar-group__summary {
+  cursor: pointer;
+  padding: 10px 2px;
+  min-height: 44px;
+  font-weight: 600;
+  color: var(--c-ink);
+}
+[data-simple="1"] .goal-ring {
+  width: 52px;
+  height: 52px;
+  font-size: 0.875rem;
+}
+
+/* Goal rows: a bar under the amount (October 23, 2026). */
+.goal-row__bar {
+  display: block;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c-ink) 8%, var(--c-card));
+  overflow: hidden;
+}
+.goal-row__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+.goal-row__fill--on {
+  background: var(--c-a1);
+}
+.goal-row__fill--done {
+  background: var(--c-success);
+}
+.goal-row__fill--late {
+  background: var(--c-warning);
+}

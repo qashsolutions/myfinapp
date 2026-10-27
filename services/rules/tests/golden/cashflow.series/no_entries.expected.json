@@ -1,0 +1,25 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-20",
+  "step": "month",
+  "steps": [
+    {
+      "start": "2026-10-01",
+      "end": "2026-10-20",
+      "in_cents": 0,
+      "out_cents": 0,
+      "net_cents": 0,
+      "count": 0
+    }
+  ],
+  "in_cents": 0,
+  "out_cents": 0,
+  "net_cents": 0,
+  "count": 0,
+  "by_category": [],
+  "active_months": 0,
+  "avg_in_cents": null,
+  "avg_out_cents": null,
+  "avg_net_cents": null,
+  "first_date": null
+}

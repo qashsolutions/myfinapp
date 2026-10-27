@@ -1,0 +1,31 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-01",
+  "limit": 2,
+  "entries": [
+    {
+      "id": "z",
+      "date": "2026-10-01",
+      "amount_cents": 500,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Deli "
+    },
+    {
+      "id": "m",
+      "date": "2026-10-01",
+      "amount_cents": 500,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "DELI"
+    },
+    {
+      "id": "q",
+      "date": "2026-10-01",
+      "amount_cents": 500,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Cafe"
+    }
+  ]
+}

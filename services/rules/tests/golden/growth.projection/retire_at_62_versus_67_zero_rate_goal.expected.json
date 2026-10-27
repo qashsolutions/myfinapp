@@ -1,0 +1,68 @@
+{
+  "years": 7,
+  "points": [
+    {
+      "age": 60,
+      "contributed_cents": 0,
+      "balances_cents": [
+        0
+      ]
+    },
+    {
+      "age": 61,
+      "contributed_cents": 0,
+      "balances_cents": [
+        0
+      ]
+    },
+    {
+      "age": 62,
+      "contributed_cents": 0,
+      "balances_cents": [
+        0
+      ]
+    },
+    {
+      "age": 63,
+      "contributed_cents": 0,
+      "balances_cents": [
+        0
+      ]
+    },
+    {
+      "age": 64,
+      "contributed_cents": 0,
+      "balances_cents": [
+        0
+      ]
+    },
+    {
+      "age": 65,
+      "contributed_cents": 0,
+      "balances_cents": [
+        0
+      ]
+    },
+    {
+      "age": 66,
+      "contributed_cents": 0,
+      "balances_cents": [
+        0
+      ]
+    },
+    {
+      "age": 67,
+      "contributed_cents": 0,
+      "balances_cents": [
+        0
+      ]
+    }
+  ],
+  "at_retirement_cents": [
+    0
+  ],
+  "middle_index": 0,
+  "target_cents": 840000,
+  "reaches_target": false,
+  "monthly_needed_cents": 10000
+}

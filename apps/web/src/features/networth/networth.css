@@ -1,0 +1,148 @@
+/* Net worth (October 19, 2026). */
+.worth {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.worth__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.worth__total {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--c-ink);
+}
+.worth__stale {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--c-warning);
+}
+.worth__h {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 8px;
+  font-size: 1.0625rem;
+}
+.worth__h span {
+  color: var(--c-sub);
+  font-weight: 600;
+}
+.worth section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.worth__note {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--c-sub);
+  text-align: center;
+}
+.worth-bars {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+.worth-bars__row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.worth-bars__track {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--c-line);
+  overflow: hidden;
+}
+.worth-bars__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+.worth-bars__fill--own {
+  background: var(--c-success);
+}
+.worth-bars__fill--owe {
+  background: var(--c-danger);
+}
+.worth-trend {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+}
+.worth-trend__line {
+  fill: none;
+  stroke: var(--c-a1);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.worth-trend__dot {
+  fill: var(--c-a1);
+}
+.worth-trend__label {
+  font: 700 12px var(--font-body);
+  fill: var(--c-ink);
+}
+.worth-trend__axis {
+  font: 600 11px var(--font-body);
+  fill: var(--c-sub);
+}
+.worth-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  list-style: none;
+}
+.worth-row + .worth-row {
+  border-top: 1px solid var(--c-line);
+}
+.worth-row__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.worth-row__label {
+  font-weight: 600;
+  color: var(--c-ink);
+}
+.worth-row__sub {
+  font-size: 0.8125rem;
+  color: var(--c-sub);
+}
+.worth-row__sub a {
+  color: var(--c-a1);
+}
+.worth-row__value {
+  font-weight: 700;
+  color: var(--c-ink);
+}
+.worth-row__value--off {
+  color: var(--c-sub);
+  text-decoration: line-through;
+}
+/* The switch's words are for screen readers here; the row already says what it is. */
+.worth-row__switch .sk-toggle__text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.worth-row__switch {
+  gap: 0;
+}
+.worth__hero .range-picker {
+  align-self: stretch;
+  margin-top: 4px;
+}

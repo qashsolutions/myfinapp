@@ -1,0 +1,9 @@
+{
+  "pairs": [
+    {
+      "out_id": "o1",
+      "in_id": "i1",
+      "days_apart": 6
+    }
+  ]
+}

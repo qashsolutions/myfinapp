@@ -1,0 +1,414 @@
+.plan-card {
+  display: grid;
+  gap: 6px;
+}
+.plan-card__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.plan-card__name {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.plan-card__price {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.plan-card__per {
+  color: var(--c-ink-2);
+  font-size: 0.9rem;
+}
+.plan-list {
+  display: grid;
+  gap: 12px;
+}
+.plan-status {
+  margin: 0 0 8px;
+}
+
+/* Founding places left (October 14, 2026) */
+.founding-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 12px;
+}
+.founding-left p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--c-sub);
+}
+.founding-left strong {
+  color: var(--c-ink);
+  font-size: 18px;
+}
+
+/* Before you subscribe: read, tick, then pay */
+.consent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.consent__points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.consent__points li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 15px;
+}
+.consent__icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--c-a1) 10%, var(--c-card));
+  color: var(--c-a1);
+}
+.consent__agree {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1.5px solid var(--c-line);
+  font-weight: 600;
+  cursor: pointer;
+}
+.consent__agree input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  flex: none;
+  accent-color: var(--c-a1);
+}
+.plan-card__sub {
+  margin: 0;
+  font-size: 14px;
+  color: var(--c-sub);
+}
+.plan-card__value {
+  margin: 4px 0 0;
+  font-weight: 700;
+  color: var(--c-success);
+}
+
+/* Pick a free trial (October 14, 2026) */
+.trial__title {
+  margin-top: 4vh;
+}
+.trial__choices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.trial__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 22px;
+  border: 2px solid var(--c-line);
+  background: var(--c-card);
+  color: var(--c-ink);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+.trial__card.is-on {
+  border-color: var(--c-a1);
+  transform: translateY(-2px);
+}
+.trial__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.trial__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: #fff;
+}
+.trial__card--private .trial__mark {
+  background: linear-gradient(135deg, var(--c-a2), #22c55e);
+}
+.trial__card--connected .trial__mark {
+  background: linear-gradient(135deg, var(--c-a1), var(--c-a3));
+}
+.trial__name {
+  font: 700 18px var(--font-display);
+}
+.trial__days {
+  margin-left: auto;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #fcd34d;
+  color: #14163a;
+  font-size: 13px;
+  font-weight: 700;
+}
+.trial__value {
+  font-weight: 700;
+}
+.trial__points {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.trial__point {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.trial__picon {
+  display: inline-flex;
+  color: var(--c-a1);
+}
+.trial__after {
+  font-size: 13px;
+  color: var(--c-sub);
+}
+
+/* Home's trial countdown */
+.trial-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-card, 22px);
+  background: var(--c-card);
+  box-shadow: var(--shadow-card);
+}
+.trial-card--ask {
+  border: 2px solid var(--c-a1);
+}
+.trial-card__ring {
+  flex: none;
+  width: 52px;
+  height: 52px;
+}
+.trial-card__track {
+  fill: none;
+  stroke: var(--c-line);
+  stroke-width: 5;
+}
+.trial-card__fill {
+  fill: none;
+  stroke: var(--c-a1);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 22px 22px;
+}
+.trial-card__n {
+  font: 700 13px var(--font-display);
+  fill: var(--c-ink);
+}
+.trial-card__text {
+  flex: 1;
+  min-width: 0;
+}
+.trial-card__title {
+  margin: 0;
+  font-weight: 700;
+}
+.trial-card__sub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.trial-card__cta {
+  flex: none;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+}
+.trial-card__link {
+  flex: none;
+  color: var(--c-a1);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Yearly saving badge and the ended-plan alert (October 14, 2026) */
+.plan-card__save {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c-success) 14%, var(--c-card));
+  color: var(--c-success);
+  font-size: 13px;
+  font-weight: 700;
+}
+.plan-alert {
+  padding: 16px;
+  border-radius: var(--radius-card, 20px);
+  border: 2px solid var(--c-danger);
+  background: color-mix(in srgb, var(--c-danger) 8%, var(--c-card));
+}
+.plan-alert p {
+  margin: 0 0 8px;
+}
+.plan-alert__title {
+  font-weight: 700;
+  color: var(--c-danger);
+}
+.plan-alert__link {
+  font-weight: 700;
+  color: var(--c-a1);
+}
+.trial__choices {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.trial__card:has(input:focus-visible) {
+  outline: 3px solid var(--c-a1);
+  outline-offset: 2px;
+}
+
+/* Tester tools (admins only): one button per plan */
+.tester-plans {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* "Switch to X from <date>": the value first, then one short line */
+.plan-lock {
+  text-align: center;
+  margin: 4px 0 20px;
+}
+.plan-lock__value {
+  margin: 0 0 6px;
+  font: 700 22px / 1.25 var(--font-hero);
+}
+.plan-lock p:last-child {
+  margin: 0;
+  color: var(--c-sub);
+}
+
+/* "If you cancel": a short headline per point, the line beneath (October 18, 2026). */
+.cancel-points {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.cancel-points li {
+  display: grid;
+  gap: 2px;
+}
+.cancel-points strong {
+  font: 700 17px / 1.3 var(--font-hero);
+}
+.cancel-points span {
+  color: var(--c-sub);
+}
+
+/* Plan history (October 18, 2026): newest first, what happened over when. */
+.plan-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.plan-history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--c-line);
+}
+.plan-history li:first-child {
+  border-top: 0;
+  padding-top: 4px;
+}
+.plan-history div {
+  display: grid;
+  gap: 2px;
+}
+.plan-history span,
+.plan-history time {
+  color: var(--c-sub);
+  font-size: 14px;
+}
+.plan-history time {
+  text-align: right;
+  flex: none;
+}
+@media (max-width: 480px) {
+  .plan-history li {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .plan-history time {
+    text-align: left;
+  }
+}
+.plan-history__year + .plan-history__year {
+  margin-top: 8px;
+  border-top: 1px solid var(--c-line);
+  padding-top: 8px;
+}
+.plan-history__year summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 6px 0;
+}
+
+/* How the trial works, up front (October 20, 2026). */
+.trial__how {
+  margin: 4px 0 0;
+  padding-left: 1.2em;
+  font-size: 13px;
+  color: var(--c-sub);
+  display: grid;
+  gap: 4px;
+}
+
+/* What each plan includes, as a list with icons (October 23, 2026). */
+.plan-card__features {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+.plan-card__features li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.plan-card__features svg {
+  flex-shrink: 0;
+  color: var(--c-success);
+}

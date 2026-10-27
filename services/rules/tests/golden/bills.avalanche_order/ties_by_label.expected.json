@@ -1,0 +1,23 @@
+{
+  "order": [
+    {
+      "id": "q",
+      "label": "Alpha",
+      "balance_cents": 1000,
+      "apr_bps": 1000,
+      "min_payment_cents": 100,
+      "rank": 1
+    },
+    {
+      "id": "p",
+      "label": "Beta",
+      "balance_cents": 1000,
+      "apr_bps": 1000,
+      "min_payment_cents": 100,
+      "rank": 2
+    }
+  ],
+  "total_balance_cents": 2000,
+  "total_min_payment_cents": 200,
+  "max_apr_bps": 1000
+}

@@ -1,0 +1,179 @@
+name: ci
+
+# A change to Markdown or the mockup pictures alone runs nothing here (and so deploys nothing);
+# security.yml still scans it for secrets. docs/design-handoff/tokens.json is not ignored (test_plans).
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/design-handoff/previews/**", "docs/design-handoff/screens/**"]
+  pull_request:
+    paths-ignore: ["**/*.md", "docs/design-handoff/previews/**", "docs/design-handoff/screens/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Which parts changed, so each job below runs only when it can be affected (owner, October 19,
+  # 2026: Actions minutes are limited). Scheduled or hand-started runs, and any doubt, run all.
+  changes:
+    name: what changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      web: ${{ steps.f.outputs.web }}
+      mobile: ${{ steps.f.outputs.mobile }}
+      python: ${{ steps.f.outputs.python }}
+      compose: ${{ steps.f.outputs.compose }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: f
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: >-
+          .github/scripts/changed.sh
+          'web=^(apps/web/|apps/site/|packages/|services/rules/|tools/|package\.json|pnpm-|turbo\.json|biome\.json|tsconfig|\.nvmrc|\.github/)'
+          'mobile=^(apps/mobile/|apps/web/scripts/icons\.ts|apps/web/public/icons/|pnpm-lock\.yaml|\.github/)'
+          'python=^(services/|tools/network_allowlist\.txt|packages/api-client/openapi\.json|docs/design-handoff/tokens\.json|\.github/)'
+          'compose=^(services/api/|docker-compose\.yml|\.github/)'
+
+  web:
+    name: lint · typecheck · test (TypeScript)
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Turborepo cache (packages whose inputs did not change replay their results)
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-web-${{ github.sha }}
+          restore-keys: turbo-web-
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Generated API client is current (packages/api-client/src/schema.ts)
+        run: |
+          pnpm -C packages/api-client generate
+          git diff --exit-code -- packages/api-client/src/schema.ts
+
+  mobile:
+    name: native shells assemble (Capacitor sync)
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Turborepo cache (packages whose inputs did not change replay their results)
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-mobile-${{ github.sha }}
+          restore-keys: turbo-mobile-
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo run build --filter=@stackd/web
+      - name: Icons, launch screens and the web build land in both projects
+        run: |
+          pnpm -C apps/mobile assets
+          pnpm -C apps/mobile sync
+      - name: Committed projects and assets are current
+        run: git diff --exit-code -- apps/mobile
+
+  python:
+    name: lint · tests (Python)
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      # services/api tests run against a real database (tests/_env.py insists on a *_test name).
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: stackd
+          POSTGRES_PASSWORD: stackd
+          POSTGRES_DB: stackd_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stackd -d stackd_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Start S3-compatible storage (RustFS) for services/api tests
+        run: |
+          docker run -d --name storage -p 9000:9000 \
+            -e RUSTFS_ACCESS_KEY=stackd -e RUSTFS_SECRET_KEY=stackd-dev-storage \
+            rustfs/rustfs:1.0.1
+          for i in $(seq 1 30); do
+            curl -fsS -o /dev/null http://localhost:9000/health && exit 0
+            sleep 1
+          done
+          echo "storage did not become ready" >&2
+          docker logs storage
+          exit 1
+      - name: Run every service's checks
+        shell: bash
+        run: |
+          shopt -s nullglob
+          found=0
+          for manifest in services/*/pyproject.toml; do
+            found=1
+            dir=$(dirname "$manifest")
+            echo "::group::$dir"
+            (cd "$dir" && uv sync --frozen && uv run ruff check . && uv run ruff format --check . && uv run pytest)
+            echo "::endgroup::"
+          done
+          if [ "$found" = 0 ]; then echo "no Python services yet"; fi
+      - name: OpenAPI snapshot is current (packages/api-client/openapi.json)
+        working-directory: services/api
+        run: uv run stackd-api openapi --check -o ../../packages/api-client/openapi.json
+
+  api-compose:
+    # Chunk 0.4 "done when": docker compose up runs API + Postgres + storage,
+    # /health returns OK, the first migration applies.
+    name: docker compose up · /health/ready · migration at head
+    needs: changes
+    if: needs.changes.outputs.compose == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bring up API + Postgres + storage
+        run: docker compose up --build --detach --wait --wait-timeout 240
+      - name: /health and /health/ready answer OK
+        run: |
+          curl -fsS http://localhost:8000/health; echo
+          curl -fsS http://localhost:8000/health/ready | tee ready.json; echo
+          python3 -c "import json; d = json.load(open('ready.json')); assert d['status'] == 'ok' and all(v == 'ok' for v in d['checks'].values()), d"
+      - name: First migration applied (database at head)
+        run: docker compose exec -T api stackd-api migrate --check
+      - name: Logs and teardown
+        if: always()
+        run: |
+          docker compose logs --no-color
+          docker compose down --volumes

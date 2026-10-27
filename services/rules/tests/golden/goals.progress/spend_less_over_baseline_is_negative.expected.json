@@ -1,0 +1,13 @@
+{
+  "kind": "spend_less",
+  "current": -2000,
+  "target": 15000,
+  "remaining": 17000,
+  "progress_bps": -1333,
+  "display_bps": 0,
+  "days_left": 11,
+  "weeks_left": 2,
+  "weekly_pace": 8500,
+  "status": "active",
+  "end_date": "2026-10-31"
+}

@@ -1,0 +1,21 @@
+{
+  "goal": {
+    "kind": "payoff",
+    "target_cents": 240000,
+    "start_date": "2026-09-01",
+    "end_date": "2027-06-30"
+  },
+  "events": [
+    {
+      "type": "balance_update",
+      "date": "2026-09-15",
+      "amount_cents": 200000
+    },
+    {
+      "type": "balance_update",
+      "date": "2026-10-05",
+      "amount_cents": 250000
+    }
+  ],
+  "as_of": "2026-10-10"
+}

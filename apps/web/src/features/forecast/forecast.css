@@ -1,0 +1,358 @@
+/* Upcoming & forecast (mockup F3Forecast) and Bills (F5Bills). */
+
+.forecast__warn {
+  background: var(--c-pending-bg);
+  color: var(--c-pending-text);
+}
+.forecast__warn .sk-card__title {
+  color: inherit;
+}
+.forecast__chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 8px 0 4px;
+}
+.forecast__axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--c-sub);
+}
+.forecast__lowest {
+  font-weight: 700;
+  font-variant-numeric: var(--numeric-data);
+}
+.forecast__lowest--bad {
+  color: var(--c-danger);
+}
+.forecast__how summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.forecast__how dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+.forecast__how dd {
+  margin: 0;
+  font-variant-numeric: var(--numeric-data);
+  text-align: right;
+}
+.up-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 56px;
+}
+.up-row + .up-row {
+  border-top: 1px solid var(--c-line);
+}
+.up-row__date {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-sub);
+}
+.up-row__label {
+  font-weight: 600;
+}
+.up-row__kind {
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.up-row__amount {
+  font-weight: 700;
+  font-variant-numeric: var(--numeric-data);
+}
+.up-row__amount--in {
+  color: var(--c-success);
+}
+.suggestion {
+  border: 2px dashed var(--c-a1);
+}
+.suggestion__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Calendar of bills and paydays (October 20, 2026). */
+.up-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.up-head .segmented {
+  max-width: 220px;
+}
+.cal__grid {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 3px;
+  table-layout: fixed;
+}
+.cal__grid th {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--c-sub);
+  padding-bottom: 2px;
+}
+.cal__grid td {
+  padding: 0;
+}
+.cal__day {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3px;
+  padding: 5px 2px;
+  border: 1.5px solid transparent;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--c-ink) 4%, var(--c-card));
+  color: var(--c-ink);
+  font: 600 13px var(--font-body);
+  cursor: pointer;
+}
+.cal__day--short {
+  background: color-mix(in srgb, var(--c-danger) 13%, var(--c-card));
+}
+.cal__day--today {
+  border-color: var(--c-ink);
+}
+.cal__day--picked {
+  border-color: var(--c-a1);
+  box-shadow: 0 0 0 1px var(--c-a1);
+}
+.cal__num {
+  white-space: nowrap;
+  font-size: 12px;
+}
+.cal__dots {
+  display: flex;
+  gap: 3px;
+  min-height: 7px;
+}
+.cal__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.cal__dot--income {
+  background: var(--c-success);
+}
+.cal__dot--bill {
+  background: var(--c-danger);
+}
+.cal__dot--paid {
+  opacity: 0.35;
+}
+.cal__key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--c-sub);
+}
+.cal__key span::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-radius: 50%;
+}
+.cal__key-in::before {
+  background: var(--c-success);
+}
+.cal__key-bill::before {
+  background: var(--c-danger);
+}
+.cal__key-short::before {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--c-danger) 25%, var(--c-card));
+}
+.cal__picked {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--c-line);
+}
+.cal__picked-day {
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+.cal__bal {
+  font-weight: 500;
+  color: var(--c-sub);
+}
+.cal__bal--short {
+  color: var(--c-danger);
+}
+.cal__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+/* Bills at a glance (October 23, 2026). */
+.bills-summary__total {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+.bills-summary__line {
+  margin: 0 0 10px;
+  color: var(--c-sub);
+}
+.bills-strip {
+  position: relative;
+  height: 14px;
+  margin: 6px 6px 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c-ink) 6%, var(--c-card));
+}
+.bills-strip__dot {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  border: 2px solid var(--c-card);
+}
+.bills-strip__dot--bill {
+  background: var(--c-danger);
+}
+.bills-strip__dot--income {
+  background: var(--c-success);
+}
+.bills-strip__dot--paid {
+  opacity: 0.35;
+}
+.bills-strip__axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-sub);
+}
+.bill-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-weight: 800;
+}
+.bill-badge--bill {
+  background: color-mix(in srgb, var(--c-danger) 14%, var(--c-card));
+  color: var(--c-danger);
+}
+.bill-badge--income {
+  background: color-mix(in srgb, var(--c-success) 14%, var(--c-card));
+  color: var(--c-success);
+}
+
+/* Chart marks and legend (October 25, 2026). */
+.forecast__today {
+  font-size: 11px;
+  fill: var(--c-sub);
+  font-weight: 600;
+}
+.forecast__pay {
+  font-size: 11px;
+  font-weight: 800;
+  fill: var(--c-card);
+  text-anchor: middle;
+}
+.forecast__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+  color: var(--c-sub);
+  margin-top: 4px;
+}
+.forecast__key {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+.forecast__key--pay {
+  background: var(--c-success);
+}
+.forecast__key--bill {
+  background: var(--c-danger);
+}
+.forecast__key--floor {
+  border-radius: 0;
+  height: 0;
+  width: 14px;
+  border-top: 2px dashed var(--c-sub);
+  vertical-align: 3px;
+}
+.forecast__key--whatif {
+  border-radius: 0;
+  height: 0;
+  width: 14px;
+  border-top: 2px dashed var(--c-success);
+  vertical-align: 3px;
+}
+.forecast__status-word {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+.forecast__status--ok .forecast__status-word {
+  color: var(--c-success);
+}
+.forecast__spans {
+  margin: 0 0 8px;
+  grid-template-columns: repeat(3, 1fr);
+}
+.whatif__row {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0;
+}
+.whatif__row input[type="range"] {
+  width: 100%;
+  min-height: 44px;
+  accent-color: var(--c-a1);
+}
+.whatif__value {
+  font-weight: 700;
+  font-variant-numeric: var(--numeric-data);
+}
+
+.up-month + .up-month {
+  border-top: 1px solid var(--c-line);
+}
+.up-month summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 48px;
+  cursor: pointer;
+}
+.up-month__name {
+  font-weight: 600;
+}

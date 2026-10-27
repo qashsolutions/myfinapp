@@ -1,0 +1,22 @@
+{
+  "members": [
+    {
+      "id": "dev",
+      "progress_bps": 6400,
+      "reached_at": null,
+      "has_events": true
+    },
+    {
+      "id": "maya",
+      "progress_bps": 8600,
+      "reached_at": null,
+      "has_events": true
+    },
+    {
+      "id": "sam",
+      "progress_bps": 4300,
+      "reached_at": null,
+      "has_events": true
+    }
+  ]
+}

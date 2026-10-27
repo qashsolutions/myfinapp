@@ -1,0 +1,33 @@
+{
+  "largest": [
+    {
+      "id": "m",
+      "date": "2026-10-01",
+      "amount_cents": 500,
+      "payee": "DELI"
+    },
+    {
+      "id": "q",
+      "date": "2026-10-01",
+      "amount_cents": 500,
+      "payee": "Cafe"
+    }
+  ],
+  "merchants": [
+    {
+      "key": "DELI",
+      "name": "DELI",
+      "count": 2,
+      "total_cents": 1000,
+      "last_date": "2026-10-01"
+    },
+    {
+      "key": "CAFE",
+      "name": "Cafe",
+      "count": 1,
+      "total_cents": 500,
+      "last_date": "2026-10-01"
+    }
+  ],
+  "count": 3
+}

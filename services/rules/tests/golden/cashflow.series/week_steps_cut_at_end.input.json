@@ -1,0 +1,47 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-20",
+  "step": "week",
+  "entries": [
+    {
+      "id": "a",
+      "date": "2026-10-01",
+      "amount_cents": 500,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "chk"
+    },
+    {
+      "id": "b",
+      "date": "2026-10-08",
+      "amount_cents": 700,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense",
+      "account_id": "chk"
+    },
+    {
+      "id": "c",
+      "date": "2026-10-14",
+      "amount_cents": 10000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-pay",
+      "category_kind": "income",
+      "account_id": "chk"
+    },
+    {
+      "id": "d",
+      "date": "2026-10-19",
+      "amount_cents": 300,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "chk"
+    }
+  ]
+}

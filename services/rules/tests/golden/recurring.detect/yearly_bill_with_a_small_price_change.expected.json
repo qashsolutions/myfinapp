@@ -1,0 +1,18 @@
+{
+  "series": [
+    {
+      "payee": "STATE DMV",
+      "kind": "bill",
+      "direction": "out",
+      "expected_cents": 15250,
+      "interval": "yearly",
+      "last_date": "2025-09-01",
+      "next_date": "2026-09-01",
+      "occurrences": 2,
+      "entry_ids": [
+        "d1",
+        "d2"
+      ]
+    }
+  ]
+}

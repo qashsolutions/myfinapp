@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 2 — Pay</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <div style="display:flex;align-items:center;gap:12px">
+    <a href="F1Passkey.dc.html" aria-label="Back" style="{{S.back}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+    <div style="flex:1;display:flex;gap:6px" aria-label="Step 1 of 5">
+      <span style="{{S.on}}"></span><span style="{{S.off}}"></span><span style="{{S.off}}"></span><span style="{{S.off}}"></span><span style="{{S.off}}"></span>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;margin-top:24px">
+    <span style="font:700 30px Outfit,sans-serif;letter-spacing:-0.01em">What do you take home?</span>
+    <span style="font-size:16px;line-height:1.45;color:{{m.sub}}">Your pay after tax. It stays on this device and powers your budget and forecast.</span>
+  </div>
+
+  <label for="pay" style="font-size:13px;font-weight:600;color:{{m.sub}};margin-top:24px">Each paycheck</label>
+  <div style="{{S.amount}}">
+    <span style="font:600 30px Outfit,sans-serif;color:{{m.sub}}">$</span>
+    <input id="pay" inputmode="decimal" value="{{pay}}" onChange="{{setPay}}" style="{{S.input}}">
+  </div>
+
+  <span style="font-size:13px;font-weight:600;color:{{m.sub}};margin-top:20px">How often are you paid?</span>
+  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px">
+    <sc-for list="{{freqs}}" as="f" hint-placeholder-count="4">
+      <button onClick="{{f.pick}}" aria-pressed="{{f.sel}}" style="{{f.st}}">{{f.n}}</button>
+    </sc-for>
+  </div>
+
+  <div style="{{S.calc}}">
+    <span style="font-size:13px;color:{{m.sub}}">That's about</span>
+    <span style="font:700 26px Outfit,sans-serif;font-variant-numeric:tabular-nums">{{monthly}} a month</span>
+    <span style="font-size:13px;color:{{m.sub}}">Next payday: <b style="color:{{m.ink}}">Fri, Oct 16</b> · change</span>
+  </div>
+
+  <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+    <a href="F2Method.dc.html" style="{{S.primary}}">Continue</a>
+    <a href="F2Method.dc.html" style="{{S.link}}">My income changes — I'll use an average</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { pay: '2,400', f: 'biweekly' }; }
+  renderVals() {
+    const dark = !!this.props.dark, st = this.state;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', tint: '#1E2433', acc: '#8FA2FF' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE' };
+    const per = { weekly: 52 / 12, biweekly: 26 / 12, semimonthly: 2, monthly: 1 };
+    const n = Number(String(st.pay).replace(/[^0-9.]/g, '')) || 0;
+    const monthly = '$' + Math.round(n * per[st.f]).toLocaleString('en-US');
+    const chip = (on) => 'min-height:52px;border-radius:14px;font:600 15px Outfit,sans-serif;cursor:pointer;' + (on ? 'background:' + m.tint + ';color:' + m.acc + ';border:2px solid #3D5AFE' : 'background:' + m.card + ';color:' + m.ink + ';border:2px solid ' + m.line);
+    const freqs = [['weekly', 'Weekly'], ['biweekly', 'Every 2 weeks'], ['semimonthly', 'Twice a month'], ['monthly', 'Monthly']]
+      .map(([k, n]) => ({ n, sel: st.f === k ? 'true' : 'false', st: chip(st.f === k), pick: () => this.setState({ f: k }) }));
+    const bar = 'flex:1;height:6px;border-radius:3px;';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:28px 22px 30px;display:flex;flex-direction:column;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      back: 'width:44px;height:44px;flex-shrink:0;border-radius:50%;background:' + m.card + ';display:flex;align-items:center;justify-content:center',
+      on: bar + 'background:#3D5AFE', off: bar + 'background:' + m.line,
+      amount: 'margin-top:8px;display:flex;align-items:center;gap:6px;min-height:72px;padding:0 18px;border-radius:18px;background:' + m.card + ';border:2px solid #3D5AFE',
+      input: 'flex:1;min-width:0;border:0;outline:none;background:transparent;font:700 34px Outfit,sans-serif;font-variant-numeric:tabular-nums;color:' + m.ink,
+      calc: 'margin-top:20px;display:flex;flex-direction:column;gap:4px;padding:16px;border-radius:18px;background:' + m.card,
+      primary: 'min-height:54px;display:flex;align-items:center;justify-content:center;border-radius:16px;font:600 16px Outfit,sans-serif;background:#3D5AFE;color:#FFFFFF',
+      link: 'min-height:44px;display:flex;align-items:center;justify-content:center;font:600 15px Outfit,sans-serif;color:' + m.acc
+    };
+    return { S, m, pay: st.pay, freqs, monthly, setPay: (e) => this.setState({ pay: e.target.value }) };
+  }
+}
+</script>
+</body>
+</html>

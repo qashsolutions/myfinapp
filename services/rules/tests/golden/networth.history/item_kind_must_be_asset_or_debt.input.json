@@ -1,0 +1,14 @@
+{
+  "dates": [
+    "2026-10-01"
+  ],
+  "accounts": [],
+  "items": [
+    {
+      "id": "x",
+      "kind": "stock",
+      "value_cents": 1,
+      "since": "2026-10-01"
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+name: deploy
+
+# Production deploy (docs/ops/aws-hosting.md, step G). Runs after CI passes on main, or by hand.
+# AWS access is the role qash-deploy through GitHub's OIDC (no stored keys); it can touch only
+# the two site buckets, the two CloudFront distributions and the Lightsail service qash-api.
+# Server settings come from the environment secret STACKD_PROD_ENV_JSON. Lightsail echoes a
+# deployment's environment in its responses, so every call below narrows or discards its output.
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    # Only a push to this repository's main that passed CI. A fork's pull request from a branch
+    # also named main triggers ci too, so the event and the repository are checked explicitly:
+    # fork code must never run with the production secrets.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 40
+    env:
+      AWS_REGION: us-east-1
+      SERVICE: qash-api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::236823123138:role/qash-deploy
+          aws-region: us-east-1
+
+      - name: API image
+        run: |
+          docker build -f services/api/Dockerfile -t qash-api:${GITHUB_SHA::12} .
+          sudo curl -fsSL https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl -o /usr/local/bin/lightsailctl
+          sudo chmod +x /usr/local/bin/lightsailctl
+          aws lightsail push-container-image --service-name "$SERVICE" --label api \
+            --image "qash-api:${GITHUB_SHA::12}" > push.log
+          image=$(grep -o ":$SERVICE\.api\.[0-9]*" push.log | tail -1)
+          test -n "$image"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+
+      - name: API deploy (migrates on start) and wait until healthy
+        env:
+          PROD_ENV: ${{ secrets.STACKD_PROD_ENV_JSON }}
+        run: |
+          umask 077
+          printf '%s' "$PROD_ENV" > env.json
+          jq -r '.[]' env.json | while IFS= read -r v; do echo "::add-mask::$v"; done
+          jq --arg image "$IMAGE" '{
+              api: {image: $image, environment: ., ports: {"8000": "HTTP"}},
+              jobs: {image: $image, environment: ., command: ["stackd-api", "jobs-loop"]}
+            }' env.json > containers.json
+          rm env.json
+          aws lightsail create-container-service-deployment --service-name "$SERVICE" \
+            --containers file://containers.json \
+            --public-endpoint '{"containerName":"api","containerPort":8000,"healthCheck":{"path":"/health/ready","intervalSeconds":10,"timeoutSeconds":5,"healthyThreshold":2,"unhealthyThreshold":3,"successCodes":"200"}}' \
+            --query 'containerService.nextDeployment.version' --output text > version.txt
+          rm containers.json
+          version=$(cat version.txt)
+          echo "deployment $version"
+          for i in $(seq 1 60); do
+            read -r state current <<<"$(aws lightsail get-container-services --service-name "$SERVICE" \
+              --query 'containerServices[0].[state,currentDeployment.version]' --output text)"
+            echo "state=$state current=$current"
+            if [ "$current" = "$version" ] && [ "$state" = "RUNNING" ]; then exit 0; fi
+            next=$(aws lightsail get-container-services --service-name "$SERVICE" \
+              --query 'containerServices[0].nextDeployment.state' --output text)
+            if [ "$next" = "FAILED" ]; then echo "deployment $version failed"; exit 1; fi
+            sleep 20
+          done
+          echo "timed out waiting for deployment $version"; exit 1
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build the app and the website (app links stay hidden until PUBLIC_APP_LIVE)
+        run: pnpm turbo run build --filter=@stackd/web --filter=@stackd/site
+
+      - name: Upload the app
+        run: |
+          cd apps/web/dist
+          aws s3 sync assets s3://qash-app/assets --cache-control "public,max-age=31536000,immutable" --only-show-errors
+          aws s3 sync . s3://qash-app --delete --exclude "assets/*" --exclude index.html --exclude sw.js \
+            --exclude theme-init.js --exclude manifest.webmanifest --exclude version.json --cache-control "public,max-age=86400" --only-show-errors
+          aws s3 cp index.html s3://qash-app/index.html --cache-control no-cache --content-type "text/html; charset=utf-8" --only-show-errors
+          aws s3 cp sw.js s3://qash-app/sw.js --cache-control no-cache --content-type "text/javascript; charset=utf-8" --only-show-errors
+          aws s3 cp theme-init.js s3://qash-app/theme-init.js --cache-control no-cache --content-type "text/javascript; charset=utf-8" --only-show-errors
+          aws s3 cp manifest.webmanifest s3://qash-app/manifest.webmanifest --cache-control no-cache --content-type "application/manifest+json" --only-show-errors
+          # The build the app compares itself with (src/pwa/updates.ts); never cached.
+          aws s3 cp version.json s3://qash-app/version.json --cache-control no-store --content-type "application/json" --only-show-errors
+          # Hashed assets of earlier builds are kept, so a tab still on the old version keeps working.
+          aws cloudfront create-invalidation --distribution-id E3B3M9OV4HUBRW --paths "/index.html" "/sw.js" "/theme-init.js" "/manifest.webmanifest" "/version.json" "/" --query Invalidation.Id --output text
+
+      - name: Upload the website
+        run: |
+          cd apps/site/dist
+          aws s3 sync _astro s3://qash-site/_astro --cache-control "public,max-age=31536000,immutable" --only-show-errors
+          aws s3 sync . s3://qash-site --delete --exclude "_astro/*" --exclude "*.html" --cache-control "public,max-age=3600" --only-show-errors
+          aws s3 sync . s3://qash-site --exclude "*" --include "*.html" --cache-control "public,max-age=0,must-revalidate" --content-type "text/html; charset=utf-8" --only-show-errors
+          aws cloudfront create-invalidation --distribution-id E3E7VIJQ2LK7LI --paths "/*" --query Invalidation.Id --output text

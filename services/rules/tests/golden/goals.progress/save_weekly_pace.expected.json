@@ -1,0 +1,13 @@
+{
+  "kind": "save",
+  "current": 64000,
+  "target": 200000,
+  "remaining": 136000,
+  "progress_bps": 3200,
+  "display_bps": 3200,
+  "days_left": 263,
+  "weeks_left": 38,
+  "weekly_pace": 3579,
+  "status": "active",
+  "end_date": "2027-06-30"
+}

@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "id": "a",
+      "date": "2026-07-22",
+      "amount_cents": 16000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Grocer"
+    },
+    {
+      "id": "b",
+      "date": "2026-08-22",
+      "amount_cents": 20000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Grocer"
+    },
+    {
+      "id": "c",
+      "date": "2026-09-22",
+      "amount_cents": 16000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Grocer"
+    }
+  ],
+  "as_of": "2026-10-10"
+}

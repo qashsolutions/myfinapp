@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 5 — Emergency fund</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;align-items:center;gap:10px">
+    <a href="F3Home.dc.html" aria-label="Back" style="{{S.icon}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+    <span style="font:700 22px Outfit,sans-serif">Emergency fund</span>
+  </header>
+
+  <section style="{{S.hero}}">
+    <span style="font-size:13px;font-weight:600;opacity:0.9">Runway if income stopped</span>
+    <span style="font:700 44px Outfit,sans-serif;font-variant-numeric:tabular-nums;line-height:1">{{runway}}</span>
+    <span style="font-size:14px;opacity:0.9">$620 saved · essentials $3,062/month (needs from your budget)</span>
+  </section>
+
+  <div style="{{S.seg}}" role="group" aria-label="Target">
+    <button onClick="{{set3}}" aria-pressed="{{s3}}" style="{{S.b3}}">3-month target</button>
+    <button onClick="{{set6}}" aria-pressed="{{s6}}" style="{{S.b6}}">6-month target</button>
+  </div>
+
+  <section style="{{S.card}}">
+    <sc-for list="{{steps}}" as="s" hint-placeholder-count="4">
+      <div style="display:flex;flex-direction:column;gap:6px;padding:8px 0">
+        <div style="display:flex;justify-content:space-between;font-size:14px"><span style="font-weight:600">{{s.n}}</span><span style="font-variant-numeric:tabular-nums;color:{{m.sub}}">{{s.v}}</span></div>
+        <div style="height:8px;border-radius:4px;background:{{m.line}};overflow:hidden"><div style="{{s.bar}}"></div></div>
+      </div>
+    </sc-for>
+    <span style="font-size:13px;color:{{m.sub}};padding:4px 0 8px">At $77 a paycheck: starter fund by Dec 11, {{targetEta}}</span>
+  </section>
+
+  <a href="F5Learn.dc.html" style="{{S.learn}}">
+    <span style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-weight:600;font-size:15px">Where should this money live?</span><span style="font-size:13px;color:{{m.sub}}">Savings accounts, money market accounts and CDs, explained</span></span><span style="color:{{m.acc}};font-size:20px">›</span>
+  </a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { months: 3 }; }
+  renderVals() {
+    const dark = !!this.props.dark, mo = this.state.months, saved = 620, ess = 3062;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', acc: '#8FA2FF' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', acc: '#3D5AFE' };
+    const seg = (on) => 'flex:1;min-height:44px;border:0;border-radius:12px;cursor:pointer;font:600 14px Outfit,sans-serif;' + (on ? 'background:' + m.card + ';color:' + m.ink + ';box-shadow:0 2px 6px rgba(0,0,0,0.12)' : 'background:transparent;color:' + m.sub);
+    const money = (v) => '$' + Math.round(v).toLocaleString('en-US');
+    const T = [['Starter fund', 1000], ['1 month of essentials', ess], [mo + ' months', ess * mo]];
+    const steps = T.map(([n, t]) => ({ n, v: money(Math.min(saved, t)) + ' / ' + money(t), bar: 'width:' + Math.min(100, Math.round(saved / t * 100)) + '%;height:100%;background:#0B7A55' }));
+    const checks = Math.ceil((ess * mo - saved) / 77);
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:24px 18px 28px;display:flex;flex-direction:column;gap:12px;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      icon: 'width:44px;height:44px;flex-shrink:0;border-radius:50%;background:' + m.card + ';display:flex;align-items:center;justify-content:center',
+      hero: 'display:flex;flex-direction:column;gap:6px;padding:18px;border-radius:22px;background:#0B7A55;color:#FFFFFF',
+      seg: 'display:flex;gap:4px;padding:4px;border-radius:14px;background:' + (dark ? '#1C1F28' : '#E7E9EF'), b3: seg(mo === 3), b6: seg(mo === 6),
+      card: 'display:flex;flex-direction:column;padding:6px 16px;border-radius:20px;background:' + m.card,
+      learn: 'display:flex;align-items:center;gap:12px;padding:16px;border-radius:20px;background:' + m.card
+    };
+    return { S, m, steps, runway: (saved / ess).toFixed(1) + ' months', targetEta: mo + '-month target in about ' + (checks * 14 / 365).toFixed(1) + ' years (' + checks + ' paychecks) — raising your amount shortens this',
+      s3: mo === 3 ? 'true' : 'false', s6: mo === 6 ? 'true' : 'false', set3: () => this.setState({ months: 3 }), set6: () => this.setState({ months: 6 }) };
+  }
+}
+</script>
+</body>
+</html>

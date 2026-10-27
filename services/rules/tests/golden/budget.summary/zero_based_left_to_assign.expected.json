@@ -1,0 +1,56 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-31",
+  "method": "zero_based",
+  "take_home_cents": 520000,
+  "buckets": [
+    {
+      "bucket": "need",
+      "planned_cents": 225000,
+      "spent_cents": 235000,
+      "left_cents": -10000
+    },
+    {
+      "bucket": "want",
+      "planned_cents": 30000,
+      "spent_cents": 0,
+      "left_cents": 30000
+    },
+    {
+      "bucket": "save",
+      "planned_cents": 100000,
+      "spent_cents": 0,
+      "left_cents": 100000
+    }
+  ],
+  "categories": [
+    {
+      "category_id": "cat-rent",
+      "bucket": "need",
+      "planned_cents": 165000,
+      "spent_cents": 165000
+    },
+    {
+      "category_id": "cat-groceries",
+      "bucket": "need",
+      "planned_cents": 60000,
+      "spent_cents": 70000
+    },
+    {
+      "category_id": "cat-fun",
+      "bucket": "want",
+      "planned_cents": 30000,
+      "spent_cents": 0
+    },
+    {
+      "category_id": "cat-savings",
+      "bucket": "save",
+      "planned_cents": 100000,
+      "spent_cents": 0
+    }
+  ],
+  "uncategorized_cents": 1500,
+  "total_spent_cents": 236500,
+  "left_to_assign_cents": 165000,
+  "kept_cents": 283500
+}

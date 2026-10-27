@@ -1,0 +1,11 @@
+{
+  "items": [
+    {
+      "id": "a",
+      "kind": "asset",
+      "group": "mortgage",
+      "value_cents": 5
+    }
+  ],
+  "previous_net_cents": null
+}

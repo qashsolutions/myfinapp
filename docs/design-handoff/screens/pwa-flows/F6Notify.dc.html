@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 6 — Notifications</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;align-items:center;gap:10px">
+    <a href="F6Settings.dc.html" aria-label="Back" style="{{S.icon}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+    <span style="font:700 22px Outfit,sans-serif">Notifications</span>
+  </header>
+
+  <section style="{{S.list}}">
+    <sc-for list="{{types}}" as="t" hint-placeholder-count="6">
+      <div style="{{S.row}}">
+        <span style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">{{t.n}}</span><span style="font-size:12px;color:{{m.sub}}">{{t.s}}</span></span>
+        <button onClick="{{t.flip}}" aria-label="{{t.n}}" aria-pressed="{{t.on}}" style="{{t.track}}"><span style="{{t.knob}}"></span></button>
+      </div>
+    </sc-for>
+  </section>
+
+  <section style="{{S.list}}">
+    <div style="{{S.row}}"><span style="flex:1;font-size:15px;font-weight:600">Quiet hours</span><span style="{{S.val}}">9:00 pm – 8:00 am</span></div>
+    <div style="{{S.row}}"><span style="flex:1;font-size:15px;font-weight:600">Most per day</span><span style="{{S.val}}">3 · extras go in one summary</span></div>
+    <div style="{{S.rowLast}}"><span style="flex:1;font-size:15px;font-weight:600">Pause all</span><button style="{{S.pause}}">1 day</button><button style="{{S.pause}}">1 week</button></div>
+  </section>
+
+  <section style="{{S.note}}">
+    <span style="font-weight:600;font-size:15px">Security alerts are always on</span>
+    <span style="font-size:13px;line-height:1.45">New sign-ins, passkey changes, exports, email changes and deletion requests — sent by email, and push if allowed.</span>
+  </section>
+  <span style="font-size:12px;color:{{m.sub}};text-align:center;line-height:1.45">Alerts never include amounts or merchant names. Open the app to see details.</span>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { up: true, short: true, ch: true, behind: true, mile: true, grp: false, recap: true }; }
+  renderVals() {
+    const dark = !!this.props.dark, st = this.state;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', tint: '#1E2433', acc: '#8FA2FF' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE' };
+    const T = [['up', 'Upcoming expense', '3 days before · bills and recurring'], ['short', 'Shortfall risk', 'When the forecast dips below $0'], ['ch', 'Challenge check-in', 'Daily at 7:30 pm'], ['behind', 'Goal behind pace', 'After 1 missed period'], ['mile', 'Milestone reached', 'When a jar hits a milestone'], ['grp', 'Group activity', 'One daily summary'], ['recap', 'Weekly recap', 'Sundays 9 am · push']];
+    const types = T.map(([k, n, s]) => { const on = !!st[k]; return { n, s, on: on ? 'true' : 'false', flip: () => this.setState({ [k]: !on }),
+      track: 'width:52px;height:32px;flex-shrink:0;padding:0;border:0;border-radius:999px;cursor:pointer;display:flex;align-items:center;background:' + (on ? '#0B7A55' : (dark ? '#33333D' : '#D5D7DE')),
+      knob: 'width:26px;height:26px;border-radius:50%;background:#FFFFFF;margin-left:' + (on ? '23px' : '3px') }; });
+    const row = 'display:flex;align-items:center;gap:10px;min-height:54px;';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:24px 18px 28px;display:flex;flex-direction:column;gap:12px;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      icon: 'width:44px;height:44px;flex-shrink:0;border-radius:50%;background:' + m.card + ';display:flex;align-items:center;justify-content:center',
+      list: 'display:flex;flex-direction:column;padding:0 16px;border-radius:20px;background:' + m.card,
+      row: row + 'border-bottom:1px solid ' + m.line, rowLast: row,
+      val: 'font-size:13px;font-weight:600;color:' + m.sub,
+      pause: 'min-height:44px;padding:0 12px;border-radius:12px;cursor:pointer;background:' + m.tint + ';border:0;color:' + m.acc + ';font:600 13px Outfit,sans-serif',
+      note: 'display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:18px;background:' + m.tint + ';color:' + m.ink
+    };
+    return { S, m, types };
+  }
+}
+</script>
+</body>
+</html>

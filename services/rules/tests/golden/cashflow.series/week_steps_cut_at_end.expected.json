@@ -1,0 +1,50 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-20",
+  "step": "week",
+  "steps": [
+    {
+      "start": "2026-10-01",
+      "end": "2026-10-07",
+      "in_cents": 0,
+      "out_cents": 500,
+      "net_cents": -500,
+      "count": 1
+    },
+    {
+      "start": "2026-10-08",
+      "end": "2026-10-14",
+      "in_cents": 10000,
+      "out_cents": 700,
+      "net_cents": 9300,
+      "count": 2
+    },
+    {
+      "start": "2026-10-15",
+      "end": "2026-10-20",
+      "in_cents": 0,
+      "out_cents": 300,
+      "net_cents": -300,
+      "count": 1
+    }
+  ],
+  "in_cents": 10000,
+  "out_cents": 1500,
+  "net_cents": 8500,
+  "count": 4,
+  "by_category": [
+    {
+      "category_id": "cat-dining",
+      "out_cents": 800
+    },
+    {
+      "category_id": "cat-groceries",
+      "out_cents": 700
+    }
+  ],
+  "active_months": 1,
+  "avg_in_cents": 10000,
+  "avg_out_cents": 1500,
+  "avg_net_cents": 8500,
+  "first_date": "2026-10-01"
+}

@@ -1,0 +1,81 @@
+/* Settings → App look: each tile is painted by its own look's tokens (data-look on the tile). */
+.look-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 12px;
+  margin: 8px 0 12px;
+  padding: 0;
+  border: 0;
+}
+
+.look-tile {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 16px;
+  background: var(--c-bg);
+  color: var(--c-ink);
+  cursor: pointer;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  font-family: var(--font-body);
+}
+
+.look-tile:has(input:checked) {
+  outline-color: var(--c-a1);
+}
+
+.look-tile:has(input:focus-visible) {
+  outline-color: var(--c-ink);
+}
+
+.look-tile input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.look-tile__card {
+  background: var(--c-card);
+  border: var(--border-card);
+  border-radius: calc(var(--radius-card) * 0.5);
+  box-shadow: var(--shadow-card);
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.look-tile__hero {
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+  border-radius: calc(var(--radius-card) * 0.35);
+  padding: 6px 8px;
+  font-family: var(--font-hero);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.look-tile__chips {
+  display: flex;
+  gap: 4px;
+}
+
+.look-tile__chips span {
+  height: 8px;
+  flex: 1;
+  border-radius: var(--radius-toggle);
+}
+
+.look-tile__name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.look-tile__line {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--c-line);
+}

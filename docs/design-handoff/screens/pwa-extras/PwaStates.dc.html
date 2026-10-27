@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PWA — Offline and update states</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;flex-direction:column"><span style="font-size:13px;color:{{m.sub}}">Good morning</span><span style="font:700 24px Outfit,sans-serif">[Name]</span></div>
+    <button aria-label="Settings" style="{{S.avatar}}">N</button>
+  </header>
+
+  <sc-if value="{{offline}}" hint-placeholder-val="{{ true }}">
+    <div role="status" style="{{S.banner}}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 2l20 20"></path><path d="M5.8 5.8A7 7 0 0 0 6 19h11a4.5 4.5 0 0 0 2.5-.8M9.5 5.2A7 7 0 0 1 18.4 9.5 4.5 4.5 0 0 1 21.6 16"></path></svg>
+      <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-weight:600;font-size:15px">You're offline</span><span style="font-size:13px;opacity:0.85">Changes are saved on this device and sync when you're back.</span></div>
+    </div>
+  </sc-if>
+
+  <section style="{{S.hero}}">
+    <span style="font-size:13px;font-weight:600">Kept this month</span>
+    <span style="font:700 52px Outfit,sans-serif;letter-spacing:-0.03em;line-height:1">$412</span>
+    <div style="height:12px;border-radius:999px;background:rgba(255,255,255,0.25);overflow:hidden"><div style="width:69%;height:100%;background:#FFFFFF"></div></div>
+    <span style="font-size:12px;font-weight:600">{{heroNote}}</span>
+  </section>
+
+  <section style="{{S.card}}">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0 6px"><span style="font:700 17px Outfit,sans-serif">Recent entries</span><span style="font-size:13px;color:{{m.sub}}">{{pendingLabel}}</span></div>
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+      <div style="{{S.row}}">
+        <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-weight:600;font-size:15px">{{r.n}}</span><span style="font-size:12px;color:{{m.sub}}">{{r.d}}</span></div>
+        <sc-if value="{{r.pending}}" hint-placeholder-val="{{ false }}"><span style="{{S.chip}}">Waiting to sync</span></sc-if>
+        <span style="font-weight:600;font-size:15px;font-variant-numeric:tabular-nums">{{r.v}}</span>
+      </div>
+    </sc-for>
+  </section>
+
+  <sc-if value="{{update}}" hint-placeholder-val="{{ false }}">
+    <div role="status" style="{{S.toast}}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"></path><path d="M21 3v5h-5"></path></svg>
+      <span style="flex:1;font-size:15px;font-weight:500">A new version is ready.</span>
+      <button style="{{S.toastBtn}}">Refresh</button>
+      <button aria-label="Dismiss" style="{{S.toastX}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+    </div>
+  </sc-if>
+
+  <nav style="{{S.nav}}">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+      <button style="{{t.st}}">{{t.n}}</button>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"state":{"editor":"enum","options":["offline","update"],"default":"offline"},"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark, offline = (this.props.state || 'offline') === 'offline';
+    const m = dark
+      ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36' }
+      : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE' };
+    const sh = '0 6px 20px rgba(17,24,39,' + (dark ? '0.4' : '0.08') + ')';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:26px 18px 110px;display:flex;flex-direction:column;gap:14px;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      avatar: 'width:48px;height:48px;border:0;border-radius:50%;background:#7C3AED;color:#FFFFFF;font:700 18px Outfit,sans-serif;cursor:pointer',
+      banner: 'display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:18px;background:' + (dark ? '#2A2F3D' : '#1F2937') + ';color:#F9FAFB',
+      hero: 'display:flex;flex-direction:column;gap:8px;padding:20px;border-radius:22px;background:#3D5AFE;color:#FFFFFF;box-shadow:' + sh,
+      card: 'display:flex;flex-direction:column;padding:0 16px 6px;border-radius:22px;background:' + m.card + ';box-shadow:' + sh,
+      row: 'display:flex;align-items:center;gap:10px;min-height:60px;border-top:1px solid ' + m.line,
+      chip: 'font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:' + (dark ? '#3A2E12' : '#FFF4E0') + ';color:' + (dark ? '#FFB547' : '#8A4B00'),
+      toast: 'position:absolute;left:16px;right:16px;bottom:100px;display:flex;align-items:center;gap:10px;padding:8px 8px 8px 16px;border-radius:18px;background:' + (dark ? '#F1F3F8' : '#111827') + ';color:' + (dark ? '#111827' : '#F9FAFB') + ';box-shadow:0 12px 30px rgba(0,0,0,0.25)',
+      toastBtn: 'min-height:44px;padding:0 16px;border:0;border-radius:12px;background:#3D5AFE;color:#FFFFFF;font:600 14px Outfit,sans-serif;cursor:pointer',
+      toastX: 'width:44px;height:44px;border:0;border-radius:12px;background:transparent;color:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center',
+      nav: 'position:absolute;left:16px;right:16px;bottom:18px;height:68px;padding:0 6px;display:flex;align-items:center;background:' + m.card + ';border-radius:26px;box-shadow:0 8px 24px rgba(0,0,0,' + (dark ? '0.4' : '0.10') + ')'
+    };
+    const rows = [
+      { n: 'Corner Market', d: 'Today · Groceries · receipt', v: '$42.17', p: true },
+      { n: 'Bus pass', d: 'Today · Transport', v: '$2.75', p: true },
+      { n: 'Coffee beans', d: 'Yesterday · Groceries', v: '$14.99', p: false },
+      { n: 'Phone bill', d: 'Oct 7 · Utilities & phone', v: '$45.00', p: false }
+    ].map(r => ({ n: r.n, d: r.d, v: r.v, pending: offline && r.p }));
+    const tabs = ['Home', 'Budget', 'Goals', 'Learn', 'Me'].map((n, i) => ({ n,
+      st: 'flex:1;min-height:48px;border:0;border-radius:16px;cursor:pointer;font:600 12px Outfit,sans-serif;' + (i === 0 ? 'background:#3D5AFE;color:#FFFFFF' : 'background:transparent;color:' + m.sub) }));
+    return {
+      S, m, rows, tabs, offline, update: !offline,
+      heroNote: offline ? 'Includes 2 entries not yet synced' : '69% of $600 · 23 days left',
+      pendingLabel: offline ? '2 waiting' : 'All synced'
+    };
+  }
+}
+</script>
+</body>
+</html>

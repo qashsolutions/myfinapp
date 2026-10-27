@@ -1,0 +1,38 @@
+{
+  "start": "2026-09-01",
+  "end": "2026-10-31",
+  "step": "month",
+  "steps": [
+    {
+      "start": "2026-09-01",
+      "end": "2026-09-30",
+      "in_cents": 0,
+      "out_cents": 2,
+      "net_cents": -2,
+      "count": 1
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2026-10-31",
+      "in_cents": 0,
+      "out_cents": 3,
+      "net_cents": -3,
+      "count": 1
+    }
+  ],
+  "in_cents": 0,
+  "out_cents": 5,
+  "net_cents": -5,
+  "count": 2,
+  "by_category": [
+    {
+      "category_id": "cat-dining",
+      "out_cents": 5
+    }
+  ],
+  "active_months": 2,
+  "avg_in_cents": 0,
+  "avg_out_cents": 2,
+  "avg_net_cents": -2,
+  "first_date": "2026-09-05"
+}

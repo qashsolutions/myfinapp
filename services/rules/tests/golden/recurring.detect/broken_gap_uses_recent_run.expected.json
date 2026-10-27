@@ -1,0 +1,20 @@
+{
+  "series": [
+    {
+      "payee": "RENT",
+      "kind": "bill",
+      "direction": "out",
+      "expected_cents": 165000,
+      "interval": "monthly",
+      "last_date": "2026-09-20",
+      "next_date": "2026-10-20",
+      "occurrences": 4,
+      "entry_ids": [
+        "r1",
+        "r2",
+        "r3",
+        "r4"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 1 — Email code</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <a href="F1Email.dc.html" aria-label="Back" style="{{S.back}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+
+  <div style="display:flex;flex-direction:column;gap:10px;margin-top:28px">
+    <span style="font:700 30px Outfit,sans-serif;letter-spacing:-0.01em">Check your email</span>
+    <span style="font-size:16px;line-height:1.45;color:{{m.sub}}">Enter the 6-digit code we sent to <b style="color:{{m.ink}}">maya.r@example.com</b>. It expires in 10 minutes.</span>
+  </div>
+
+  <div style="position:relative;margin-top:32px">
+    <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px" aria-hidden="true">
+      <sc-for list="{{boxes}}" as="b" hint-placeholder-count="6">
+        <span style="{{b.st}}">{{b.d}}</span>
+      </sc-for>
+    </div>
+    <label for="otp" style="position:absolute;left:-9999px">6-digit code</label>
+    <input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" value="{{code}}" onChange="{{setCode}}" style="position:absolute;inset:0;width:100%;height:100%;opacity:0.01;font-size:16px;border:0;cursor:text">
+  </div>
+
+  <sc-if value="{{done}}" hint-placeholder-val="{{ false }}">
+    <div role="status" style="{{S.ok}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg>Code verified</div>
+  </sc-if>
+
+  <div style="display:flex;flex-direction:column;gap:6px;margin-top:20px;font-size:14px;color:{{m.sub}}">
+    <span>Didn't get it? Check spam, or resend in <b class="t" style="color:{{m.ink}};font-variant-numeric:tabular-nums">0:42</b></span>
+    <a href="F1Email.dc.html" style="color:{{m.acc}};font-weight:600;min-height:44px;display:flex;align-items:center">Wrong email? Change it</a>
+  </div>
+
+  <div style="margin-top:auto;display:flex;flex-direction:column;gap:12px">
+    <sc-if value="{{done}}" hint-placeholder-val="{{ false }}">
+      <a href="F1Passkey.dc.html" style="{{S.primary}}">Continue</a>
+    </sc-if>
+    <sc-if value="{{notDone}}" hint-placeholder-val="{{ true }}">
+      <button disabled style="{{S.disabled}}">Continue</button>
+    </sc-if>
+    <span style="text-align:center;font-size:12px;color:{{m.sub}}">After 5 wrong tries, codes pause for 15 minutes.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { code: '4829' }; }
+  renderVals() {
+    const dark = !!this.props.dark;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', acc: '#8FA2FF', good: '#6FD39B', goodBg: '#123321' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', acc: '#3D5AFE', good: '#1E7A4C', goodBg: '#E3F4EA' };
+    const code = (this.state.code || '').replace(/\D/g, '').slice(0, 6);
+    const done = code.length === 6;
+    const boxes = [0, 1, 2, 3, 4, 5].map(i => {
+      const filled = i < code.length, active = i === code.length && !done;
+      return { d: filled ? code.charAt(i) : '',
+        st: 'height:60px;border-radius:14px;display:flex;align-items:center;justify-content:center;font:600 26px Outfit,sans-serif;font-variant-numeric:tabular-nums;background:' + m.card + ';color:' + m.ink + ';border:2px solid ' + (active || done ? '#3D5AFE' : m.line) };
+    });
+    const btn = 'min-height:54px;display:flex;align-items:center;justify-content:center;border-radius:16px;font:600 16px Outfit,sans-serif;width:100%;box-sizing:border-box;';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:28px 22px 30px;display:flex;flex-direction:column;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      back: 'width:44px;height:44px;border-radius:50%;background:' + m.card + ';display:flex;align-items:center;justify-content:center',
+      ok: 'margin-top:16px;display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;font-weight:600;font-size:15px;background:' + m.goodBg + ';color:' + m.good,
+      primary: btn + 'background:#3D5AFE;color:#FFFFFF',
+      disabled: btn + 'border:0;background:' + (dark ? '#262A36' : '#DCDFE7') + ';color:' + m.sub
+    };
+    return { S, m, boxes, code, done, notDone: !done, setCode: (e) => this.setState({ code: e.target.value }) };
+  }
+}
+</script>
+</body>
+</html>

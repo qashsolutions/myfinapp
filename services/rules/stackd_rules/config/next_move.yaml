@@ -1,0 +1,20 @@
+# Home's next-move card (docs/spec.md "Next move (Home card)"). The first rule in `order`
+# whose condition holds wins; `shortfall` must stay first ("Shortfall first"). Thresholds marked
+# proposed are open questions in the spec. Edit, then: uv run python scripts/build_next_move.py
+version: 1
+order:
+  - shortfall          # the forecast dips below the buffer: replaces the card
+  - set_pay            # no take-home pay set
+  - payday_set_aside   # payday today and nothing set aside this pay period (owner, Oct 10, 2026)
+  - starter_fund       # emergency fund under the starter amount
+  - high_apr           # any debt at or above the APR threshold
+  - bill_due           # a confirmed bill is due within the window
+  - grow_runway        # runway under the minimum
+  - goal_behind_pace   # the top-priority goal behind its pace (fast-follow 3)
+  - start_goal         # otherwise
+thresholds:
+  starter_fund_cents: 100000     # "$1K starter fund"
+  high_apr_bps: 1500             # proposed; confirm
+  bill_due_within_days: 3
+  runway_min_tenths: 30          # 3.0 months, in tenths (the runway rule reports one decimal)
+  set_aside_share_bps: 1000      # proposed: 10% of a paycheck when no budget sets a save target

@@ -1,0 +1,38 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-31",
+  "method": "zero_based",
+  "take_home_cents": 100000,
+  "buckets": [
+    {
+      "bucket": "need",
+      "planned_cents": 120000,
+      "spent_cents": 0,
+      "left_cents": 120000
+    },
+    {
+      "bucket": "want",
+      "planned_cents": 0,
+      "spent_cents": 0,
+      "left_cents": 0
+    },
+    {
+      "bucket": "save",
+      "planned_cents": 0,
+      "spent_cents": 0,
+      "left_cents": 0
+    }
+  ],
+  "categories": [
+    {
+      "category_id": "cat-rent",
+      "bucket": "need",
+      "planned_cents": 120000,
+      "spent_cents": 0
+    }
+  ],
+  "uncategorized_cents": 0,
+  "total_spent_cents": 0,
+  "left_to_assign_cents": -20000,
+  "kept_cents": 100000
+}

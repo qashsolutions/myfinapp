@@ -1,0 +1,13 @@
+{
+  "kind": "save",
+  "current": 30000,
+  "target": 100000,
+  "remaining": 70000,
+  "progress_bps": 3000,
+  "display_bps": 3000,
+  "days_left": null,
+  "weeks_left": null,
+  "weekly_pace": null,
+  "status": "active",
+  "end_date": null
+}

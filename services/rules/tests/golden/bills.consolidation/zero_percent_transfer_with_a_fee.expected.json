@@ -1,0 +1,16 @@
+{
+  "today": {
+    "stalled": false,
+    "months": 3,
+    "interest_cents": 3101
+  },
+  "consolidated": {
+    "stalled": false,
+    "months": 3,
+    "interest_cents": 0,
+    "fee_cents": 3000,
+    "cost_cents": 3000,
+    "balance_after_promo_cents": 0
+  },
+  "saves_cents": 101
+}

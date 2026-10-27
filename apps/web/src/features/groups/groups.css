@@ -1,0 +1,77 @@
+/* Groups (mockups F4Challenge, F4Join). */
+
+.group-actions {
+  display: grid;
+  gap: 8px;
+}
+.group-row__meta {
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.hero-split {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.lb {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lb__row {
+  display: grid;
+  grid-template-columns: 24px 40px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 60px;
+}
+.lb__row + .lb__row {
+  border-top: 1px solid var(--c-line);
+}
+.lb__rank {
+  font-weight: 700;
+  color: var(--c-sub);
+  font-variant-numeric: var(--numeric-data);
+}
+.lb__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  background: var(--c-line);
+}
+.lb__name {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.lb__pct {
+  font-weight: 700;
+  font-variant-numeric: var(--numeric-data);
+}
+.lb__actions {
+  grid-column: 2 / -1;
+  display: flex;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+.invite-code {
+  font: 700 28px var(--font-display);
+  letter-spacing: 0.14em;
+  text-align: center;
+  padding: 12px;
+  border: 2px solid var(--c-line);
+  border-radius: 16px;
+  font-variant-numeric: var(--numeric-data);
+}
+.code-input {
+  font: 700 24px var(--font-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}

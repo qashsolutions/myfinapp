@@ -1,0 +1,16 @@
+{
+  "members": [
+    {
+      "id": "a",
+      "progress_bps": 5000,
+      "reached_at": null,
+      "has_events": true
+    },
+    {
+      "id": "b",
+      "progress_bps": 5000,
+      "reached_at": null,
+      "has_events": true
+    }
+  ]
+}

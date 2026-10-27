@@ -1,0 +1,9 @@
+{
+  "alerts": [
+    {
+      "type": "goal_behind_pace",
+      "due_local": "2026-10-10T18:00",
+      "dedupe_key": "behind:trip:5"
+    }
+  ]
+}

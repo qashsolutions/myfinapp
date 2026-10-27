@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PWA — Install</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <div aria-hidden="true" style="display:flex;flex-direction:column;gap:14px;padding:26px 18px">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font:700 24px Outfit,sans-serif">[Name]</span><span style="width:44px;height:44px;border-radius:50%;background:{{m.a3}}"></span></div>
+    <div style="height:170px;border-radius:22px;background:{{m.a1}}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div style="height:96px;border-radius:22px;background:{{m.card}}"></div><div style="height:96px;border-radius:22px;background:{{m.card}}"></div></div>
+    <div style="height:140px;border-radius:22px;background:{{m.card}}"></div>
+  </div>
+  <div style="position:absolute;inset:0;background:rgba(10,12,18,0.55)"></div>
+
+  <sc-if value="{{isIos}}" hint-placeholder-val="{{ true }}">
+    <section role="dialog" aria-modal="true" aria-labelledby="instT" style="{{S.sheet}}">
+      <span style="width:40px;height:5px;border-radius:3px;background:{{m.line}};align-self:center"></span>
+      <div style="display:flex;align-items:center;gap:14px">
+        <span style="{{S.icon}}"><svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="26" width="8" height="14" rx="3" fill="#FFFFFF" opacity="0.7"></rect><rect x="20" y="17" width="8" height="23" rx="3" fill="#FFFFFF" opacity="0.85"></rect><rect x="32" y="8" width="8" height="32" rx="3" fill="#FFFFFF"></rect></svg></span>
+        <div style="display:flex;flex-direction:column;gap:2px"><span id="instT" style="font:700 20px Outfit,sans-serif">Install Stackd</span><span style="font-size:14px;color:{{m.sub}}">Full screen, faster start, and reminders.</span></div>
+      </div>
+      <ol style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px">
+        <li style="{{S.step}}"><span style="{{S.num}}">1</span><span style="flex:1;font-size:15px;line-height:1.35">Tap the <b>Share</b> button in Safari's toolbar</span><span style="{{S.glyph}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M8 7l4-4 4 4"></path><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"></path></svg></span></li>
+        <li style="{{S.step}}"><span style="{{S.num}}">2</span><span style="flex:1;font-size:15px;line-height:1.35">Choose <b>Add to Home Screen</b></span><span style="{{S.glyph}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"></rect><path d="M12 8v8M8 12h8"></path></svg></span></li>
+        <li style="{{S.step}}"><span style="{{S.num}}">3</span><span style="flex:1;font-size:15px;line-height:1.35">Tap <b>Add</b> — Stackd appears on your Home Screen</span><span style="{{S.glyph}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></span></li>
+      </ol>
+      <span style="font-size:13px;color:{{m.sub}}">Can't see Share? Scroll up a little to show Safari's toolbar.</span>
+      <div style="display:flex;gap:10px">
+        <button style="{{S.ghost}}">Not now</button>
+        <button style="{{S.primary}}">Got it</button>
+      </div>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{isAndroid}}" hint-placeholder-val="{{ false }}">
+    <section role="dialog" aria-modal="true" aria-labelledby="instA" style="{{S.sheet}}">
+      <span style="width:40px;height:5px;border-radius:3px;background:{{m.line}};align-self:center"></span>
+      <div style="display:flex;align-items:center;gap:14px">
+        <span style="{{S.icon}}"><svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="26" width="8" height="14" rx="3" fill="#FFFFFF" opacity="0.7"></rect><rect x="20" y="17" width="8" height="23" rx="3" fill="#FFFFFF" opacity="0.85"></rect><rect x="32" y="8" width="8" height="32" rx="3" fill="#FFFFFF"></rect></svg></span>
+        <div style="display:flex;flex-direction:column;gap:2px"><span id="instA" style="font:700 20px Outfit,sans-serif">Install Stackd</span><span style="font-size:14px;color:{{m.sub}}">Works offline · No app store needed</span></div>
+      </div>
+      <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px">
+        <li style="{{S.bullet}}"><span style="{{S.dot}}"></span>Opens full screen from your home screen</li>
+        <li style="{{S.bullet}}"><span style="{{S.dot}}"></span>Log spending even with no signal</li>
+        <li style="{{S.bullet}}"><span style="{{S.dot}}"></span>Challenge reminders and bill alerts</li>
+      </ul>
+      <div style="display:flex;gap:10px">
+        <button style="{{S.ghost}}">Not now</button>
+        <button style="{{S.primary}}">Install</button>
+      </div>
+      <span style="font-size:12px;color:{{m.sub}}">Tapping Install opens your browser's install dialog.</span>
+    </section>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"platform":{"editor":"enum","options":["ios","android"],"default":"ios"},"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark;
+    const m = dark
+      ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', a1: '#3D5AFE', a3: '#7C3AED' }
+      : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', a1: '#3D5AFE', a3: '#7C3AED' };
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      sheet: 'position:absolute;left:0;right:0;bottom:0;box-sizing:border-box;padding:12px 20px 32px;display:flex;flex-direction:column;gap:16px;background:' + m.card + ';color:' + m.ink + ';border-radius:28px 28px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,0.25)',
+      icon: 'width:60px;height:60px;flex-shrink:0;border-radius:16px;background:#3D5AFE;display:flex;align-items:center;justify-content:center',
+      step: 'display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:' + m.bg,
+      num: 'width:28px;height:28px;flex-shrink:0;border-radius:50%;background:#3D5AFE;color:#FFFFFF;font:700 14px Outfit,sans-serif;display:flex;align-items:center;justify-content:center',
+      glyph: 'width:40px;height:40px;flex-shrink:0;border-radius:12px;background:' + m.card + ';color:#3D5AFE;display:flex;align-items:center;justify-content:center',
+      bullet: 'display:flex;align-items:center;gap:10px;font-size:15px',
+      dot: 'width:8px;height:8px;border-radius:50%;background:#0B7A55;flex-shrink:0',
+      ghost: 'flex:1;min-height:52px;border:1px solid ' + m.line + ';border-radius:16px;background:transparent;color:' + m.ink + ';font:600 16px Outfit,sans-serif;cursor:pointer',
+      primary: 'flex:1;min-height:52px;border:0;border-radius:16px;background:#3D5AFE;color:#FFFFFF;font:600 16px Outfit,sans-serif;cursor:pointer'
+    };
+    const ios = (this.props.platform || 'ios') === 'ios';
+    return { S, m, isIos: ios, isAndroid: !ios };
+  }
+}
+</script>
+</body>
+</html>

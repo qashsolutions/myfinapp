@@ -1,0 +1,13 @@
+{
+  "entries": [
+    {
+      "date": "2026-10-06",
+      "amount_cents": 1,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "a"
+    }
+  ]
+}

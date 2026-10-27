@@ -1,0 +1,20 @@
+{
+  "entries": [
+    {
+      "date": "2026-09-25",
+      "amount_cents": 30000,
+      "direction": "out",
+      "is_transfer": false,
+      "is_recurring": false
+    },
+    {
+      "date": "2026-10-02",
+      "amount_cents": 4000,
+      "direction": "out",
+      "is_transfer": false,
+      "is_recurring": false
+    }
+  ],
+  "as_of": "2026-10-10",
+  "fallback_monthly_cents": 150000
+}

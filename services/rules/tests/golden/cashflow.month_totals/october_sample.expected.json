@@ -1,0 +1,67 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-31",
+  "in_cents": 520000,
+  "out_cents": 478800,
+  "net_cents": 41200,
+  "transfers_out_cents": 120000,
+  "count": 15,
+  "by_category": [
+    {
+      "category_id": "cat-rent",
+      "out_cents": 165000
+    },
+    {
+      "category_id": "cat-groceries",
+      "out_cents": 61200
+    },
+    {
+      "category_id": "cat-fun",
+      "out_cents": 45000
+    },
+    {
+      "category_id": "cat-debt-payoff",
+      "out_cents": 40000
+    },
+    {
+      "category_id": "cat-shopping",
+      "out_cents": 34000
+    },
+    {
+      "category_id": "cat-utilities",
+      "out_cents": 32000
+    },
+    {
+      "category_id": "cat-dining",
+      "out_cents": 28400
+    },
+    {
+      "category_id": "cat-transport",
+      "out_cents": 27500
+    },
+    {
+      "category_id": "cat-insurance",
+      "out_cents": 20000
+    },
+    {
+      "category_id": "cat-subscriptions",
+      "out_cents": 15000
+    },
+    {
+      "category_id": "cat-other",
+      "out_cents": 10700
+    }
+  ],
+  "by_account": [
+    {
+      "account_id": "acct-card",
+      "in_cents": 0,
+      "out_cents": 221800
+    },
+    {
+      "account_id": "acct-chk",
+      "in_cents": 520000,
+      "out_cents": 257000
+    }
+  ]
+}

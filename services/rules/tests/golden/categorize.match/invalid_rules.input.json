@@ -1,0 +1,37 @@
+{
+  "user_rules": [
+    {
+      "match": ""
+    }
+  ],
+  "keywords": {
+    "transfer": [
+      "PAYMENT TO CARD",
+      "ONLINE TRANSFER"
+    ],
+    "keywords": [
+      {
+        "match": "PAYROLL",
+        "category_id": "cat-paycheck",
+        "direction": "in"
+      },
+      {
+        "match": "MKT",
+        "category_id": "cat-groceries",
+        "direction": "out"
+      },
+      {
+        "match": "TRANSIT",
+        "category_id": "cat-transport",
+        "direction": "out"
+      },
+      {
+        "match": "REFUND",
+        "category_id": "cat-refund",
+        "direction": "any"
+      }
+    ]
+  },
+  "description": "x",
+  "direction": "out"
+}

@@ -1,0 +1,19 @@
+{
+  "alerts": [
+    {
+      "type": "challenge_checkin",
+      "due_local": "2026-10-10T19:30",
+      "dedupe_key": "checkin:g1:2026-10-10"
+    },
+    {
+      "type": "challenge_checkin",
+      "due_local": "2026-10-11T19:30",
+      "dedupe_key": "checkin:g1:2026-10-11"
+    },
+    {
+      "type": "challenge_checkin",
+      "due_local": "2026-10-12T19:30",
+      "dedupe_key": "checkin:g1:2026-10-12"
+    }
+  ]
+}

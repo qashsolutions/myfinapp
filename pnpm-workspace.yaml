@@ -1,0 +1,10 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  esbuild: true
+  tesseract.js: false
+
+# Security fixes the dependency tree has not picked up yet (remove once it has).
+overrides:
+  "undici@>=8.0.0 <8.12.2": ^8.12.2  # October 23, 2026: astro > unifont pins a vulnerable range

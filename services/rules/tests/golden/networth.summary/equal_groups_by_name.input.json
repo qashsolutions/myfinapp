@@ -1,0 +1,17 @@
+{
+  "items": [
+    {
+      "id": "s",
+      "kind": "asset",
+      "group": "savings",
+      "value_cents": 1000
+    },
+    {
+      "id": "c",
+      "kind": "asset",
+      "group": "cash",
+      "value_cents": 1000
+    }
+  ],
+  "previous_net_cents": 2500
+}

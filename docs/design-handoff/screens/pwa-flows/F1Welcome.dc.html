@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 1 — Welcome</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <div style="display:flex;align-items:center;gap:10px">
+    <span style="width:40px;height:40px;border-radius:12px;background:#3D5AFE;display:flex;align-items:center;justify-content:center"><svg width="24" height="24" viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="26" width="8" height="14" rx="3" fill="#FFFFFF" opacity="0.7"></rect><rect x="20" y="17" width="8" height="23" rx="3" fill="#FFFFFF" opacity="0.85"></rect><rect x="32" y="8" width="8" height="32" rx="3" fill="#FFFFFF"></rect></svg></span>
+    <span style="font:700 22px Outfit,sans-serif">Stackd</span>
+  </div>
+
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:28px">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <span style="font:700 40px Outfit,sans-serif;letter-spacing:-0.02em;line-height:1.05">Keep more of what you earn.</span>
+      <span style="font-size:17px;line-height:1.45;color:{{m.sub}}">See money in and out, spot a shortfall before it happens, and save toward what matters.</span>
+    </div>
+    <div style="{{S.card}}">
+      <div style="{{S.row}}"><span style="{{S.ic}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"></rect><path d="M11 18h2"></path></svg></span><div style="flex:1;display:flex;flex-direction:column"><span style="font-weight:600;font-size:15px">Your data stays on your device</span><span style="font-size:13px;color:{{m.sub}}">Statements and receipts are read on your phone</span></div></div>
+      <div style="{{S.row}}"><span style="{{S.ic}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span><div style="flex:1;display:flex;flex-direction:column"><span style="font-weight:600;font-size:15px">No bank passwords, ever</span><span style="font-size:13px;color:{{m.sub}}">Sign in with an email code and Face ID</span></div></div>
+      <div style="{{S.rowLast}}"><span style="{{S.ic}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg></span><div style="flex:1;display:flex;flex-direction:column"><span style="font-weight:600;font-size:15px">No ads. No AI reading your money.</span><span style="font-size:13px;color:{{m.sub}}">Plain rules you can check</span></div></div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <a href="F1Email.dc.html" style="{{S.primary}}">Get started</a>
+    <a href="F1Email.dc.html" style="{{S.ghost}}">I already have an account</a>
+    <span style="text-align:center;font-size:12px;color:{{m.sub}}">By continuing you agree to the <span style="text-decoration:underline">Terms</span> and <span style="text-decoration:underline">Privacy Policy</span>.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', tint: '#1E2433', acc: '#8FA2FF' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE' };
+    const row = 'display:flex;align-items:center;gap:12px;padding:12px 0;';
+    const btn = 'min-height:54px;display:flex;align-items:center;justify-content:center;border-radius:16px;font:600 16px Outfit,sans-serif;';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:32px 22px 30px;display:flex;flex-direction:column;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      card: 'background:' + m.card + ';border-radius:22px;padding:4px 16px;box-shadow:0 6px 20px rgba(17,24,39,' + (dark ? '0.4' : '0.08') + ')',
+      row: row + 'border-bottom:1px solid ' + m.line, rowLast: row,
+      ic: 'width:40px;height:40px;flex-shrink:0;border-radius:12px;background:' + m.tint + ';color:' + m.acc + ';display:flex;align-items:center;justify-content:center',
+      primary: btn + 'background:#3D5AFE;color:#FFFFFF',
+      ghost: btn + 'background:transparent;color:' + m.ink + ';border:1px solid ' + m.line
+    };
+    return { S, m };
+  }
+}
+</script>
+</body>
+</html>

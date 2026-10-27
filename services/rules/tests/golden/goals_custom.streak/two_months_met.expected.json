@@ -1,0 +1,12 @@
+{
+  "total_cents": 22000,
+  "streak": 2,
+  "periods_complete": 1,
+  "current": {
+    "start": "2026-10-01",
+    "end": "2026-11-01",
+    "saved_cents": 12000,
+    "met": true,
+    "paused": false
+  }
+}

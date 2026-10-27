@@ -1,0 +1,21 @@
+{
+  "goal": {
+    "kind": "save",
+    "start_date": "2026-09-01",
+    "cadence": "monthly",
+    "per_period_cents": 10000
+  },
+  "events": [
+    {
+      "type": "deposit",
+      "date": "2026-09-05",
+      "amount_cents": 10000
+    },
+    {
+      "type": "deposit",
+      "date": "2026-10-03",
+      "amount_cents": 12000
+    }
+  ],
+  "as_of": "2026-10-10"
+}

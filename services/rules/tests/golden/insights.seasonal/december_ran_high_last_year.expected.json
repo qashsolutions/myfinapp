@@ -1,0 +1,12 @@
+{
+  "months_of_history": 12,
+  "flagged": [
+    {
+      "month": "2026-12",
+      "last_year_month": "2025-12",
+      "last_year_cents": 320000,
+      "usual_cents": 210000,
+      "increase_cents": 110000
+    }
+  ]
+}

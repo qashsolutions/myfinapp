@@ -1,0 +1,48 @@
+/* Later (October 25, 2026). */
+.later__chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 8px 0 4px;
+}
+.later__goal,
+.later__end {
+  font-size: 11px;
+  font-weight: 700;
+  text-anchor: end;
+  fill: var(--c-ink);
+}
+.later__key--line {
+  background: var(--c-a1);
+}
+.later__key--band {
+  background: var(--c-a2);
+  opacity: 0.5;
+  border-radius: 2px;
+}
+.later__key--in {
+  border-radius: 0;
+  height: 0;
+  width: 14px;
+  border-top: 2px solid var(--c-sub);
+  vertical-align: 3px;
+}
+.later__retire {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 12px;
+  font-size: 16px;
+}
+.later__retire input[type="range"] {
+  width: 100%;
+  min-height: 44px;
+  accent-color: var(--c-a1);
+}
+.later__rates {
+  border: 0;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.later__rates .tiles {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}

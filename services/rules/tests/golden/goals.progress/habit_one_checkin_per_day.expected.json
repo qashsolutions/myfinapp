@@ -1,0 +1,13 @@
+{
+  "kind": "habit",
+  "current": 3,
+  "target": 7,
+  "remaining": 4,
+  "progress_bps": 4286,
+  "display_bps": 4286,
+  "days_left": 2,
+  "weeks_left": 1,
+  "weekly_pace": 4,
+  "status": "active",
+  "end_date": "2026-10-11"
+}

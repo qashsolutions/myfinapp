@@ -1,0 +1,500 @@
+/* @stackd/ui. Reads only the custom properties from @stackd/tokens/tokens.css. */
+
+/* Button ----------------------------------------------------------------- */
+.sk-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  min-width: 44px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font: 600 15px / 1.2 var(--font-body);
+  color: var(--c-ink);
+  background: transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    filter 120ms ease,
+    background-color 120ms ease;
+}
+.sk-btn:hover {
+  filter: brightness(0.96);
+}
+.sk-btn:active {
+  filter: brightness(0.92);
+}
+.sk-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: none;
+}
+.sk-btn--primary {
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+}
+.sk-btn--secondary {
+  background: var(--c-card);
+  border-color: var(--c-line);
+}
+.sk-btn--ghost {
+  color: var(--c-a1);
+}
+.sk-btn--danger {
+  background: var(--c-danger);
+  color: #fff;
+}
+.sk-btn--sm {
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+.sk-btn--block {
+  display: flex;
+  width: 100%;
+}
+
+/* Card ------------------------------------------------------------------- */
+.sk-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border-radius: var(--radius-card);
+  border: var(--border-card);
+  box-shadow: var(--shadow-card);
+  background: var(--c-card);
+  color: var(--c-ink);
+}
+.sk-card--accent {
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+}
+.sk-card__title {
+  font: 600 16px / 1.3 var(--font-display);
+  margin: 0;
+}
+.sk-card__eyebrow {
+  font: 600 12px / 1.3 var(--font-body);
+  color: var(--c-sub);
+}
+.sk-card--accent .sk-card__eyebrow {
+  color: inherit;
+  opacity: 0.9;
+}
+.sk-card__hero {
+  font: 700 clamp(40px, 12vw, 56px) / 1 var(--font-hero);
+  letter-spacing: -0.03em;
+  font-variant-numeric: var(--numeric-data);
+}
+.sk-card__hero--empty {
+  font-size: clamp(28px, 8vw, 36px);
+  opacity: 0.85;
+}
+[data-simple="1"] .sk-decor {
+  display: none;
+}
+
+/* Chip ------------------------------------------------------------------- */
+.sk-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font: 600 13px / 1 var(--font-body);
+  font-variant-numeric: var(--numeric-data);
+  background: var(--c-line);
+  color: var(--c-ink);
+}
+.sk-chip--accent {
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+}
+.sk-chip--success {
+  background: var(--c-success);
+  color: #fff;
+}
+.sk-chip--warning {
+  background: var(--c-warning);
+  color: #fff;
+}
+.sk-chip--danger {
+  background: var(--c-danger);
+  color: #fff;
+}
+.sk-chip--pending {
+  background: var(--c-pending-bg);
+  color: var(--c-pending-text);
+}
+
+/* List + ListRow --------------------------------------------------------- */
+.sk-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sk-list--card {
+  background: var(--c-card);
+  border-radius: var(--radius-card);
+  border: var(--border-card);
+  box-shadow: var(--shadow-card);
+  padding: 4px 18px;
+}
+.sk-list__item + .sk-list__item {
+  border-top: 1px solid var(--c-line);
+}
+.sk-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+.sk-row--interactive {
+  cursor: pointer;
+}
+.sk-row__leading {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.sk-row__text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+.sk-row__label {
+  font-weight: 600;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.sk-row--interactive:hover .sk-row__label {
+  color: var(--c-a1);
+}
+.sk-row__sublabel {
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.sk-row__value {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: var(--numeric-data);
+  text-align: right;
+  flex-shrink: 0;
+}
+.sk-row__value--sub {
+  color: var(--c-sub);
+  font-weight: 500;
+}
+.sk-row__value--success {
+  color: var(--c-success);
+}
+.sk-row__value--warning {
+  color: var(--c-warning);
+}
+.sk-row__value--danger {
+  color: var(--c-danger);
+}
+.sk-row__chevron {
+  color: var(--c-sub);
+  flex-shrink: 0;
+}
+
+/* ProgressBar ------------------------------------------------------------ */
+.sk-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sk-progress__track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--c-line);
+  overflow: hidden;
+}
+.sk-card--accent .sk-progress__track {
+  background: rgba(0, 0, 0, 0.18);
+}
+.sk-progress__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--c-a1);
+  transition: width 240ms ease;
+}
+.sk-card--accent .sk-progress__fill {
+  background: var(--c-on-accent);
+}
+.sk-progress__track--success .sk-progress__fill {
+  background: var(--c-success);
+}
+.sk-progress__track--warning .sk-progress__fill {
+  background: var(--c-warning);
+}
+.sk-progress__track--danger .sk-progress__fill {
+  background: var(--c-danger);
+}
+.sk-progress__text {
+  font-size: 13px;
+  color: var(--c-sub);
+  font-variant-numeric: var(--numeric-data);
+}
+.sk-card--accent .sk-progress__text {
+  color: inherit;
+  opacity: 0.9;
+}
+
+/* Sheet ------------------------------------------------------------------ */
+.sk-sheet__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.sk-sheet__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.5);
+}
+.sk-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90dvh;
+  overflow: auto;
+  padding: 10px 20px calc(20px + env(safe-area-inset-bottom));
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  border: var(--border-card);
+  background: var(--c-card);
+  color: var(--c-ink);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  outline: none;
+}
+.sk-sheet__handle {
+  display: block;
+  width: 40px;
+  height: 5px;
+  margin: 0 auto 6px;
+  border-radius: 3px;
+  background: var(--c-line);
+}
+.sk-sheet__title {
+  text-align: center;
+  font: 700 20px / 1.2 var(--font-display);
+  margin: 0;
+}
+@media (min-width: 600px) {
+  .sk-sheet__backdrop {
+    align-items: center;
+    padding: 24px;
+  }
+  .sk-sheet {
+    border-radius: var(--radius-card);
+    padding: 20px 24px 24px;
+  }
+}
+
+/* SentenceBuilder -------------------------------------------------------- */
+.sk-sentence {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: var(--radius-card);
+  border: var(--border-card);
+  background: var(--c-card);
+  box-shadow: var(--shadow-card);
+}
+.sk-sentence__hint {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-sub);
+}
+.sk-sentence__text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  font: 600 22px / 1.5 var(--font-display);
+}
+.sk-sentence__blank {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--c-a1) 12%, var(--c-card));
+  color: var(--c-a1);
+  font: 700 22px / 1.2 var(--font-display);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.sk-sentence__blank:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Toggle ----------------------------------------------------------------- */
+.sk-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.sk-toggle--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.sk-toggle__text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 2px;
+}
+.sk-toggle__label {
+  font-weight: 600;
+  font-size: 15px;
+}
+.sk-toggle__desc {
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.sk-toggle__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.sk-toggle__track {
+  position: relative;
+  flex-shrink: 0;
+  width: 52px;
+  height: 32px;
+  padding: 3px;
+  border-radius: var(--radius-toggle);
+  background: var(--c-line);
+  transition: background-color 160ms ease;
+  box-sizing: border-box;
+}
+.sk-toggle__thumb {
+  display: block;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-toggle);
+  background: var(--c-card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 160ms ease;
+}
+.sk-toggle__input:checked ~ .sk-toggle__track {
+  background: var(--c-a1);
+}
+.sk-toggle__input:checked ~ .sk-toggle__track .sk-toggle__thumb {
+  transform: translateX(20px);
+}
+.sk-toggle__input:focus-visible ~ .sk-toggle__track {
+  outline: 2px solid var(--c-a1);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sk-progress .sk-progress__fill,
+  .sk-toggle .sk-toggle__track,
+  .sk-toggle .sk-toggle__thumb {
+    transition: none;
+  }
+}
+
+/* Illustration ------------------------------------------------------------ */
+.sk-illo {
+  display: block;
+  margin: 4px auto 8px;
+  color: var(--c-ink);
+  max-width: 40%;
+  height: auto;
+}
+.sk-illo__wash {
+  transform: translate(4px, 4px);
+  opacity: 0.22;
+}
+.sk-illo__wash--a1 {
+  fill: var(--c-a1);
+}
+.sk-illo__wash--a2 {
+  fill: var(--c-a2);
+}
+.sk-illo__wash--a3 {
+  fill: var(--c-a3);
+}
+.sk-illo__ink {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.9;
+}
+
+/* Look flourishes (decoration only; colours still come from the tokens) -------------------
+ * Each look may add one texture to the page or the hero card. Nothing here changes layout,
+ * text or controls, and Simple layout keeps the plain surface. */
+[data-look="illustrative"]:not([data-simple="1"]) body {
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--c-ink) 6%, transparent) 0.6px,
+    transparent 0.8px
+  );
+  background-size: 5px 5px;
+}
+[data-look="illustrative"] .sk-illo {
+  transform: rotate(-2deg);
+}
+[data-look="illustrative"] .sk-illo__wash {
+  opacity: 0.32;
+}
+[data-look="retro"]:not([data-simple="1"]) .sk-card--accent {
+  background-image:
+    linear-gradient(
+      transparent 62%,
+      color-mix(in srgb, var(--c-on-accent) 18%, transparent) 62% 63%,
+      transparent 63%
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 22px,
+      color-mix(in srgb, var(--c-on-accent) 12%, transparent) 22px 23px
+    );
+}
+[data-look="anime"]:not([data-simple="1"]) .sk-card--accent {
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--c-ink) 14%, transparent) 1.2px,
+    transparent 1.4px
+  );
+  background-size: 9px 9px;
+}

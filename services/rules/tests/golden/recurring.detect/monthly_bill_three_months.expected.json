@@ -1,0 +1,19 @@
+{
+  "series": [
+    {
+      "payee": "NETFLIX.COM",
+      "kind": "bill",
+      "direction": "out",
+      "expected_cents": 1549,
+      "interval": "monthly",
+      "last_date": "2026-09-14",
+      "next_date": "2026-10-14",
+      "occurrences": 3,
+      "entry_ids": [
+        "a",
+        "b",
+        "c"
+      ]
+    }
+  ]
+}

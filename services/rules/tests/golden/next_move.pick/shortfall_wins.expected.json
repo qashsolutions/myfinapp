@@ -1,0 +1,7 @@
+{
+  "id": "shortfall",
+  "params": {
+    "short_by_cents": 18000,
+    "date": "2026-10-25"
+  }
+}

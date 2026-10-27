@@ -1,0 +1,82 @@
+# Plans and limits (docs/spec.md "Plans & billing"; owner decision October 10, 2026 on jars
+# 2 / 4 / 10). Prices must match docs/design-handoff/tokens.json (tests/test_plans.py).
+# `null` means unlimited. Changing a limit here changes what the server enforces and what
+# the app shows; code never carries a number of its own.
+version: 1
+plans:
+  free:
+    label: No plan
+    price_cents: { monthly: 0, yearly: 0 }
+    goals_active_max: 2
+    statement_accounts_max: 1
+    groups_create: false
+    groups_join_max: 1
+    bank_links_max: 0
+    backup: false
+    household: false
+  private:
+    label: Private
+    price_cents: { monthly: 300, yearly: 2000 }
+    goals_active_max: 4
+    statement_accounts_max: null
+    groups_create: true
+    groups_join_max: null
+    bank_links_max: 0
+    backup: true
+    household: false
+  connected:
+    label: Connected
+    price_cents: { monthly: 700, yearly: 6500 }
+    goals_active_max: 10
+    statement_accounts_max: null
+    groups_create: true
+    groups_join_max: null
+    bank_links_max: 3  # read-only banks or cards through Plaid, Connected only
+    backup: true
+    household: true
+# Trials (owner decision, October 14, 2026; 3 days on either plan since October 22, 2026,
+# trials already running keep their own end): there is no lasting Free plan. A new person picks
+# one trial, once per email, no card to start. From `card_from_day` the app asks for a card (the first charge is at the trial's end);
+# an email goes `reminder_days_before` the end. With no subscription when a trial or a paid
+# period ends, the app locks to subscribe-or-export for `grace_days`, then the account is
+# deleted. `free` below is only what an account without a plan may do during that time.
+trials:
+  private: { days: 3, card_from_day: 2 }
+  connected: { days: 3, card_from_day: 2 }
+  reminder_days_before: 1
+  grace_days: 7
+
+# Changing plans (owner decision, October 17, 2026): every switch happens at once. Up is charged
+# the difference for the time left; down leaves the unused part as credit for the next bills.
+# A downgrade opens this many days after the plan started or last changed, so linking banks on
+# Connected for a day and dropping back is not possible. Upgrades are never held back.
+changes:
+  downgrade_after_days: 30
+
+# Refunds on account deletion (owner decisions, October 17, 2026): the months after the current
+# one come back to the card, less Stripe's standard card fee, which Stripe keeps when a payment
+# is refunded. One fee per refund: fee_bps of the amount (rounded half up to the cent) plus
+# fee_fixed_cents. Stated in the terms and on the Delete account screen before anyone confirms.
+refunds:
+  fee_bps: 290
+  fee_fixed_cents: 30
+  # A US bank account (ACH Direct Debit, October 24, 2026): Stripe's 0.8%, capped at $5.
+  bank_fee_bps: 80
+  bank_fee_cap_cents: 500
+
+founding:
+  label: Founding member
+  one_time_cents: 15000
+  term_years: 4
+  grants: connected
+  auto_renew: false
+  cap: 250  # owner decision, October 22, 2026 (was 200): the first 250 only; the site shows how many are left
+
+# Store subscription products (Phase 2, chunk 2.4). Created in App Store Connect and the Play
+# Console at 2.5 with these exact ids; both stores use the same ones. Founding is not sold in
+# the apps (no 4-year term there); it stays web-only through Stripe.
+store_products:
+  com.stackd.app.private.monthly: { plan: private, interval: monthly }
+  com.stackd.app.private.yearly: { plan: private, interval: yearly }
+  com.stackd.app.connected.monthly: { plan: connected, interval: monthly }
+  com.stackd.app.connected.yearly: { plan: connected, interval: yearly }

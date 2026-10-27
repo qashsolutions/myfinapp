@@ -1,0 +1,37 @@
+{
+  "entries": [
+    {
+      "id": "w1",
+      "date": "2026-09-07",
+      "amount_cents": 1200,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Coffee Club"
+    },
+    {
+      "id": "w2",
+      "date": "2026-09-15",
+      "amount_cents": 1200,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Coffee Club"
+    },
+    {
+      "id": "w3",
+      "date": "2026-09-21",
+      "amount_cents": 1200,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Coffee Club"
+    },
+    {
+      "id": "w4",
+      "date": "2026-09-28",
+      "amount_cents": 1200,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Coffee Club"
+    }
+  ],
+  "as_of": "2026-10-10"
+}

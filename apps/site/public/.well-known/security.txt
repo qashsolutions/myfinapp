@@ -1,0 +1,6 @@
+# Qash security contact (docs/security/vulnerability-reporting.md)
+Contact: mailto:security@qash.solutions
+Expires: 2027-10-10T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://qash.solutions/.well-known/security.txt
+Policy: https://qash.solutions/security

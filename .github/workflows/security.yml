@@ -1,0 +1,157 @@
+name: security
+
+# docs/spec.md Phase 0 tree: security.yml = dependency scan, secret scan, authz test suite,
+# and (October 13, 2026) Trivy over the repository and the API's container image.
+# Runs on every PR and weekly, so a new advisory against a pinned dependency is caught
+# without a code change. Since October 19, 2026 (Actions minutes are limited): the secret scan
+# and the dependency audit share one job; the audit runs when a manifest or lockfile changed;
+# Trivy runs on a PR only when dependencies, the Dockerfile or compose changed; the cross-user
+# suite runs on main and weekly (every PR already runs it inside the full API suite in ci.yml).
+# The weekly run does everything.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: what changed (security)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      deps: ${{ steps.f.outputs.deps }}
+      image: ${{ steps.f.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: f
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: >-
+          .github/scripts/changed.sh
+          'deps=(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|pyproject\.toml|uv\.lock|^\.github/)'
+          'image=(^services/api/Dockerfile|^services/[^/]+/pyproject\.toml|^services/[^/]+/uv\.lock|^docker-compose\.yml|^\.github/)'
+
+  secrets-and-dependencies:
+    name: no secrets in the history (gitleaks) · known vulnerabilities (pip-audit, pnpm audit)
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch the current gitleaks release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo gitleaks/gitleaks --pattern '*linux_x64.tar.gz' --output gitleaks.tgz
+          tar -xzf gitleaks.tgz gitleaks
+          ./gitleaks version
+      - name: Scan every commit
+        run: ./gitleaks git . --redact --exit-code 1 --no-banner --verbose
+      - uses: astral-sh/setup-uv@v6
+        if: needs.changes.outputs.deps == 'true'
+        with:
+          enable-cache: true
+      - name: pip-audit every Python service (locked, runtime dependencies)
+        if: needs.changes.outputs.deps == 'true'
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for manifest in services/*/pyproject.toml; do
+            dir=$(dirname "$manifest")
+            echo "::group::$dir"
+            # stackd-rules is our own package, pulled in by path; pip-audit audits the rest.
+            (cd "$dir" && uv export --frozen --no-dev --no-hashes --no-emit-project --no-emit-package stackd-rules -o "$RUNNER_TEMP/req.txt")
+            uvx pip-audit -r "$RUNNER_TEMP/req.txt" --no-deps --disable-pip --strict --desc on
+            echo "::endgroup::"
+          done
+      - uses: pnpm/action-setup@v4
+        if: needs.changes.outputs.deps == 'true'
+      - uses: actions/setup-node@v4
+        if: needs.changes.outputs.deps == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - if: needs.changes.outputs.deps == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: pnpm audit (high and above)
+        if: needs.changes.outputs.deps == 'true'
+        run: pnpm audit --audit-level high
+
+  trivy:
+    name: container and filesystem scan (Trivy)
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.image == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the current Trivy release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo aquasecurity/trivy --pattern '*Linux-64bit.tar.gz' --output trivy.tgz
+          tar -xzf trivy.tgz trivy
+          ./trivy --version
+      - name: Scan the repository (dependencies, secrets, Dockerfile and compose settings)
+        run: >-
+          ./trivy fs . --scanners vuln,secret,misconfig
+          --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress
+      - name: Build the API image as production will
+        run: docker build -f services/api/Dockerfile -t qash-api:scan .
+      - name: Scan the API image (operating-system packages and Python libraries)
+        run: >-
+          ./trivy image qash-api:scan
+          --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress
+
+  authz-tests:
+    name: cross-user access and security helpers (pytest)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: stackd
+          POSTGRES_PASSWORD: stackd
+          POSTGRES_DB: stackd_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stackd -d stackd_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Start S3-compatible storage (RustFS) for the readiness fixture
+        run: |
+          docker run -d --name storage -p 9000:9000 \
+            -e RUSTFS_ACCESS_KEY=stackd -e RUSTFS_SECRET_KEY=stackd-dev-storage \
+            rustfs/rustfs:1.0.1
+          for i in $(seq 1 30); do
+            curl -fsS -o /dev/null http://localhost:9000/health && exit 0
+            sleep 1
+          done
+          echo "storage did not become ready" >&2
+          docker logs storage
+          exit 1
+      - name: tests/authz and tests/security
+        working-directory: services/api
+        run: uv sync --frozen && uv run pytest tests/authz tests/security -v

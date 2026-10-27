@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PWA — Desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <aside style="{{S.rail}}">
+    <div style="display:flex;align-items:center;gap:10px;padding:4px 8px 18px">
+      <span style="width:36px;height:36px;border-radius:10px;background:#3D5AFE;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="26" width="8" height="14" rx="3" fill="#FFFFFF" opacity="0.7"></rect><rect x="20" y="17" width="8" height="23" rx="3" fill="#FFFFFF" opacity="0.85"></rect><rect x="32" y="8" width="8" height="32" rx="3" fill="#FFFFFF"></rect></svg></span>
+      <span style="font:700 20px Outfit,sans-serif">Stackd</span>
+    </div>
+    <nav style="display:flex;flex-direction:column;gap:4px">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5">
+        <button style="{{n.st}}">{{n.n}}</button>
+      </sc-for>
+    </nav>
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+      <button style="{{S.install}}">Install app</button>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px">
+        <span style="width:36px;height:36px;border-radius:50%;background:#7C3AED;color:#FFFFFF;font:700 14px Outfit,sans-serif;display:flex;align-items:center;justify-content:center">N</span>
+        <div style="display:flex;flex-direction:column"><span style="font-weight:600;font-size:14px">[Name]</span><span style="font-size:12px;color:{{m.sub}}">[email@domain.com]</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <main style="flex:1;display:flex;flex-direction:column;gap:20px;padding:32px 36px;min-width:0">
+    <header style="display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;flex-direction:column"><span style="font-size:14px;color:{{m.sub}}">Friday, October 9</span><span style="font:700 30px Outfit,sans-serif;letter-spacing:-0.01em">Good morning, [Name]</span></div>
+      <button style="{{S.add}}">+ Add entry or receipt</button>
+    </header>
+
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px">
+      <section style="{{S.hero}}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:14px;font-weight:600">Kept this month so far</span><span style="font:700 64px Outfit,sans-serif;letter-spacing:-0.03em;line-height:1">$412</span></div>
+          <span style="padding:6px 12px;border-radius:999px;background:rgba(255,255,255,0.18);font-size:13px;font-weight:600">October</span>
+        </div>
+        
+        <span style="font-size:13px;font-weight:600">In +$5,200 · Out −$4,788 · from your Oct 8 statement</span>
+      </section>
+      <section style="{{S.card}}">
+        <span style="font-size:13px;font-weight:600;color:{{m.warn}}">Heads up</span>
+        <span style="font:700 20px Outfit,sans-serif;line-height:1.25">You may be short $180 around Oct 25</span>
+        <span style="font-size:14px;color:{{m.sub}}">Rent lands before your Oct 30 paycheck.</span>
+        <button style="{{S.cardBtn}}">See 30-day forecast</button>
+      </section>
+
+      <section style="{{S.card}}"><span style="font-size:13px;font-weight:600;color:{{m.sub}}">Budget · 50/30/20</span><span style="font:700 22px Outfit,sans-serif">Needs $462 over</span>
+        <div style="display:flex;gap:4px"><span style="flex:5;height:8px;border-radius:4px;background:#3D5AFE"></span><span style="flex:3;height:8px;border-radius:4px;background:#7C3AED"></span><span style="flex:2;height:8px;border-radius:4px;background:#0B7A55"></span></div>
+        <span style="font-size:13px;color:{{m.sub}}">Wants $234 left · save $640 to go</span></section>
+      <section style="{{S.card}}"><span style="font-size:13px;font-weight:600;color:{{m.sub}}">Emergency fund</span><span style="font:700 22px Outfit,sans-serif">0.2 months</span>
+        <div style="height:8px;border-radius:4px;background:{{m.line}};overflow:hidden"><div style="width:62%;height:100%;background:#0B7A55"></div></div>
+        <span style="font-size:13px;color:{{m.sub}}">$620 of $1,000 starter fund</span></section>
+      <section style="{{S.card}}"><span style="font-size:13px;font-weight:600;color:{{m.sub}}">Group challenge · day 6/7</span><span style="font:700 22px Outfit,sans-serif">No-Eat-Out Week</span>
+        <div style="display:flex;gap:4px"><span style="flex:1;height:8px;border-radius:4px;background:#7C3AED"></span><span style="flex:1;height:8px;border-radius:4px;background:#7C3AED"></span><span style="flex:1;height:8px;border-radius:4px;background:#7C3AED"></span><span style="flex:1;height:8px;border-radius:4px;background:#7C3AED"></span><span style="flex:1;height:8px;border-radius:4px;background:#7C3AED"></span><span style="flex:1;height:8px;border-radius:4px;background:{{m.line}}"></span><span style="flex:1;height:8px;border-radius:4px;background:{{m.line}}"></span></div>
+        <span style="font-size:13px;color:{{m.sub}}">You're #2 of 12 · 71% of your goal</span></section>
+
+      <section style="{{S.wide}}">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:6px"><span style="font:700 18px Outfit,sans-serif">Recent entries</span><button style="{{S.link}}">See all</button></div>
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+          <div style="{{S.row}}"><span style="flex:1;font-weight:600;font-size:15px">{{r.n}}</span><span style="width:160px;font-size:13px;color:{{m.sub}}">{{r.c}}</span><span style="width:90px;font-size:13px;color:{{m.sub}}">{{r.d}}</span><span style="width:80px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums">{{r.v}}</span></div>
+        </sc-for>
+      </section>
+      <section style="{{S.card}}">
+        <span style="font:700 18px Outfit,sans-serif">Goals</span>
+        <sc-for list="{{goals}}" as="g" hint-placeholder-count="3">
+          <div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;font-size:14px"><span style="font-weight:600">{{g.n}}</span><span style="color:{{m.sub}};font-variant-numeric:tabular-nums">{{g.p}}</span></div><div style="height:6px;border-radius:3px;background:{{m.line}};overflow:hidden"><div style="{{g.bar}}"></div></div></div>
+        </sc-for>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark;
+    const m = dark
+      ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', warn: '#FFB547' }
+      : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', warn: '#8A4B00' };
+    const sh = '0 6px 20px rgba(17,24,39,' + (dark ? '0.4' : '0.08') + ')';
+    const card = 'display:flex;flex-direction:column;gap:10px;padding:20px;border-radius:22px;background:' + m.card + ';box-shadow:' + sh;
+    const S = {
+      root: 'width:1280px;height:800px;display:flex;overflow:hidden;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      rail: 'width:248px;flex-shrink:0;box-sizing:border-box;padding:24px 16px;display:flex;flex-direction:column;background:' + m.card + ';border-right:1px solid ' + m.line,
+      install: 'min-height:44px;border:1px solid ' + m.line + ';border-radius:14px;background:transparent;color:' + m.ink + ';font:600 14px Outfit,sans-serif;cursor:pointer',
+      add: 'min-height:48px;padding:0 20px;border:0;border-radius:14px;background:#3D5AFE;color:#FFFFFF;font:600 15px Outfit,sans-serif;cursor:pointer',
+      hero: 'grid-column:span 2;display:flex;flex-direction:column;gap:14px;padding:26px;border-radius:22px;background:#3D5AFE;color:#FFFFFF;box-shadow:' + sh,
+      card: card,
+      wide: card.replace('gap:10px', 'gap:0') + ';grid-column:span 2',
+      cardBtn: 'margin-top:auto;min-height:44px;border:0;border-radius:12px;background:' + (dark ? '#1E2433' : '#EEF1FF') + ';color:' + (dark ? '#8FA2FF' : '#3D5AFE') + ';font:600 14px Outfit,sans-serif;cursor:pointer',
+      link: 'min-height:44px;padding:0 8px;border:0;background:transparent;color:' + (dark ? '#8FA2FF' : '#3D5AFE') + ';font:600 14px Outfit,sans-serif;cursor:pointer',
+      row: 'display:flex;align-items:center;gap:12px;min-height:52px;border-top:1px solid ' + m.line
+    };
+    const nav = ['Home', 'Budget', 'Goals', 'Learn', 'Settings'].map((n, i) => ({ n,
+      st: 'min-height:44px;padding:0 14px;text-align:left;border:0;border-radius:12px;cursor:pointer;font:' + (i === 0 ? '600' : '500') + ' 15px Outfit,sans-serif;' + (i === 0 ? 'background:' + (dark ? '#1E2433' : '#EEF1FF') + ';color:' + (dark ? '#8FA2FF' : '#3D5AFE') : 'background:transparent;color:' + m.sub) }));
+    const rows = [['Corner Market', 'Groceries', 'Today', '$42.17'], ['Bus pass', 'Transport', 'Today', '$2.75'], ['Coffee beans', 'Groceries', 'Yesterday', '$14.99'], ['Phone bill', 'Utilities & phone', 'Oct 7', '$45.00']]
+      .map(([n, c, d, v]) => ({ n, c, d, v }));
+    const goals = [['Travel jar', 0.32, '$640 / $2,000'], ['Card A payoff', 0.18, '$430 / $2,400'], ['Emergency', 0.62, '$620 / $1,000']]
+      .map(([n, f, p]) => ({ n, p, bar: 'width:' + Math.round(f * 100) + '%;height:100%;background:' + (f >= 1 ? '#0B7A55' : '#3D5AFE') }));
+    return { S, m, nav, rows, goals };
+  }
+}
+</script>
+</body>
+</html>

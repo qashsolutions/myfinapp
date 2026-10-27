@@ -1,0 +1,33 @@
+{
+  "years": 2,
+  "points": [
+    {
+      "age": 50,
+      "contributed_cents": 5000000,
+      "balances_cents": [
+        5000000
+      ]
+    },
+    {
+      "age": 51,
+      "contributed_cents": 5000000,
+      "balances_cents": [
+        5255809
+      ]
+    },
+    {
+      "age": 52,
+      "contributed_cents": 5000000,
+      "balances_cents": [
+        5524707
+      ]
+    }
+  ],
+  "at_retirement_cents": [
+    5524707
+  ],
+  "middle_index": 0,
+  "target_cents": 5000000,
+  "reaches_target": true,
+  "monthly_needed_cents": 0
+}

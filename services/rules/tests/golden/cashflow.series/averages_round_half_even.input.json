@@ -1,0 +1,27 @@
+{
+  "start": "2026-09-01",
+  "end": "2026-10-31",
+  "step": "month",
+  "entries": [
+    {
+      "id": "a",
+      "date": "2026-09-05",
+      "amount_cents": 2,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "chk"
+    },
+    {
+      "id": "b",
+      "date": "2026-10-05",
+      "amount_cents": 3,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "chk"
+    }
+  ]
+}

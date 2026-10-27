@@ -1,0 +1,21 @@
+{
+  "as_of": "2026-10-10",
+  "start_balance_cents": 10000,
+  "daily_cents": 0,
+  "upcoming": [
+    {
+      "date": "2026-10-12",
+      "kind": "bill",
+      "amount_cents": 8000,
+      "matched": true
+    },
+    {
+      "date": "2026-10-13",
+      "kind": "bill",
+      "amount_cents": 3000,
+      "matched": false
+    }
+  ],
+  "buffer_cents": 0,
+  "days": 4
+}

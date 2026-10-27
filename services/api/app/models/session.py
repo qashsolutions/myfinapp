@@ -1,0 +1,42 @@
+"""sessions: one row per signed-in device.
+
+docs/spec.md "Authentication": refresh tokens per device, listed under Active devices, revocable.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+
+from sqlalchemy import CheckConstraint, ForeignKey, String, Uuid
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.models.base import Base, StackdRow
+
+# Why a session ended, so Sign-in & security can say so (October 13, 2026).
+END_REASONS = ("signed_out", "signed_out_remote", "account_deleted")
+
+
+class Session(Base, StackdRow):
+    __tablename__ = "sessions"
+    __table_args__ = (
+        CheckConstraint(
+            "ended_reason IS NULL OR ended_reason IN "
+            "('signed_out', 'signed_out_remote', 'account_deleted', 'plan_ended')",
+            name="ended_reason",
+        ),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    # HMAC of the cookie value. The cookie is the per-device refresh token; it never touches
+    # the database in clear.
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    device_label: Mapped[str] = mapped_column(String(80))  # "Safari on iPhone · Home Screen app"
+    ip_hash: Mapped[str | None] = mapped_column(String(64))
+    last_seen_at: Mapped[datetime]
+    expires_at: Mapped[datetime]
+    passkey_verified_at: Mapped[datetime | None]  # last passkey check on this device
+    revoked_at: Mapped[datetime | None]
+    ended_reason: Mapped[str | None] = mapped_column(String(24))

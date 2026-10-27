@@ -1,0 +1,76 @@
+{
+  "start": "2026-10-04",
+  "end": "2026-10-10",
+  "entries": [
+    {
+      "id": "e1",
+      "date": "2026-10-03",
+      "amount_cents": 1000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "groceries",
+      "category_kind": "expense",
+      "account_id": "chk"
+    },
+    {
+      "id": "e2",
+      "date": "2026-10-04",
+      "amount_cents": 150000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "pay",
+      "category_kind": "income",
+      "account_id": "chk"
+    },
+    {
+      "id": "e3",
+      "date": "2026-10-06",
+      "amount_cents": 4217,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "groceries",
+      "category_kind": "expense",
+      "account_id": "chk"
+    },
+    {
+      "id": "e4",
+      "date": "2026-10-08",
+      "amount_cents": 2500,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "dining",
+      "category_kind": "expense",
+      "account_id": "card"
+    },
+    {
+      "id": "e5",
+      "date": "2026-10-09",
+      "amount_cents": 700,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "groceries",
+      "category_kind": "expense",
+      "account_id": "chk"
+    },
+    {
+      "id": "e6",
+      "date": "2026-10-10",
+      "amount_cents": 20000,
+      "direction": "out",
+      "is_transfer": true,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "chk"
+    },
+    {
+      "id": "e7",
+      "date": "2026-10-11",
+      "amount_cents": 999,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "dining",
+      "category_kind": "expense",
+      "account_id": "chk"
+    }
+  ]
+}

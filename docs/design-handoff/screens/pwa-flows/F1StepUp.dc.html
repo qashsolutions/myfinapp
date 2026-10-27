@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 1 — Step-up check</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <div aria-hidden="true" style="padding:28px 18px;display:flex;flex-direction:column;gap:14px">
+    <span style="font:700 28px Outfit,sans-serif">Settings</span>
+    <div style="{{S.ghostCard}}">
+      <div style="{{S.ghostRow}}">Keep receipt photos</div>
+      <div style="{{S.ghostRow}}">Delete all receipt photos</div>
+      <div style="{{S.ghostRowLast}}">Download all my data</div>
+    </div>
+    <div style="{{S.ghostCard}}">
+      <div style="{{S.ghostRow}}">Privacy policy</div>
+      <div style="{{S.ghostRowLast}}">Terms of service</div>
+    </div>
+  </div>
+  <div style="position:absolute;inset:0;background:rgba(10,12,18,0.5)"></div>
+
+  <section role="dialog" aria-modal="true" aria-labelledby="su" style="{{S.sheet}}">
+    <span style="width:40px;height:5px;border-radius:3px;background:{{m.line}};align-self:center"></span>
+    <span style="{{S.ic}}"><svg width="30" height="30" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 20V14a6 6 0 0 1 6-6h6M44 8h6a6 6 0 0 1 6 6v6M56 44v6a6 6 0 0 1-6 6h-6M20 56h-6a6 6 0 0 1-6-6v-6"></path><path d="M24 24v4M40 24v4M24 43c4.5 3 11.5 3 16 0"></path></svg></span>
+    <div style="display:flex;flex-direction:column;gap:6px;text-align:center">
+      <span id="su" style="font:700 22px Outfit,sans-serif">Confirm it's you</span>
+      <span style="font-size:15px;line-height:1.45;color:{{m.sub}}">{{why}}</span>
+    </div>
+    <button style="{{S.primary}}">Confirm with Face ID</button>
+    <button style="{{S.ghost}}">Cancel</button>
+    <span style="text-align:center;font-size:12px;color:{{m.sub}}">We'll also email you that this happened.</span>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"action":{"editor":"enum","options":["export","delete","bank","email","plan"],"default":"export"},"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', tint: '#1E2433', acc: '#8FA2FF' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE' };
+    const why = {
+      export: 'Downloading all your data needs a quick check, even while the app is unlocked.',
+      delete: 'Deleting your account is permanent. Confirm it\u2019s you before we continue.',
+      bank: 'Linking a bank account needs a quick check first.',
+      email: 'Changing your email or phone needs a quick check first.',
+      plan: 'Changing your plan needs a quick check first.'
+    }[this.props.action || 'export'];
+    const btn = 'min-height:54px;display:flex;align-items:center;justify-content:center;border-radius:16px;font:600 16px Outfit,sans-serif;width:100%;box-sizing:border-box;cursor:pointer;';
+    const gr = 'min-height:52px;display:flex;align-items:center;font-size:15px;font-weight:600;';
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      ghostCard: 'background:' + m.card + ';border-radius:22px;padding:0 16px',
+      ghostRow: gr + 'border-bottom:1px solid ' + m.line, ghostRowLast: gr,
+      sheet: 'position:absolute;left:0;right:0;bottom:0;box-sizing:border-box;padding:12px 22px 30px;display:flex;flex-direction:column;gap:14px;background:' + m.card + ';border-radius:28px 28px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,0.25)',
+      ic: 'align-self:center;width:64px;height:64px;border-radius:20px;display:flex;align-items:center;justify-content:center;background:' + m.tint + ';color:' + m.acc,
+      primary: btn + 'border:0;background:#3D5AFE;color:#FFFFFF',
+      ghost: btn + 'background:transparent;color:' + m.ink + ';border:1px solid ' + m.line
+    };
+    return { S, m, why };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "take_home_cents": 10000,
+  "split_bps": {
+    "need": 0,
+    "want": 0,
+    "save": 10000
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-20",
+  "limit": 3,
+  "entries": [
+    {
+      "id": "a",
+      "date": "2026-10-02",
+      "amount_cents": 450,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Blue Bottle"
+    },
+    {
+      "id": "b",
+      "date": "2026-10-05",
+      "amount_cents": 520,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "blue  bottle "
+    },
+    {
+      "id": "c",
+      "date": "2026-10-09",
+      "amount_cents": 480,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "BLUE BOTTLE"
+    },
+    {
+      "id": "d",
+      "date": "2026-10-03",
+      "amount_cents": 120000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "City Rent"
+    },
+    {
+      "id": "e",
+      "date": "2026-10-12",
+      "amount_cents": 8999,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Costco"
+    },
+    {
+      "id": "f",
+      "date": "2026-10-15",
+      "amount_cents": 8999,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Costco"
+    },
+    {
+      "id": "g",
+      "date": "2026-10-18",
+      "amount_cents": 25000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Delta Air"
+    },
+    {
+      "id": "h",
+      "date": "2026-10-10",
+      "amount_cents": 50000,
+      "direction": "out",
+      "is_transfer": true,
+      "payee": "To savings"
+    },
+    {
+      "id": "i",
+      "date": "2026-10-11",
+      "amount_cents": 3000,
+      "direction": "in",
+      "is_transfer": false,
+      "payee": "Costco"
+    },
+    {
+      "id": "j",
+      "date": "2026-09-30",
+      "amount_cents": 99999,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Old Store"
+    },
+    {
+      "id": "k",
+      "date": "2026-10-21",
+      "amount_cents": 99999,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Later Store"
+    },
+    {
+      "id": "l",
+      "date": "2026-10-19",
+      "amount_cents": 700,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": null
+    }
+  ]
+}

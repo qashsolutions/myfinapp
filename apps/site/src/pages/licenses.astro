@@ -1,0 +1,28 @@
+---
+import PageHero from "../components/PageHero.astro";
+import Base from "../layouts/Base.astro";
+import licenses from "../data/licenses.json";
+
+const js = licenses.javascript as Array<{ name: string; license: string; homepage?: string }>;
+const py = licenses.python as Array<{ name: string; license: string; homepage?: string }>;
+---
+
+<Base title="Open-source licenses" description="The open-source software Qash is built with, and its licenses.">
+  <PageHero pill="Thank you" title="Open-source" accent="licenses" lede="Qash is built on open-source software. Thank you to everyone who maintains it." />
+  <h2>In the app and on this site</h2>
+  <ul class="lic-list">
+    {js.map((d) => (
+      <li>
+        {d.homepage ? <a href={d.homepage}>{d.name}</a> : d.name} · {d.license}
+      </li>
+    ))}
+  </ul>
+  <h2>On our servers</h2>
+  <ul class="lic-list">
+    {py.map((d) => (
+      <li>
+        {d.homepage ? <a href={d.homepage}>{d.name}</a> : d.name} · {d.license}
+      </li>
+    ))}
+  </ul>
+</Base>

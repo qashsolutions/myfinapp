@@ -1,0 +1,31 @@
+{
+  "goal": {
+    "kind": "save",
+    "target_cents": 200000,
+    "start_date": "2026-09-01",
+    "end_date": "2027-06-30"
+  },
+  "events": [
+    {
+      "type": "deposit",
+      "date": "2026-09-04",
+      "amount_cents": 10000
+    },
+    {
+      "type": "deposit",
+      "date": "2026-09-18",
+      "amount_cents": 7600
+    },
+    {
+      "type": "deposit",
+      "date": "2026-10-02",
+      "amount_cents": 7600
+    },
+    {
+      "type": "deposit",
+      "date": "2026-09-01",
+      "amount_cents": 38800
+    }
+  ],
+  "as_of": "2026-10-10"
+}

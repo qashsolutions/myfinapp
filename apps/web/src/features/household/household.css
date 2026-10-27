@@ -1,0 +1,26 @@
+.household-members {
+  display: grid;
+  gap: 8px;
+}
+.household-link {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.85rem;
+  word-break: break-all;
+  background: var(--c-bg);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.together {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  text-align: center;
+}
+.together__label {
+  color: var(--c-ink-2);
+  font-size: 0.85rem;
+}
+.together__value {
+  font-weight: 700;
+  font-size: 1.1rem;
+}

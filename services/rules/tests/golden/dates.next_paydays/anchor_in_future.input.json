@@ -1,0 +1,9 @@
+{
+  "as_of": "2026-10-09",
+  "schedule": {
+    "kind": "every_n_days",
+    "anchor": "2026-11-06",
+    "n": 14
+  },
+  "count": 2
+}

@@ -1,0 +1,24 @@
+{
+  "start": "2026-10-09",
+  "end": "2026-10-19",
+  "items": [
+    {
+      "date": "2026-10-15",
+      "series_id": "a",
+      "payee": "WATER",
+      "kind": "bill",
+      "amount_cents": 10000,
+      "matched": true,
+      "entry_id": "ok"
+    },
+    {
+      "date": "2026-10-15",
+      "series_id": "b",
+      "payee": "WATER",
+      "kind": "bill",
+      "amount_cents": 10000,
+      "matched": false,
+      "entry_id": null
+    }
+  ]
+}

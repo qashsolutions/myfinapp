@@ -1,0 +1,9 @@
+{
+  "id": "bill_due",
+  "params": {
+    "label": "Rent",
+    "date": "2026-10-10",
+    "amount_cents": 165000,
+    "days": 0
+  }
+}

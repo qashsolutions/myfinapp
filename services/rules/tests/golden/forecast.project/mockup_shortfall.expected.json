@@ -1,0 +1,134 @@
+{
+  "days": [
+    {
+      "date": "2026-10-09",
+      "balance_cents": 210000
+    },
+    {
+      "date": "2026-10-10",
+      "balance_cents": 205800
+    },
+    {
+      "date": "2026-10-11",
+      "balance_cents": 201600
+    },
+    {
+      "date": "2026-10-12",
+      "balance_cents": 192900
+    },
+    {
+      "date": "2026-10-13",
+      "balance_cents": 188700
+    },
+    {
+      "date": "2026-10-14",
+      "balance_cents": 166500
+    },
+    {
+      "date": "2026-10-15",
+      "balance_cents": 162300
+    },
+    {
+      "date": "2026-10-16",
+      "balance_cents": 398100
+    },
+    {
+      "date": "2026-10-17",
+      "balance_cents": 393900
+    },
+    {
+      "date": "2026-10-18",
+      "balance_cents": 389700
+    },
+    {
+      "date": "2026-10-19",
+      "balance_cents": 385500
+    },
+    {
+      "date": "2026-10-20",
+      "balance_cents": 201300
+    },
+    {
+      "date": "2026-10-21",
+      "balance_cents": 197100
+    },
+    {
+      "date": "2026-10-22",
+      "balance_cents": 176400
+    },
+    {
+      "date": "2026-10-23",
+      "balance_cents": 172200
+    },
+    {
+      "date": "2026-10-24",
+      "balance_cents": 168000
+    },
+    {
+      "date": "2026-10-25",
+      "balance_cents": -1200
+    },
+    {
+      "date": "2026-10-26",
+      "balance_cents": -5400
+    },
+    {
+      "date": "2026-10-27",
+      "balance_cents": -9600
+    },
+    {
+      "date": "2026-10-28",
+      "balance_cents": -13800
+    },
+    {
+      "date": "2026-10-29",
+      "balance_cents": -18000
+    },
+    {
+      "date": "2026-10-30",
+      "balance_cents": 217800
+    },
+    {
+      "date": "2026-10-31",
+      "balance_cents": 213600
+    },
+    {
+      "date": "2026-11-01",
+      "balance_cents": 209400
+    },
+    {
+      "date": "2026-11-02",
+      "balance_cents": 205200
+    },
+    {
+      "date": "2026-11-03",
+      "balance_cents": 201000
+    },
+    {
+      "date": "2026-11-04",
+      "balance_cents": 196800
+    },
+    {
+      "date": "2026-11-05",
+      "balance_cents": 192600
+    },
+    {
+      "date": "2026-11-06",
+      "balance_cents": 188400
+    },
+    {
+      "date": "2026-11-07",
+      "balance_cents": 184200
+    },
+    {
+      "date": "2026-11-08",
+      "balance_cents": 180000
+    }
+  ],
+  "lowest_cents": -18000,
+  "lowest_date": "2026-10-29",
+  "end_cents": 180000,
+  "shortfall": true,
+  "short_by_cents": 18000,
+  "first_short_date": "2026-10-25"
+}

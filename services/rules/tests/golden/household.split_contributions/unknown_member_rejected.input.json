@@ -1,0 +1,12 @@
+{
+  "members": [
+    "maya"
+  ],
+  "events": [
+    {
+      "member_id": "sam",
+      "type": "deposit",
+      "amount_cents": 100
+    }
+  ]
+}

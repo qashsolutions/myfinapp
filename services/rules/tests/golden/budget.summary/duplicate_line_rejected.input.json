@@ -1,0 +1,18 @@
+{
+  "as_of": "2026-10-20",
+  "method": "zero_based",
+  "take_home_cents": 1,
+  "lines": [
+    {
+      "category_id": "a",
+      "bucket": "need",
+      "planned_cents": 1
+    },
+    {
+      "category_id": "a",
+      "bucket": "need",
+      "planned_cents": 2
+    }
+  ],
+  "entries": []
+}

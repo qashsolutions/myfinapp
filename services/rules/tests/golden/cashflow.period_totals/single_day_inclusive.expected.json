@@ -1,0 +1,22 @@
+{
+  "start": "2026-10-10",
+  "end": "2026-10-10",
+  "in_cents": 0,
+  "out_cents": 500,
+  "net_cents": -500,
+  "transfers_out_cents": 0,
+  "count": 1,
+  "by_category": [
+    {
+      "category_id": null,
+      "out_cents": 500
+    }
+  ],
+  "by_account": [
+    {
+      "account_id": "chk",
+      "in_cents": 0,
+      "out_cents": 500
+    }
+  ]
+}

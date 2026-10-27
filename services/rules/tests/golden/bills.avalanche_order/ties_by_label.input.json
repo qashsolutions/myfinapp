@@ -1,0 +1,18 @@
+{
+  "debts": [
+    {
+      "id": "p",
+      "label": "Beta",
+      "balance_cents": 1000,
+      "apr_bps": 1000,
+      "min_payment_cents": 100
+    },
+    {
+      "id": "q",
+      "label": "Alpha",
+      "balance_cents": 1000,
+      "apr_bps": 1000,
+      "min_payment_cents": 100
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "points": [
+    {
+      "date": "2026-09-18",
+      "assets_cents": null,
+      "debts_cents": null,
+      "net_cents": null,
+      "partial": true
+    },
+    {
+      "date": "2026-09-19",
+      "assets_cents": 0,
+      "debts_cents": 30000,
+      "net_cents": -30000,
+      "partial": false
+    }
+  ],
+  "change_cents": null
+}

@@ -1,0 +1,50 @@
+{
+  "years": 3,
+  "points": [
+    {
+      "age": 40,
+      "contributed_cents": 1000000,
+      "balances_cents": [
+        1000000,
+        1000000,
+        1000000
+      ]
+    },
+    {
+      "age": 41,
+      "contributed_cents": 1600000,
+      "balances_cents": [
+        1638735,
+        1665105,
+        1691919
+      ]
+    },
+    {
+      "age": 42,
+      "contributed_cents": 2200000,
+      "balances_cents": [
+        2296898,
+        2364237,
+        2433858
+      ]
+    },
+    {
+      "age": 43,
+      "contributed_cents": 2800000,
+      "balances_cents": [
+        2975079,
+        3099139,
+        3229431
+      ]
+    }
+  ],
+  "at_retirement_cents": [
+    2975079,
+    3099139,
+    3229431
+  ],
+  "middle_index": 1,
+  "target_cents": 4000000,
+  "reaches_target": false,
+  "monthly_needed_cents": 73246
+}

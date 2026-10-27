@@ -1,0 +1,13 @@
+{
+  "kind": "payoff",
+  "current": -10000,
+  "target": 240000,
+  "remaining": 250000,
+  "progress_bps": -417,
+  "display_bps": 0,
+  "days_left": 263,
+  "weeks_left": 38,
+  "weekly_pace": 6579,
+  "status": "active",
+  "end_date": "2027-06-30"
+}

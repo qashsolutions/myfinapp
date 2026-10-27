@@ -1,0 +1,91 @@
+---
+/**
+ * A legal page (owner, October 15–16, 2026): the hero, the short version as a card with a check
+ * per line, then every section as a card that opens and closes; the contents list beside it
+ * opens the section it points to. A section without text is not shown, so the page never
+ * displays a placeholder.
+ */
+import PageHero from "./PageHero.astro";
+import SecIcon from "./visuals/SecIcon.astro";
+import { linkPlans } from "../data/linkPlans.ts";
+import { LEGAL_UPDATED } from "../data/site.ts";
+
+interface Props {
+  title: string;
+  accent?: string;
+  lede?: string;
+  summary: string[];
+  /** A section's body: a paragraph, or several blocks (a string is a paragraph, an array of
+   * strings is a bulleted list). A section without text is not shown. */
+  sections: Array<{ id: string; heading: string; text?: string | Array<string | string[]> }>;
+}
+
+const { title, accent, lede, summary, sections: all } = Astro.props;
+const sections = all.filter((s) => s.text);
+---
+
+<PageHero pill={`Updated ${LEGAL_UPDATED}`} title={title} accent={accent} lede={lede} />
+<article class="legal">
+  <section class="legal__short" aria-labelledby="short">
+    <h2 id="short"><span class="sec-tile__icon"><SecIcon name="shield" /></span>The short version</h2>
+    <ul>
+      {summary.map((line) => <li><SecIcon name="check" /><span set:html={linkPlans(line)} /></li>)}
+    </ul>
+  </section>
+  {sections.length > 0 ? (
+    <div class="legal__body">
+      <nav aria-labelledby="toc-h" class="legal__toc">
+        <h2 id="toc-h">Contents</h2>
+        <ol>
+          {sections.map((s) => (
+            <li><a href={`#${s.id}`} data-open={s.id}>{s.heading}</a></li>
+          ))}
+        </ol>
+        <button type="button" class="legal__toggle" data-toggle-all aria-pressed="false">Open all</button>
+      </nav>
+      <div class="legal__sections">
+        {sections.map((s, i) => (
+          <details class="legal__section" id={s.id}>
+            <summary>
+              <h2><span class="legal__n" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>{s.heading}</h2>
+              <svg class="legal__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </summary>
+            <div class="legal__text">
+              {(Array.isArray(s.text) ? s.text : [s.text]).map((block) =>
+                Array.isArray(block) ? (
+                  <ul>
+                    {block.map((item) => <li set:html={linkPlans(item)} />)}
+                  </ul>
+                ) : (
+                  <p set:html={linkPlans(block)} />
+                ),
+              )}
+            </div>
+          </details>
+        ))}
+      </div>
+    </div>
+  ) : null}
+</article>
+
+<script>
+  // The contents list opens the section it points to (and a shared link to #section does too).
+  const open = (id: string) => {
+    const el = document.getElementById(id);
+    if (el instanceof HTMLDetailsElement) el.open = true;
+  };
+  const fromHash = () => {
+    if (location.hash) open(decodeURIComponent(location.hash.slice(1)));
+  };
+  fromHash();
+  window.addEventListener("hashchange", fromHash);
+  for (const a of document.querySelectorAll<HTMLAnchorElement>("[data-open]"))
+    a.addEventListener("click", () => open(a.dataset.open ?? ""));
+  const all = document.querySelector<HTMLButtonElement>("[data-toggle-all]");
+  all?.addEventListener("click", () => {
+    const opening = all.getAttribute("aria-pressed") !== "true";
+    for (const d of document.querySelectorAll<HTMLDetailsElement>(".legal__section")) d.open = opening;
+    all.setAttribute("aria-pressed", String(opening));
+    all.textContent = opening ? "Close all" : "Open all";
+  });
+</script>

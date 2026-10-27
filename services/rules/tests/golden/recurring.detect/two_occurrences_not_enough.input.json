@@ -1,0 +1,21 @@
+{
+  "entries": [
+    {
+      "id": "a",
+      "date": "2026-08-01",
+      "amount_cents": 5000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Gym"
+    },
+    {
+      "id": "b",
+      "date": "2026-09-01",
+      "amount_cents": 5000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Gym"
+    }
+  ],
+  "as_of": "2026-10-10"
+}

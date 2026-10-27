@@ -1,0 +1,290 @@
+/* Fast-follow 8 insights: token variables only, same in every look. */
+.insight__safe {
+  margin: var(--space-2, 8px) 0 0;
+  font-weight: 600;
+}
+
+.insight__fine {
+  font-weight: 400;
+  color: var(--c-text-2, var(--c-text));
+  font-size: 0.9em;
+}
+
+.insight__list {
+  list-style: none;
+  margin: var(--space-2, 8px) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2, 8px);
+}
+
+.insight__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  align-items: baseline;
+}
+
+.insight__sub {
+  display: block;
+  font-size: 0.9em;
+  color: var(--c-text-2, var(--c-text));
+}
+
+/* Insights hub (October 18, 2026): summary cards, headline first, small pictures. */
+.insight-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 600px) {
+  .insight-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+[data-simple="1"] .insight-grid {
+  grid-template-columns: 1fr;
+}
+.insight-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  min-height: 100%;
+}
+.insight-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.insight-card__title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--c-sub);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.insight-card__headline {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--c-ink);
+  line-height: 1.2;
+}
+.insight-card__line {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--c-ink);
+}
+.insight-card__word--good {
+  color: var(--c-success);
+}
+.insight-card__word--bad {
+  color: var(--c-danger);
+}
+.insight-card__visual {
+  margin-top: 8px;
+}
+.insight-neg {
+  color: var(--c-danger);
+}
+.inout {
+  display: grid;
+  gap: 6px;
+}
+.inout__bar {
+  display: block;
+  height: 10px;
+  min-width: 4px;
+  border-radius: 999px;
+}
+.inout__bar--in {
+  background: var(--c-success);
+}
+.inout__bar--out {
+  background: var(--c-danger);
+}
+.inout__legend {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 0.8125rem;
+  color: var(--c-sub);
+}
+.insight-ring {
+  display: inline-grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, var(--c-card) 76%, transparent 78%),
+    conic-gradient(var(--c-success) var(--ring-pct), var(--c-line) 0);
+  color: var(--c-ink);
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+.bill-chips {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+}
+.bill-chips__item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 0;
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--c-bg);
+}
+.bill-chips__date {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--c-a1);
+}
+.bill-chips__name {
+  font-size: 0.8125rem;
+  color: var(--c-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bucket-bars {
+  display: grid;
+  gap: 6px;
+}
+.bucket-bars__row {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--c-sub);
+}
+.bucket-bars__track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--c-line);
+  overflow: hidden;
+}
+.bucket-bars__fill {
+  display: block;
+  height: 100%;
+  background: var(--c-a1);
+}
+.bucket-bars__fill--over {
+  background: var(--c-danger);
+}
+.runway-box {
+  width: 100%;
+}
+.runway {
+  display: block;
+  overflow: visible;
+}
+.runway__room {
+  fill: var(--c-success);
+  fill-opacity: 0.16;
+}
+.runway__short {
+  fill: var(--c-danger);
+  fill-opacity: 0.2;
+}
+.runway__line {
+  fill: none;
+  stroke: var(--c-a1);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.runway__cushion {
+  stroke: var(--c-sub);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 4;
+}
+.runway__dot {
+  fill: var(--c-a1);
+}
+.runway__dot--room {
+  fill: var(--c-success);
+}
+.runway__dot--short {
+  fill: var(--c-danger);
+}
+.runway__label {
+  font: 700 13px var(--font-body);
+  fill: var(--c-ink);
+}
+.runway__label--short {
+  fill: var(--c-danger);
+}
+.runway__note,
+.runway__axis {
+  font: 600 12px var(--font-body);
+  fill: var(--c-sub);
+}
+
+/* Biggest & most often (October 20, 2026). */
+.often + .often {
+  border-top: 1px solid var(--c-line);
+}
+.often__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  padding: 12px 0;
+  cursor: pointer;
+  list-style: none;
+}
+.often__row::-webkit-details-marker {
+  display: none;
+}
+.often__name {
+  font-weight: 700;
+}
+.often__count {
+  grid-row: 2;
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.often__total {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  font-weight: 700;
+}
+.often__list {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.often__list a {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+  color: var(--c-ink);
+  text-decoration: none;
+}
+.often__list a:hover {
+  text-decoration: underline;
+}
+.top-merchants {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.top-merchants li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+  color: var(--c-sub);
+}
+.top-merchants strong {
+  color: var(--c-ink);
+}

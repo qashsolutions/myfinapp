@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 5 — Learn</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <span style="font:700 26px Outfit,sans-serif">Learn</span>
+
+  <section style="{{S.calc}}">
+    <span style="font:600 16px Outfit,sans-serif">What could saving grow to?</span>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+      <label style="{{S.lab}}">Each month<input value="{{p}}" onChange="{{setP}}" inputmode="decimal" style="{{S.in}}"></label>
+      <label style="{{S.lab}}">Years<input value="{{y}}" onChange="{{setY}}" inputmode="numeric" style="{{S.in}}"></label>
+      <label style="{{S.lab}}">Your rate %<input value="{{r}}" onChange="{{setR}}" inputmode="decimal" style="{{S.in}}"></label>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:700 28px Outfit,sans-serif;font-variant-numeric:tabular-nums">{{fv}}</span><span style="font-size:13px;color:{{m.sub}}">you put in {{paid}}</span></div>
+    <span style="font-size:12px;color:{{m.sub}}">An illustration using the rate you enter — not a prediction or advice. Returns vary and can be negative.</span>
+  </section>
+
+  <section style="{{S.card}}">
+    <sc-for list="{{arts}}" as="a" hint-placeholder-count="8">
+      <a href="F5Learn.dc.html" style="{{S.row}}"><span style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">{{a.n}}</span><span style="font-size:12px;color:{{m.sub}}">{{a.s}}</span></span><span style="color:{{m.sub}}">›</span></a>
+    </sc-for>
+  </section>
+
+  <nav style="{{S.nav}}">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5"><a href="{{t.h}}" style="{{t.st}}">{{t.n}}</a></sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { p: '100', y: '10', r: '5' }; }
+  renderVals() {
+    const dark = !!this.props.dark, st = this.state;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', acc: '#8FA2FF' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', acc: '#3D5AFE' };
+    const P = Number(st.p) || 0, Y = Number(st.y) || 0, R = (Number(st.r) || 0) / 100 / 12, n = Y * 12;
+    const fv = R === 0 ? P * n : P * (Math.pow(1 + R, n) - 1) / R;
+    const arts = [['Savings accounts vs. money market accounts', 'Where to keep an emergency fund · 3 min'], ['Money market account or money market fund?', 'One is insured, one isn\u2019t · 2 min'], ['How CDs work', 'Fixed rate, set term, early-exit penalty · 3 min'], ['HSAs: who qualifies', 'Requires an eligible high-deductible plan · 4 min'], ['Getting your full 401(k) match', 'Check what your employer offers · 3 min'], ['IRAs in plain words', 'Roth and traditional · 4 min'], ['Index funds, simply', 'Broad, low-cost investing · 4 min']].map(([n, s]) => ({ n, s }));
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:24px 18px 110px;display:flex;flex-direction:column;gap:12px;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      calc: 'display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:20px;background:' + m.card,
+      lab: 'display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:' + m.sub,
+      in: 'min-height:44px;width:100%;box-sizing:border-box;padding:0 10px;border-radius:12px;border:1px solid ' + m.line + ';background:' + m.bg + ';color:' + m.ink + ';font:600 16px Outfit,sans-serif;font-variant-numeric:tabular-nums',
+      card: 'display:flex;flex-direction:column;padding:0 16px;border-radius:20px;background:' + m.card,
+      row: 'display:flex;align-items:center;gap:10px;min-height:58px;border-bottom:1px solid ' + m.line,
+      nav: 'position:absolute;left:16px;right:16px;bottom:18px;height:68px;padding:0 6px;display:flex;align-items:center;background:' + m.card + ';border-radius:26px;box-shadow:0 8px 24px rgba(0,0,0,' + (dark ? '0.4' : '0.10') + ')'
+    };
+    const tabs = [['Home', 'F3Home.dc.html'], ['Budget', 'F5Budget.dc.html'], ['Goals', 'F4Goals.dc.html'], ['Learn', 'F5Learn.dc.html'], ['Me', 'F6Settings.dc.html']].map(([n, h], i) => ({ n, h,
+      st: 'flex:1;min-height:48px;display:flex;align-items:center;justify-content:center;border-radius:16px;font:600 12px Outfit,sans-serif;' + (i === 3 ? 'background:#3D5AFE;color:#FFFFFF' : 'color:' + m.sub) }));
+    return { S, m, arts, tabs, p: st.p, y: st.y, r: st.r, fv: '$' + Math.round(fv).toLocaleString('en-US'), paid: '$' + Math.round(P * n).toLocaleString('en-US'),
+      setP: (e) => this.setState({ p: e.target.value }), setY: (e) => this.setState({ y: e.target.value }), setR: (e) => this.setState({ r: e.target.value }) };
+  }
+}
+</script>
+</body>
+</html>

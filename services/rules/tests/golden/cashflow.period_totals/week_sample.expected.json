@@ -1,0 +1,31 @@
+{
+  "start": "2026-10-04",
+  "end": "2026-10-10",
+  "in_cents": 150000,
+  "out_cents": 6017,
+  "net_cents": 143983,
+  "transfers_out_cents": 20000,
+  "count": 4,
+  "by_category": [
+    {
+      "category_id": "groceries",
+      "out_cents": 3517
+    },
+    {
+      "category_id": "dining",
+      "out_cents": 2500
+    }
+  ],
+  "by_account": [
+    {
+      "account_id": "card",
+      "in_cents": 0,
+      "out_cents": 2500
+    },
+    {
+      "account_id": "chk",
+      "in_cents": 150000,
+      "out_cents": 3517
+    }
+  ]
+}

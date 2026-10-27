@@ -1,0 +1,72 @@
+{
+  "series": [
+    {
+      "id": "phone",
+      "payee": "Phone bill",
+      "kind": "bill",
+      "expected_cents": 4500,
+      "interval": "monthly",
+      "next_date": "2026-10-12"
+    },
+    {
+      "id": "car",
+      "payee": "Car insurance",
+      "kind": "bill",
+      "expected_cents": 18000,
+      "interval": "monthly",
+      "next_date": "2026-10-14"
+    },
+    {
+      "id": "pay",
+      "payee": "Paycheck",
+      "kind": "income",
+      "expected_cents": 240000,
+      "interval": "biweekly",
+      "next_date": "2026-10-16"
+    },
+    {
+      "id": "rent",
+      "payee": "Rent",
+      "kind": "bill",
+      "expected_cents": 165000,
+      "interval": "monthly",
+      "next_date": "2026-10-25"
+    },
+    {
+      "id": "util",
+      "payee": "Utilities",
+      "kind": "bill",
+      "expected_cents": 16500,
+      "interval": "monthly",
+      "next_date": "2026-10-22"
+    },
+    {
+      "id": "gym",
+      "payee": "Gym",
+      "kind": "bill",
+      "expected_cents": 3000,
+      "interval": "monthly",
+      "next_date": "2026-09-30"
+    }
+  ],
+  "entries": [
+    {
+      "id": "ph1",
+      "date": "2026-10-11",
+      "amount_cents": 4500,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "PHONE BILL"
+    },
+    {
+      "id": "x",
+      "date": "2026-10-11",
+      "amount_cents": 4500,
+      "direction": "out",
+      "is_transfer": true,
+      "payee": "PHONE BILL"
+    }
+  ],
+  "as_of": "2026-10-09",
+  "days": 30
+}

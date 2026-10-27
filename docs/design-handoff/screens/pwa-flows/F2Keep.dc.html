@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 2 — Keep your data safe</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+    <span style="font-size:13px;font-weight:600;color:{{m.sub}}">One last thing</span>
+    <span style="font:700 30px Outfit,sans-serif;letter-spacing:-0.01em">Keep your data safe</span>
+    <span style="font-size:16px;line-height:1.45;color:{{m.sub}}">Your money data lives only on this device. These steps stop your browser from clearing it.</span>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:22px">
+    <div style="{{S.item}}">
+      <span style="{{S.n1}}">{{mark1}}</span>
+      <div style="flex:1;display:flex;flex-direction:column;gap:4px"><span style="font:600 16px Outfit,sans-serif">Add Stackd to your Home Screen</span><span style="font-size:13px;color:{{m.sub}}">Installed apps keep their data and can send alerts.</span>
+        <a href="../pwa/PwaInstall.dc.html" style="{{S.small}}">Show me how</a></div>
+    </div>
+    <div style="{{S.item}}">
+      <span style="{{S.n2}}">{{mark2}}</span>
+      <div style="flex:1;display:flex;flex-direction:column;gap:4px"><span style="font:600 16px Outfit,sans-serif">Allow lasting storage</span><span style="font-size:13px;color:{{m.sub}}">Asks your browser not to clear Stackd's data.</span>
+        <button onClick="{{allow}}" style="{{S.smallBtn}}">{{allowLabel}}</button></div>
+    </div>
+    <sc-if value="{{paid}}" hint-placeholder-val="{{ true }}">
+      <div style="{{S.item}}">
+        <span style="{{S.n3}}">{{mark3}}</span>
+        <div style="flex:1;display:flex;flex-direction:column;gap:4px"><span style="font:600 16px Outfit,sans-serif">Turn on encrypted backup</span><span style="font-size:13px;color:{{m.sub}}">Locked with your passkey. We can't read it. Restores on a new phone.</span>
+          <button onClick="{{backup}}" style="{{S.smallBtn}}">{{backupLabel}}</button></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{free}}" hint-placeholder-val="{{ false }}">
+      <div style="{{S.item}}">
+        <span style="{{S.n3}}">3</span>
+        <div style="flex:1;display:flex;flex-direction:column;gap:4px"><span style="font:600 16px Outfit,sans-serif">Monthly export reminder</span><span style="font-size:13px;color:{{m.sub}}">Free plan has no backup. We'll remind you to save a copy each month.</span></div>
+      </div>
+    </sc-if>
+  </div>
+
+  <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+    <a href="../v3/Home.dc.html" style="{{S.primary}}">Go to Home</a>
+    <span style="text-align:center;font-size:12px;color:{{m.sub}}">You can finish these later in Settings → Backup &amp; devices.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"plan":{"editor":"enum","options":["private","free"],"default":"private"},"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { allowed: false, backed: false }; }
+  renderVals() {
+    const dark = !!this.props.dark, st = this.state, paid = (this.props.plan || 'private') !== 'free';
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', tint: '#1E2433', acc: '#8FA2FF' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', tint: '#EEF1FF', acc: '#3D5AFE' };
+    const num = (done) => 'width:32px;height:32px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 14px Outfit,sans-serif;' + (done ? 'background:#0B7A55;color:#FFFFFF' : 'background:' + m.tint + ';color:' + m.acc);
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:28px 22px 30px;display:flex;flex-direction:column;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      item: 'display:flex;gap:14px;align-items:flex-start;padding:16px;border-radius:18px;background:' + m.card,
+      n1: num(false), n2: num(st.allowed), n3: num(st.backed),
+      small: 'align-self:flex-start;min-height:44px;display:flex;align-items:center;font:600 14px Outfit,sans-serif;color:' + m.acc,
+      smallBtn: 'align-self:flex-start;margin-top:4px;min-height:44px;padding:0 14px;border-radius:12px;cursor:pointer;font:600 14px Outfit,sans-serif;background:' + m.tint + ';color:' + m.acc + ';border:0',
+      primary: 'min-height:54px;display:flex;align-items:center;justify-content:center;border-radius:16px;font:600 16px Outfit,sans-serif;background:#3D5AFE;color:#FFFFFF'
+    };
+    return { S, m, paid, free: !paid, mark1: '1', mark2: st.allowed ? '✓' : '2', mark3: st.backed ? '✓' : '3',
+      allowLabel: st.allowed ? 'Allowed' : 'Allow', backupLabel: st.backed ? 'Backup is on' : 'Turn on backup',
+      allow: () => this.setState({ allowed: true }), backup: () => this.setState({ backed: true }) };
+  }
+}
+</script>
+</body>
+</html>

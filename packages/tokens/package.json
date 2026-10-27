@@ -1,0 +1,24 @@
+{
+  "name": "@stackd/tokens",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Design tokens for every look and mode: CSS custom properties and typed data from tokens.json.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contrast": "./src/contrast.ts",
+    "./tokens.css": "./dist/tokens.css",
+    "./tokens.json": "./tokens.json"
+  },
+  "scripts": {
+    "build": "tsx src/build.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

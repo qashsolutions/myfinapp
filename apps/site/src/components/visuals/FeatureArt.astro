@@ -1,0 +1,89 @@
+---
+/**
+ * The three feature tiles' drawings (example numbers). Decorative: the tile's heading and
+ * line say the same thing, so each SVG is aria-hidden.
+ */
+interface Props {
+  kind: "money" | "forecast" | "jars";
+}
+const { kind } = Astro.props;
+---
+
+<svg class="feature-art" viewBox="0 0 320 180" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  {
+    kind === "money" && (
+      <g>
+        <g class="v-grow">
+          <path d="M30 24 C 140 24, 140 16, 250 16 L 250 72 C 140 72, 140 80, 30 80 Z" class="v-a1" opacity="0.28" />
+          <path d="M30 80 C 140 80, 140 80, 250 80 L 250 114 C 140 114, 140 114, 30 114 Z" class="v-a3" opacity="0.28" />
+          <path d="M30 114 C 140 114, 140 122, 250 122 L 250 140 C 140 140, 140 132, 30 132 Z" class="v-a2" opacity="0.28" />
+          <path d="M30 132 C 140 132, 140 148, 250 148 L 250 172 C 140 172, 140 156, 30 156 Z" class="v-warning" opacity="0.28" />
+        </g>
+        <rect x="20" y="24" width="10" height="132" rx="4" class="v-a1" />
+        <text x="25" y="16" text-anchor="middle" class="v-t v-sub" font-size="10" font-weight="600">Pay</text>
+          <rect x="250" y="16" width="8" height="56" rx="3" class="v-a1" />
+          <rect x="250" y="80" width="8" height="34" rx="3" class="v-a3" />
+          <rect x="250" y="122" width="8" height="18" rx="3" class="v-a2" />
+          <rect x="250" y="148" width="8" height="24" rx="3" class="v-warning" />
+          <text x="264" y="48" class="v-t v-ink" font-size="11" font-weight="600">Needs</text>
+          <text x="264" y="101" class="v-t v-ink" font-size="11" font-weight="600">Wants</text>
+          <text x="264" y="135" class="v-t v-ink" font-size="11" font-weight="600">Jars</text>
+          <text x="264" y="164" class="v-t v-ink" font-size="11" font-weight="700">Kept $412</text>
+      </g>
+    )
+  }
+  {
+    kind === "forecast" && (
+      <g>
+        <defs>
+          <linearGradient id="fa-area" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" class="v-stop-a1" stop-opacity="0.28" />
+            <stop offset="1" class="v-stop-a1" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <g class="v-line-stroke" stroke-width="1">
+          <line x1="20" y1="40" x2="300" y2="40" />
+          <line x1="20" y1="140" x2="300" y2="140" />
+        </g>
+        <line x1="20" y1="104" x2="300" y2="104" class="v-danger-stroke" stroke-width="1.5" stroke-dasharray="5 5" />
+        <path d="M20 56 C 60 60, 100 74, 140 92 S 178 122, 190 120 S 204 108, 210 100 L 222 48 C 250 52, 280 58, 300 62 L 300 150 L 20 150 Z" fill="url(#fa-area)" />
+        <path class="v-draw v-a1-stroke" d="M20 56 C 60 60, 100 74, 140 92 S 178 122, 190 120 S 204 108, 210 100 L 222 48 C 250 52, 280 58, 300 62" fill="none" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+        <circle cx="190" cy="120" r="12" class="v-danger v-pulse" opacity="0.22" />
+        <circle cx="190" cy="120" r="5" class="v-danger" />
+        <g class="v-float v-float--late">
+          <rect x="112" y="136" width="156" height="32" rx="16" class="v-pending-bg" />
+          <text x="190" y="157" text-anchor="middle" class="v-t v-pending" font-size="12" font-weight="700">Short $180 · Oct 25</text>
+        </g>
+        <text x="300" y="34" text-anchor="end" class="v-t v-sub" font-size="10">Payday</text>
+      </g>
+    )
+  }
+  {
+    kind === "jars" && (
+      <g>
+        <g transform="translate(40 40)">
+          <rect x="10" y="0" width="52" height="10" rx="4" class="v-sub-fill" opacity="0.5" />
+          <rect x="0" y="12" width="72" height="104" rx="18" class="v-line" />
+          <rect x="0" y="82" width="72" height="34" rx="16" class="v-a1 v-rise" />
+          <text x="36" y="136" text-anchor="middle" class="v-t v-sub" font-size="11">Travel</text>
+        </g>
+        <g transform="translate(124 40)">
+          <rect x="10" y="0" width="52" height="10" rx="4" class="v-sub-fill" opacity="0.5" />
+          <rect x="0" y="12" width="72" height="104" rx="18" class="v-line" />
+          <rect x="0" y="46" width="72" height="70" rx="16" class="v-a2 v-rise v-delay-1" />
+          <text x="36" y="136" text-anchor="middle" class="v-t v-sub" font-size="11">Rainy day</text>
+        </g>
+        <g transform="translate(208 40)">
+          <rect x="10" y="0" width="52" height="10" rx="4" class="v-sub-fill" opacity="0.5" />
+          <rect x="0" y="12" width="72" height="104" rx="18" class="v-line" />
+          <rect x="0" y="28" width="72" height="88" rx="16" class="v-a3 v-rise v-delay-2" />
+          <text x="36" y="136" text-anchor="middle" class="v-t v-sub" font-size="11">New car</text>
+        </g>
+        <g class="v-drop">
+          <circle cx="160" cy="18" r="10" class="v-warning" />
+          <text x="160" y="22" text-anchor="middle" class="v-t v-on" font-size="11" font-weight="700">$</text>
+        </g>
+      </g>
+    )
+  }
+</svg>

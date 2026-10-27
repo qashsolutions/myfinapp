@@ -1,0 +1,14 @@
+{
+  "set_aside_cents": 100,
+  "target_cents": 1000,
+  "progress_bps": 1000,
+  "paydays": [
+    {
+      "date": "2026-10-24",
+      "set_aside": true,
+      "due": true
+    }
+  ],
+  "paydays_so_far": 1,
+  "paydays_set_aside": 1
+}

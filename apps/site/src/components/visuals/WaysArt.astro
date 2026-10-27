@@ -1,0 +1,70 @@
+---
+/**
+ * The two ways to use Qash, drawn: Private (a statement goes into the phone and stays there)
+ * and Connected (a bank and a card feed the phone automatically). Decorative: the card's
+ * heading and points say the same thing.
+ */
+interface Props {
+  kind: "private" | "connected";
+}
+const { kind } = Astro.props;
+---
+
+<svg class="ways-art" viewBox="0 0 320 170" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  {
+    kind === "private" && (
+      <g>
+        <g class="v-float v-float--slow">
+          <rect x="34" y="40" width="74" height="94" rx="10" class="v-card v-shadow" />
+          <rect x="46" y="56" width="50" height="6" rx="3" class="v-line" />
+          <rect x="46" y="70" width="40" height="6" rx="3" class="v-line" />
+          <rect x="46" y="84" width="46" height="6" rx="3" class="v-line" />
+          <rect x="46" y="98" width="34" height="6" rx="3" class="v-line" />
+          <text x="71" y="124" text-anchor="middle" class="v-t v-sub" font-size="9" font-weight="600">CSV · OFX · PDF</text>
+        </g>
+        <path d="M118 88 H150" class="v-a1-stroke v-dash" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 8" />
+        <path d="M146 80 L156 88 L146 96" class="v-a1-stroke" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+        <rect x="170" y="14" width="88" height="148" rx="20" class="v-frame" />
+        <rect x="176" y="20" width="76" height="136" rx="15" class="v-bg" />
+        <circle cx="214" cy="88" r="38" class="v-a2" opacity="0.14" />
+        <path d="M214 56 L240 66 V88 C240 104 229 115 214 122 C199 115 188 104 188 88 V66 Z" class="v-a2" />
+        <rect x="204" y="86" width="20" height="17" rx="4" class="v-on-fill" />
+        <path d="M208 86 V81 a6 6 0 0 1 12 0 V86" class="v-on-stroke" fill="none" stroke-width="3" />
+      </g>
+    )
+  }
+  {
+    kind === "connected" && (
+      <g>
+        <g class="v-float v-float--slow">
+          <path d="M22 54 L62 34 L102 54 Z" class="v-a1" />
+          <rect x="28" y="58" width="68" height="6" rx="2" class="v-a1" />
+          <rect x="34" y="68" width="8" height="30" rx="2" class="v-a1" opacity="0.8" />
+          <rect x="58" y="68" width="8" height="30" rx="2" class="v-a1" opacity="0.8" />
+          <rect x="82" y="68" width="8" height="30" rx="2" class="v-a1" opacity="0.8" />
+          <rect x="24" y="100" width="76" height="8" rx="2" class="v-a1" />
+        </g>
+        <g class="v-float v-float--late">
+          <rect x="30" y="120" width="70" height="44" rx="8" class="v-a3" />
+          <rect x="38" y="130" width="14" height="10" rx="2" class="v-pending-bg" />
+          <rect x="38" y="150" width="40" height="4" rx="2" class="v-on-fill" opacity="0.7" />
+        </g>
+        <path d="M112 72 C 140 72, 140 88, 164 88" class="v-a1-stroke v-flow" fill="none" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 8" />
+        <path d="M108 142 C 140 142, 140 96, 164 96" class="v-a3-stroke v-flow" fill="none" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 8" />
+        <rect x="170" y="14" width="88" height="148" rx="20" class="v-frame" />
+        <rect x="176" y="20" width="76" height="136" rx="15" class="v-bg" />
+        <rect x="184" y="34" width="60" height="30" rx="8" class="v-a1" />
+        <rect x="190" y="42" width="30" height="5" rx="2.5" class="v-on-fill" opacity="0.8" />
+        <rect x="190" y="52" width="20" height="5" rx="2.5" class="v-on-fill" opacity="0.6" />
+        <rect x="184" y="72" width="60" height="16" rx="6" class="v-card" />
+        <rect x="184" y="94" width="60" height="16" rx="6" class="v-card" />
+        <rect x="184" y="116" width="60" height="16" rx="6" class="v-card" />
+        <g class="v-spin v-spin--c">
+          <circle cx="262" cy="30" r="15" class="v-a2" />
+          <path d="M255 30 a7 7 0 0 1 12 -5 M269 30 a7 7 0 0 1 -12 5" class="v-on-stroke" fill="none" stroke-width="2.2" stroke-linecap="round" />
+          <path d="M266 21 l2 4 l-4 1 M258 39 l-2 -4 l4 -1" class="v-on-stroke" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+        </g>
+      </g>
+    )
+  }
+</svg>

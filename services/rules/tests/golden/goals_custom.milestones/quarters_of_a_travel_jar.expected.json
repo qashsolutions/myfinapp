@@ -1,0 +1,19 @@
+{
+  "milestones": [
+    {
+      "bps": 2500,
+      "target_cents": 50000,
+      "reached": true
+    },
+    {
+      "bps": 5000,
+      "target_cents": 100000,
+      "reached": false
+    },
+    {
+      "bps": 7500,
+      "target_cents": 150000,
+      "reached": false
+    }
+  ]
+}

@@ -1,0 +1,301 @@
+/* Home (mockup F3Home, spec "Rules added for Home"). */
+
+.home__numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-weight: 600;
+  font-variant-numeric: var(--numeric-data);
+}
+.home__verdict {
+  font: 700 18px var(--font-display);
+  margin: 6px 0 2px;
+}
+.home__move {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.home__move-title {
+  font: 700 18px var(--font-display);
+}
+
+/* The weekly recap's short lists (fast-follow 6) */
+.recap__list {
+  list-style: none;
+  margin: var(--space-2, 8px) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2, 8px);
+}
+
+/* New device with a backup (features/security/RestoreOffer.tsx) */
+.restore-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border: 1.5px solid color-mix(in srgb, var(--c-a1) 35%, var(--c-line));
+}
+.restore-offer__row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.restore-offer__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--c-a1) 12%, var(--c-card));
+  color: var(--c-a1);
+}
+.restore-offer__title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--c-ink);
+}
+.restore-offer__sub {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--c-sub);
+}
+.restore-offer__actions {
+  display: flex;
+  gap: 10px;
+}
+.restore-offer__actions > * {
+  flex: 1;
+}
+
+/* Home visuals (October 19, 2026): headline first, bars beside numbers, token colours only. */
+.home__hero-word {
+  font-size: 2.25rem;
+}
+.home__hero-number {
+  margin: 4px 0 0;
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.home__big {
+  margin: 4px 0 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--c-ink);
+}
+.home__big-unit {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--c-sub);
+}
+.hero-bars {
+  /* A light panel on the accent card: green and red disappear on the accent itself (~1:1). */
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--c-card);
+  color: var(--c-ink);
+}
+.hero-bars__row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.hero-bars__track {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--c-line);
+  overflow: hidden;
+}
+.hero-bars__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+.hero-bars__fill--in {
+  background: var(--c-success);
+}
+.hero-bars__fill--out {
+  background: var(--c-danger);
+}
+.cat-bars {
+  display: grid;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cat-bars__row {
+  display: grid;
+  grid-template-columns: minmax(84px, 30%) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+}
+.cat-bars__name {
+  color: var(--c-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cat-bars__value {
+  color: var(--c-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.cat-bars__track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--c-line);
+  overflow: hidden;
+}
+.cat-bars__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+.cat-bars__fill--need,
+.bucket-key__dot--need {
+  background: var(--c-a1);
+}
+.cat-bars__fill--want,
+.bucket-key__dot--want {
+  background: var(--c-a3);
+}
+.cat-bars__fill--save,
+.bucket-key__dot--save {
+  background: var(--c-a2);
+}
+.cat-bars__fill--none {
+  background: var(--c-sub);
+}
+.bucket-key {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  font-size: 0.75rem;
+  color: var(--c-sub);
+}
+.bucket-key__dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-left: 6px;
+  border-radius: 50%;
+}
+.bucket-key__dot:first-child {
+  margin-left: 0;
+}
+.found__title {
+  margin: 2px 0 10px;
+  font-size: 1.125rem;
+  color: var(--c-ink);
+}
+.found__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.found__count {
+  display: grid;
+  min-width: 84px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--c-bg);
+  color: var(--c-sub);
+  font-size: 0.8125rem;
+}
+.found__count strong {
+  color: var(--c-a1);
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+.found__list {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.found__item {
+  display: grid;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--c-line);
+}
+.found__name {
+  font-weight: 600;
+  color: var(--c-ink);
+}
+.found__meta,
+.found__more {
+  font-size: 0.8125rem;
+  color: var(--c-sub);
+}
+.found__more {
+  padding-top: 8px;
+}
+.found .sk-btn--block {
+  margin-bottom: 8px;
+}
+.setup__dots {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+.setup__dot {
+  width: 28px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--c-line);
+}
+.setup__dot--done {
+  background: var(--c-success);
+}
+.setup__row {
+  color: inherit;
+  text-decoration: none;
+}
+
+.home__customize {
+  align-self: center;
+}
+.setup__all {
+  display: inline-block;
+  margin-top: 8px;
+  font-weight: 600;
+  color: var(--c-a1);
+}
+
+/* Weekly recap, visual (October 23, 2026). */
+.recap__jar {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+}
+.recap__next {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+.recap__next-label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+}
+.recap__next-date {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-sub);
+}

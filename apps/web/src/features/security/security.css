@@ -1,0 +1,61 @@
+/* Sign-in & security → Auto-lock: a big number, a slider to drag and a box to type into.
+   The slider takes the spare width; the box keeps two digits; both wrap on narrow screens. */
+.autolock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.autolock__value {
+  margin: 0;
+  font: 700 40px / 1 var(--font-hero, var(--font-display));
+  font-variant-numeric: var(--numeric-data);
+}
+.autolock__value span {
+  font: 600 18px / 1 var(--font-body);
+  color: var(--c-sub);
+}
+.autolock__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.autolock__slider {
+  flex: 1 1 12rem;
+  min-width: 0;
+  height: 44px;
+  accent-color: var(--c-a1);
+}
+.autolock__field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--c-sub);
+}
+.autolock__field input {
+  width: 4.5ch;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 2px solid var(--c-line);
+  border-radius: 12px;
+  background: var(--c-card);
+  color: var(--c-ink);
+  font: 700 18px / 1 var(--font-body);
+  text-align: center;
+}
+.autolock__field input[aria-invalid="true"] {
+  border-color: var(--c-danger);
+}
+.autolock__help {
+  margin: 0;
+  color: var(--c-sub);
+  font-size: 14px;
+}
+
+/* Signed-in devices: the "Ended in the last 30 days" sub-heading. */
+.section-subtitle {
+  margin: 16px 4px 8px;
+  font: 600 14px / 1.3 var(--font-body);
+  color: var(--c-sub);
+}

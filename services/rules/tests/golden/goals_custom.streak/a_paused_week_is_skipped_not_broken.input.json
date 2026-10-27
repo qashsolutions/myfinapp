@@ -1,0 +1,32 @@
+{
+  "goal": {
+    "kind": "save",
+    "start_date": "2026-09-19",
+    "cadence": "weekly",
+    "per_period_cents": 5000,
+    "pauses": [
+      {
+        "start": "2026-09-26",
+        "end": "2026-10-02"
+      }
+    ]
+  },
+  "events": [
+    {
+      "type": "deposit",
+      "date": "2026-09-20",
+      "amount_cents": 5000
+    },
+    {
+      "type": "deposit",
+      "date": "2026-09-27",
+      "amount_cents": 3000
+    },
+    {
+      "type": "deposit",
+      "date": "2026-10-04",
+      "amount_cents": 5000
+    }
+  ],
+  "as_of": "2026-10-10"
+}

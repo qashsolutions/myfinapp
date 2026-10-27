@@ -1,0 +1,12 @@
+{
+  "goal": {
+    "kind": "save",
+    "title": "New laptop",
+    "target_cents": 150000,
+    "start_date": "2026-10-10",
+    "end_date": "2027-01-10"
+  },
+  "days_left": 92,
+  "weeks_left": 14,
+  "weekly_pace": 10714
+}

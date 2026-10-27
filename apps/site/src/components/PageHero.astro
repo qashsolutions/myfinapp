@@ -1,0 +1,17 @@
+---
+/** The hero every content page opens with (owner, October 15, 2026: one visual language). */
+interface Props {
+  pill: string;
+  title: string;
+  /** The part of the title drawn in the brand gradient. */
+  accent?: string;
+  lede?: string;
+}
+const { pill, title, accent, lede } = Astro.props;
+---
+
+<section class="ph">
+  <p class="lp-pill">{pill}</p>
+  <h1 class="lp-title ph__title">{title}{accent ? <> <span class="lp-grad">{accent}</span></> : null}</h1>
+  {lede ? <p class="ph__lede">{lede}</p> : null}
+</section>

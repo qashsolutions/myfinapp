@@ -1,0 +1,48 @@
+{
+  "entries": [
+    {
+      "date": "2026-09-01",
+      "amount_cents": 30000,
+      "direction": "out",
+      "is_transfer": false,
+      "is_recurring": false
+    },
+    {
+      "date": "2026-08-01",
+      "amount_cents": 90000,
+      "direction": "out",
+      "is_transfer": false,
+      "is_recurring": false
+    },
+    {
+      "date": "2026-09-20",
+      "amount_cents": 165000,
+      "direction": "out",
+      "is_transfer": false,
+      "is_recurring": true
+    },
+    {
+      "date": "2026-09-05",
+      "amount_cents": 50000,
+      "direction": "out",
+      "is_transfer": true,
+      "is_recurring": false
+    },
+    {
+      "date": "2026-09-04",
+      "amount_cents": 240000,
+      "direction": "in",
+      "is_transfer": false,
+      "is_recurring": false
+    },
+    {
+      "date": "2026-07-01",
+      "amount_cents": 10000,
+      "direction": "out",
+      "is_transfer": false,
+      "is_recurring": false
+    }
+  ],
+  "as_of": "2026-10-10",
+  "fallback_monthly_cents": 150000
+}

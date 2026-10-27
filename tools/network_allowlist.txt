@@ -1,0 +1,26 @@
+# Hosts the backend (services/**) may make outbound requests to.
+# Hard constraint 2 (docs/spec.md): an outbound allowlist, enforced in CI by
+# tools/check_network_allowlist.py (static scan of URL literals) and at runtime by the
+# API's HTTP client wrapper (chunk 0.5). "*." prefix matches any subdomain.
+# localhost, 127.0.0.1, ::1 and *.example / *.invalid / *.test are always allowed.
+
+# Billing (Stripe hosted Checkout, Customer Portal, API, webhooks)
+api.stripe.com
+checkout.stripe.com
+billing.stripe.com
+
+# Web Push (VAPID) delivery endpoints, by browser vendor
+fcm.googleapis.com
+oauth2.googleapis.com   # Google service-account OAuth (FCM v1 push; Play Developer API)
+*.push.services.mozilla.com
+*.notify.windows.com
+*.push.apple.com
+
+# Native billing (Phase 2): purchase-token verification (chunk 2.4)
+androidpublisher.googleapis.com
+
+# Read-only bank and card linking (Phase 3; docs/security/linking.md)
+sandbox.plaid.com
+production.plaid.com
+
+# Transactional email provider: add its API host when chosen (chunk 1.2)

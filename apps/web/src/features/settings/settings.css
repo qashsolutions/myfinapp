@@ -1,0 +1,128 @@
+/* Me: the hub, search, and the group screens (docs/spec.md "Settings (PWA)"). */
+.settings-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-card);
+  background: var(--c-card);
+  color: var(--c-ink-2);
+}
+.settings-search:focus-within {
+  outline: 2px solid var(--c-a1);
+  outline-offset: 2px;
+}
+.settings-search__input {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  border: 0;
+  background: none;
+  font: 500 16px / 1.2 var(--font-body);
+  color: var(--c-ink);
+}
+.settings-search__input:focus {
+  outline: none;
+}
+.settings-search__input::placeholder {
+  color: var(--c-ink-2);
+}
+
+.settings-flash {
+  animation: settings-flash 2.4s ease-out;
+  border-radius: 14px;
+}
+@keyframes settings-flash {
+  0%,
+  40% {
+    box-shadow: 0 0 0 3px var(--c-a1);
+    background: color-mix(in srgb, var(--c-a1) 10%, var(--c-card));
+  }
+  100% {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .settings-flash {
+    animation: none;
+    box-shadow: 0 0 0 3px var(--c-a1);
+  }
+}
+
+.settings-nav {
+  display: none;
+}
+.settings-split__main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .settings-split {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+  }
+  .settings-split__main {
+    gap: 16px;
+  }
+  .settings-nav {
+    position: sticky;
+    top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .settings-nav__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .settings-nav__link {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: 12px;
+    font: 600 15px / 1.2 var(--font-body);
+    color: var(--c-ink);
+    text-decoration: none;
+  }
+  .settings-nav__link:hover {
+    background: color-mix(in srgb, var(--c-a1) 6%, var(--c-card));
+  }
+  .settings-nav__link--active {
+    background: color-mix(in srgb, var(--c-a1) 11%, var(--c-card));
+    color: var(--c-a1);
+  }
+  [data-simple="1"] .settings-split {
+    grid-template-columns: 1fr;
+  }
+  [data-simple="1"] .settings-nav {
+    display: none;
+  }
+}
+
+/* Alerts: a type's "when" choices sit under its row while it is on. */
+.alert-type .sk-row {
+  border: 0;
+}
+.alert-type__when {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px 14px;
+}
+fieldset.alert-type__when {
+  margin: 0;
+  border: 0;
+  min-width: 0;
+}

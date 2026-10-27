@@ -1,0 +1,21 @@
+{
+  "as_of": "2026-10-20",
+  "method": "50_30_20",
+  "take_home_cents": 100000,
+  "lines": [],
+  "entries": [
+    {
+      "date": "2026-10-02",
+      "amount_cents": 150000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-rent",
+      "bucket": "need"
+    }
+  ],
+  "split_bps": {
+    "need": 5000,
+    "want": 5000,
+    "save": 1
+  }
+}

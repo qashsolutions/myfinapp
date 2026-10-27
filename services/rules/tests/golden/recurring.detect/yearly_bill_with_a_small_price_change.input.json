@@ -1,0 +1,21 @@
+{
+  "as_of": "2025-10-01",
+  "entries": [
+    {
+      "id": "d1",
+      "date": "2024-09-02",
+      "amount_cents": 15000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "STATE DMV"
+    },
+    {
+      "id": "d2",
+      "date": "2025-09-01",
+      "amount_cents": 15500,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "STATE DMV"
+    }
+  ]
+}

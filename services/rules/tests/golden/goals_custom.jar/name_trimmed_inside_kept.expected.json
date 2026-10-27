@@ -1,0 +1,12 @@
+{
+  "goal": {
+    "kind": "save",
+    "title": "Lisbon  26",
+    "target_cents": 50000,
+    "start_date": "2026-10-10",
+    "end_date": null
+  },
+  "days_left": null,
+  "weeks_left": null,
+  "weekly_pace": null
+}

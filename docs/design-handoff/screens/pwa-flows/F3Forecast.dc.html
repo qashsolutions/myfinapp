@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow 3 — Upcoming and forecast</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+</style>
+</helmet>
+<div style="{{S.root}}">
+  <header style="display:flex;align-items:center;gap:10px">
+    <a href="F3Home.dc.html" aria-label="Back" style="{{S.icon}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></a>
+    <span style="flex:1;font:700 22px Outfit,sans-serif">Next 30 days</span>
+  </header>
+
+  <div role="status" style="{{S.warn}}">
+    <span style="font-weight:600;font-size:16px">{{headline}}</span>
+    <span style="font-size:13px">{{sub}}</span>
+  </div>
+
+  <section style="{{S.card}}">
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:{{m.sub}}"><span>Checking balance, estimated</span><span>Buffer $0</span></div>
+    <svg width="100%" height="170" viewBox="0 0 354 170" role="img" aria-label="{{chartLabel}}">
+      <rect x="0" y="{{zeroY}}" width="354" height="{{belowH}}" fill="{{m.warnBg}}"></rect>
+      <line x1="0" x2="354" y1="{{zeroY}}" y2="{{zeroY}}" stroke="{{m.sub}}" stroke-dasharray="4 4" stroke-width="1"></line>
+      <polyline points="{{pts}}" fill="none" stroke="#3D5AFE" stroke-width="2.5" stroke-linejoin="round"></polyline>
+      <circle cx="{{lowX}}" cy="{{lowY}}" r="5" fill="{{m.warn}}"></circle>
+      <text x="{{lowLabelX}}" y="{{lowLabelY}}" font-size="11" font-weight="600" fill="{{m.warn}}" text-anchor="middle">{{lowText}}</text>
+      <text x="0" y="166" font-size="10" fill="{{m.sub}}">Oct 9</text><text x="177" y="166" font-size="10" fill="{{m.sub}}" text-anchor="middle">Oct 24</text><text x="354" y="166" font-size="10" fill="{{m.sub}}" text-anchor="end">Nov 8</text>
+    </svg>
+    <span style="font-size:13px;font-weight:600;color:{{m.warn}}">{{lowText}}</span>
+    <button onClick="{{toggleHow}}" aria-expanded="{{howStr}}" style="{{S.how}}">How we calculated this {{howArrow}}</button>
+    <sc-if value="{{how}}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:{{m.sub}};padding-bottom:6px">
+        <span>Start: <b style="color:{{m.ink}}">$2,100</b> (statement Oct 8)</span>
+        <span>+ expected income: <b style="color:{{m.ink}}">$4,800</b> (2 paychecks)</span>
+        <span>− expected bills + card payment: <b style="color:{{m.ink}}">$3,840</b></span>
+        <span>− typical daily spending: <b style="color:{{m.ink}}">$42/day</b> (your last 90 days)</span>
+        <span>An estimate from your own history — not a guarantee.</span>
+      </div>
+    </sc-if>
+  </section>
+
+  <section style="{{S.list}}">
+    <sc-for list="{{ev}}" as="e" hint-placeholder-count="7">
+      <div style="{{S.row}}"><span style="width:50px;font-size:12px;font-weight:600;color:{{m.sub}}">{{e.d}}</span><span style="flex:1;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:600">{{e.n}}</span><span style="font-size:12px;color:{{m.sub}}">{{e.k}}</span></span><span style="{{e.st}}">{{e.v}}</span></div>
+    </sc-for>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { how: false }; }
+  renderVals() {
+    const dark = !!this.props.dark;
+    const m = dark ? { bg: '#0B0D12', card: '#151821', ink: '#F1F3F8', sub: '#9AA1B2', line: '#262A36', good: '#6FD39B', warnBg: '#3A2E12', warn: '#FFB547' }
+                   : { bg: '#F4F5F8', card: '#FFFFFF', ink: '#111827', sub: '#5B6272', line: '#E4E7EE', good: '#1E7A4C', warnBg: '#FFF4E0', warn: '#8A4B00' };
+    // Deterministic projection, day 0 = Oct 9
+    const E = { 3: [-45, 'Phone bill', 'Bill · confirmed'], 5: [-180, 'Car insurance', 'Bill · confirmed'], 7: [2400, 'Paycheck', 'Income · every 2 weeks'],
+      11: [-1800, 'Card payment', 'Transfer out of checking'], 13: [-165, 'Utilities', 'Bill · confirmed'], 16: [-1650, 'Rent', 'Bill · suggested, tap to confirm'], 21: [2400, 'Paycheck', 'Income · every 2 weeks'] };
+    const mon = ['Oct', 'Nov'], date = (d) => { const n = 9 + d; return n <= 31 ? 'Oct ' + n : 'Nov ' + (n - 31); };
+    let bal = 2100; const series = [bal]; let low = bal, lowD = 0, firstNeg = -1;
+    for (let d = 1; d <= 30; d++) { bal -= 42; if (E[d]) bal += E[d][0]; series.push(bal); if (bal < low) { low = bal; lowD = d; } if (bal < 0 && firstNeg < 0) firstNeg = d; }
+    const maxV = 4200, minV = -600, Y = (v) => 10 + (maxV - v) / (maxV - minV) * 140, X = (d) => d / 30 * 354;
+    const pts = series.map((v, d) => X(d).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ');
+    const zeroY = Y(0);
+    const short = low < 0;
+    const ev = Object.keys(E).map(Number).sort((a, b) => a - b).map(d => ({ d: date(d), n: E[d][1], k: E[d][2],
+      v: (E[d][0] > 0 ? '+$' : '−$') + Math.abs(E[d][0]).toLocaleString('en-US'),
+      st: 'font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:' + (E[d][0] > 0 ? m.good : m.ink) }));
+    const S = {
+      root: 'width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box;padding:24px 18px;display:flex;flex-direction:column;gap:12px;background:' + m.bg + ';color:' + m.ink + ";font-family:Outfit,'Helvetica Neue',sans-serif",
+      icon: 'width:44px;height:44px;flex-shrink:0;border-radius:50%;background:' + m.card + ';display:flex;align-items:center;justify-content:center',
+      warn: 'display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:18px;background:' + m.warnBg + ';color:' + m.warn,
+      card: 'display:flex;flex-direction:column;gap:6px;padding:14px 16px 8px;border-radius:20px;background:' + m.card,
+      how: 'align-self:flex-start;min-height:44px;padding:0;border:0;background:transparent;cursor:pointer;font:600 14px Outfit,sans-serif;color:' + (dark ? '#8FA2FF' : '#3D5AFE'),
+      list: 'display:flex;flex-direction:column;padding:0 16px;border-radius:20px;background:' + m.card,
+      row: 'display:flex;align-items:center;gap:10px;min-height:54px;border-bottom:1px solid ' + m.line
+    };
+    return { S, m, pts, ev, zeroY: zeroY.toFixed(1), belowH: (150 - zeroY).toFixed(1),
+      lowX: X(lowD).toFixed(1), lowY: Y(low).toFixed(1), lowLabelX: Math.min(320, X(lowD)).toFixed(1), lowLabelY: (Y(low) - 10).toFixed(1),
+      lowText: 'Lowest ' + (low < 0 ? '−' : '') + '$' + Math.abs(low).toLocaleString('en-US') + ' · ' + date(lowD),
+      headline: short ? 'You may be short $' + Math.abs(low).toLocaleString('en-US') + ' around ' + date(firstNeg) : 'You look covered for 30 days',
+      sub: short ? 'Rent lands before your next paycheck. Moving $180 from a jar or delaying a purchase would cover it.' : 'No dip below your buffer.',
+      chartLabel: 'Estimated balance dips below zero from ' + date(firstNeg) + ' to Oct 29, lowest on ' + date(lowD),
+      how: this.state.how, howStr: this.state.how ? 'true' : 'false', howArrow: this.state.how ? '▴' : '▾',
+      toggleHow: () => this.setState({ how: !this.state.how }) };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+/* Budget (mockups F5Budget, F2Pay, F2Method). */
+
+.bucket__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.bucket__title {
+  font: 700 17px var(--font-display);
+}
+.bucket__spent {
+  font-variant-numeric: var(--numeric-data);
+  font-weight: 700;
+}
+.bucket__of {
+  color: var(--c-sub);
+  font-weight: 500;
+}
+.bucket__bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.bucket__status {
+  font-weight: 700;
+  font-variant-numeric: var(--numeric-data);
+}
+.bucket__status--over {
+  color: var(--c-warning);
+}
+.bucket__status--left {
+  color: var(--c-success);
+}
+.insight {
+  background: var(--c-pending-bg);
+  color: var(--c-pending-text);
+  box-shadow: none;
+}
+.insight .sk-card__title {
+  color: inherit;
+}
+.insight a,
+.insight button {
+  color: inherit;
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: 700 15px var(--font-body);
+}
+.style-card {
+  position: relative;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+.style-card:has(input[type="radio"]:checked) {
+  border-color: var(--c-a1);
+}
+.style-card:has(input[type="radio"]:focus-visible) {
+  outline: 2px solid var(--c-a1);
+  outline-offset: 2px;
+}
+.style-card input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.style-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.style-card__bar {
+  display: flex;
+  gap: 4px;
+  height: 8px;
+}
+.style-card__bar span {
+  display: block;
+  border-radius: 4px;
+}
+.style-card__legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--c-sub);
+}
+.zb-line {
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+}
+.zb-line + .zb-line {
+  border-top: 1px solid var(--c-line);
+}
+.zb-line__name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--c-ink);
+  font: 600 15px var(--font-body);
+  text-align: left;
+  cursor: pointer;
+}
+.zb-line__name:hover {
+  text-decoration: underline;
+}
+.zb-line__main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 0;
+}
+.zb-line__cover {
+  align-self: flex-start;
+  font-size: 13px;
+}
+.zb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.zb-quiet summary {
+  padding: 12px 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c-sub);
+  cursor: pointer;
+}
+.zb-line__spent {
+  font-size: 13px;
+  color: var(--c-sub);
+  font-variant-numeric: var(--numeric-data);
+}
+.zb-line__spent--over {
+  color: var(--c-warning);
+}
+.zb-line input {
+  min-height: 44px;
+  width: 100%;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1.5px solid var(--c-line);
+  background: var(--c-bg);
+  color: var(--c-ink);
+  text-align: right;
+  font: 600 15px var(--font-data);
+  font-variant-numeric: var(--numeric-data);
+}
+.zb-line input:focus-visible {
+  border-color: var(--c-a1);
+  outline: none;
+}
+.pay-freqs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Your own split (October 20, 2026). */
+.split-edit {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+.split-edit__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-sub);
+}
+.split-edit__box {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--c-ink);
+}
+.split-edit__box .auth__input {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+  font-weight: 700;
+}

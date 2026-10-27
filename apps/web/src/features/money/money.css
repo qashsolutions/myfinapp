@@ -1,0 +1,80 @@
+/* Money in & out (mockup F3Money). Stat cards come from base.css. */
+
+.stat--kept {
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+}
+.stat--kept .stat__l {
+  color: inherit;
+  opacity: 0.9;
+}
+.stat__n--bad {
+  color: var(--c-danger);
+}
+/* In is green, Out is red (owner, October 19 and 23, 2026). */
+.stat__n--out {
+  color: var(--c-danger);
+}
+.stat--kept .stat__n--bad {
+  color: inherit;
+}
+.compare {
+  font-size: 13px;
+  color: var(--c-sub);
+  margin: 0 4px;
+}
+.compare strong {
+  font-variant-numeric: var(--numeric-data);
+}
+.compare strong.good {
+  color: var(--c-success);
+}
+.compare strong.bad {
+  color: var(--c-danger);
+}
+.cat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+}
+.cat-row + .cat-row {
+  border-top: 1px solid var(--c-line);
+}
+.cat-row__top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+}
+.cat-row__name {
+  font-weight: 600;
+}
+.cat-row__amount {
+  font-variant-numeric: var(--numeric-data);
+}
+.cat-row__bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--c-line);
+  overflow: hidden;
+}
+.cat-row__fill {
+  height: 100%;
+  background: var(--c-a1);
+}
+.cat-row--more .cat-row__fill {
+  background: var(--c-sub);
+}
+.cat-row__avg {
+  font-weight: 500;
+  color: var(--c-sub);
+}
+.not-counted-filter {
+  align-self: flex-start;
+  font: inherit;
+  cursor: pointer;
+}
+.not-counted-filter[aria-pressed="true"] {
+  border-color: var(--c-a1);
+  color: var(--c-a1);
+}

@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "id": "a",
+      "date": "2026-07-14",
+      "amount_cents": 1549,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Netflix.com"
+    },
+    {
+      "id": "b",
+      "date": "2026-08-14",
+      "amount_cents": 1549,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "NETFLIX.COM "
+    },
+    {
+      "id": "c",
+      "date": "2026-09-14",
+      "amount_cents": 1549,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "netflix.com"
+    }
+  ],
+  "as_of": "2026-10-10"
+}

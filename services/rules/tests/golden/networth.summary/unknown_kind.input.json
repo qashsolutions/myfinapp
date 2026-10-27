@@ -1,0 +1,11 @@
+{
+  "items": [
+    {
+      "id": "a",
+      "kind": "loan",
+      "group": "card",
+      "value_cents": 5
+    }
+  ],
+  "previous_net_cents": null
+}

@@ -1,0 +1,6 @@
+{
+  "id": "payday_set_aside",
+  "params": {
+    "amount_cents": 48000
+  }
+}

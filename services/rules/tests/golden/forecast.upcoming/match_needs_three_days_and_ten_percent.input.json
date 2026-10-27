@@ -1,0 +1,48 @@
+{
+  "series": [
+    {
+      "id": "a",
+      "payee": "Water",
+      "kind": "bill",
+      "expected_cents": 10000,
+      "interval": "monthly",
+      "next_date": "2026-10-15"
+    },
+    {
+      "id": "b",
+      "payee": "Water",
+      "kind": "bill",
+      "expected_cents": 10000,
+      "interval": "monthly",
+      "next_date": "2026-10-15"
+    }
+  ],
+  "entries": [
+    {
+      "id": "far",
+      "date": "2026-10-19",
+      "amount_cents": 10000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Water"
+    },
+    {
+      "id": "off",
+      "date": "2026-10-15",
+      "amount_cents": 11200,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Water"
+    },
+    {
+      "id": "ok",
+      "date": "2026-10-13",
+      "amount_cents": 10900,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Water"
+    }
+  ],
+  "as_of": "2026-10-09",
+  "days": 10
+}

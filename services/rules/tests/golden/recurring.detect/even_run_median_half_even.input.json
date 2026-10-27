@@ -1,0 +1,37 @@
+{
+  "entries": [
+    {
+      "id": "a",
+      "date": "2026-07-03",
+      "amount_cents": 1500,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Streamco"
+    },
+    {
+      "id": "b",
+      "date": "2026-08-03",
+      "amount_cents": 1600,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Streamco"
+    },
+    {
+      "id": "c",
+      "date": "2026-09-03",
+      "amount_cents": 1500,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Streamco"
+    },
+    {
+      "id": "d",
+      "date": "2026-10-03",
+      "amount_cents": 1600,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Streamco"
+    }
+  ],
+  "as_of": "2026-10-10"
+}

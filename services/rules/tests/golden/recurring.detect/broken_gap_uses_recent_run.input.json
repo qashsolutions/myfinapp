@@ -1,0 +1,45 @@
+{
+  "entries": [
+    {
+      "id": "r0",
+      "date": "2026-06-01",
+      "amount_cents": 165000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Rent"
+    },
+    {
+      "id": "r1",
+      "date": "2026-06-20",
+      "amount_cents": 165000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Rent"
+    },
+    {
+      "id": "r2",
+      "date": "2026-07-20",
+      "amount_cents": 165000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Rent"
+    },
+    {
+      "id": "r3",
+      "date": "2026-08-20",
+      "amount_cents": 165000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Rent"
+    },
+    {
+      "id": "r4",
+      "date": "2026-09-20",
+      "amount_cents": 165000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "Rent"
+    }
+  ],
+  "as_of": "2026-10-10"
+}

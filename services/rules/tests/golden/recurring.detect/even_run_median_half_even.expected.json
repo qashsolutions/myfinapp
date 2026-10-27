@@ -1,0 +1,20 @@
+{
+  "series": [
+    {
+      "payee": "STREAMCO",
+      "kind": "bill",
+      "direction": "out",
+      "expected_cents": 1550,
+      "interval": "monthly",
+      "last_date": "2026-10-03",
+      "next_date": "2026-11-03",
+      "occurrences": 4,
+      "entry_ids": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ]
+    }
+  ]
+}

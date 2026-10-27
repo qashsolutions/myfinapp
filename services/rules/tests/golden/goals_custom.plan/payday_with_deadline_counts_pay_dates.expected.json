@@ -1,0 +1,8 @@
+{
+  "remaining_cents": 200000,
+  "periods_left": 6,
+  "per_period_cents": 33333,
+  "finish_date": "2026-12-31",
+  "next_date": "2026-10-16",
+  "needs_amount": false
+}
