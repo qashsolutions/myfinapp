@@ -13,12 +13,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, StackdRow
 
-# Why a session ended, so Sign-in & security can say so (October 13, 2026).
-END_REASONS = ("signed_out", "signed_out_remote", "account_deleted")
-
 
 class Session(Base, StackdRow):
     __tablename__ = "sessions"
+    # Why a session ended, so Sign-in & security can say so (October 13, 2026); this check is
+    # the one list of reasons ('plan_ended' since migration 0027).
     __table_args__ = (
         CheckConstraint(
             "ended_reason IS NULL OR ended_reason IN "

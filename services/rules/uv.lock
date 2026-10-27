@@ -136,7 +136,7 @@ wheels = [
 
 [[package]]
 name = "stackd-rules"
-version = "0.25.0"
+version = "0.27.0"
 source = { editable = "." }
 
 [package.dev-dependencies]

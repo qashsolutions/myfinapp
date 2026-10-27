@@ -1,12 +1,11 @@
 /**
- * Port of stackd_rules/growth.py: compound growth, exact. FV = P × ((1 + r)^n − 1) ÷ r with
- * r = rate ÷ 12 as a fraction of BigInts, rounded half-even once at the end.
+ * Port of stackd_rules/growth.py: the Later projection, exact, with r = rate ÷ 12 as a fraction
+ * of BigInts, rounded half-even once at the end. (growth.compound was removed October 27, 2026.)
  */
 
 import { RuleError } from "./errors.ts";
 import { assertInt } from "./money.ts";
 
-export const MAX_YEARS = 50;
 export const MAX_RATE_BPS = 50000;
 const MONTHS_BPS = 120000n;
 /** The most cents both engines count exactly (2^53 − 1): above it, `too_large` (October 27, 2026). */
@@ -29,37 +28,6 @@ function roundHalfEven(numerator: bigint, denominator: bigint): bigint {
   const twice = r * 2n;
   if (twice > denominator || (twice === denominator && q % 2n !== 0n)) q += 1n;
   return q;
-}
-
-export interface Growth {
-  future_value_cents: number;
-  contributed_cents: number;
-  months: number;
-}
-
-export function compound(monthlyCents: unknown, years: unknown, rateBps: unknown): Growth {
-  const monthly = assertInt(monthlyCents);
-  const yearsN = assertInt(years);
-  const rate = assertInt(rateBps);
-  if (monthly < 0) throw new RuleError("invalid_amount");
-  if (yearsN < 1 || yearsN > MAX_YEARS) throw new RuleError("invalid_years");
-  if (rate < 0 || rate > MAX_RATE_BPS) throw new RuleError("invalid_rate");
-  fit(BigInt(monthly));
-  const n = yearsN * 12;
-  const contributed = fit(BigInt(monthly) * BigInt(n));
-  if (rate === 0)
-    return { future_value_cents: contributed, contributed_cents: contributed, months: n };
-  // (1 + r)^n − 1 = ((M + rate)^n − M^n) / M^n with M = 120000; dividing by r = rate / M gives
-  // FV = P × ((M + rate)^n − M^n) / (rate × M^(n−1)).
-  const m = MONTHS_BPS;
-  const big = BigInt(rate);
-  const numerator = BigInt(monthly) * ((m + big) ** BigInt(n) - m ** BigInt(n));
-  const denominator = big * m ** BigInt(n - 1);
-  return {
-    future_value_cents: fit(roundHalfEven(numerator, denominator)),
-    contributed_cents: contributed,
-    months: n,
-  };
 }
 
 export const MIN_AGE = 16;

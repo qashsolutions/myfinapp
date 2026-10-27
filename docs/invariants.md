@@ -110,6 +110,10 @@ written against both.
     said to the admins, never silent.
     `test_purchase_blocks.py` · `test_billing_hardening.py` "after a lost dispute the inbox and
     card cannot buy again…"
+19. **Every permanent erasure leaves a record that outlives it.** The purge writes one audit row
+    (`delete_completed`, `user:<id>`, no person and no IP) for each account it erases, and none
+    for an account it keeps; every audit action in the closed set is one the server writes.
+    `test_account.py` "the purge is audited…" · `tests/security/test_audit.py`
 
 ## Working to these rules
 

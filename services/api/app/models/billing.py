@@ -84,6 +84,7 @@ class BillingEvent(Base, StackdRow):
     __tablename__ = "billing_events"
 
     event_id: Mapped[str] = mapped_column(String(120), unique=True)
+    # Written, not read by the app: the event's type, for investigating a payment.
     kind: Mapped[str] = mapped_column(String(64))
 
 

@@ -1,8 +1,9 @@
-"""Compound growth (docs/spec.md "Learn", "Calculation rules" Compound growth).
+"""Growth projection for Later (docs/spec.md "Calculation rules", growth.projection).
 
-FV = P × ((1 + r)^n − 1) ÷ r with r = annual rate ÷ 12 and n = years × 12; r = 0 → P × n.
-Computed exactly as a fraction and rounded half-even once, so both engines agree to the cent.
-An illustration using the rate the user enters: not a prediction, not advice.
+Balances follow FV = start × (1 + r)^n + P × ((1 + r)^n − 1) ÷ r with r = annual rate ÷ 12,
+computed exactly as fractions and rounded half-even once, so both engines agree to the cent.
+An illustration using the rates the person enters: not a prediction, not advice.
+(growth.compound, the old one-rate calculator, was removed October 27, 2026: Later replaced it.)
 """
 
 from __future__ import annotations
@@ -12,7 +13,6 @@ from fractions import Fraction
 from .errors import RuleError
 from .money import _int
 
-MAX_YEARS = 50
 MAX_RATE_BPS = 50000  # 500% a year is already nonsense; anything above is a typo
 MONTHS_BPS = 120000  # 12 months × 10000 bps
 # The most cents both engines count exactly (2^53 − 1, JavaScript's largest safe integer): any
@@ -23,29 +23,6 @@ MAX_CENTS = 2**53 - 1
 def _fits(*cents: int) -> None:
     if any(c > MAX_CENTS for c in cents):
         raise RuleError("too_large")
-
-
-def compound(monthly_cents: int, years: int, rate_bps: int) -> dict:
-    monthly = _int(monthly_cents)
-    years_n = _int(years)
-    rate = _int(rate_bps)
-    if monthly < 0:
-        raise RuleError("invalid_amount")
-    if not 1 <= years_n <= MAX_YEARS:
-        raise RuleError("invalid_years")
-    if not 0 <= rate <= MAX_RATE_BPS:
-        raise RuleError("invalid_rate")
-    _fits(monthly)
-    n = years_n * 12
-    contributed = monthly * n
-    _fits(contributed)
-    if rate == 0:
-        return {"future_value_cents": contributed, "contributed_cents": contributed, "months": n}
-    r = Fraction(rate, MONTHS_BPS)
-    fv = Fraction(monthly) * ((1 + r) ** n - 1) / r
-    future = round(fv)
-    _fits(future)
-    return {"future_value_cents": future, "contributed_cents": contributed, "months": n}
 
 
 MIN_AGE = 16

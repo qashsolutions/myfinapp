@@ -137,8 +137,10 @@ def test_ending_soon_ended_then_deleted_after_seven_days() -> None:
     assert access(client)["state"] == "lapsed"
     with get_session_factory()() as db:
         assert plan_lifecycle.run(db, now=now, only={user_id})["ended"] == 1
-        # One friendly reminder a day after that, never two on one day (October 20, 2026).
-        assert plan_lifecycle.run(db, now=now + timedelta(hours=2), only={user_id})["reminded"] == 0
+        # One friendly reminder a day after that, never two on one day (October 20, 2026). Later
+        # the same day, not "2 hours later", which is tomorrow after 22:00 UTC.
+        same_day = now.replace(hour=23, minute=59)
+        assert plan_lifecycle.run(db, now=same_day, only={user_id})["reminded"] == 0
         day3 = plan_lifecycle.run(db, now=now + timedelta(days=3), only={user_id})
         assert day3["reminded"] == 1 and day3["deleted"] == 0
         assert plan_lifecycle.run(db, now=now + timedelta(days=6), only={user_id})["deleted"] == 0

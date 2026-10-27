@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from sqlalchemy import Engine
@@ -31,10 +32,13 @@ def test_record_stores_pseudonymous_ip_and_closed_action(migrated: Engine) -> No
 
 def test_action_strings_are_coerced_and_unknown_rejected(migrated: Engine) -> None:
     with get_session_factory()() as s:
-        row = record(s, actor_id=None, action="admin_action", target="user:abc")
-        assert row.action == AuditAction.ADMIN_ACTION
+        row = record(s, actor_id=None, action="delete_completed", target="user:abc")
+        assert row.action == AuditAction.DELETE_COMPLETED
         with pytest.raises(ValueError):
             record(s, actor_id=None, action="transferred_money")
+        for retired in ("backup_restored", "admin_action"):  # never written; removed Oct 27, 2026
+            with pytest.raises(ValueError):
+                record(s, actor_id=None, action=retired)
         s.rollback()
 
 
@@ -52,3 +56,12 @@ def test_missing_ip_is_null_not_hashed_empty(migrated: Engine) -> None:
         row = record(s, actor_id=None, action=AuditAction.SIGN_OUT)
         assert row.ip_hash is None
         s.rollback()
+
+
+def test_every_audit_action_is_written_somewhere() -> None:
+    """Invariant 19: the closed set lists only what the server records, so the log can be trusted
+    to say what it covers (BACKUP_RESTORED and ADMIN_ACTION were listed but never written)."""
+    app_dir = Path(__file__).resolve().parents[2] / "app"
+    source = "".join(p.read_text() for p in app_dir.rglob("*.py") if p.name != "audit.py")
+    unwritten = [a.name for a in AuditAction if f"AuditAction.{a.name}" not in source]
+    assert unwritten == []

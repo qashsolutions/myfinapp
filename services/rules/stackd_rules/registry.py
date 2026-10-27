@@ -79,11 +79,6 @@ def _dates_days_until(as_of: str, date: str) -> dict:
     return {"days": dates.days_until(dates.parse_date(as_of), dates.parse_date(date))}
 
 
-def _dates_week_bounds(as_of: str, week_starts: str = "monday") -> dict:
-    start, end = dates.week_bounds(dates.parse_date(as_of), week_starts)
-    return {"start": start.isoformat(), "end": end.isoformat()}
-
-
 def _dates_next_paydays(as_of: str, schedule: dict, count: int) -> dict:
     paydays = dates.next_paydays(dates.parse_date(as_of), schedule, count)
     return {"dates": [d.isoformat() for d in paydays]}
@@ -276,10 +271,6 @@ def _bills_payoff_plan(debts: list, extra_cents: int, as_of: str) -> dict:
     return bills.payoff_plan(debts, extra_cents, as_of)
 
 
-def _growth_compound(monthly_cents: int, years: int, rate_bps: int) -> dict:
-    return growth.compound(monthly_cents, years, rate_bps)
-
-
 def _growth_projection(
     age_now: int,
     retire_age: int,
@@ -354,7 +345,6 @@ RULES: dict[str, Rule] = {
     "dates.add_months": _dates_add_months,
     "dates.add_days": _dates_add_days,
     "dates.days_until": _dates_days_until,
-    "dates.week_bounds": _dates_week_bounds,
     "dates.next_paydays": _dates_next_paydays,
     "dates.periods_until": _dates_periods_until,
     "fingerprint.clean_description": _fingerprint_clean_description,
@@ -394,7 +384,6 @@ RULES: dict[str, Rule] = {
     "bills.payoff_plan": _bills_payoff_plan,
     "credit.utilization_bps": _credit_utilization_bps,
     "credit.pay_in_full": _credit_pay_in_full,
-    "growth.compound": _growth_compound,
     "growth.projection": _growth_projection,
     "notify.decide": _notify_decide,
     "alerts.schedule": _alerts_schedule,

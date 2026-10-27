@@ -28,6 +28,8 @@ from app.models.otp_code import OtpCode
 from app.models.session import Session
 from app.models.user import User
 from app.models.webauthn_credential import WebauthnCredential
+from app.security import audit
+from app.security.audit import AuditAction
 from app.services import backup_store
 
 log = logging.getLogger("stackd.deletion")
@@ -359,6 +361,12 @@ def _purge_one(db: DbSession, user: User, now: datetime) -> int:
     # Never drop an account Stripe may still charge: retry, and wait if it still fails.
     if not cancel_billing(db, user.id, now=now, as_of=user.deleted_at):
         return 0
+    user_id = user.id
     db.delete(user)
+    # The record outlives the account (audit_log has no foreign key): which account was
+    # erased and when, written by the job, so no person and no IP.
+    audit.record(
+        db, actor_id=None, action=AuditAction.DELETE_COMPLETED, target=f"user:{user_id}", at=now
+    )
     db.flush()
     return 1
