@@ -86,13 +86,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        get?: never;
+        put?: never;
         /**
          * Export Data
          * @description Server-held data for the ZIP the device builds. Needs a fresh passkey check.
          */
-        get: operations["export_data_api_account_export_get"];
-        put?: never;
-        post?: never;
+        post: operations["export_data_api_account_export_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2184,6 +2184,11 @@ export interface components {
             already_linked: string[];
             /** Connections */
             connections: components["schemas"]["LinkedConnection"][];
+            /**
+             * Failed
+             * @default []
+             */
+            failed: string[];
             /** Status */
             status: string;
         };
@@ -3177,7 +3182,7 @@ export interface operations {
             };
         };
     };
-    export_data_api_account_export_get: {
+    export_data_api_account_export_post: {
         parameters: {
             query?: never;
             header?: never;

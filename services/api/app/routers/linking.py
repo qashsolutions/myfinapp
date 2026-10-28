@@ -1,6 +1,7 @@
 """Read-only bank and card linking (Phase 3, chunk 3.2; docs/security/linking.md).
 
 - GET /api/linking: whether linking is offered, the plan's cap, the user's connections
+  (reads only; using a connection is a sync, a card read, a finish or a relink)
 - POST /api/linking/start: step-up, plan cap, then a Hosted Link URL to send the browser to
 - POST /api/linking/finish: the session's outcome; tokens exchanged, sealed and stored, and
   the shared accounts (name, last four, type) returned to the device and not kept
@@ -39,6 +40,7 @@ from app.security.client import client_ip
 from app.security.csrf import same_site_only
 from app.security.principal import Caller, require_step_up, require_unlocked
 from app.security.rate_limit import rate_limited, session_or_ip
+from app.services import ops_alerts
 from app.services.security_alerts import SecurityEvent, send_alert
 
 router = APIRouter(prefix="/api/linking", tags=["linking"], dependencies=[Depends(same_site_only)])
@@ -134,6 +136,10 @@ class FinishOut(BaseModel):
     # never exchanged, so no second item (and no second monthly fee) exists; the user is
     # pointed at "Sign in again" on the one they have.
     already_linked: list[str] = []
+    # Banks Plaid linked but whose accounts couldn't be read this time (October 28, 2026):
+    # their access is revoked straight away (or queued for revoke-links), so the person links
+    # them again; the others in the same trip are kept.
+    failed: list[str] = []
 
 
 def _origin(request: Request) -> str:
@@ -189,12 +195,9 @@ def linking_status(
         .where(LIVE)
         .order_by(BankConnection.created_at, BankConnection.id)
     ).all()
-    # The app asks for this when it opens (LinkedSync), so it is what "opening the app" means
-    # for the 60-day dormancy rule (chunk 3.4).
-    now = datetime.now(UTC)
-    for r in rows:
-        r.last_used_at = now
-    db.commit()
+    # Writes nothing (October 28, 2026): a top-level cross-site GET carries the session
+    # cookie, so a link elsewhere could keep a connection alive. "Opening the app" for the
+    # 60-day dormancy rule is the pull LinkedSync makes on open, POST .../sync.
     cap = entitlements(db, caller.user.id).get("bank_links_max")
     return LinkingOut(
         available=plaid.configured(),
@@ -354,6 +357,8 @@ def finish(
     )
     linked: list[LinkedConnection] = []
     already: list[str] = []
+    failed: list[str] = []
+    last_error: plaid.LinkError | None = None
     over_cap = False
     for add in adds:
         if add.institution_id is not None and add.institution_id in have:
@@ -364,14 +369,19 @@ def finish(
             continue
         try:
             access_token, item_id = plaid.exchange(add.public_token)
-            shared = plaid.accounts(access_token)
-        except plaid.LinkError as exc:
-            db.commit()
-            raise _bad_gateway(exc) from exc
+        except plaid.LinkError as exc:  # no access token exists: nothing to keep or revoke
+            failed.append(add.institution_name)
+            last_error = exc
+            continue
+        # From here Plaid bills the item until its token is revoked, so the token is sealed
+        # in a row (or revoked) before anything else can fail (October 28, 2026).
         row = db.scalar(select(BankConnection).where(BankConnection.item_id == item_id))
         if row is not None and row.user_id != caller.user.id:
-            plaid.remove_item(access_token)
+            _drop_token(access_token, "linking.finish.foreign_item")
+            failed.append(add.institution_name)
+            last_error = plaid.LinkError("provider_error")
             continue
+        fresh = row is None
         if row is None:
             row = BankConnection(
                 user_id=caller.user.id,
@@ -387,6 +397,20 @@ def finish(
         row.access_token_encrypted = token_vault.seal(access_token)
         row.key_id = token_vault.key_id()
         db.flush()
+        try:
+            shared = plaid.accounts(access_token)
+        except plaid.LinkError as exc:
+            if fresh:
+                # Not usable without its accounts: revoke now, or leave it sealed and hidden
+                # as revoke_pending for `stackd-api revoke-links`. Never counted or listed.
+                try:
+                    revoke(db, row)
+                except (plaid.LinkError, token_vault.VaultError):
+                    row.status = "revoke_pending"
+                db.flush()
+            failed.append(add.institution_name)
+            last_error = exc
+            continue
         if add.institution_id is not None:
             have.add(add.institution_id)
         record(
@@ -412,11 +436,24 @@ def finish(
             device_label=caller.session.device_label,
             at=now,
         )
+    if last_error is not None and not linked and not already:
+        raise _bad_gateway(last_error)
     if over_cap and not linked and not already:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="plan_limit")
     if not linked and already:
-        return FinishOut(status="already_linked", connections=[], already_linked=already)
-    return FinishOut(status="linked", connections=linked, already_linked=already)
+        return FinishOut(
+            status="already_linked", connections=[], already_linked=already, failed=failed
+        )
+    return FinishOut(status="linked", connections=linked, already_linked=already, failed=failed)
+
+
+def _drop_token(access_token: str, where: str) -> None:
+    """Revoke a token we can't keep. If the provider refuses, a person is told (the token has
+    no row to retry from), and the request carries on."""
+    try:
+        plaid.remove_item(access_token)
+    except plaid.LinkError as exc:
+        ops_alerts.report("bank_token_not_revoked", where, exc)
 
 
 @router.post("/{connection_id}/sync", dependencies=[Depends(rate_limited("link_sync"))])
@@ -437,6 +474,7 @@ def sync(
     except plaid.LinkError as exc:
         if exc.code in ("item_login_required", "pending_expiration"):
             row.status = "login_required"
+            row.last_used_at = datetime.now(UTC)  # the app was opened all the same
             db.commit()
             raise HTTPException(status.HTTP_409_CONFLICT, detail="login_required") from exc
         raise _bad_gateway(exc) from exc
@@ -474,6 +512,7 @@ def cards(
     except plaid.LinkError as exc:
         if exc.code in ("item_login_required", "pending_expiration"):
             row.status = "login_required"
+            row.last_used_at = datetime.now(UTC)  # the app was opened all the same
             db.commit()
             raise HTTPException(status.HTTP_409_CONFLICT, detail="login_required") from exc
         raise _bad_gateway(exc) from exc

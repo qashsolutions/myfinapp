@@ -1542,6 +1542,14 @@
             "title": "Connections",
             "type": "array"
           },
+          "failed": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Failed",
+            "type": "array"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -4053,9 +4061,9 @@
       }
     },
     "/api/account/export": {
-      "get": {
+      "post": {
         "description": "Server-held data for the ZIP the device builds. Needs a fresh passkey check.",
-        "operationId": "export_data_api_account_export_get",
+        "operationId": "export_data_api_account_export_post",
         "responses": {
           "200": {
             "content": {

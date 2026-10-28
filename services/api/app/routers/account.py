@@ -160,7 +160,8 @@ def update_account(
     return _out(caller)
 
 
-@router.get("/export", dependencies=[Depends(rate_limited("export", key=session_or_ip))])
+# A POST (October 28, 2026): it audits and emails, and a cross-site GET carries the cookie.
+@router.post("/export", dependencies=[Depends(rate_limited("export", key=session_or_ip))])
 def export_data(
     caller: Annotated[Caller, Depends(require_step_up)],
     request: Request,

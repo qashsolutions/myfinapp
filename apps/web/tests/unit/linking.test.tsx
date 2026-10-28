@@ -97,6 +97,21 @@ describe("linked banks & cards (chunk 3.2)", () => {
     expect(api.linking.connections).toHaveLength(1);
   });
 
+  it("names a bank whose accounts couldn't be read, and keeps the others", async () => {
+    const api = installFakeApi({ session: readySession(), billing: connectedBilling() });
+    api.linking.sessions.push("ls9");
+    api.linking.nextLink = [
+      PLATYPUS,
+      { institution_name: "Second Bank", accounts: [], failed: true },
+    ];
+    renderApp("/me/linking/done?session=ls9");
+    expect(await screen.findByText("First Platypus Bank is linked.")).toBeTruthy();
+    expect(
+      screen.getByText(/Second Bank couldn't be read just now, so it wasn't linked/),
+    ).toBeTruthy();
+    expect(api.linking.connections.map((c) => c.institution_name)).toEqual(["First Platypus Bank"]);
+  });
+
   it("adopts an account the user already imported into, so entries share one account", async () => {
     installFakeApi({ session: readySession() });
     const db = openDb("u1");
