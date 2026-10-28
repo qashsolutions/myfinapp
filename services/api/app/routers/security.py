@@ -101,19 +101,21 @@ def _webauthn_error(exc: webauthn_svc.WebauthnError) -> HTTPException:
     return HTTPException(status.HTTP_400_BAD_REQUEST, detail=exc.code)
 
 
-def _may_register(caller: Caller, db: DbSession) -> None:
+def _may_register(request: Request, caller: Caller, db: DbSession) -> None:
     """The first passkey is part of sign-up (the email code is the proof). Any later one needs an
     unlocked session and a fresh passkey check, or a stolen cookie, even a locked one, could enrol
     its own passkey and come out unlocked and step-up fresh."""
     if caller.principal.has_passkeys:
-        require_step_up(require_unlocked(caller, db))
+        require_step_up(require_unlocked(request, caller, db))
 
 
 @router.post("/passkeys/register/options")
 def register_options(
-    caller: Annotated[Caller, Depends(require_session)], db: Annotated[DbSession, Depends(get_db)]
+    request: Request,
+    caller: Annotated[Caller, Depends(require_session)],
+    db: Annotated[DbSession, Depends(get_db)],
 ) -> OptionsOut:
-    _may_register(caller, db)
+    _may_register(request, caller, db)
     options = webauthn_svc.registration_options(db, caller.user, session_id=caller.session.id)
     db.commit()
     return OptionsOut(options=webauthn_svc.options_payload(options))
@@ -129,7 +131,7 @@ def register_verify(
     request: Request,
     db: Annotated[DbSession, Depends(get_db)],
 ) -> PasskeyOut:
-    _may_register(caller, db)
+    _may_register(request, caller, db)
     ip = client_ip(request)
     label = body.label or _default_passkey_label(request.headers.get("user-agent"))
     try:

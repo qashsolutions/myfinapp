@@ -128,19 +128,81 @@ def plan_ending_message(to: str, end: str, link: str, trial: bool) -> Message:
     )
 
 
-def plan_ended_message(to: str, delete_on: str, link: str) -> Message:
-    """The trial or paid period has ended with no subscription: the first of the daily notes."""
+def plan_ended_message(to: str, delete_on: str, link: str, *, trial: bool = True) -> Message:
+    """The trial or paid period has ended with no subscription: the first of the daily notes.
+    A paid plan's note never says "trial" (October 28, 2026)."""
+    what = "trial" if trial else "plan"
     return Message(
         to=to,
-        subject="Your Qash trial has wrapped up",
+        subject=f"Your Qash {what} has wrapped up",
         text=(
-            "Thanks for trying Qash. Your trial has wrapped up, and nothing has been deleted.\n\n"
+            f"Thanks for {'trying' if trial else 'using'} Qash. Your {what} has wrapped up, and "
+            "nothing has been deleted.\n\n"
             f"Keep going: {link}\n\n"
             "Or take your data with you: open the app, then Me → Download all my data.\n\n"
             f"Your account stays open until {delete_on}. After that we close it, and what's on "
             "your phone stays there until you choose to download it or erase it.\n"
         ),
     )
+
+
+def _dollars(cents: int) -> str:
+    return f"${cents // 100}" if cents % 100 == 0 else f"${cents // 100}.{cents % 100:02d}"
+
+
+def founding_choice() -> str:
+    """The plans to keep going with, priced from plans.yaml (never a number of our own)."""
+    from app.rules_server.entitlements import load_plans  # noqa: PLC0415 - avoids a cycle
+
+    plans = load_plans()["plans"]
+    parts = []
+    for key in ("private", "connected"):
+        p = plans[key]
+        monthly, yearly = p["price_cents"]["monthly"], p["price_cents"]["yearly"]
+        parts.append(f"{p['label']} ({_dollars(monthly)} a month or {_dollars(yearly)} a year)")
+    return " or ".join(parts)
+
+
+def founding_ending_message(to: str, end: str, link: str, *, tomorrow: bool) -> Message:
+    """30, 7 and 1 day before a Founding membership's 4 years end (owner decision, October 28,
+    2026): a thank-you and the plans to keep going with; nothing is charged unless they choose."""
+    when = f"tomorrow, {end}" if tomorrow else f"on {end}"
+    years = _founding_years()
+    return Message(
+        to=to,
+        subject="Your Founding membership ends tomorrow"
+        if tomorrow
+        else f"Your Founding membership ends on {end}",
+        text=(
+            f"Your {years} years of Founding end {when}. Thank you for being one of the first.\n\n"
+            f"To keep going, pick {founding_choice()}. Nothing is charged unless you choose.\n\n"
+            f"Pick a plan: {link}\n"
+        ),
+    )
+
+
+def founding_ended_message(to: str, delete_on: str, link: str) -> Message:
+    """The day a Founding membership's term ends (owner decision, October 28, 2026)."""
+    years = _founding_years()
+    return Message(
+        to=to,
+        subject="Your Founding membership has ended",
+        text=(
+            f"Your {years} years of Founding have ended. Thank you for being with Qash from the "
+            "start.\n\n"
+            f"You have 7 days, until {delete_on}, to pick a plan or download your data. To keep "
+            f"going, pick {founding_choice()}; nothing is charged unless you choose.\n\n"
+            f"Pick a plan: {link}\n\n"
+            "Or take your data with you: open the app, then Me → Download all my data. What's on "
+            "your device stays there until you decide.\n"
+        ),
+    )
+
+
+def _founding_years() -> int:
+    from app.rules_server.entitlements import load_plans  # noqa: PLC0415 - avoids a cycle
+
+    return int(load_plans()["founding"]["term_years"])
 
 
 def plan_lapsed_reminder_message(to: str, delete_on: str, days_left: int, link: str) -> Message:

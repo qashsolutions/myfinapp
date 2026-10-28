@@ -88,6 +88,13 @@ def compile_catalog(data: dict) -> dict:
     trial_ends = str(data["push_trial_ends_tomorrow"])
     if PLACEHOLDER.findall(trial_ends):
         raise CatalogError("push_trial_ends_tomorrow takes no values")
+    founding = {}
+    for name in ("push_founding_ends_soon", "push_founding_ended"):
+        founding[name] = str(data[name])
+        if PLACEHOLDER.findall(founding[name]):
+            raise CatalogError(f"{name} takes no values")
+        if any(ch.isdigit() for ch in founding[name]) or "$" in founding[name]:
+            raise CatalogError(f"{name} carries no prices, amounts or dates")
     nudges: dict[str, dict] = {}
     for key, nd in data["nudges"].items():
         allowed = [str(v) for v in nd.get("vars", [])]
@@ -104,6 +111,7 @@ def compile_catalog(data: dict) -> dict:
         "push_summary_one": summary_one,
         "push_plan_ended": plan_ended,
         "push_trial_ends_tomorrow": trial_ends,
+        **founding,
         "nudges": nudges,
     }
 

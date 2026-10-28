@@ -16,7 +16,7 @@
  */
 
 import type { components } from "@stackd/api-client";
-import { type ApiFailure, api, failureOf } from "../../data/api.ts";
+import { type ApiFailure, clientFor, failureOf } from "../../data/api.ts";
 import { recordDeletion } from "../../data/backup/snapshot.ts";
 import type {
   Account,
@@ -74,10 +74,13 @@ export function syncConnection(
   db: StackdDb,
   connectionId: string,
   now: Date = new Date(),
+  background = false,
 ): Promise<SyncReport | ApiFailure> {
   const running = inFlight.get(connectionId);
   if (running) return running;
-  const job = runSync(db, connectionId, now).finally(() => inFlight.delete(connectionId));
+  const job = runSync(db, connectionId, now, background).finally(() =>
+    inFlight.delete(connectionId),
+  );
   inFlight.set(connectionId, job);
   return job;
 }
@@ -86,12 +89,13 @@ async function runSync(
   db: StackdDb,
   connectionId: string,
   now: Date,
+  background: boolean,
 ): Promise<SyncReport | ApiFailure> {
   const total = emptyReport();
   for (let round = 0; round < MAX_ROUNDS; round += 1) {
     const saved = await db.settings.get(cursorKey(connectionId));
     const cursor = typeof saved?.value === "string" ? saved.value : null;
-    const r = await api.POST("/api/linking/{connection_id}/sync", {
+    const r = await clientFor(background).POST("/api/linking/{connection_id}/sync", {
       params: { path: { connection_id: connectionId } },
       body: { cursor },
     });
@@ -102,7 +106,7 @@ async function runSync(
     for (const k of Object.keys(total) as Array<keyof SyncReport>) total[k] += report[k];
     if (!out.has_more) break;
   }
-  await pullCards(db, connectionId, now);
+  await pullCards(db, connectionId, now, background);
   await db.settings.put({
     key: LAST_SYNC_KEY,
     value: now.toISOString(),
@@ -116,12 +120,17 @@ async function runSync(
  * limit, APR), stored on the device only. Asked only when a card from this connection is
  * linked here; a failure leaves the last facts in place (the transactions already synced).
  */
-export async function pullCards(db: StackdDb, connectionId: string, now: Date = new Date()) {
+export async function pullCards(
+  db: StackdDb,
+  connectionId: string,
+  now: Date = new Date(),
+  background = false,
+) {
   const cards = (await db.accounts.toArray()).filter(
     (a) => a.type === "credit_card" && a.linked?.connection_id === connectionId,
   );
   if (cards.length === 0) return;
-  const r = await api.POST("/api/linking/{connection_id}/cards", {
+  const r = await clientFor(background).POST("/api/linking/{connection_id}/cards", {
     params: { path: { connection_id: connectionId } },
   });
   if (failureOf(r) || !r.data) return;
@@ -634,12 +643,13 @@ export async function syncAll(
   db: StackdDb,
   connections: Array<{ id: string; status: string }>,
   now: Date = new Date(),
+  background = false,
 ): Promise<SyncAllResult> {
   const total = emptyReport();
   const failures: SyncAllResult["failures"] = [];
   for (const c of connections) {
     if (c.status !== "ok") continue;
-    const result = await syncConnection(db, c.id, now);
+    const result = await syncConnection(db, c.id, now, background);
     if ("status" in result && "code" in result) {
       failures.push({ connection_id: c.id, code: result.code });
       continue;
@@ -659,7 +669,7 @@ export async function syncIfDue(
 ): Promise<SyncAllResult | null> {
   const linked = (await db.accounts.toArray()).some((a) => a.linked);
   if (!linked) return null;
-  const r = await api.GET("/api/linking");
+  const r = await clientFor(true).GET("/api/linking");
   if (failureOf(r)) return null;
   const connections = (r.data as components["schemas"]["LinkingOut"]).connections;
   // A connection the server no longer lists was revoked (60 days unused, or from another
@@ -676,7 +686,7 @@ export async function syncIfDue(
   const stale = now.getTime() - lastAt >= SYNC_EVERY_MS;
   const news = connections.some((c) => c.updates_available);
   if (!stale && !news) return null;
-  return syncAll(db, connections, now);
+  return syncAll(db, connections, now, true);
 }
 
 /** "3 new, 1 updated" for a status line; empty when nothing changed. */

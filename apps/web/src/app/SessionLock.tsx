@@ -1,7 +1,9 @@
 /**
  * 5-minute inactivity lock (docs/spec.md "Account security (day 1)"). Any pointer, key or
  * scroll counts as activity; coming back to a backgrounded tab re-checks the clock so a
- * phone left in a pocket locks too. Unlocking is a passkey assertion (LockScreen).
+ * phone left in a pocket locks too. Locking tells the server to lock this session too
+ * (POST /api/auth/lock), and the server's idle clock counts only what the person does (calls
+ * the app makes on its own carry X-Qash-Background). Unlocking is a passkey assertion.
  */
 
 import { type ReactNode, useEffect, useRef } from "react";

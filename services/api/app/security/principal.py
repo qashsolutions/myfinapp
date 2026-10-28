@@ -2,7 +2,8 @@
 
 require_session   any live session, even before the first passkey (sign-up in progress)
 require_unlocked  a session that passed a passkey check and has been active within the lock
-                  window; records activity
+                  window; records activity, but only what the person did
+                  (counts_as_activity; owner decision, October 28, 2026)
 require_step_up   unlocked *and* a passkey check within STACKD_STEP_UP_MAX_AGE_SECONDS
 """
 
@@ -62,13 +63,37 @@ def require_session(request: Request, db: Annotated[DbSession, Depends(get_db)])
     return caller
 
 
+BACKGROUND_HEADER = "x-qash-background"
+
+
+def counts_as_activity(request: Request) -> bool:
+    """Whether this request is something the person did, so it may keep the session awake.
+
+    Not: a call the app made on its own (`X-Qash-Background: 1`: syncs, timers, the alert
+    schedule, refreshes), a request the browser marks as from anywhere but this site
+    (`Sec-Fetch-Site` present and not `same-origin`, e.g. a link on another site, or an address
+    typed in), or a page load (`Sec-Fetch-Mode: navigate`). Such requests are still served as
+    usual; they just never push the auto-lock back. Clients that send neither header (tests,
+    the native shell's own HTTP stack) count, as before.
+    """
+    if request.headers.get(BACKGROUND_HEADER) == "1":
+        return False
+    site = request.headers.get("sec-fetch-site")
+    if site is not None and site != "same-origin":
+        return False
+    return request.headers.get("sec-fetch-mode") != "navigate"
+
+
 def require_unlocked(
-    caller: Annotated[Caller, Depends(require_session)], db: Annotated[DbSession, Depends(get_db)]
+    request: Request,
+    caller: Annotated[Caller, Depends(require_session)],
+    db: Annotated[DbSession, Depends(get_db)],
 ) -> Caller:
     if caller.principal.locked:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="locked")
-    sessions_svc.touch(caller.session)
-    db.commit()
+    if counts_as_activity(request):
+        sessions_svc.touch(caller.session)
+        db.commit()
     return caller
 
 

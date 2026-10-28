@@ -263,9 +263,9 @@ def subscribe(
     return PushOut(available=True, subscribed=True)
 
 
-# Live subscriptions per person, web and native together (proposed October 28, 2026, for
-# the owner's sign-off): a phone, a computer and a few browsers fit easily; a script can't
-# make every alert fan out. Registering past it revokes the one registered longest ago.
+# Live subscriptions per person, web and native together (signed off October 28, 2026): a
+# phone, a computer and a few browsers fit easily; a script can't make every alert fan out.
+# Registering past it revokes the one registered longest ago.
 MAX_LIVE_SUBSCRIPTIONS = 10
 
 

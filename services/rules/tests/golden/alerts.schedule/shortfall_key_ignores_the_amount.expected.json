@@ -3,7 +3,7 @@
     {
       "type": "shortfall_risk",
       "due_local": "2026-10-10T18:00",
-      "dedupe_key": "shortfall:2026-10-25:kngnljdeocbkbekh"
+      "dedupe_key": "shortfall:2026-10-25"
     }
   ]
 }

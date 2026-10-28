@@ -1,10 +1,13 @@
 """Trials and plan ends (owner decision, October 14, 2026). Run hourly by `jobs-loop`.
 
-- The day before a free trial, a cancelled plan or a Founding term ends
-  (plans.yaml `reminder_days_before`):
+- The day before a free trial or a cancelled plan ends (plans.yaml `reminder_days_before`):
   one "ends on …" email with a link to choose a plan (users.ending_notice_for remembers
   which end date it was for); for a trial, one push beside it with fixed words.
-- When it has ended with no subscription: a friendly "your trial has wrapped up" email, then one
+- A Founding term (owner decision, October 28, 2026): an email and a push 30, 7 and 1 day
+  before it ends (plans.yaml `founding.reminder_days_before`; the last one sent is kept in
+  subscriptions.founding_reminded_days, so each goes once), then "ended" on the day.
+- When it has ended with no subscription: a friendly "your trial (or plan) has wrapped up"
+  email (Founding's own on the day it ends), then one
   reminder a day for the rest of the 7 days (users.lapsed_notice_for, lapsed_reminded_on), each
   with the fixed push to devices that allowed alerts (October 20, 2026).
 - An inbox that may not buy again (a payment the bank flagged as fraud, refunded in full,
@@ -26,10 +29,20 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.models.billing import Subscription
 from app.models.user import User
-from app.rules_server.entitlements import access, active_subscription, trial_settings
+from app.rules_server.entitlements import (
+    access,
+    active_subscription,
+    load_plans,
+    trial_settings,
+)
 from app.security.audit import AuditAction, record
 from app.services import email, ops_alerts
-from app.services.alerts import PLAN_ENDED_LABEL, TRIAL_ENDS_TOMORROW_LABEL
+from app.services.alerts import (
+    FOUNDING_ENDED_LABEL,
+    FOUNDING_ENDS_SOON_LABEL,
+    PLAN_ENDED_LABEL,
+    TRIAL_ENDS_TOMORROW_LABEL,
+)
 from app.services.deletion import soft_delete
 from app.services.email import plan_link
 from app.services.stripe_billing import is_blocked
@@ -47,8 +60,6 @@ def _ending(db: DbSession, user: User, now: datetime) -> tuple[datetime, bool] |
     sub = active_subscription(db, user.id, now=now)
     if sub is not None and sub.status == "canceled" and sub.ends_at is not None:
         return sub.ends_at, False
-    if sub is not None and sub.plan == "founding" and sub.ends_at is not None:
-        return sub.ends_at, False  # the Founding term ends like a cancelled plan does
     if sub is not None and sub.cancel_at_period_end and sub.renews_at is not None:
         return sub.renews_at, False
     return None
@@ -107,6 +118,10 @@ def _one(
     user = db.get(User, user_id)
     if user is None or user.deleted_at is not None:
         return
+    sub = active_subscription(db, user.id, now=now)
+    if sub is not None and sub.plan == "founding" and sub.ends_at is not None:
+        _founding_reminder(db, user, sub, now, sender, counts)
+        return
     ending = _ending(db, user, now)
     if ending is not None:
         end, trial = ending
@@ -134,11 +149,19 @@ def _one(
     elif user.lapsed_notice_for != ended:
         if blocked:
             sender.send(email.plan_ended_payment_returned_message(user.email, _day(delete_at)))
+        elif _founding_ended(db, user, ended):
+            sender.send(email.founding_ended_message(user.email, _day(delete_at), plan_link()))
         else:
-            sender.send(email.plan_ended_message(user.email, _day(delete_at), plan_link()))
+            trial = user.trial_ends_at is not None and user.trial_ends_at == ended
+            sender.send(
+                email.plan_ended_message(user.email, _day(delete_at), plan_link(), trial=trial)
+            )
         user.lapsed_notice_for = ended
         user.lapsed_reminded_on = now.date()
-        _push(db, user.id, now)
+        if not blocked and _founding_ended(db, user, ended):
+            _push(db, user.id, now, body=FOUNDING_ENDED_LABEL, tag="founding-ended")
+        else:
+            _push(db, user.id, now)
         counts["ended"] += 1
     elif not blocked and user.lapsed_reminded_on != now.date():
         # One friendly note a day for the rest of the 7 days (owner, October 20, 2026).
@@ -149,3 +172,45 @@ def _one(
         user.lapsed_reminded_on = now.date()
         _push(db, user.id, now)
         counts["reminded"] += 1
+
+
+def _founding_reminder(
+    db: DbSession,
+    user: User,
+    sub: Subscription,
+    now: datetime,
+    sender: email.EmailSender,
+    counts: dict[str, int],
+) -> None:
+    """The reminder due now for a Founding term that is ending, once each: only the nearest
+    stage, so a run that missed one (an outage) never sends two at once."""
+    assert sub.ends_at is not None
+    left = sub.ends_at - now
+    due = [d for d in load_plans()["founding"]["reminder_days_before"] if left <= timedelta(days=d)]
+    if not due:
+        return
+    stage = int(min(due))
+    if sub.founding_reminded_days is not None and sub.founding_reminded_days <= stage:
+        return
+    sender.send(
+        email.founding_ending_message(
+            user.email, _day(sub.ends_at), plan_link(), tomorrow=left <= timedelta(days=1)
+        )
+    )
+    _push(db, user.id, now, body=FOUNDING_ENDS_SOON_LABEL, tag="founding-ends")
+    sub.founding_reminded_days = stage
+    counts["ending_soon"] += 1
+
+
+def _founding_ended(db: DbSession, user: User, ended: datetime) -> bool:
+    """Whether the end the account is in is a Founding term's."""
+    return (
+        db.scalar(
+            select(Subscription.id).where(
+                Subscription.user_id == user.id,
+                Subscription.plan == "founding",
+                Subscription.ends_at == ended,
+            )
+        )
+        is not None
+    )

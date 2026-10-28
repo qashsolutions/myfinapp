@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   type ApiFailure,
   api,
+  clientFor,
   failureOf,
   type NotificationSettingsOut,
   type NotificationSettingsPatch,
@@ -73,7 +74,7 @@ export function clockText(clock: string): string {
   return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
-export function useNotificationSettings(): {
+export function useNotificationSettings(options: { background?: boolean } = {}): {
   data: NotificationSettingsOut | null;
   error: ApiFailure | null;
   update: (patch: NotificationSettingsPatch) => Promise<void>;
@@ -81,8 +82,9 @@ export function useNotificationSettings(): {
 } {
   const [data, setData] = useState<NotificationSettingsOut | null>(null);
   const [error, setError] = useState<ApiFailure | null>(null);
+  const background = options.background ?? false;
   const refresh = useCallback(async () => {
-    const r = await api.GET("/api/notifications/settings");
+    const r = await clientFor(background).GET("/api/notifications/settings");
     const failure = failureOf(r);
     if (failure) {
       setError(failure);
@@ -90,7 +92,7 @@ export function useNotificationSettings(): {
     }
     setData(r.data ?? null);
     setError(null);
-  }, []);
+  }, [background]);
   useEffect(() => {
     void refresh();
   }, [refresh]);

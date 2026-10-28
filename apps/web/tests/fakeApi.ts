@@ -573,6 +573,10 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       return json(state.session);
     }
     if (!state.session.authenticated) return json({ detail: "sign_in_required" }, 401);
+    if (method === "POST" && path === "/api/auth/lock") {
+      state.session = { ...state.session, locked: true };
+      return new Response(null, { status: 204 });
+    }
 
     if (method === "POST" && path === "/api/security/passkeys/register/options") {
       return json({ options: { challenge: "c1", rp: { id: "localhost" } } });
@@ -608,8 +612,9 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     if (method === "POST" && path.startsWith("/api/auth/link/")) {
       const code = (body as { code?: string } | undefined)?.code ?? "";
       const link = state.deviceLink;
-      if (!link || link.code !== code || link.status !== "pending")
-        return json({ detail: "not_found" }, 404);
+      if (!link || link.code !== code) return json({ detail: "not_found" }, 404);
+      // Each request is answered once (October 28, 2026): approved or denied, then closed.
+      if (link.status !== "pending") return json({ detail: "already_answered" }, 409);
       if (path === "/api/auth/link/lookup")
         return json({
           device_label: "Chrome on Mac",

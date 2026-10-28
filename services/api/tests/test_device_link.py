@@ -13,6 +13,8 @@ from app.db import get_session_factory
 from app.models.audit_log import AuditLog
 from app.models.device_link import DeviceLink
 from app.models.session import Session
+from app.routers.device_link import _normalize
+from app.security.hashing import token_hash
 from tests.auth_flow import MAC_UA, assert_passkey, new_client, outbox, sign_up
 from tests.webauthn_fake import FakeAuthenticator
 
@@ -125,7 +127,8 @@ def test_deny_expiry_and_unknown_codes() -> None:
     computer, started = _computer(net)
     assert phone.post("/api/auth/link/deny", json={"code": started["code"]}).status_code == 200
     assert computer.get("/api/auth/link/status").json()["status"] == "denied"
-    assert phone.post("/api/auth/link/lookup", json={"code": started["code"]}).status_code == 404
+    r = phone.post("/api/auth/link/lookup", json={"code": started["code"]})
+    assert r.status_code == 409 and r.json()["detail"] == "already_answered"
 
     late, started = _computer(net)
     with get_session_factory()() as s:
@@ -133,11 +136,73 @@ def test_deny_expiry_and_unknown_codes() -> None:
         assert row is not None
         row.expires_at = datetime.now(UTC) - timedelta(seconds=1)
         s.commit()
-    assert phone.post("/api/auth/link/lookup", json={"code": started["code"]}).status_code == 404
+    r = phone.post("/api/auth/link/lookup", json={"code": started["code"]})
+    assert r.status_code == 409 and r.json()["detail"] == "expired"
     assert late.get("/api/auth/link/status").json()["status"] == "expired"
 
     assert phone.post("/api/auth/link/lookup", json={"code": "ZZZZ-ZZZZ"}).status_code == 404
     assert new_client().get("/api/auth/link/status").status_code == 404  # no cookie
+
+
+def _status_of(code: str) -> str:
+    with get_session_factory()() as s:
+        rows = s.scalars(select(DeviceLink)).all()
+        (row,) = [r for r in rows if r.code_hash == token_hash(_normalize(code))]
+        return row.status
+
+
+def test_each_request_is_answered_once() -> None:
+    """Owner decision, October 28, 2026: a link request is approved or denied once, then
+    closed. A second answer, either way, is 409 and changes nothing; so is any answer once the
+    request expired."""
+    net = _network()
+    phone, auth, _ = _phone(net)
+    assert_passkey(phone, auth)
+
+    # Denied, then approve and deny again: 409, still denied, no second audit row.
+    computer, started = _computer(net)
+    code = started["code"]
+    assert phone.post("/api/auth/link/deny", json={"code": code}).status_code == 200
+    for route in ("approve", "deny"):
+        r = phone.post(f"/api/auth/link/{route}", json={"code": code})
+        assert r.status_code == 409 and r.json()["detail"] == "already_answered", (route, r.text)
+    assert _status_of(code) == "denied"
+    assert computer.get("/api/auth/link/status").json()["status"] == "denied"
+
+    # Approved, then deny and approve again: 409, and the computer still signs in once.
+    computer, started = _computer(net)
+    code = started["code"]
+    assert phone.post("/api/auth/link/approve", json={"code": code}).status_code == 200
+    for route in ("deny", "approve"):
+        r = phone.post(f"/api/auth/link/{route}", json={"code": code})
+        assert r.status_code == 409 and r.json()["detail"] == "already_answered", (route, r.text)
+    assert _status_of(code) == "approved"
+    assert computer.get("/api/auth/link/status").json()["status"] == "approved"
+    # Picked up (consumed): still answered.
+    r = phone.post("/api/auth/link/deny", json={"code": code})
+    assert r.status_code == 409 and r.json()["detail"] == "already_answered"
+
+    # Expired before any answer: 409 expired, and the row is left as it was.
+    computer, started = _computer(net)
+    code = started["code"]
+    with get_session_factory()() as s:
+        row = s.scalars(select(DeviceLink).order_by(DeviceLink.created_at.desc())).first()
+        assert row is not None
+        row.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+        s.commit()
+    for route in ("approve", "deny"):
+        r = phone.post(f"/api/auth/link/{route}", json={"code": code})
+        assert r.status_code == 409 and r.json()["detail"] == "expired", (route, r.text)
+    assert _status_of(code) == "pending"
+    assert computer.get("/api/auth/link/status").json()["status"] == "expired"
+    with get_session_factory()() as s:
+        denied = s.scalars(select(AuditLog).where(AuditLog.action == "device_link_denied")).all()
+        approved = s.scalars(
+            select(AuditLog).where(AuditLog.action == "device_link_approved")
+        ).all()
+    assert len([a for a in denied if a.actor_id]) >= 1
+    assert len({a.target for a in approved}) == len(approved)  # one approval per request
+    assert len({a.target for a in denied}) == len(denied)  # one denial per request
 
 
 def test_denying_counts_ten_a_day_per_signed_in_device() -> None:

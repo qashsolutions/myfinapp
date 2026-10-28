@@ -281,6 +281,18 @@ def session_info(
     return info
 
 
+@router.post("/lock", status_code=status.HTTP_204_NO_CONTENT)
+def lock_session(
+    caller: Annotated[Caller, Depends(require_session)],
+    db: Annotated[DbSession, Depends(get_db)],
+) -> None:
+    """The app's screen locked (idle, or the person locked it): this session is locked on the
+    server too until the next passkey check (owner decision, October 28, 2026). Works on a
+    session that is already locked; not audited, like the idle lock it mirrors."""
+    sessions_svc.lock(caller.session)
+    db.commit()
+
+
 @router.post("/signout")
 def sign_out(
     caller: Annotated[Caller, Depends(require_session)],

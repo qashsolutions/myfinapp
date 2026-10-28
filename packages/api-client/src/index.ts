@@ -17,6 +17,8 @@ export interface ApiClientOptions {
   fetch?: typeof globalThis.fetch;
   /** Called when the API answers 401 or 403 with a known reason (sign_in_required, locked, step_up_required). */
   onAuthSignal?: (signal: AuthSignal) => void;
+  /** Headers sent with every call from this client (the web app's background client). */
+  headers?: Record<string, string>;
 }
 
 export type AuthSignal = "sign_in_required" | "locked" | "step_up_required";
@@ -40,6 +42,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
   const client = createClient<paths>({
     baseUrl: options.baseUrl ?? "",
     credentials: "include",
+    ...(options.headers ? { headers: options.headers } : {}),
     // Late-bound so a test can replace globalThis.fetch after the client exists.
     fetch: options.fetch ?? ((input: Request) => globalThis.fetch(input)),
   });

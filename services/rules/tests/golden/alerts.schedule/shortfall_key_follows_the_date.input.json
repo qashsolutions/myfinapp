@@ -1,0 +1,14 @@
+{
+  "inputs": {
+    "now_local": "2026-10-10T18:00",
+    "shortfall": {
+      "first_short_date": "2026-10-26",
+      "short_by_cents": 18001
+    },
+    "prefs": {
+      "shortfall_risk": {
+        "enabled": true
+      }
+    }
+  }
+}

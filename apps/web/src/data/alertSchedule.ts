@@ -13,7 +13,7 @@ import {
   type Upcoming,
 } from "../engine/bridge.ts";
 import { compareText } from "../lib/order.ts";
-import { api, failureOf, type NotificationSettingsOut } from "./api.ts";
+import { backgroundApi, failureOf, type NotificationSettingsOut } from "./api.ts";
 import type { Goal, StackdDb } from "./db.ts";
 
 export const LAST_HASH_KEY = "alerts.last_hash";
@@ -163,7 +163,7 @@ export async function syncAlertSchedule(
   const hash = JSON.stringify(items);
   const last = (await db.settings.get(LAST_HASH_KEY))?.value;
   if (last === hash) return null;
-  const r = await api.PUT("/api/alerts/schedule", { body: { items: items as never } });
+  const r = await backgroundApi.PUT("/api/alerts/schedule", { body: { items: items as never } });
   if (failureOf(r)) return null;
   await db.settings.put({ key: LAST_HASH_KEY, value: hash, updated_at: new Date().toISOString() });
   return items.length;

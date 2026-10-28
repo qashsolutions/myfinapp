@@ -66,7 +66,7 @@ LIMITS: dict[str, Limit] = {
             "passkey_remove",  # DELETE /api/security/passkeys/{id}
             "device_sign_out",  # DELETE /api/security/devices/{id}
             "device_link_approve",  # POST /api/auth/link/approve (the new device's alert)
-            "device_link_deny",  # POST /api/auth/link/deny (an audit row each; October 28, 2026)
+            "device_link_deny",  # POST /api/auth/link/deny (an audit row each; signed off Oct 28)
             "backup_key",  # PUT /api/backup/key
             "backup_off",  # DELETE /api/backup
             "tester_plan",  # POST /api/billing/tester

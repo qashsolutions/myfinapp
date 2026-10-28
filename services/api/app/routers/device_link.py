@@ -11,6 +11,9 @@ device").
   needs `confirm_different_network` (owner: warn and ask)
 - POST /api/auth/link/deny (signed in, unlocked)
 
+Each request is answered once: approved or denied, then closed (409 `already_answered`, or
+`expired` after 2 minutes; October 28, 2026).
+
 Trade-off, recorded in the spec and the security plan: the browser's own phone sign-in proves
 the phone is nearby over Bluetooth; this does not, so the approval screen names the device and
 warns on a different network, requests last 2 minutes, and every link is audited and alerted.
@@ -97,14 +100,19 @@ def network_of(ip: str) -> str | None:
 
 
 def _pending(db: DbSession, code: str, *, lock: bool = False) -> DeviceLink:
-    query = select(DeviceLink).where(
-        DeviceLink.code_hash == token_hash(_normalize(code)),
-        DeviceLink.status == "pending",
-        DeviceLink.expires_at > _now(),
-    )
+    """The request this code names, while it waits for an answer. Each request is answered
+    once (owner decision, October 28, 2026): approved or denied, it is closed, and a later
+    lookup, approve or deny is 409 `already_answered` (`expired` once its 2 minutes are up),
+    changing nothing. A code that names no request is 404. Locked for an answer, so an
+    approve and a deny at once are counted one after the other."""
+    query = select(DeviceLink).where(DeviceLink.code_hash == token_hash(_normalize(code)))
     row = db.scalars(query.with_for_update() if lock else query).first()
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="not_found")
+    if row.status != "pending":
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="already_answered")
+    if row.expires_at <= _now():
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="expired")
     return row
 
 

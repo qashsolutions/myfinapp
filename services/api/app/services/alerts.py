@@ -38,6 +38,8 @@ SUMMARY_LABEL: str = _MOMENTS["push_summary"]
 SUMMARY_LABEL_ONE: str = _MOMENTS["push_summary_one"]
 PLAN_ENDED_LABEL: str = _MOMENTS["push_plan_ended"]
 TRIAL_ENDS_TOMORROW_LABEL: str = _MOMENTS["push_trial_ends_tomorrow"]
+FOUNDING_ENDS_SOON_LABEL: str = _MOMENTS["push_founding_ends_soon"]
+FOUNDING_ENDED_LABEL: str = _MOMENTS["push_founding_ended"]
 TITLE = "Qash"
 # Where a tap on the push lands (the service worker opens it); never a deep link with data.
 URLS: dict[str, str] = {

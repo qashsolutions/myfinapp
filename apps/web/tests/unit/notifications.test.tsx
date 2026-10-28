@@ -221,7 +221,7 @@ describe("Notifications", () => {
       )?.items.filter((i) => i.type === "shortfall_risk") ?? [];
     await waitFor(() => expect(shortfallKeys().length).toBe(1), { timeout: 4000 });
     const key = String(shortfallKeys()[0]?.dedupe_key);
-    expect(key).toMatch(/^shortfall:\d{4}-\d{2}-\d{2}:[a-p]{16}$/);
+    expect(key).toMatch(/^shortfall:\d{4}-\d{2}-\d{2}$/);
     const body = api.calls
       .filter((c) => c.method === "PUT" && c.path === "/api/alerts/schedule")
       .at(-1)?.body as { items: Array<Record<string, unknown>> };
