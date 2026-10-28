@@ -24,7 +24,7 @@ const CHOICES: Array<{
     name: "Private",
     value: "Every account. Never linked. Fully private.",
     points: [
-      ["file", "Statements read on your phone"],
+      ["file", "Statements read on your device"],
       ["jar", "4 jars & goals"],
       ["cloud", "Encrypted backup & sync"],
     ],
@@ -155,8 +155,8 @@ export function ChooseTrial() {
           note each day.
         </li>
         <li>
-          Then we close your account and remove what we kept. What's on your phone stays there until
-          you decide.
+          Then we close your account and remove what we kept. What's on your device stays there
+          until you decide.
         </li>
       </ul>
     </AuthLayout>

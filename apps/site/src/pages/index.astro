@@ -55,10 +55,10 @@ const more = [
   { icon: "couple", t: "Couples", d: "Share jars with your partner. On Connected." },
 ] as const;
 
-// Where each kind of data lives (docs/security, the privacy page). "Kept on your phone", never
-// "never leaves" for every plan: on Connected, bank data passes through our server to the phone.
+// Where each kind of data lives (docs/security, the privacy page). "Kept on your device", never
+// "never leaves" for every plan: on Connected, bank data passes through our server to the device.
 const onPhone = ["Transactions and statements", "Receipt photos", "Budgets, jars and net worth", "Notes and tags"];
-const onServer = ["Your email and plan", "Your challenge percentage", "Alert dates, never amounts", "Optional backup, locked on your phone first"];
+const onServer = ["Your email and plan", "Your challenge percentage", "Alert dates, never amounts", "Optional backup, locked on your device first"];
 const neverKept = ["Bank passwords", "Ads or trackers", "Selling your data", "AI services"];
 
 // The promises most apps don't make, up front (owner, October 20, 2026). Word for word true:
@@ -86,7 +86,7 @@ const fair = [
 const always = [
   { icon: "passkey", t: "Passkey sign-in" },
   { icon: "key", t: "We never see bank passwords" },
-  { icon: "device", t: "Your data kept on your phone" },
+  { icon: "device", t: "Your data kept on your device" },
 ] as const;
 ---
 
@@ -193,7 +193,7 @@ const always = [
     <div class="lp-where">
       <div class="lp-where__col lp-where__col--phone">
         <span class="lp-where__icon"><Icon name="device" /></span>
-        <h3>On your phone</h3>
+        <h3>On your device</h3>
         <ul>{onPhone.map((x) => <li>{x}</li>)}</ul>
       </div>
       <div class="lp-where__col lp-where__col--server">
@@ -209,7 +209,7 @@ const always = [
       </div>
     </div>
     <p class="lp-where__connected">
-      On Connected, new bank transactions pass through us to your phone. We don't keep them.
+      On Connected, new bank transactions pass through us to your device. We don't keep them.
     </p>
     <p class="lp-where__proof">
       <span class="lp-where__proof-icon"><Icon name="check" /></span>

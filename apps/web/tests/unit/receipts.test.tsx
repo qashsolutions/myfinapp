@@ -358,7 +358,7 @@ describe("receipt photos", () => {
       await within(section).findByRole("button", { name: "Delete all receipt photos" }),
     );
     const sheet = await screen.findByRole("dialog", { name: "Delete all receipt photos?" });
-    expect(sheet).toHaveTextContent("This removes 2 photos from this phone, for good.");
+    expect(sheet).toHaveTextContent("This removes 2 photos from this device, for good.");
     expect(sheet).toHaveTextContent(
       "We don't keep a copy, and they aren't in your backup, so there's no way to get them back.",
     );
@@ -372,7 +372,7 @@ describe("receipt photos", () => {
     const again = await screen.findByRole("dialog", { name: "Delete all receipt photos?" });
     await user.click(within(again).getByRole("button", { name: "Delete 2 photos" }));
     expect(
-      await within(section).findByText("2 photos deleted from this phone."),
+      await within(section).findByText("2 photos deleted from this device."),
     ).toBeInTheDocument();
     expect(await db.receipts.count()).toBe(0);
     expect(await db.files.count()).toBe(0);

@@ -26,7 +26,7 @@ type Ask = { kind: "all"; n: number } | { kind: "shorten"; n: number; retention:
 /**
  * Settings → Receipts & your data: how long receipt photos stay on this device. Anything that
  * deletes photos at once (Delete all, or a shorter keep time) asks first with the real count
- * (owner decision, October 28, 2026): photos are on this phone only and never in the backup.
+ * (owner decision, October 28, 2026): photos are on this device only and never in the backup.
  */
 export function RetentionSettings() {
   const { db } = useDb();
@@ -49,10 +49,10 @@ export function RetentionSettings() {
     setAsk(null);
     if (current.kind === "all") {
       const n = await deleteAllReceiptPhotos(db);
-      setDone(`${photos(n)} deleted from this phone.`);
+      setDone(`${photos(n)} deleted from this device.`);
     } else {
       await setRetention(db, current.retention, todayIso());
-      setDone(`${photos(current.n)} deleted from this phone.`);
+      setDone(`${photos(current.n)} deleted from this device.`);
     }
   }
 
@@ -114,7 +114,7 @@ export function RetentionSettings() {
           <>
             <p>
               {ask.kind === "all"
-                ? `This removes ${photos(ask.n)} from this phone, for good.`
+                ? `This removes ${photos(ask.n)} from this device, for good.`
                 : `This deletes ${photos(ask.n)} older than ${retentionLabel(ask.retention).toLowerCase()}, for good.`}
             </p>
             <p>

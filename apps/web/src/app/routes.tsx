@@ -66,7 +66,7 @@ export function AppRoutes() {
       <Route path="signup/passkey" element={<PasskeySetup />} />
       {/* No guard: shown right after deletion, when the session is already gone. */}
       <Route path="deleted" element={<DeletedScreen />} />
-      {/* A plan that ended: the account closed, the data kept on this phone (October 20, 2026). */}
+      {/* A plan that ended: the account closed, the data kept on this device (October 20, 2026). */}
       <Route path="kept" element={<KeptOnPhone />} />
       {/* The website's "Install the app" lands here; no sign-in needed (October 19, 2026). */}
       <Route path="install" element={<InstallScreen />} />

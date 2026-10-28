@@ -27,7 +27,7 @@ describe("trials", () => {
     // How the trial works, up front (October 20, 2026)
     const how = screen.getByRole("list", { name: "How the free trial works" });
     expect(how).toHaveTextContent("No card needed, and nothing is charged during the trial.");
-    expect(how).toHaveTextContent("What's on your phone stays there until you decide.");
+    expect(how).toHaveTextContent("What's on your device stays there until you decide.");
     await user.click(screen.getByRole("radio", { name: /Connected/ }));
     await user.click(screen.getByRole("button", { name: "Start my 3-day free trial" }));
     await waitFor(() =>
@@ -116,7 +116,7 @@ describe("trials", () => {
     const alert = await screen.findByRole("alert");
     // A friendly update, not a warning (owner, October 20, 2026)
     expect(alert).toHaveTextContent("Your trial has wrapped up");
-    expect(alert).toHaveTextContent(/what's on this phone stays here until you decide/);
+    expect(alert).toHaveTextContent(/what's on this device stays here until you decide/);
     expect(within(alert).getByRole("link", { name: "Download my data" })).toHaveAttribute(
       "href",
       "/me/data",
@@ -189,9 +189,9 @@ describe("trials", () => {
       await screen.findByRole("heading", { level: 1, name: "Your data is safe here" }),
     ).toBeInTheDocument();
     expect(await screen.findByText(/including 1 entry/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Erase it from this phone" }));
+    await user.click(screen.getByRole("button", { name: "Erase it from this device" }));
     await user.click(
-      within(await screen.findByRole("dialog", { name: "Erase from this phone?" })).getByRole(
+      within(await screen.findByRole("dialog", { name: "Erase from this device?" })).getByRole(
         "button",
         { name: "Erase it" },
       ),

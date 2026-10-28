@@ -222,7 +222,7 @@ export function BudgetSetup({
           ) : (
             <p className="sk-card__hero sk-card__hero--empty">What you take home</p>
           )}
-          <p className="sk-card__eyebrow">After tax. Stays on this phone.</p>
+          <p className="sk-card__eyebrow">After tax. Stays on this device.</p>
         </Card>
         <div className="fields">
           <div className="field">
