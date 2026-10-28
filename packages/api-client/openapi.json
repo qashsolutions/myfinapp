@@ -4457,7 +4457,7 @@
     },
     "/api/backup/blob/latest": {
       "get": {
-        "description": "The newest backup, or with `before` the newest one older than that backup: a device that\ncan't open a copy steps back to the one before it (October 24, 2026).",
+        "description": "The newest backup, or with `before` the newest one older than that backup: a device that\ncan't open a copy steps back to the one before it (October 24, 2026). A `before` copy that\nis no longer kept (pruned while the device walked, after another upload) answers 409\n`backup_gone`, never 404 `no_backup`, which means there is nothing (older) to restore; the\ndevice then starts again from the newest (invariant 20, October 27, 2026).",
         "operationId": "latest_blob_api_backup_blob_latest_get",
         "parameters": [
           {
