@@ -4,7 +4,7 @@
  * offline sends one request per target when it is back, not a history.
  */
 
-import { api } from "./api.ts";
+import { backgroundApi } from "./api.ts";
 import type { ServerQueueItem, StackdDb } from "./db.ts";
 
 export async function enqueueGroupProgress(
@@ -49,7 +49,7 @@ async function pass(db: StackdDb): Promise<void> {
   for (const item of items) {
     try {
       if (item.kind === "group_progress") {
-        const { response } = await api.PUT("/api/groups/{group_id}/progress", {
+        const { response } = await backgroundApi.PUT("/api/groups/{group_id}/progress", {
           params: { path: { group_id: item.payload.group_id } },
           body: { progress_bps: item.payload.progress_bps },
         });

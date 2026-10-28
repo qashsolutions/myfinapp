@@ -42,6 +42,27 @@ export const api = createApiClient({
     authEvents.dispatchEvent(new CustomEvent<AuthSignal>("auth", { detail: signal })),
 });
 
+/**
+ * Auto-lock counts only what the person does (owner decision, October 28, 2026): calls the app
+ * makes on its own (on a timer, on coming back online or to the foreground, after a sync, or
+ * to keep the server's copies current) carry this header, and the server does not count them
+ * as activity. A call made by a person's tap or by a screen they opened stays on `api`.
+ */
+export const BACKGROUND_HEADER = "X-Qash-Background";
+
+/** The same client for calls nobody asked for just now: they never keep the session awake. */
+export const backgroundApi = createApiClient({
+  baseUrl: apiOrigin(),
+  headers: { [BACKGROUND_HEADER]: "1" },
+  onAuthSignal: (signal) =>
+    authEvents.dispatchEvent(new CustomEvent<AuthSignal>("auth", { detail: signal })),
+});
+
+/** `backgroundApi` when the app made the call on its own, else `api`. */
+export function clientFor(background: boolean | undefined): typeof api {
+  return background ? backgroundApi : api;
+}
+
 export function onAuthSignal(handler: (signal: AuthSignal) => void): () => void {
   const listener = (e: Event) => handler((e as CustomEvent<AuthSignal>).detail);
   authEvents.addEventListener("auth", listener);

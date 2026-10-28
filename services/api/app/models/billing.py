@@ -42,6 +42,9 @@ class Subscription(Base, StackdRow):
     interval: Mapped[str | None] = mapped_column(String(8))  # monthly | yearly | null (founding)
     renews_at: Mapped[datetime | None]
     ends_at: Mapped[datetime | None]  # founding term end, or when a cancelled plan stops
+    # The last Founding reminder sent for this term: 30, 7 or 1 (days before `ends_at`), so
+    # each goes once (October 28, 2026, migration 0033).
+    founding_reminded_days: Mapped[int | None]
     cancel_at_period_end: Mapped[bool] = mapped_column(default=False, server_default=false())
     # The last switch between plans (migration 0021): a downgrade opens `downgrade_after_days`
     # (plans.yaml `changes`) after this or after the subscription started, whichever is later.

@@ -21,7 +21,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { api, onAuthSignal, type SessionInfo } from "../../data/api.ts";
+import { api, backgroundApi, onAuthSignal, type SessionInfo } from "../../data/api.ts";
 import { closeDb, deleteDb } from "../../data/db.ts";
 import { currentHashFor, rememberCurrent, rememberKept } from "../../lib/keptAccount.ts";
 import { rememberAccount } from "../../lib/lastAccount.ts";
@@ -62,7 +62,7 @@ export interface Session {
   info: SessionInfo | null;
   /** Re-read the session from the server. */
   refresh: () => Promise<SessionInfo | null>;
-  /** Client-side lock (inactivity); the next unlock asserts the passkey. */
+  /** Lock (inactivity): the screen and the server session; the next unlock asserts the passkey. */
   lock: () => void;
   /** After a successful passkey check on this device. */
   unlocked: (passkeyVerifiedAt: string) => void;
@@ -124,7 +124,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const lock = useCallback(() => setClientLocked(true), []);
+  // The screen locks at once; the server is told to lock this session too, so it stays locked
+  // there until the next passkey check (owner decision, October 28, 2026). Offline, the
+  // server's own idle clock still locks it.
+  const lockSent = useRef(false);
+  const lock = useCallback(() => {
+    setClientLocked(true);
+    if (lockSent.current) return; // once per lock, however many checks fire before the repaint
+    lockSent.current = true;
+    void backgroundApi.POST("/api/auth/lock").catch(() => null);
+  }, []);
+  useEffect(() => {
+    if (!clientLocked) lockSent.current = false; // unlocked: the next lock tells the server again
+  }, [clientLocked]);
   const unlocked = useCallback((passkeyVerifiedAt: string) => {
     setClientLocked(false);
     setInfo((i) =>

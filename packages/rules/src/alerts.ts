@@ -2,7 +2,6 @@
 
 import { addDays, type Day, daysUntil, iso, parseDate, weekday } from "./dates.ts";
 import { RuleError } from "./errors.ts";
-import { fnv1a64 } from "./fingerprint.ts";
 import { assertInt, mul, roundDiv } from "./money.ts";
 import { compareLocal, fmtLocal, type Local, parseClock, parseLocal } from "./notify.ts";
 import { compareText } from "./text.ts";
@@ -18,17 +17,6 @@ export interface ScheduledAlert {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/**
- * 16 letters a–p from FNV-1a 64 of the amount's decimal digits (Python's `amount_tag`): a
- * different amount gives a different key, and the key the server sees carries no amount.
- */
-export function amountTag(cents: number): string {
-  const hex = fnv1a64(new TextEncoder().encode(String(cents)))
-    .toString(16)
-    .padStart(16, "0");
-  return Array.from(hex, (c) => String.fromCharCode(97 + Number.parseInt(c, 16))).join("");
 }
 
 function at(day: Day, clock: unknown): Local {
@@ -97,8 +85,8 @@ export function schedule(inputs: unknown): { alerts: ScheduledAlert[] } {
   if (pref(prefs, "shortfall_risk").enabled && short !== null && short !== undefined) {
     if (!isRecord(short)) throw new RuleError("invalid_inputs");
     const first = parseDate(short.first_short_date);
-    const cents = assertInt(short.short_by_cents);
-    add("shortfall_risk", now, `shortfall:${iso(first)}:${amountTag(cents)}`);
+    assertInt(short.short_by_cents); // still checked: a bad input is still invalid
+    add("shortfall_risk", now, `shortfall:${iso(first)}`);
   }
 
   const chk = pref(prefs, "challenge_checkin");

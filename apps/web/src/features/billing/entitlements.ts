@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useSyncExternalStore } from "react";
-import { api, failureOf } from "../../data/api.ts";
+import { backgroundApi, failureOf } from "../../data/api.ts";
 import { useSession } from "../auth/useSession.tsx";
 
 export type PlanName = "free" | "private" | "connected" | "founding";
@@ -195,7 +195,7 @@ export function loadEntitlements(userId: string, force = false): Promise<void> {
   current = token;
   const run = (async () => {
     try {
-      const r = await api.GET("/api/billing/entitlements");
+      const r = await backgroundApi.GET("/api/billing/entitlements");
       if (store.userId !== userId) return;
       const parsed = failureOf(r) ? null : parseEntitlements(r.data);
       if (parsed) {

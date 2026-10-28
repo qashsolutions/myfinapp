@@ -37,5 +37,8 @@ class Session(Base, StackdRow):
     last_seen_at: Mapped[datetime]
     expires_at: Mapped[datetime]
     passkey_verified_at: Mapped[datetime | None]  # last passkey check on this device
+    # Set when the app's screen locked (POST /api/auth/lock, October 28, 2026): locked here
+    # too until the next passkey check, whatever the idle clock says (migration 0032).
+    locked_at: Mapped[datetime | None]
     revoked_at: Mapped[datetime | None]
     ended_reason: Mapped[str | None] = mapped_column(String(24))

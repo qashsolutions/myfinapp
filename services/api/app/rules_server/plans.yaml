@@ -68,6 +68,9 @@ founding:
   label: Founding member
   one_time_cents: 15000
   term_years: 4
+  # Before the term ends: an email and a push this many days before, then one on the day
+  # (owner decision, October 28, 2026). Largest first.
+  reminder_days_before: [30, 7, 1]
   grants: connected
   auto_renew: false
   cap: 250  # owner decision, October 22, 2026 (was 200): the first 250 only; the site shows how many are left

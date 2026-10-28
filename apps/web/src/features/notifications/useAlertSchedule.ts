@@ -18,8 +18,9 @@ export function useAlertSchedule(): void {
   const today = todayIso();
   const forecast = useForecast(today);
   const goals = useGoals();
-  const groups = useGroups();
-  const settings = useNotificationSettings();
+  // Read for the schedule, not for a screen: background calls (never counted as activity).
+  const groups = useGroups({ background: true });
+  const settings = useNotificationSettings({ background: true });
   const milestones = useLiveQuery(
     async () =>
       (await db.goal_milestones.toArray())

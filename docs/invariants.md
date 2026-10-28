@@ -229,6 +229,23 @@ written against both.
     deleted accounts even if a row slips in. The plan-ended closing email is the one exception,
     sent by the job that closed it.
     `test_notifications.py` "a deleted account gets no pushes…"
+26. **The auto-lock counts only what the person does** (owner decision, October 28, 2026). A
+    call the app makes on its own (backup and household sync, the linked-bank pull, the alert
+    schedule and its reads, entitlements, the server queue, the lock itself) goes through
+    `data/api.ts` `backgroundApi` / `clientFor(true)` and carries `X-Qash-Background: 1`;
+    `principal.counts_as_activity` never touches the session for it, nor for a request the
+    browser marks as from another site (`Sec-Fetch-Site` present and not `same-origin`) or a
+    page load (`Sec-Fetch-Mode: navigate`). When the screen locks, `POST /api/auth/lock` locks
+    the session on the server (`sessions.locked_at`) until the next passkey check. A new timer,
+    sync or refresh uses the background client; a call made for a tap or an opened screen stays
+    on `api`.
+    `test_activity_lock.py` · `background-calls.test.tsx`
+27. **A request is answered once.** A Link with your phone request is approved or denied once,
+    then closed: a second answer, or one after it expired, is 409 and changes nothing (the row,
+    the audit log, the computer's sign-in). Each Founding reminder (30, 7 and 1 day before, and
+    the day it ends) goes out once, stamped in the same savepoint that sends it.
+    `test_device_link.py` "each request is answered once" · `link-device.test.tsx` ·
+    `test_founding_reminders.py`
 
 ## Working to these rules
 

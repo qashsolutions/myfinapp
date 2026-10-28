@@ -202,6 +202,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lock Session
+         * @description The app's screen locked (idle, or the person locked it): this session is locked on the
+         *     server too until the next passkey check (owner decision, October 28, 2026). Works on a
+         *     session that is already locked; not audited, like the idle lock it mirrors.
+         */
+        post: operations["lock_session_api_auth_lock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/otp/send": {
         parameters: {
             query?: never;
@@ -3391,6 +3413,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["StatusOut"];
                 };
+            };
+        };
+    };
+    lock_session_api_auth_lock_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

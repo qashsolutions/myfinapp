@@ -24,11 +24,13 @@ def test_cross_user_device_link() -> None:
     assert_passkey(alice, alice_auth)
     r = alice.post("/api/auth/link/approve", json={"code": code, "confirm_different_network": True})
     assert r.status_code == 200
-    # Bob, holding the code, can neither look it up nor approve it now
-    assert bob.post("/api/auth/link/lookup", json={"code": code}).status_code == 404
+    # Bob, holding the code, can neither look it up nor approve it now: it was answered once
+    # (October 28, 2026), and a second answer changes nothing
+    r = bob.post("/api/auth/link/lookup", json={"code": code})
+    assert r.status_code == 409 and r.json()["detail"] == "already_answered"
     assert_passkey(bob, bob_auth)
     r = bob.post("/api/auth/link/approve", json={"code": code, "confirm_different_network": True})
-    assert r.status_code == 404
+    assert r.status_code == 409 and r.json()["detail"] == "already_answered"
     # Bob's browser has no link cookie: nothing to pick up
     assert bob.get("/api/auth/link/status").status_code == 404
     # The computer itself gets Alice's session

@@ -4,9 +4,8 @@ and a dedupe key. Nothing here carries an amount or a merchant.
 
 - upcoming_expense  an unmatched expected bill, `lead_days` before its date,
                     at `time` (09:00 unless the person picks one)
-- shortfall_risk    once per change in the forecast (keyed by the first short date and a tag of
-                    the amount: FNV-1a 64 over its decimal digits, one letter a-p per hex
-                    digit, so the key changes with the amount and carries no amount)
+- shortfall_risk    once per first short date (keyed by that date only: a change in the amount
+                    alone never alerts again, and the key carries no amount)
 - challenge_checkin daily at the chosen time while a challenge runs
 - goal_behind_pace  expected-by-now − saved ≥ periods × weekly pace (weekly pace = target ÷
                     weeks in the goal); keyed by the goal and the week
@@ -20,7 +19,6 @@ from datetime import date, datetime, timedelta
 
 from . import dates, money
 from .errors import RuleError
-from .fingerprint import fnv1a_64
 from .money import _int
 from .notify import fmt_local, parse_clock, parse_local
 
@@ -31,12 +29,6 @@ SEND_TIME = "09:00"  # dated alerts, unless the person picks their own time (`ti
 def _at(day: date, clock: str) -> datetime:
     minutes = parse_clock(clock)
     return datetime(day.year, day.month, day.day, minutes // 60, minutes % 60)
-
-
-def amount_tag(cents: int) -> str:
-    """16 letters a-p from FNV-1a 64 of the amount's decimal digits: a different amount gives a
-    different key, and the key the server sees has no digits of the amount in it."""
-    return "".join(chr(ord("a") + int(c, 16)) for c in f"{fnv1a_64(str(cents).encode()):016x}")
 
 
 def _pref(prefs: dict, name: str) -> dict:
@@ -107,8 +99,8 @@ def schedule(inputs: object) -> dict:
         if not isinstance(short, dict):
             raise RuleError("invalid_inputs")
         first = dates.parse_date(short.get("first_short_date"))
-        cents = _int(short.get("short_by_cents"))
-        add("shortfall_risk", now, f"shortfall:{first.isoformat()}:{amount_tag(cents)}")
+        _int(short.get("short_by_cents"))  # still checked: a bad input is still invalid
+        add("shortfall_risk", now, f"shortfall:{first.isoformat()}")
 
     chk = _pref(prefs, "challenge_checkin")
     if chk["enabled"]:

@@ -117,14 +117,17 @@ export function LinkDevice() {
     if (!failure) return setPhase({ kind: "approved", device: request.device });
     if (failure.code === "different_network")
       return setPhase({ kind: "review", request: { ...request, sameNetwork: false } });
-    if (failure.status === 404) return setPhase({ kind: "gone" });
+    // 404: no such request; 409: already answered or expired (each is answered once).
+    if (failure.status === 404 || failure.status === 409) return setPhase({ kind: "gone" });
     setError("That didn't go through. Try again.");
   }
 
   async function deny(request: Request) {
     setBusy(true);
-    await api.POST("/api/auth/link/deny", { body: { code: request.code } });
+    const result = await api.POST("/api/auth/link/deny", { body: { code: request.code } });
     setBusy(false);
+    const failure = failureOf(result);
+    if (failure?.status === 404 || failure?.status === 409) return setPhase({ kind: "gone" });
     setPhase({ kind: "denied" });
   }
 

@@ -343,7 +343,7 @@ def test_dispatch_sends_once_respects_quiet_hours_and_daily_max() -> None:
                 {
                     "due_at": (late - timedelta(minutes=1)).isoformat(),
                     "type": "shortfall_risk",
-                    "dedupe_key": "shortfall:2026-10-25:18000",
+                    "dedupe_key": "shortfall:2026-10-25",
                 }
             ]
         },
@@ -351,7 +351,7 @@ def test_dispatch_sends_once_respects_quiet_hours_and_daily_max() -> None:
     with get_session_factory()() as s:
         counts = dispatch_due(s, now=late)
         row = s.scalar(
-            select(AlertSchedule).where(AlertSchedule.dedupe_key == "shortfall:2026-10-25:18000")
+            select(AlertSchedule).where(AlertSchedule.dedupe_key == "shortfall:2026-10-25")
         )
         assert counts["deferred"] == 1 and row is not None and row.status == "deferred"
         assert row.due_at == datetime(2026, 10, 11, 8, 0, tzinfo=UTC)

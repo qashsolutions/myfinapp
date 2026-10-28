@@ -5,7 +5,7 @@
  * one) plus ciphertext. A sync is: pull the newest backup, merge it, push when ours differs.
  */
 
-import { api, failureOf } from "../api.ts";
+import { api, clientFor, failureOf } from "../api.ts";
 import type { StackdDb } from "../db.ts";
 import {
   CryptoError,
@@ -189,7 +189,7 @@ export async function pushBackup(
   db: StackdDb,
   userId: string,
   rulesVersion: string,
-  options: { force?: boolean; now?: Date } = {},
+  options: { force?: boolean; now?: Date; background?: boolean } = {},
 ): Promise<PushResult> {
   const key = await localKey(db);
   if (!key) throw new BackupError("no_key", "Backup is off on this device.");
@@ -199,7 +199,7 @@ export async function pushBackup(
   if (!options.force && (await setting<string>(db, LAST_HASH_SETTING)) === hash)
     return { uploaded: false, backupId: null };
   const blob = await encryptJson(key, snapshot, aadFor(userId));
-  const r = await api.PUT("/api/backup/blob", {
+  const r = await clientFor(options.background).PUT("/api/backup/blob", {
     body: {
       ciphertext: toBase64url(blob),
       key_version: (await setting<number>(db, KEY_VERSION_SETTING)) ?? KEY_VERSION,
@@ -234,6 +234,7 @@ export async function pullBackup(
   userId: string,
   key?: Uint8Array,
   now: Date = new Date(),
+  background = false,
 ): Promise<PullResult> {
   const k = key ?? (await localKey(db));
   if (!k) throw new BackupError("no_key", "Backup is off on this device.");
@@ -245,7 +246,7 @@ export async function pullBackup(
   const unreadable = new Set<string>();
   let restarts = 0;
   for (let step = 0; step < MAX_STEPS * (MAX_RESTARTS + 1); step++) {
-    const r = await api.GET("/api/backup/blob/latest", {
+    const r = await clientFor(background).GET("/api/backup/blob/latest", {
       params: { query: before ? { before } : {} },
     });
     const failure = serverFailure(r);
@@ -303,7 +304,8 @@ export interface SyncResult {
 
 /**
  * Pull, merge, then push when this device holds something the server does not; then prune
- * old removals, so the upload just made still carried them (invariant 24).
+ * old removals, so the upload just made still carried them (invariant 24). Only the shell's
+ * timed sync calls it, so every request is marked as background (never counted as activity).
  *
  * A pull that fails (the server, or a copy whose rows this database cannot take) never stops
  * this device from uploading its own rows: it still pushes, then reports the pull's failure.
@@ -317,12 +319,12 @@ export async function syncBackup(
 ): Promise<SyncResult> {
   let pulled: PullResult;
   try {
-    pulled = await pullBackup(db, userId, undefined, now);
+    pulled = await pullBackup(db, userId, undefined, now, true);
   } catch (pullError) {
-    await pushBackup(db, userId, rulesVersion, { now });
+    await pushBackup(db, userId, rulesVersion, { now, background: true });
     throw pullError;
   }
-  const pushed = await pushBackup(db, userId, rulesVersion, { now });
+  const pushed = await pushBackup(db, userId, rulesVersion, { now, background: true });
   await putSetting(db, LAST_SYNC_SETTING, now.toISOString(), now);
   await pruneOldTombstones(db, now);
   return { pulled, pushed };

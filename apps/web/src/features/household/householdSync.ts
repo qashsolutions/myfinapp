@@ -6,7 +6,7 @@
  * person's own deposits (the `household.split_contributions` rule says what is whose).
  */
 
-import { api, failureOf } from "../../data/api.ts";
+import { api, clientFor, failureOf } from "../../data/api.ts";
 import {
   decryptJson,
   encryptJson,
@@ -110,8 +110,8 @@ export function inviteLink(code: string, keyB64: string): string {
 
 const aad = (householdId: string) => `stackd-household:${householdId}`;
 
-export async function fetchHouseholdStatus(): Promise<HouseholdStatus | null> {
-  const r = await api.GET("/api/household");
+export async function fetchHouseholdStatus(background = false): Promise<HouseholdStatus | null> {
+  const r = await clientFor(background).GET("/api/household");
   if (failureOf(r) || !r.data) return null;
   return r.data as HouseholdStatus;
 }
@@ -147,8 +147,9 @@ async function putBlob(
   kind: "jars" | "summary",
   ciphertext: Uint8Array,
   version: number,
+  background: boolean,
 ): Promise<boolean> {
-  const r = await api.PUT("/api/household/blobs/{kind}", {
+  const r = await clientFor(background).PUT("/api/household/blobs/{kind}", {
     params: { path: { kind } },
     body: { ciphertext: toBase64url(ciphertext), version },
   });
@@ -160,6 +161,7 @@ export async function publishHousehold(
   db: StackdDb,
   userId: string,
   asOf: string,
+  background = false,
 ): Promise<{ jars: boolean; summary: boolean }> {
   const id = await householdId(db);
   const key = await householdKey(db);
@@ -178,7 +180,7 @@ export async function publishHousehold(
   const jarsHash = await sha256Hex(JSON.stringify(jars));
   if ((await setting<string>(db, JARS_HASH)) !== jarsHash) {
     const version = ((await setting<number>(db, JARS_VERSION)) ?? 0) + 1;
-    if (await putBlob("jars", await encryptJson(key, jars, aad(id)), version)) {
+    if (await putBlob("jars", await encryptJson(key, jars, aad(id)), version, background)) {
       await putSetting(db, JARS_HASH, jarsHash);
       await putSetting(db, JARS_VERSION, version);
       jarsSent = true;
@@ -190,7 +192,7 @@ export async function publishHousehold(
     const summaryHash = await sha256Hex(JSON.stringify({ ...summary, updated_at: null }));
     if ((await setting<string>(db, SUMMARY_HASH)) !== summaryHash) {
       const version = ((await setting<number>(db, SUMMARY_VERSION)) ?? 0) + 1;
-      if (await putBlob("summary", await encryptJson(key, summary, aad(id)), version)) {
+      if (await putBlob("summary", await encryptJson(key, summary, aad(id)), version, background)) {
         await putSetting(db, SUMMARY_HASH, summaryHash);
         await putSetting(db, SUMMARY_VERSION, version);
         summarySent = true;
@@ -207,12 +209,16 @@ export interface PullReport {
 }
 
 /** Bring in the partner's shared jars and deposits, and their month totals if they share them. */
-export async function pullHousehold(db: StackdDb, userId: string): Promise<PullReport> {
+export async function pullHousehold(
+  db: StackdDb,
+  userId: string,
+  background = false,
+): Promise<PullReport> {
   const report: PullReport = { goalsAdded: 0, eventsAdded: 0, partnerSummary: null };
   const id = await householdId(db);
   const key = await householdKey(db);
   if (!id || !key) return report;
-  const r = await api.GET("/api/household/blobs");
+  const r = await clientFor(background).GET("/api/household/blobs");
   if (failureOf(r) || !r.data) return report;
   for (const blob of r.data) {
     if (blob.author_id === userId) continue;
@@ -338,7 +344,7 @@ export async function syncHousehold(
   userId: string,
   asOf: string,
 ): Promise<HouseholdStatus | null> {
-  const status = await fetchHouseholdStatus();
+  const status = await fetchHouseholdStatus(true);
   if (!status) return null;
   const localId = await householdId(db);
   if (!status.household) {
@@ -347,7 +353,7 @@ export async function syncHousehold(
   }
   if (localId !== status.household.id) return status; // joined elsewhere; this device has no key
   if (status.household.members.length < 2) await dropPartnerEvents(db, userId);
-  await pullHousehold(db, userId);
-  await publishHousehold(db, userId, asOf);
+  await pullHousehold(db, userId, true);
+  await publishHousehold(db, userId, asOf, true);
   return status;
 }

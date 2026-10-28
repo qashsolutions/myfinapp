@@ -55,6 +55,18 @@ describe("Link a device, the phone's screen (B3, October 19, 2026)", () => {
     expect(api.deviceLink?.status).toBe("denied");
   });
 
+  it("a request already answered elsewhere is never shown as denied (answered once)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession(), deviceLink: pending() });
+    renderApp("/link?code=ABCD-EFGH");
+    const deny = await screen.findByRole("button", { name: "No, deny" });
+    if (api.deviceLink) api.deviceLink.status = "approved"; // approved from another tab
+    await user.click(deny);
+    expect(await screen.findByText("That code has expired")).toBeInTheDocument();
+    expect(screen.queryByText("Nobody was signed in.")).toBeNull();
+    expect(api.deviceLink?.status).toBe("approved");
+  });
+
   it("from Me: type the code; an unknown or expired one says to get a new one", async () => {
     const user = userEvent.setup();
     installFakeApi({ session: readySession(), deviceLink: pending() });

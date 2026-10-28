@@ -4309,6 +4309,21 @@
         ]
       }
     },
+    "/api/auth/lock": {
+      "post": {
+        "description": "The app's screen locked (idle, or the person locked it): this session is locked on the\nserver too until the next passkey check (owner decision, October 28, 2026). Works on a\nsession that is already locked; not audited, like the idle lock it mirrors.",
+        "operationId": "lock_session_api_auth_lock_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Lock Session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/auth/otp/send": {
       "post": {
         "operationId": "otp_send_api_auth_otp_send_post",

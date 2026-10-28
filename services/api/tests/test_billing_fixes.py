@@ -94,7 +94,7 @@ def test_founding_ends_with_its_term_and_says_so_first() -> None:
     _set(user_id, ends_at=now + timedelta(hours=12))
     with get_session_factory()() as db:
         assert plan_lifecycle.run(db, now=now, only={uuid.UUID(user_id)})["ending_soon"] == 1
-    assert outbox()[-1].subject.startswith("Your Qash plan wraps up on")
+    assert outbox()[-1].subject == "Your Founding membership ends tomorrow"
     _set(user_id, ends_at=now - timedelta(hours=1))
     billing = client.get("/api/billing").json()
     assert billing["plan"] == "free"

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   type ApiFailure,
   api,
+  clientFor,
   failureOf,
   type GroupDetail,
   type GroupPreview,
@@ -18,15 +19,16 @@ import { type TemplateKey, templateOf } from "./templates.ts";
  * own target is a local save goal with `group_id`; its deposits never leave the device.
  */
 
-export function useGroups(): {
+export function useGroups(options: { background?: boolean } = {}): {
   groups: GroupSummary[] | null;
   error: ApiFailure | null;
   refresh: () => Promise<void>;
 } {
   const [groups, setGroups] = useState<GroupSummary[] | null>(null);
   const [error, setError] = useState<ApiFailure | null>(null);
+  const background = options.background ?? false;
   const refresh = useCallback(async () => {
-    const r = await api.GET("/api/groups");
+    const r = await clientFor(background).GET("/api/groups");
     const failure = failureOf(r);
     if (failure) {
       setError(failure);
@@ -34,7 +36,7 @@ export function useGroups(): {
     }
     setGroups(r.data ?? []);
     setError(null);
-  }, []);
+  }, [background]);
   useEffect(() => {
     void refresh();
   }, [refresh]);
