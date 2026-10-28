@@ -1,8 +1,9 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { accessRoutes } from "../../src/app/AccessGate.tsx";
 import { openDb, seedDefaults } from "../../src/data/db.ts";
-import { resetEntitlements } from "../../src/features/billing/entitlements.ts";
+import { type Access, resetEntitlements } from "../../src/features/billing/entitlements.ts";
 import { emailHash, keptAccount, rememberKept } from "../../src/lib/keptAccount.ts";
 import { installFakeApi, readySession, signedOut } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
@@ -210,6 +211,152 @@ describe("trials", () => {
     const db = openDb("u1");
     await seedDefaults(db);
     installFakeApi({ session: readySession() });
+    renderApp("/");
+    const offer = await screen.findByRole("dialog", { name: "Bring back your data?" });
+    await user.click(within(offer).getByRole("button", { name: "Yes, bring it back" }));
+    expect(await screen.findByRole("dialog", { name: "Welcome back" })).toBeInTheDocument();
+    expect(await db.entries.get("kept-e1")).toBeTruthy();
+    expect(keptAccount()).toBeNull();
+  });
+
+  it("a returning person whose trial was used sees the plans and can reach checkout", async () => {
+    resetEntitlements();
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    // Signed up again with an inbox that already had its free trial (the server says so).
+    api.access = { state: "choose", plan: "free", trial_used: true };
+    api.billing = {
+      ...api.billing,
+      plan: "free",
+      interval: null,
+      status: null,
+      renews_at: null,
+      has_customer: false,
+    };
+    renderApp("/budget");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Welcome back" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Your free trial was already used on this email/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /free trial/ })).toBeNull();
+    await user.click(screen.getByRole("link", { name: "See plans" }));
+    const priv = await screen.findByRole("article", { name: "Private" });
+    // No lasting Free plan: the current plan card says what is true, never "Free".
+    const current = screen.getByRole("region", { name: "Current plan" });
+    expect(current).toHaveTextContent("No plan yet");
+    expect(current).toHaveTextContent("Your free trial was already used on this email.");
+    expect(current).not.toHaveTextContent(/Free/);
+    await user.click(within(priv).getByRole("button", { name: "Choose Private" }));
+    const sheet = await screen.findByRole("dialog", { name: "Before you subscribe" });
+    await user.click(within(sheet).getByRole("checkbox"));
+    await user.click(within(sheet).getByRole("button", { name: "Continue to secure payment" }));
+    await waitFor(() =>
+      expect(api.calls.find((c) => c.path === "/api/billing/checkout")?.body).toMatchObject({
+        plan: "private",
+      }),
+    );
+  });
+
+  it("a returning person can still download or delete, and nothing else opens", async () => {
+    resetEntitlements();
+    const api = installFakeApi({ session: readySession() });
+    api.access = { state: "choose", plan: "free", trial_used: true };
+    renderApp("/me/data");
+    expect(await screen.findByRole("button", { name: /Download/ })).toBeInTheDocument();
+    renderApp("/me/delete");
+    expect(await screen.findByRole("heading", { level: 1, name: /Delete/ })).toBeInTheDocument();
+    renderApp("/goals");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Welcome back" }),
+    ).toBeInTheDocument();
+  });
+
+  it("a new account that doesn't want a trial can still delete itself from /start", async () => {
+    resetEntitlements();
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    api.access = { state: "choose", plan: "free" };
+    renderApp("/start");
+    await user.click(await screen.findByRole("link", { name: "delete your account" }));
+    expect(await screen.findByRole("heading", { level: 1, name: /Delete/ })).toBeInTheDocument();
+  });
+
+  it("every access state reaches what it may: subscribe, export, delete, and nothing else", () => {
+    const base = { plan: "free" as const, trial_ends_at: null, days: null, card_from: null };
+    const make = (state: Access["state"], trial_used = false): Access => ({
+      ...base,
+      state,
+      delete_at: null,
+      trial_used,
+    });
+    const routes = ["/", "/budget", "/start", "/me", "/me/plan", "/me/data", "/me/delete"];
+    const where = (a: Access | null) =>
+      Object.fromEntries(
+        routes.map((r) => {
+          const g = accessRoutes(a);
+          return [r, g === null || g.open.has(r) ? "open" : `→ ${g.home}`];
+        }),
+      );
+    // choose: only the trial, logging out and deleting (no plan to buy before the trial)
+    expect(where(make("choose"))).toEqual({
+      "/": "→ /start",
+      "/budget": "→ /start",
+      "/start": "open",
+      "/me": "open",
+      "/me/plan": "→ /start",
+      "/me/data": "open",
+      "/me/delete": "open",
+    });
+    // choose with the trial used, lapsed, paused, ended: the plan, export and delete
+    const noPlan = {
+      "/": "→ /me/plan",
+      "/budget": "→ /me/plan",
+      "/start": "→ /me/plan",
+      "/me": "open",
+      "/me/plan": "open",
+      "/me/data": "open",
+      "/me/delete": "open",
+    };
+    expect(where(make("choose", true))).toEqual({
+      ...noPlan,
+      "/": "→ /start",
+      "/budget": "→ /start",
+      "/start": "open",
+    });
+    for (const s of ["lapsed", "paused", "ended"] as const) expect(where(make(s))).toEqual(noPlan);
+    // trial and subscribed: everything (the gate sends /start home separately)
+    for (const s of ["trial", "subscribed"] as const)
+      expect(Object.values(where(make(s))).every((v) => v === "open")).toBe(true);
+    expect(accessRoutes(null)).toBeNull(); // the server hasn't said: never locked out
+  });
+
+  it("a trial already used is said plainly when the server answers trial_used", async () => {
+    resetEntitlements();
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    api.access = { state: "choose", plan: "free" };
+    renderApp("/start");
+    const start = await screen.findByRole("button", { name: "Start my 3-day free trial" });
+    // Claimed on another device in between: the server now answers 409 trial_used.
+    api.access = { state: "choose", plan: "free", trial_used: true };
+    await user.click(start);
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Welcome back" }),
+    ).toBeInTheDocument();
+  });
+
+  it("signing up again after a plan ended offers the data back before any plan is bought", async () => {
+    resetEntitlements();
+    const user = userEvent.setup();
+    const old = openDb("old-1");
+    await seedDefaults(old);
+    await old.entries.add(oneEntry());
+    const same = await emailHash(readySession().user?.email ?? "");
+    rememberKept({ user_id: "old-1", closed_at: "2026-10-10T00:00:00Z", email_hash: same });
+    const db = openDb("u1");
+    await seedDefaults(db);
+    const api = installFakeApi({ session: readySession() });
+    api.access = { state: "choose", plan: "free", trial_used: true };
     renderApp("/");
     const offer = await screen.findByRole("dialog", { name: "Bring back your data?" });
     await user.click(within(offer).getByRole("button", { name: "Yes, bring it back" }));

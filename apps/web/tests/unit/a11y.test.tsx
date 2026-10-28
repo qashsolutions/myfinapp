@@ -165,6 +165,16 @@ describe("accessibility (axe-core)", () => {
     resetEntitlements();
   });
 
+  it("/start (welcome back, the trial already used) has no axe violations", async () => {
+    resetEntitlements();
+    const api = installFakeApi({ session: readySession() });
+    api.access = { state: "choose", plan: "free", trial_used: true };
+    await check("/start", async () => {
+      await screen.findByRole("heading", { level: 1, name: "Welcome back" });
+    });
+    resetEntitlements();
+  });
+
   it("/kept (a plan ended, the data kept on the phone) has no axe violations", async () => {
     rememberKept({ user_id: "u1", closed_at: "2026-10-20T00:00:00Z", email_hash: null });
     installFakeApi({});
