@@ -1,6 +1,6 @@
 # Information security policy and plan
 
-*Version 1.1, effective October 16, 2026 (first adopted October 13, 2026). Owner and approver: the Director of Qash Solutions Inc. Reviewed yearly (next: October 2027) and after any architecture change, incident or new vendor. Whether the FTC Safeguards Rule (GLBA) applies is part of a one-time legal review before launch; its core elements are adopted either way (docs/spec.md "Security program").*
+*Version 1.2, effective October 27, 2026 (first adopted October 13, 2026). Owner and approver: the Director of Qash Solutions Inc. Reviewed yearly (next: October 2027) and after any architecture change, incident or new vendor. Whether the FTC Safeguards Rule (GLBA) applies is part of a one-time legal review before launch; its core elements are adopted either way (docs/spec.md "Security program").*
 
 ## 1. Policy statement, purpose and scope
 
@@ -174,4 +174,4 @@ Every contributor reads `CLAUDE.md` "Hard constraints" and this plan before thei
 | draft | 2026-10-10 | First draft with the build | n/a (draft) |
 | 1.0 | 2026-10-13 | Adopted: security owner designated, bank and card linking (Plaid), AWS hosting, user-chosen auto-lock, the IAM block on AI services | Director, Qash Solutions Inc. |
 | 1.1 | 2026-10-16 | AWS administration through IAM Identity Center (passkey at every sign-in, short-lived credentials, no personal access keys); both long-lived machine keys named; pull requests only kept by process once the repository went private; also records what was added on October 13 after adoption: the CloudTrail trail with root and IAM change alerts, and deploys through the OIDC role `qash-deploy` | Director, Qash Solutions Inc. |
-| 1.2 | 2026-10-19 | Link with your phone: a signed-in phone, after a fresh passkey check, approves a computer's sign-in by code or QR code (2-minute requests, 3 an hour per IP, different-network warning, audit and alert); the phishing trade-off against the browser's Bluetooth-checked phone sign-in is recorded | Director, Qash Solutions Inc. (pending) |
+| 1.2 | 2026-10-19 | Link with your phone: a signed-in phone, after a fresh passkey check, approves a computer's sign-in by code or QR code (2-minute requests, 3 an hour per IP, different-network warning, audit and alert); the phishing trade-off against the browser's Bluetooth-checked phone sign-in is recorded | Director, Qash Solutions Inc. (approved 2026-10-27) |

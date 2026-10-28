@@ -162,3 +162,54 @@ export function detect(rawEntries: unknown, asOf: unknown): { series: Series[] }
   }
   return { series };
 }
+
+export const PER_YEAR: Record<Interval, number> = {
+  weekly: 52,
+  biweekly: 26,
+  monthly: 12,
+  quarterly: 4,
+  yearly: 1,
+};
+
+export interface YearlyItem {
+  id: string;
+  label: string;
+  yearly_cents: number;
+  monthly_cents: number;
+}
+
+/** Port of recurring.yearly_cost: what each recurring charge costs a year, highest first. */
+export function yearlyCost(raw: unknown): {
+  items: YearlyItem[];
+  yearly_cents: number;
+  monthly_cents: number;
+} {
+  if (!Array.isArray(raw)) throw new RuleError("invalid_series");
+  const items: YearlyItem[] = [];
+  for (const s of raw) {
+    if (typeof s !== "object" || s === null || Array.isArray(s))
+      throw new RuleError("invalid_series");
+    const r = s as Record<string, unknown>;
+    if (typeof r.id !== "string" || typeof r.label !== "string")
+      throw new RuleError("invalid_series");
+    if (typeof r.interval !== "string" || !Object.hasOwn(PER_YEAR, r.interval))
+      throw new RuleError("invalid_interval");
+    const cents = assertInt(r.expected_cents, "invalid_amount");
+    if (cents < 0) throw new RuleError("invalid_amount");
+    const yearly = cents * PER_YEAR[r.interval as Interval];
+    if (!Number.isSafeInteger(yearly)) throw new RuleError("invalid_amount");
+    items.push({
+      id: r.id,
+      label: r.label,
+      yearly_cents: yearly,
+      monthly_cents: roundDiv(yearly, 12),
+    });
+  }
+  items.sort(
+    (a, b) =>
+      b.yearly_cents - a.yearly_cents || compareText(a.label, b.label) || compareText(a.id, b.id),
+  );
+  const total = items.reduce((sum, i) => sum + i.yearly_cents, 0);
+  if (!Number.isSafeInteger(total)) throw new RuleError("invalid_amount");
+  return { items, yearly_cents: total, monthly_cents: roundDiv(total, 12) };
+}

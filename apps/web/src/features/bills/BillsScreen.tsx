@@ -7,6 +7,7 @@ import "../auth/auth.css";
 
 import { Button, Card, Illustration, List, ListRow } from "@stackd/ui";
 import { useEffect, useId, useState } from "react";
+import { Link } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { Debt, RecurringSeries } from "../../data/db.ts";
@@ -18,6 +19,7 @@ import {
   useRecurringSeries,
   useRecurringSuggestions,
 } from "../forecast/useRecurring.ts";
+import { useSubscriptions } from "../subscriptions/useSubscriptions.ts";
 import { BillSheet } from "./BillSheet.tsx";
 import { ConsolidationCalc } from "./ConsolidationCalc.tsx";
 import { DebtList } from "./DebtList.tsx";
@@ -140,6 +142,7 @@ export function BillsScreen() {
               labelFor={(item) => forecast.series.get(item.series_id)?.label ?? item.payee}
             />
           ) : null}
+          {series?.some((s) => s.kind === "bill") ? <SubscriptionsLink today={today} /> : null}
           {series && series.length > 0 ? (
             <List card aria-label="Bills and income">
               {series.map((s) => (
@@ -179,5 +182,25 @@ export function BillsScreen() {
         onClose={() => setEditingDebt(null)}
       />
     </>
+  );
+}
+
+/** The way into Subscriptions from Bills: what they cost a year, one tap away. */
+function SubscriptionsLink({ today }: { today: string }) {
+  const view = useSubscriptions(today);
+  const count = view?.subscriptions.length ?? 0;
+  return (
+    <Card>
+      <Link to="/subscriptions" className="auth__link">
+        Subscriptions
+      </Link>{" "}
+      <span className="sk-card__eyebrow">
+        {!view
+          ? ""
+          : count === 0
+            ? "· none counted yet"
+            : `· ${count} · ${formatCents(view.totals.yearly_cents)} a year`}
+      </span>
+    </Card>
   );
 }

@@ -1,0 +1,16 @@
+{
+  "series": [
+    {
+      "id": "a",
+      "label": "Six",
+      "interval": "yearly",
+      "expected_cents": 6
+    },
+    {
+      "id": "b",
+      "label": "Eighteen",
+      "interval": "yearly",
+      "expected_cents": 18
+    }
+  ]
+}
