@@ -52,7 +52,7 @@ DEFAULT_NAMES = {
     "no_spend_weekend": "No-spend weekend",
     "fifty_two_week": "52-week saving",
 }
-MAX_START_AHEAD_DAYS = 31  # a challenge starts today or within a month (owner sign-off, October 27, 2026)
+MAX_START_AHEAD_DAYS = 31  # a challenge starts today or within a month (signed off Oct 27, 2026)
 
 
 class CreateGroupRequest(BaseModel):
@@ -414,7 +414,8 @@ def leave_group(
 ) -> Response:
     group, me = _active_member(db, group_id, caller)
     if group.owner_id == caller.user.id:
-        # Owner sign-off, October 27, 2026: the owner keeps the group (they can remove members and regenerate the code).
+        # Signed off Oct 27, 2026: the owner keeps the group (they can remove members and
+        # regenerate the code).
         raise HTTPException(status.HTTP_409_CONFLICT, detail="owner_cannot_leave")
     me.left_at = _now()
     record(

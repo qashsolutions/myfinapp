@@ -39,10 +39,10 @@ class Settings(BaseSettings):
     # set, a request without it is refused, so the container's own address is useless directly.
     origin_verify: SecretStr | None = None
     step_up_max_age_seconds: int = (
-        300  # a passkey check within 5 minutes for sensitive routes (owner sign-off, October 27, 2026)
+        300  # a passkey check within 5 minutes for sensitive routes (signed off Oct 27, 2026)
     )
 
-    # Auth (chunk 1.2). Values from docs/spec.md "Authentication" (owner sign-off, October 27, 2026).
+    # Auth (chunk 1.2). Values from docs/spec.md "Authentication", signed off Oct 27, 2026.
     secret_key: SecretStr  # HMAC key for one-time codes and session tokens at rest
     rp_id: str = "localhost"  # WebAuthn relying party id: the app's registrable domain
     rp_name: str = "Qash"
