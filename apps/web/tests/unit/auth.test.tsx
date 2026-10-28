@@ -108,13 +108,15 @@ describe("sign-up: email code, then the mandatory passkey", () => {
 });
 
 describe("returning user on a new device", () => {
-  it("is asked to confirm with the passkey, or to set one up here", async () => {
+  it("is asked to confirm with the passkey, from another device if it isn't here", async () => {
     const user = userEvent.setup();
     installFakeApi({ session: readySession({ locked: true, passkey_verified_at: null }) });
     renderApp("/");
     expect(await screen.findByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
+    // Adding a passkey needs an unlocked session, so a locked one is never offered it
+    expect(screen.queryByRole("button", { name: /Set up a passkey/ })).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Set up a passkey on this device" }),
+      screen.getByText(/No passkey on this device\? Tap Unlock and pick the device that has it/),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^Unlock with/ }));
     expect(

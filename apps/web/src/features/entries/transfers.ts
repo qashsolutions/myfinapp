@@ -4,27 +4,52 @@ import { addDays, matchTransfers, type RuleEntry } from "../../engine/bridge.ts"
 const WINDOW_DAYS = 5;
 
 /**
+ * Who can be a transfer side (docs/invariants.md rule 2), one test for import, the bank sync and
+ * marking by hand: not already a transfer or paired, not pending (the bank may still change or
+ * drop it), and never a split part or a split parent (its amount is the bank's less its parts, so
+ * pairing one would take part of the money out of the month). `parents` is every entry id that
+ * has a part (`splitParents`).
+ */
+export function isTransferCandidate(e: Entry, parents: ReadonlySet<string>): boolean {
+  return (
+    !e.is_transfer && !e.transfer_pair_id && !e.pending && !e.split_parent_id && !parents.has(e.id)
+  );
+}
+
+/**
+ * Every entry id that has a split part, read over the whole table (a part may carry a date of its
+ * own), plus the parents among `extra` rows not stored yet (a sync page).
+ */
+export async function splitParents(db: StackdDb, extra: Entry[] = []): Promise<Set<string>> {
+  const parents = new Set<string>();
+  await db.entries.each((e) => {
+    if (e.split_parent_id) parents.add(e.split_parent_id);
+  });
+  for (const e of extra) if (e.split_parent_id) parents.add(e.split_parent_id);
+  return parents;
+}
+
+/**
  * The other side of a transfer marked by hand (October 27, 2026; docs/invariants.md rule 2): the
  * entry in another account with the same amount the other way within 5 days, closest date first,
- * by the same rule import and bank sync use (`cashflow.match_transfers`). Only entries not
- * already a transfer, and never a split part. Null when the other side isn't recorded (cash, an
+ * by the same rule import and bank sync use (`cashflow.match_transfers`). Only entries that
+ * pass `isTransferCandidate`. Null when the other side isn't recorded (cash, an
  * account not in Qash): then only this entry is marked.
  */
 export async function findTransferPartner(db: StackdDb, entry: Entry): Promise<Entry | null> {
   const from = await addDays(entry.date, -WINDOW_DAYS);
   const to = await addDays(entry.date, WINDOW_DAYS);
   const nearby = await db.entries.where("date").between(from, to, true, true).toArray();
-  const parents = new Set(nearby.map((e) => e.split_parent_id).filter(Boolean));
+  const parents = await splitParents(db);
+  // A split part or parent is never a side, this one included.
+  if (entry.split_parent_id || parents.has(entry.id)) return null;
   const candidates = nearby.filter(
     (e) =>
       e.id !== entry.id &&
       e.account_id !== entry.account_id &&
       e.direction !== entry.direction &&
       e.amount_cents === entry.amount_cents &&
-      !e.is_transfer &&
-      !e.transfer_pair_id &&
-      !e.split_parent_id &&
-      !parents.has(e.id),
+      isTransferCandidate(e, parents),
   );
   if (candidates.length === 0) return null;
   const asRule = (e: Entry): RuleEntry => ({

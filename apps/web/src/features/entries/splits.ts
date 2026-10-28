@@ -32,6 +32,14 @@ export function splitTree(entries: Iterable<Entry>): (roots: Iterable<string>) =
 }
 
 /**
+ * The cents a removed part gives back to the entry it was split from: its own amount and every
+ * part under it, so that entry and the parts left still add up to the bank's row (rule 1).
+ */
+export function centsBackToParent(part: Entry, itsParts: Entry[]): number {
+  return itsParts.reduce((sum, p) => sum + p.amount_cents, part.amount_cents);
+}
+
+/**
  * The bank's rows: each entry that is not a part, at its own amount plus all its parts. For
  * readers that compare amounts with the bank's (recurring payees, matching upcoming bills).
  */
