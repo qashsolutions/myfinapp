@@ -1,0 +1,10 @@
+{
+  "series": [
+    {
+      "id": "a",
+      "label": "A",
+      "interval": "daily",
+      "expected_cents": 100
+    }
+  ]
+}

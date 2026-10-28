@@ -1,6 +1,6 @@
 # Data retention and disposal policy
 
-*Version 1.2, effective October 18, 2026 (first adopted October 13, 2026). Owner and approver: the Director of Qash Solutions Inc. Reviewed at least yearly (next: October 2027) and whenever what we collect or where we keep it changes. Part of the information security program (`security-plan.md`). The public version is the privacy policy at https://qash.solutions/privacy ("Your consent", "How long we keep it", "Deleting your account"); where they differ, the privacy policy applies to consumers.*
+*Version 1.6, effective October 27, 2026 (first adopted October 13, 2026). Owner and approver: the Director of Qash Solutions Inc. Reviewed at least yearly (next: October 2027) and whenever what we collect or where we keep it changes. Part of the information security program (`security-plan.md`). The public version is the privacy policy at https://qash.solutions/privacy ("Your consent", "How long we keep it", "Deleting your account"); where they differ, the privacy policy applies to consumers.*
 
 ## 1. Purpose and scope
 
@@ -90,7 +90,7 @@ If the law requires us to keep specific records (for example, a court order), th
 | 1.0 | 2026-10-13 | Adopted | Director, Qash Solutions Inc. |
 | 1.1 | 2026-10-16 | Trials replace the lasting Free plan: accounts deleted 7 days after a trial or plan ends without a new plan; one trial per email; "Before you subscribe" agreements kept 7 years; account deletion ends any live Stripe subscription first | Director, Qash Solutions Inc. |
 | 1.2 | 2026-10-18 | Plan-change and cancellation agreements are kept the same way as purchase agreements; plan history kept with the account | Director, Qash Solutions Inc. |
-| 1.3 | 2026-10-19 | Sign-in-with-phone requests: what is kept and for how long | Director, Qash Solutions Inc. (pending) |
-| 1.4 | 2026-10-20 | A plan that ends without a new one: daily reminder emails for the 7 days, the account closed after them, and the device's copy kept until the consumer decides | Director, Qash Solutions Inc. (pending) |
-| 1.5 | 2026-10-27 | Purchase agreements also keep the inbox pseudonym and the Stripe customer reference, so a dispute lost or a fraud refund after the account is deleted still blocks the inbox | Director, Qash Solutions Inc. (pending) |
-| 1.6 | 2026-10-27 | Each permanent account deletion is recorded in the security log by the account's internal id only | Director, Qash Solutions Inc. (pending) |
+| 1.3 | 2026-10-19 | Sign-in-with-phone requests: what is kept and for how long | Director, Qash Solutions Inc. (approved 2026-10-27) |
+| 1.4 | 2026-10-20 | A plan that ends without a new one: daily reminder emails for the 7 days, the account closed after them, and the device's copy kept until the consumer decides | Director, Qash Solutions Inc. (approved 2026-10-27) |
+| 1.5 | 2026-10-27 | Purchase agreements also keep the inbox pseudonym and the Stripe customer reference, so a dispute lost or a fraud refund after the account is deleted still blocks the inbox | Director, Qash Solutions Inc. (approved 2026-10-27) |
+| 1.6 | 2026-10-27 | Each permanent account deletion is recorded in the security log by the account's internal id only | Director, Qash Solutions Inc. (approved 2026-10-27) |

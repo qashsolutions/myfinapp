@@ -137,3 +137,52 @@ def detect(entries_in: list, as_of: str) -> dict:
             }
         )
     return {"series": series}
+
+
+PER_YEAR = {"weekly": 52, "biweekly": 26, "monthly": 12, "quarterly": 4, "yearly": 1}
+MAX_SAFE_CENTS = 2**53 - 1  # past this the TypeScript port cannot count exactly
+
+
+def yearly_cost(series_in: object) -> dict:
+    """What each recurring charge costs a year (the Subscriptions view, owner October 27, 2026).
+
+    yearly = expected × charges a year (weekly 52, every 2 weeks 26, monthly 12, quarterly 4,
+    yearly 1); monthly = yearly ÷ 12, half-even. Sorted by yearly cost, highest first, then label
+    and id in code-point order. Totals are the sums; the total monthly is total yearly ÷ 12.
+    Past 2^53 − 1 cents a year it answers invalid_amount, so both engines agree.
+    """
+    if not isinstance(series_in, list):
+        raise RuleError("invalid_series")
+    items = []
+    for raw in series_in:
+        if not isinstance(raw, dict):
+            raise RuleError("invalid_series")
+        sid, label = raw.get("id"), raw.get("label")
+        if not isinstance(sid, str) or not isinstance(label, str):
+            raise RuleError("invalid_series")
+        interval = raw.get("interval")
+        if interval not in PER_YEAR:
+            raise RuleError("invalid_interval")
+        cents = _int(raw.get("expected_cents"), "invalid_amount")
+        if cents < 0:
+            raise RuleError("invalid_amount")
+        yearly = cents * PER_YEAR[interval]
+        if yearly > MAX_SAFE_CENTS:
+            raise RuleError("invalid_amount")
+        items.append(
+            {
+                "id": sid,
+                "label": label,
+                "yearly_cents": yearly,
+                "monthly_cents": money.round_div(yearly, 12),
+            }
+        )
+    items.sort(key=lambda i: (-i["yearly_cents"], i["label"], i["id"]))
+    total = sum(i["yearly_cents"] for i in items)
+    if total > MAX_SAFE_CENTS:
+        raise RuleError("invalid_amount")
+    return {
+        "items": items,
+        "yearly_cents": total,
+        "monthly_cents": money.round_div(total, 12),
+    }

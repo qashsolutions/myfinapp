@@ -934,7 +934,9 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     if (method === "GET" && path === "/api/backup/blob/latest") {
       const before = new URL(request.url).searchParams.get("before");
       const at = before ? state.backup.blobs.findIndex((x) => x.id === before) : -1;
-      const pool = before ? (at > 0 ? state.backup.blobs.slice(0, at) : []) : state.backup.blobs;
+      // As the server: a `before` copy that is gone (pruned mid-walk) is its own answer
+      if (before && at === -1) return json({ detail: "backup_gone" }, 409);
+      const pool = before ? state.backup.blobs.slice(0, at) : state.backup.blobs;
       const latest = pool.at(-1);
       if (!latest) return json({ detail: "no_backup" }, 404);
       return json({ ...latest, size: latest.ciphertext.length });

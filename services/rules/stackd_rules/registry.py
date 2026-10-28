@@ -219,6 +219,10 @@ def _recurring_detect(entries: list, as_of: str) -> dict:
     return recurring.detect(entries, as_of)
 
 
+def _recurring_yearly_cost(series: list) -> dict:
+    return recurring.yearly_cost(series)
+
+
 def _next_move_pick(facts: dict, config: dict, as_of: str) -> dict:
     return next_move.pick(facts, config, as_of)
 
@@ -376,6 +380,7 @@ RULES: dict[str, Rule] = {
     "household.split_contributions": _household_split_contributions,
     "household.combine_totals": _household_combine_totals,
     "recurring.detect": _recurring_detect,
+    "recurring.yearly_cost": _recurring_yearly_cost,
     "next_move.pick": _next_move_pick,
     "emergency.summary": _emergency_summary,
     "networth.history": _networth_history,

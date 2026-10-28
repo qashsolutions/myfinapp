@@ -46,6 +46,7 @@ export class BackupError extends Error {
       | "offline"
       | "plan_required"
       | "no_backup"
+      | "backup_gone"
       | "no_key"
       | "wrong_recovery_key"
       | "wrong_passkey"
@@ -99,6 +100,8 @@ function serverFailure(r: { error?: unknown; response: Response }): BackupError 
   if (f.code === "plan_required")
     return new BackupError("plan_required", "Backup needs Private or Connected.");
   if (f.code === "no_backup") return new BackupError("no_backup", "No backup yet.");
+  if (f.code === "backup_gone")
+    return new BackupError("backup_gone", "Your backups changed while restoring. Try again.");
   return new BackupError("server", f.code);
 }
 
@@ -212,6 +215,8 @@ export interface PullResult {
 
 /** How many copies a pull steps back through before giving up (the server keeps at most 10). */
 const MAX_STEPS = 10;
+/** How often a walk starts again from the newest when the copy it stood on was pruned. */
+const MAX_RESTARTS = 2;
 
 /**
  * Fetch the newest backup and merge it here, once per backup id. A copy this key can't open
@@ -228,18 +233,33 @@ export async function pullBackup(
   const lastApplied = await setting<string>(db, LAST_APPLIED_SETTING);
   let newest: string | null = null;
   let before: string | undefined;
-  for (let step = 0; step < MAX_STEPS; step++) {
+  // Copies this key could not open: after a restart the walk steps past them without asking
+  // for their bytes again (invariant 20).
+  const unreadable = new Set<string>();
+  let restarts = 0;
+  for (let step = 0; step < MAX_STEPS * (MAX_RESTARTS + 1); step++) {
     const r = await api.GET("/api/backup/blob/latest", {
       params: { query: before ? { before } : {} },
     });
     const failure = serverFailure(r);
     if (failure) {
       if (failure.code === "no_backup") break;
+      // The copy the walk stood on was pruned (another device uploaded): start from the newest.
+      if (failure.code === "backup_gone" && restarts < MAX_RESTARTS) {
+        restarts += 1;
+        before = undefined;
+        newest = null;
+        continue;
+      }
       throw failure;
     }
     const row = r.data;
     if (!row) break;
     newest ??= row.id;
+    if (unreadable.has(row.id)) {
+      before = row.id;
+      continue;
+    }
     if (row.id === lastApplied) {
       // Already merged; anything above it was unreadable, so don't walk past it again.
       if (newest !== lastApplied) await putSetting(db, LAST_APPLIED_SETTING, newest);
@@ -252,6 +272,7 @@ export async function pullBackup(
       if (!(err instanceof CryptoError)) throw err;
     }
     if (!isSnapshot(snapshot)) {
+      unreadable.add(row.id);
       before = row.id;
       continue;
     }

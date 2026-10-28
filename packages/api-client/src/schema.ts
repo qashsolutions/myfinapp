@@ -361,7 +361,10 @@ export interface paths {
         /**
          * Latest Blob
          * @description The newest backup, or with `before` the newest one older than that backup: a device that
-         *     can't open a copy steps back to the one before it (October 24, 2026).
+         *     can't open a copy steps back to the one before it (October 24, 2026). A `before` copy that
+         *     is no longer kept (pruned while the device walked, after another upload) answers 409
+         *     `backup_gone`, never 404 `no_backup`, which means there is nothing (older) to restore; the
+         *     device then starts again from the newest (invariant 20, October 27, 2026).
          */
         get: operations["latest_blob_api_backup_blob_latest_get"];
         put?: never;

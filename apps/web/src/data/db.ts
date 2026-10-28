@@ -308,6 +308,8 @@ export interface RecurringSeries {
   status: RecurringStatus;
   source: "detected" | "manual";
   account_id: string | null;
+  /** The person's call (October 27, 2026): true / false; unset = from the payee's category. */
+  subscription?: boolean | null;
   created_at: string;
   updated_at: string;
 }

@@ -391,6 +391,10 @@ export const RULES: Record<string, Rule> = {
     const { entries, as_of } = args(input, ["entries", "as_of"]);
     return { ...recurring.detect(entries, as_of) };
   },
+  "recurring.yearly_cost": (input) => {
+    const { series } = args(input, ["series"]);
+    return { ...recurring.yearlyCost(series) };
+  },
   "forecast.typical_daily_spending": (input) => {
     const { entries, as_of, fallback_monthly_cents } = args(input, [
       "entries",

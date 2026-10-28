@@ -1,0 +1,10 @@
+{
+  "series": [
+    {
+      "id": "a",
+      "label": "A",
+      "interval": "monthly",
+      "expected_cents": -1
+    }
+  ]
+}

@@ -85,6 +85,13 @@ written against both.
     `services/api/tests/test_ops_alerts.py` · `crash-screen.test.tsx` · `test_billing_hardening.py`
     "a dispute on a charge no plan matches still reaches the admins"
 
+20. **"Nothing there" means nothing is there.** An answer that tells the device there is
+    nothing (no backup, nothing older) is never given for a reference that went stale
+    meanwhile: a `before` copy pruned while a restore walked back answers 409 `backup_gone`,
+    and the device starts again from the newest, skipping copies it already could not open.
+    `test_backup.py::test_stepping_back_from_a_pruned_copy_says_so_instead_of_no_backup` ·
+    `backup-walk.test.ts`
+
 ## Accounts and money on the server
 
 12. **Every deletion path locks the person before their plans**, the order every Stripe webhook
