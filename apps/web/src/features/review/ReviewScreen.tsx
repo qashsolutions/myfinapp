@@ -7,6 +7,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
+import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { Entry } from "../../data/db.ts";
 import { cleanDescription, suggestCategory } from "../../engine/bridge.ts";
@@ -116,6 +117,7 @@ export function ReviewScreen() {
       {queue === undefined ? null : !current ? (
         <Card>
           <Illustration name="sprout" tone="a2" />
+          <Word>{skipped.length > 0 ? "Done" : "Sorted"}</Word>
           <p className="review__done">
             {skipped.length > 0
               ? `Done for now. ${skipped.length} skipped; they'll be here next time.`

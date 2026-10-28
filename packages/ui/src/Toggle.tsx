@@ -6,6 +6,8 @@ export interface ToggleProps {
   onChange: (checked: boolean) => void;
   label: string;
   description?: string;
+  /** The row already names it (a list row's title): keep the label for screen readers only. */
+  hideLabel?: boolean;
   disabled?: boolean;
   id?: string;
   className?: string;
@@ -21,6 +23,7 @@ export function Toggle({
   onChange,
   label,
   description,
+  hideLabel = false,
   disabled,
   id,
   className,
@@ -31,11 +34,16 @@ export function Toggle({
   const descId = description ? `${inputId}-desc` : undefined;
   return (
     <label
-      className={cx("sk-toggle", disabled && "sk-toggle--disabled", className)}
+      className={cx(
+        "sk-toggle",
+        disabled && "sk-toggle--disabled",
+        hideLabel && "sk-toggle--bare",
+        className,
+      )}
       htmlFor={inputId}
     >
       <span className="sk-toggle__text">
-        <span className="sk-toggle__label" id={labelId}>
+        <span className={cx("sk-toggle__label", hideLabel && "sk-visually-hidden")} id={labelId}>
           {label}
         </span>
         {description ? (

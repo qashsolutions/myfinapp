@@ -82,16 +82,19 @@ export function LinkedAccounts() {
         <h2 className="sk-card__title" id="link-what-h">
           Read-only, and only if you want it
         </h2>
-        <p>
-          Linking reads your transactions and, for credit cards, the statement balance, due date,
-          minimum, credit limit and APR. It can never move money, and we never see your bank
-          password or account numbers.
-        </p>
-        <p>
-          You sign in on your bank's own page, through our provider, Plaid, and pick each account to
-          share. Transactions pass through our server on the way to this device and aren't kept
-          there. Uploading statements still works for every account, linked or not.
-        </p>
+        <ul className="terms__list">
+          <li>
+            Reads your transactions and, for credit cards, the statement balance, due date, minimum,
+            credit limit and APR.
+          </li>
+          <li>It can never move money.</li>
+          <li>We never see your bank password or account numbers.</li>
+          <li>
+            You sign in on your bank's own page through our provider, Plaid, and pick each account.
+          </li>
+          <li>Transactions pass through our server to this device and aren't kept there.</li>
+          <li>Uploading statements still works for every account, linked or not.</li>
+        </ul>
       </Card>
 
       {note ? (

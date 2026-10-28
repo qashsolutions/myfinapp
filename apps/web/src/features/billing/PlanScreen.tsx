@@ -772,18 +772,35 @@ export function PlanScreen() {
               </Card>
             )}
           </div>
-          <p className="auth__fineprint">
-            Prices in US dollars. A yearly plan renews each year and a monthly plan each month until
-            you cancel, which you can do here any time. Switching up costs only the difference for
-            the time left. Switching down happens at once, from 30 days after you start or switch,
-            and the unused part becomes credit for your next bills. Cancelling runs to the end of
-            the paid period and refunds nothing. Delete your account and we keep the current month;
-            on a yearly plan the months used, this one included, cost the monthly price and the rest
-            of the year comes back, less Stripe's fee (2.9% + 30¢ on a card, 0.8% up to $5 on a bank
-            account). Changing plans never deletes anything: jars past the smaller plan's limit
-            become read-only. Shortfall alerts, security and your data rights are the same on every
-            plan.
-          </p>
+          {/* The billing terms, every sentence kept, one per line (October 28, 2026). */}
+          <section className="terms" aria-labelledby="terms-h">
+            <h2 className="sk-card__title" id="terms-h">
+              How billing works
+            </h2>
+            <ul className="terms__list">
+              <li>Prices in US dollars.</li>
+              <li>
+                A yearly plan renews each year and a monthly plan each month until you cancel, which
+                you can do here any time.
+              </li>
+              <li>Switching up costs only the difference for the time left.</li>
+              <li>
+                Switching down happens at once, from 30 days after you start or switch, and the
+                unused part becomes credit for your next bills.
+              </li>
+              <li>Cancelling runs to the end of the paid period and refunds nothing.</li>
+              <li>
+                Delete your account and we keep the current month; on a yearly plan the months used,
+                this one included, cost the monthly price and the rest of the year comes back, less
+                Stripe's fee (2.9% + 30¢ on a card, 0.8% up to $5 on a bank account).
+              </li>
+              <li>
+                Changing plans never deletes anything: jars past the smaller plan's limit become
+                read-only.
+              </li>
+              <li>Shortfall alerts, security and your data rights are the same on every plan.</li>
+            </ul>
+          </section>
         </>
       )}
 

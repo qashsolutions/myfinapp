@@ -6,6 +6,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
+import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { Goal } from "../../data/db.ts";
 import { EngineError, parseAmount } from "../../engine/bridge.ts";
@@ -139,6 +140,17 @@ export function GoalDetail() {
             {pct}%
           </span>
           <div className="ring__text">
+            <Word>
+              {p?.status === "reached"
+                ? "Reached"
+                : goal.paused_at
+                  ? "Paused"
+                  : p?.status === "overdue"
+                    ? "Behind"
+                    : pct === 0
+                      ? "Start"
+                      : "Saving"}
+            </Word>
             <span className="ring__big">
               {p
                 ? goal.kind === "habit"
@@ -147,13 +159,7 @@ export function GoalDetail() {
                 : ""}
             </span>
             <span>{goalSentence(goal)}</span>
-            {p?.status === "reached" ? (
-              <Chip tone="success">Reached</Chip>
-            ) : p?.status === "overdue" ? (
-              <Chip tone="warning">Overdue</Chip>
-            ) : null}
             {goal.household_id ? <Chip tone="accent">Shared</Chip> : null}
-            {goal.paused_at ? <Chip tone="pending">Paused</Chip> : null}
             {goal.why_text ? <span className="goal-why">“{goal.why_text}”</span> : null}
           </div>
         </div>

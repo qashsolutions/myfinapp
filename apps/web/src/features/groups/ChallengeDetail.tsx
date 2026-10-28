@@ -6,6 +6,7 @@ import { Button, Card, ProgressBar } from "@stackd/ui";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
+import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import { rankMembers } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
@@ -100,6 +101,11 @@ export function ChallengeDetail() {
           </span>
           <span className="sk-card__eyebrow">You: {myRank === null ? "–" : `#${myRank}`}</span>
         </div>
+        {goal ? (
+          <Word>
+            {!p || p.current <= 0 ? "Start" : p.display_bps >= 10000 ? "Reached" : "Saving"}
+          </Word>
+        ) : null}
         {goal ? (
           <>
             <p className="sk-card__hero">

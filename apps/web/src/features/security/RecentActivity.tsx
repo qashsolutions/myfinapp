@@ -48,8 +48,8 @@ export function RecentActivity() {
         </List>
       )}
       <p className="auth__fineprint">
-        Last 30 days. If something here wasn't you, sign out that device above and remove any
-        passkey you don't recognise. IP addresses are never stored in a readable form.
+        Last 30 days. Not you? Sign out that device and remove the passkey. IP addresses are never
+        stored readably.
       </p>
     </section>
   );

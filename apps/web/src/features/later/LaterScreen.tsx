@@ -13,11 +13,8 @@ import {
   parseAmount,
 } from "../../engine/bridge.ts";
 import { formatCents } from "../../lib/format.ts";
-import { LaterChart } from "./LaterChart.tsx";
+import { LaterChart, shortMoney } from "./LaterChart.tsx";
 import { type LaterPlan, useLaterPlan } from "./useLaterPlan.ts";
-
-/** "5%" from 500 basis points; "4.5%" from 450. */
-const pct = (bps: number) => `${bps / 100}%`;
 
 export function useLaterProjection(plan: LaterPlan | undefined): LaterProjection | null {
   const [result, setResult] = useState<LaterProjection | null>(null);
@@ -40,7 +37,7 @@ export function laterStatus(
   p: LaterProjection,
 ): { word: "Ahead" | "Behind" | "Growing"; line: string } {
   const mid = p.at_retirement_cents[p.middle_index] ?? 0;
-  const about = `About ${formatCents(mid)} at ${plan.retire_age} at ${pct(plan.rates_bps[p.middle_index] ?? 0)}`;
+  const about = `About ${shortMoney(mid)} at ${plan.retire_age}`;
   if (p.reaches_target === true)
     return { word: "Ahead", line: `${about}, past your ${formatCents(p.target_cents)} goal.` };
   if (p.reaches_target === false)
@@ -52,7 +49,7 @@ export function laterStatus(
   const hi = p.at_retirement_cents[p.at_retirement_cents.length - 1] ?? 0;
   return {
     word: "Growing",
-    line: `${about}; ${formatCents(lo)} to ${formatCents(hi)} across your rates.`,
+    line: `${about}. ${shortMoney(lo)} to ${shortMoney(hi)} across your rates.`,
   };
 }
 

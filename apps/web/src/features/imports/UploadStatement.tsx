@@ -120,8 +120,7 @@ export function UploadStatement({
         Read file
       </Button>
       <p className="auth__fineprint">
-        PDF statements are read from their text: the common "date, description, amount, balance"
-        layout works; scanned images don't. If yours doesn't read, download a CSV or OFX instead.
+        PDFs: text statements work, scans don't. If yours won't read, use CSV or OFX.
       </p>
     </>
   );

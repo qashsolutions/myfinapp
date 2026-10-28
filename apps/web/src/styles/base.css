@@ -183,3 +183,17 @@ a {
 .sk-card--accent .word {
   color: inherit;
 }
+
+/* Terms and facts as short lines instead of one paragraph (October 28, 2026). */
+.terms {
+  display: grid;
+  gap: 8px;
+}
+.terms__list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 6px;
+  font-size: var(--fs-small);
+  color: var(--c-sub);
+}
