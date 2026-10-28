@@ -168,7 +168,8 @@ export function ChipsOrOwn({
   };
 }) {
   const known = options.some(([v]) => v === value);
-  const [text, setText] = useState(known ? "" : display(value));
+  // Nothing chosen yet is an empty box, never `display("")` (which read "0%" for milestones).
+  const [text, setText] = useState(known || value === "" ? "" : display(value));
   const [error, setError] = useState<string | null>(null);
   function use() {
     const r = own.parse(text);

@@ -13,6 +13,7 @@ export function Arranged<Id extends string>({
   name,
   cards,
   render,
+  force,
 }: {
   /** Settings key prefix: `<screen>.layout`. */
   screen: string;
@@ -20,12 +21,14 @@ export function Arranged<Id extends string>({
   name: string;
   cards: readonly CardSpec<Id>[];
   render: (id: Id) => ReactNode;
+  /** Cards drawn this visit even when switched off (see `shownCards`). */
+  force?: readonly Id[];
 }) {
   const layout = useCardLayout(screen, cards);
   const [open, setOpen] = useState(false);
   return (
     <>
-      {shownCards(layout).map((id) => (
+      {shownCards(layout, force).map((id) => (
         <Slot key={id}>{render(id)}</Slot>
       ))}
       {layout.ready ? (

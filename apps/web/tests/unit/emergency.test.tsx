@@ -79,6 +79,40 @@ describe("Emergency fund as a jar", () => {
     expect(screen.queryByRole("link", { name: /Where should this money live/ })).toBeNull();
   });
 
+  it("a 1-month target shows the one month row once, in the singular", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await db.goals.add({
+      id: "jar-ef",
+      kind: "save",
+      title: "Emergency fund",
+      target_cents: 306200,
+      target_days: null,
+      label: null,
+      category_id: null,
+      start_date: "2026-09-01",
+      end_date: null,
+      baseline_cents: null,
+      group_id: null,
+      status: "active",
+      created_at: "2026-09-01T00:00:00Z",
+      updated_at: "2026-09-01T00:00:00Z",
+    });
+    await db.emergency_fund.put({
+      id: "me",
+      essentials_cents: 306200,
+      target_months: 1,
+      monthly_plan_cents: 15400,
+      updated_at: "2026-09-01T00:00:00Z",
+    });
+    installFakeApi({ session: readySession() });
+    renderApp("/goals/jar-ef");
+    const milestones = await screen.findByRole("region", { name: "Milestones" });
+    await waitFor(() => expect(milestones).toHaveTextContent("1 month of essentials"));
+    expect(within(milestones).getAllByRole("progressbar")).toHaveLength(2);
+    expect(milestones).not.toHaveTextContent("1 months");
+  });
+
   it("uses Budget's planned needs as essentials until the user enters their own", async () => {
     const db = openDb("u1");
     await seedDefaults(db);

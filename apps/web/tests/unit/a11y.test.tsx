@@ -93,6 +93,7 @@ const signedIn: Array<[string, string | RegExp]> = [
   ["/subscriptions", "Subscriptions"],
   ["/insights/later", "Later"],
   ["/review", "Sort your spending"],
+  ["/recap", "Your week"],
   ["/add", "Add entry"],
   ["/money?view=transactions", "Money in & out"],
   ["/import", "Import a statement"],
