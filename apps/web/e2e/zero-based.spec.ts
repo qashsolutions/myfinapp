@@ -1,15 +1,12 @@
-import { join } from "node:path";
 import { expect, test } from "@playwright/test";
-import { FIXTURES, readyAccount } from "./helpers.ts";
+import { isoInDays, readyAccount, statementThisMonth } from "./helpers.ts";
 
 test("@phone zero-based: every dollar gets a job, money moves between lines, Home says what's left", async ({
   page,
 }) => {
   await readyAccount(page, "zero");
   await page.goto("/import");
-  await page
-    .getByLabel(/Choose a statement file/)
-    .setInputFiles(join(FIXTURES, "statement_oct.csv"));
+  await page.getByLabel(/Choose a statement file/).setInputFiles(statementThisMonth());
   await page.getByRole("button", { name: "+ New account" }).click();
   await page.getByLabel("Account name").fill("Everyday checking");
   await page.getByRole("button", { name: "Add account" }).click();
@@ -18,14 +15,15 @@ test("@phone zero-based: every dollar gets a job, money moves between lines, Hom
   await page.getByRole("button", { name: "Import 4 transactions" }).click();
   await expect(page.getByText("ACME PAYROLL")).toBeVisible(); // saved before moving on
 
-  // Take-home $2,000 a month, zero-based.
+  // Take-home $2,000 a month, zero-based; the payday is three days from today.
+  const payday = isoInDays(3);
   await page.goto("/budget");
   await page
     .getByLabel(/paycheck/i)
     .first()
     .fill("2000");
   await page.getByRole("radio", { name: "Monthly" }).check();
-  await page.getByLabel("Next payday").fill("2026-10-31");
+  await page.getByLabel("Next payday").fill(payday);
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByText("Zero-based", { exact: true }).click();
   await page.getByRole("button", { name: "Continue" }).click();

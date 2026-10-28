@@ -88,4 +88,53 @@ export async function readyAccount(page: Page, tag: string): Promise<string> {
   return email;
 }
 
-export const FIXTURES = join(import.meta.dirname, "..", "tests", "fixtures");
+/**
+ * Dates from the day the suite runs, never a fixed calendar day (the suite must pass in any
+ * month and year). The browser runs on the same machine, so its local date is this one.
+ */
+export function isoInDays(days: number, from = new Date()): string {
+  const d = new Date(from);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+const SHORT_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** How the app names a day (lib/format.ts formatDay): "Nov 3", or "Jan 2, 2027" in another year. */
+export function dayLabel(iso: string, now = new Date()): string {
+  const [y, m, d] = iso.split("-").map(Number) as [number, number, number];
+  return y === now.getFullYear()
+    ? `${SHORT_MONTHS[m - 1]} ${d}`
+    : `${SHORT_MONTHS[m - 1]} ${d}, ${y}`;
+}
+
+/**
+ * A checking statement whose rows are all dated today, so "this month" holds them whatever
+ * day the suite runs (tests/fixtures/statement_oct.csv has the same rows for the unit tests,
+ * which fix the clock). Year-first dates, so the column can't be read day-first.
+ */
+export function statementThisMonth(name = "statement.csv") {
+  const today = isoInDays(0);
+  const csv = [
+    "Posting Date,Description,Amount,Balance",
+    `${today},CORNER MKT #214,-42.17,2100.00`,
+    `${today},METRO TRANSIT,-2.75,2142.17`,
+    `${today},PAYMENT TO CARD 4111111111111173,"-1,200.00",2144.92`,
+    `${today},ACME PAYROLL,"2,400.00",3344.92`,
+    "",
+  ].join("\n");
+  return { name, mimeType: "text/csv", buffer: Buffer.from(csv) };
+}

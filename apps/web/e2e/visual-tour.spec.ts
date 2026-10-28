@@ -1,12 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
-import { readyAccount } from "./helpers.ts";
+import { isoInDays, readyAccount } from "./helpers.ts";
 
-/** YYYY-MM-DD `days` from today, in the browser's local date. */
-function inDays(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+const inDays = isoInDays;
 
 async function addBill(page: Page, name: string, amount: string, days: number) {
   await page.getByRole("button", { name: "+ Add" }).click();

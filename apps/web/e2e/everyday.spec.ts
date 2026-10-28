@@ -1,15 +1,12 @@
-import { join } from "node:path";
 import { expect, test } from "@playwright/test";
-import { FIXTURES, readyAccount } from "./helpers.ts";
+import { dayLabel, isoInDays, readyAccount, statementThisMonth } from "./helpers.ts";
 
 test("@phone swipe an entry to Don't count and undo, arrange Home, the bills calendar", async ({
   page,
 }) => {
   await readyAccount(page, "everyday");
   await page.goto("/import");
-  await page
-    .getByLabel(/Choose a statement file/)
-    .setInputFiles(join(FIXTURES, "statement_oct.csv"));
+  await page.getByLabel(/Choose a statement file/).setInputFiles(statementThisMonth());
   await page.getByRole("button", { name: "+ New account" }).click();
   await page.getByLabel("Account name").fill("Everyday checking");
   await page.getByRole("button", { name: "Add account" }).click();
@@ -47,14 +44,16 @@ test("@phone swipe an entry to Don't count and undo, arrange Home, the bills cal
   await expect(sheet.getByRole("listitem").first()).toContainText(firstName);
   await sheet.getByRole("button", { name: "Done" }).click();
 
-  // A payday from Budget, so Next 30 days has something on its calendar.
+  // A payday from Budget, so Next 30 days has something on its calendar: three days from
+  // today, inside the 30 days whatever day the suite runs.
+  const payday = isoInDays(3);
   await page.goto("/budget");
   await page
     .getByLabel(/paycheck/i)
     .first()
     .fill("2600");
   await page.getByRole("radio", { name: "Twice a month" }).check();
-  await page.getByLabel("Next payday").fill("2026-10-31");
+  await page.getByLabel("Next payday").fill(payday);
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText(/Needs · 50%/)).toBeVisible();
@@ -65,6 +64,8 @@ test("@phone swipe an entry to Don't count and undo, arrange Home, the bills cal
   await upcoming.getByText("Calendar", { exact: true }).click();
   const calendar = upcoming.getByRole("table");
   await expect(calendar).toBeVisible();
-  await calendar.getByRole("button", { name: /^Oct 31: Paycheck \+\$2,600\.00/ }).click();
+  await calendar
+    .getByRole("button", { name: new RegExp(`^${dayLabel(payday)}: Paycheck \\+\\$2,600\\.00`) })
+    .click();
   await expect(upcoming).toContainText("Paycheck");
 });
