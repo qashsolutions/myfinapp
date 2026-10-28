@@ -75,9 +75,16 @@ export function moveCard<Id>(order: Id[], from: number, to: number): Id[] {
   return next;
 }
 
-/** The cards to draw, in order, leaving out the switched-off ones (nothing until it's read). */
-export function shownCards<Id extends string>(layout: CardLayout<Id>): Id[] {
+/**
+ * The cards to draw, in order, leaving out the switched-off ones (nothing until it's read).
+ * `force` draws a card for this visit even when switched off, in its saved place (a link that
+ * means "your entries" must land on the list, October 28, 2026).
+ */
+export function shownCards<Id extends string>(
+  layout: CardLayout<Id>,
+  force: readonly Id[] = [],
+): Id[] {
   if (!layout.ready) return [];
   const hidden = new Set(layout.hidden);
-  return layout.order.filter((id) => !hidden.has(id));
+  return layout.order.filter((id) => !hidden.has(id) || force.includes(id));
 }

@@ -11,16 +11,15 @@ import type { RangeView } from "../ranges/useSeries.ts";
 import { CategoryBreakdown } from "./CategoryBreakdown.tsx";
 
 const BEFORE: Record<string, string> = {
-  Month: "the month before",
   Quarter: "the 3 months before",
   Year: "the 12 months before",
   YTD: "the same days last year",
 };
 
 /**
- * Money in & out over a Quarter, a Year or YTD (or a Month stepped back) (docs/spec.md "Time ranges"): Kept for the range, the
- * average a month, the period before, In vs Out bars, and where it went with each category's
- * average a month. Tapping a month opens it.
+ * Money in & out over a Quarter, a Year or YTD (docs/spec.md "Time ranges"; the Month is the
+ * month view): Kept for the range, the average a month, the period before, In vs Out bars, and
+ * where it went with each category's average a month. Tapping a month opens it.
  */
 export function RangeMoney({
   view,

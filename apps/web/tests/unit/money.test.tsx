@@ -2,6 +2,7 @@ import { RULES_VERSION } from "@stackd/rules";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Entry, openDb, seedDefaults } from "../../src/data/db.ts";
+import { ENTRIES_PATH } from "../../src/features/entries/paths.ts";
 import { installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 
@@ -213,5 +214,31 @@ describe("Money in & out", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Money in & out" }),
     ).toBeInTheDocument();
+  });
+
+  // Your entries are always reachable (invariant: every "your entries" link lands on a list).
+  it("opens your entries even when the Categories and transactions card is hidden", async () => {
+    const db = await seedOctober();
+    await db.settings.put({
+      key: "money.layout",
+      value: { order: ["summary", "weeks", "details"], hidden: ["details"] },
+      updated_at: "2026-10-10T10:00:00.000Z",
+    });
+    await renderSignedIn(ENTRIES_PATH);
+    const list = await screen.findByRole("region", { name: "Transactions" });
+    expect(within(list).getByRole("button", { name: /^Rent/ })).toBeInTheDocument();
+  });
+
+  it("opens your entries on the month even when a longer range was saved, and keeps that range", async () => {
+    await seedOctober();
+    localStorage.setItem("stackd.range.money", "Quarter");
+    try {
+      await renderSignedIn(ENTRIES_PATH);
+      const list = await screen.findByRole("region", { name: "Transactions" });
+      expect(within(list).getByRole("button", { name: /^Rent/ })).toBeInTheDocument();
+      expect(localStorage.getItem("stackd.range.money")).toBe("Quarter");
+    } finally {
+      localStorage.removeItem("stackd.range.money");
+    }
   });
 });

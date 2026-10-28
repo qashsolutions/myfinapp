@@ -202,6 +202,30 @@ describe("own values", () => {
     ]);
   });
 
+  it("a jar with no milestones opens Add milestones with an empty own box, not 0%", async () => {
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    await seedDefaults(db);
+    const jar = await createGoal(db, {
+      kind: "save",
+      title: "Trip",
+      target_cents: 100000,
+      target_days: null,
+      label: null,
+      category_id: null,
+      start_date: "2026-09-01",
+      end_date: null,
+      baseline_cents: null,
+      group_id: null,
+    } as Parameters<typeof createGoal>[1]);
+    installFakeApi({ session: readySession() });
+    renderApp(`/goals/${jar.id}`);
+    await user.click(await screen.findByRole("button", { name: "Add milestones" }));
+    const sheet = await screen.findByRole("dialog", { name: "Cheer at which milestones?" });
+    expect(within(sheet).getByLabelText("Your own milestones, in percent")).toHaveValue("");
+    expect(within(sheet).getByRole("button", { name: "Use" })).toBeDisabled();
+  });
+
   it("the 52-week challenge can step up by the person's own amount each week", async () => {
     const user = userEvent.setup();
     const db = openDb("u1");

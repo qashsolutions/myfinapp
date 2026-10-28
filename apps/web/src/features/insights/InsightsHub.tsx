@@ -19,6 +19,7 @@ import { WorthBars } from "../networth/NetWorthScreen.tsx";
 import { useNetWorth } from "../networth/useNetWorth.ts";
 import { RangeBars } from "../ranges/RangeBars.tsx";
 import { useRangeTotals } from "../ranges/useSeries.ts";
+import { needsSorting } from "../review/review.ts";
 import { BalanceRunway, BucketBars, InOutBars, InsightCard, Ring } from "./InsightCard.tsx";
 import { useSafeToSpend } from "./useSafeToSpend.ts";
 import { useTopSpending } from "./useTopSpending.ts";
@@ -62,7 +63,8 @@ export function InsightsHub() {
 
   // Share of this month's entries sorted into a category (transfers aren't spending).
   const spending = (month.entries ?? []).filter((e) => !e.is_transfer && !e.not_counted);
-  const unsorted = spending.filter((e) => e.category_id === null).length;
+  // The same test as the review queue the "to review" chip opens.
+  const unsorted = spending.filter(needsSorting).length;
   const [sortedBps, setSortedBps] = useState<number | null>(null);
   useEffect(() => {
     let alive = true;

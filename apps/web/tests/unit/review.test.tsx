@@ -128,6 +128,8 @@ describe("Sort your spending (item 9, October 20, 2026)", () => {
     renderApp("/review");
     await screen.findByRole("region", { name: "To sort" });
     await user.click(screen.getByRole("button", { name: "It's a transfer" }));
+    // The toast counts what was marked: this side and its other side.
+    expect(await screen.findByText("2 marked as transfers")).toBeInTheDocument();
     await waitFor(async () =>
       expect(await db.entries.get("out")).toMatchObject({
         is_transfer: true,
@@ -151,5 +153,22 @@ describe("Sort your spending (item 9, October 20, 2026)", () => {
       is_transfer: false,
       transfer_pair_id: null,
     });
+  });
+
+  it("never queues a split part: the entry it came from is what gets sorted", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await db.entries.bulkAdd([
+      entry("whole", "2026-10-09", "Target", { amount_cents: 6000 }),
+      entry("part", "2026-10-09", "Target part", {
+        amount_cents: 2000,
+        split_parent_id: "whole",
+      }),
+    ]);
+    installFakeApi({ session: readySession() });
+    renderApp("/review");
+    const card = await screen.findByRole("region", { name: "To sort" });
+    expect(within(card).getByText("Target")).toBeInTheDocument();
+    expect(screen.getByText("1 left")).toBeInTheDocument();
   });
 });
