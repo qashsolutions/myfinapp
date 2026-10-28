@@ -119,6 +119,64 @@ def test_subscribing_during_a_trial_charges_only_when_it_ends() -> None:
     assert abs(trial_end - (datetime.now(UTC) + timedelta(days=3)).timestamp()) < 120
 
 
+def _checkout_form(client) -> tuple[dict[str, str], list[str]]:
+    stripe = FakeStripe()
+    stripe_billing.transport_override = stripe.transport()
+    body = buy(client, plan="private", interval="yearly")
+    r = client.post("/api/billing/checkout", json=body)
+    assert r.status_code == 200, r.text
+    form = dict(p.split("=", 1) for p in stripe.requests[-1].content.decode().split("&"))
+    return form, body["consent"]["lines"]
+
+
+def test_subscribing_late_in_a_trial_still_charges_nothing_until_it_ends() -> None:
+    """Owner decision, October 28, 2026: nothing is charged until the trial ends, whenever the
+    person subscribes during it. Stripe's trial_end needs 48 hours, so closer than that the
+    billing cycle is anchored on the trial end with no proration: $0 today, the first charge
+    on the trial-end day."""
+    client, user_id, _ = signed_up()
+    client.post("/api/billing/trial", json={"plan": "private"})
+    ends = datetime.now(UTC) + timedelta(hours=30)
+    set_user(user_id, trial_ends_at=ends)
+    form, lines = _checkout_form(client)
+    assert "subscription_data%5Btrial_end%5D" not in form
+    assert abs(int(form["subscription_data%5Bbilling_cycle_anchor%5D"]) - ends.timestamp()) < 2
+    assert form["subscription_data%5Bproration_behavior%5D"] == "none"
+    # Stripe's payment page lasts 24 hours unless told otherwise: it closes before the anchor.
+    assert "expires_at" not in form
+    assert lines[0].startswith("Free until ") and "today" not in lines[0]
+    # Closer still, the page is told to close by the trial end, so it is never paid after it.
+    ends = datetime.now(UTC) + timedelta(hours=5)
+    set_user(user_id, trial_ends_at=ends)
+    form, lines = _checkout_form(client)
+    assert abs(int(form["subscription_data%5Bbilling_cycle_anchor%5D"]) - ends.timestamp()) < 2
+    assert int(form["expires_at"]) == int(ends.timestamp())
+    assert lines[0].startswith("Free until ")
+
+
+def test_subscribing_early_in_a_trial_uses_stripes_trial() -> None:
+    client, user_id, _ = signed_up()
+    client.post("/api/billing/trial", json={"plan": "private"})
+    ends = datetime.now(UTC) + timedelta(hours=60)
+    set_user(user_id, trial_ends_at=ends)
+    form, lines = _checkout_form(client)
+    assert abs(int(form["subscription_data%5Btrial_end%5D"]) - ends.timestamp()) < 2
+    assert "subscription_data%5Bbilling_cycle_anchor%5D" not in form
+    assert lines[0].startswith("Free until ")
+
+
+def test_subscribing_in_a_trials_last_minutes_charges_today_and_says_so() -> None:
+    """Under Stripe's 30-minute shortest payment page the trial is over before the page could
+    close, so the first charge is today, and the words say today."""
+    client, user_id, _ = signed_up()
+    client.post("/api/billing/trial", json={"plan": "private"})
+    set_user(user_id, trial_ends_at=datetime.now(UTC) + timedelta(minutes=20))
+    form, lines = _checkout_form(client)
+    assert "subscription_data%5Btrial_end%5D" not in form
+    assert "subscription_data%5Bbilling_cycle_anchor%5D" not in form
+    assert lines[0] == "$20.00 today, then every year."
+
+
 def test_ending_soon_ended_then_deleted_after_seven_days() -> None:
     client, user_id, email = signed_up()
     client.post("/api/billing/trial", json={"plan": "connected"})
@@ -261,3 +319,34 @@ def test_a_trial_claimed_before_the_change_still_counts() -> None:
     again, _, _ = signed_up(email)
     r = again.post("/api/billing/trial", json={"plan": "private"})
     assert r.status_code == 409 and r.json()["detail"] == "trial_used"
+
+
+def test_the_words_and_the_checkout_share_one_threshold() -> None:
+    from app.services import consent_text
+
+    assert consent_text.ANCHOR_MIN == stripe_billing.ANCHOR_MIN
+
+
+def test_the_day_before_a_trial_ends_one_push_goes_with_the_email(monkeypatch) -> None:
+    """Owner, October 28, 2026: the "ends tomorrow" email gets a push beside it, once, with
+    fixed words; nothing daily during the trial."""
+    from app.jobs import alert_dispatch
+    from app.services.alerts import TRIAL_ENDS_TOMORROW_LABEL
+
+    sent: list[tuple[uuid.UUID, dict]] = []
+    monkeypatch.setattr(
+        alert_dispatch, "_deliver", lambda db, uid, payload, now: sent.append((uid, payload))
+    )
+    client, user_id, _ = signed_up()
+    client.post("/api/billing/trial", json={"plan": "connected"})
+    now = datetime.now(UTC)
+    with get_session_factory()() as db:
+        plan_lifecycle.run(db, now=now, only={user_id})  # three days to go: nothing
+    assert sent == []
+    set_user(user_id, trial_ends_at=now + timedelta(hours=20))
+    with get_session_factory()() as db:
+        assert plan_lifecycle.run(db, now=now, only={user_id})["ending_soon"] == 1
+        plan_lifecycle.run(db, now=now + timedelta(hours=2), only={user_id})
+    assert TRIAL_ENDS_TOMORROW_LABEL == "Your Qash trial ends tomorrow. Pick a plan to keep going."
+    assert [p["body"] for _, p in sent] == [TRIAL_ENDS_TOMORROW_LABEL]
+    assert sent[0][0] == user_id and sent[0][1]["url"] == "/me/plan"

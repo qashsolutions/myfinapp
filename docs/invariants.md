@@ -152,7 +152,12 @@ written against both.
     has arrived, and a payment that failed stays failed, whatever order its events come in.
     A checkout completion never stamps the row's newest event (it isn't the subscription's own),
     and a genuine event signed during a secret roll (two v1 values) is accepted.
+    The store proofs follow the same rule: an older signed Apple transaction never overrides a
+    newer one, a Play token is checked against its pattern before it goes into a URL, and a
+    proof that belongs to another account is refused (409), never quietly applied.
     `test_billing.py` "a signature header with several v1 values…" ·
+    `test_billing_fixes.py` "an old apple transaction…", "a play token outside the pattern…",
+    "a proof already linked to another account…" ·
     `test_billing_hardening.py` "a subscription created dated before its checkout…"
     `test_billing_hardening.py` "a late checkout completion…", "events in order…", "a founding
     refund is paid once…", "two events in the same second apply what Stripe holds now", "a failed first bank payment delivered before its checkout…", "a bank-funded subscription announced before its checkout…"
@@ -162,15 +167,24 @@ written against both.
     The same for every count-then-write on the server: bank links against `bank_links_max` and
     a link session finished once (`linking.finish` locks the person, then the session), and the
     last passkey (removal locks the person before counting).
+    Never two plans at once: while a first bank payment clears (or a Founding place is held),
+    or beside a live App Store / Google Play plan, checkout answers 409 and the Plan screen
+    says why (one helper, `entitlements.payment_pending`, for both).
+    `test_billing_fixes.py` "no second purchase while…", "web checkout refuses beside a live
+    store plan" · `billing.test.tsx` "a bank payment still clearing…" ·
     `test_billing_hardening.py` "a failed bank payment never shrinks the cap…", "two buyers
     paying for the last place at once…" · `test_linking.py` "two finishes of one session…",
     "two sessions with one place left…" · `test_auth.py` "two removals at once…"
 15. **Every access state says what is true and has a way forward.** Paused only while a dispute
     is open (it can come back); a lost one is `ended`, open and never closed for it, as the terms
     say; lapsed closes after the grace period with emails that never invite a blocked inbox to
-    buy.
+    buy. A plan whose money never arrived (a failed first bank payment, a Founding place
+    given back) never started, so it never ended: the account stays where it was, its trial
+    still on offer. Founding ends with its term, with the same notes as any plan's end.
     `test_billing_hardening.py` "a lost dispute ends the plan but the account stays open…", "a
     fraud refund lapses with honest notes…" · `trials.test.tsx` "a lost dispute ends the plan…"
+    · `test_billing_fixes.py` "a failed first bank payment keeps the trial…", "founding ends
+    with its term…", "receipts stay reachable after a plan ends"
 16. **Every route needs a session unless it is public on purpose, and someone else's row is 404.**
     `tests/security/test_route_guards.py` · `tests/authz/`
 17. **A purchase block follows the person.** After a lost dispute or a fraud refund, every

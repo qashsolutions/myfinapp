@@ -171,8 +171,15 @@ def cancel_now(subscription_id: str, *, prorate: bool = False) -> None:
         raise BillingError("stripe_error")
 
 
-# Stripe needs a trial end at least 48 hours ahead; closer than this, billing starts at once.
+# Nothing is charged until a trial ends, whenever the person subscribes during it (owner
+# decision, October 28, 2026). Stripe needs a trial end at least 48 hours ahead; closer than
+# this the billing cycle is anchored on the trial end instead, with no proration, so the first
+# invoice is $0 and the first charge is on the trial-end day. Under ANCHOR_MIN (Stripe's
+# shortest payment page, which must close before the anchor) the trial is all but over and the
+# first charge is today. consent_text repeats both values and says the same.
 TRIAL_END_MIN = timedelta(hours=49)
+ANCHOR_MIN = timedelta(minutes=31)
+CHECKOUT_MAX = timedelta(hours=24)  # Stripe's longest payment page
 
 
 FOUNDING_CHECKOUT_MINUTES = timedelta(minutes=31)  # Stripe refuses under 30 from its clock
@@ -225,8 +232,15 @@ def checkout_session(
         form["subscription_data[metadata][user_id]"] = str(user.id)
         form["subscription_data[metadata][plan]"] = plan
         form["subscription_data[metadata][interval]"] = interval or ""
-        if trial_ends_at is not None and trial_ends_at - datetime.now(UTC) >= TRIAL_END_MIN:
+        left = trial_ends_at - datetime.now(UTC) if trial_ends_at is not None else None
+        if trial_ends_at is not None and left is not None and left >= TRIAL_END_MIN:
             form["subscription_data[trial_end]"] = str(int(trial_ends_at.timestamp()))
+        elif trial_ends_at is not None and left is not None and left >= ANCHOR_MIN:
+            form["subscription_data[billing_cycle_anchor]"] = str(int(trial_ends_at.timestamp()))
+            form["subscription_data[proration_behavior]"] = "none"
+            if left < CHECKOUT_MAX:
+                # The page closes by the trial end, so it is never paid after the anchor.
+                form["expires_at"] = str(int(trial_ends_at.timestamp()))
     if customer_id:
         form["customer"] = customer_id
     else:

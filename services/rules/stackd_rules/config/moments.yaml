@@ -182,6 +182,9 @@ push_summary_one: "You have 1 update waiting"
 # Each day of the 7 after a trial or plan ends with no subscription (owner, October 20, 2026:
 # a friendly update, not a warning). Fixed words, no amounts or dates.
 push_plan_ended: "Your Qash trial has wrapped up. Your data is safe on your device."
+# Once, the day before a free trial ends, beside its email (owner, October 28, 2026). No daily
+# push during the trial. Fixed words, no amounts or dates.
+push_trial_ends_tomorrow: "Your Qash trial ends tomorrow. Pick a plan to keep going."
 
 nudges:
   set_pay:

@@ -85,6 +85,9 @@ def compile_catalog(data: dict) -> dict:
     plan_ended = str(data["push_plan_ended"])
     if PLACEHOLDER.findall(plan_ended):
         raise CatalogError("push_plan_ended takes no values")
+    trial_ends = str(data["push_trial_ends_tomorrow"])
+    if PLACEHOLDER.findall(trial_ends):
+        raise CatalogError("push_trial_ends_tomorrow takes no values")
     nudges: dict[str, dict] = {}
     for key, nd in data["nudges"].items():
         allowed = [str(v) for v in nd.get("vars", [])]
@@ -100,6 +103,7 @@ def compile_catalog(data: dict) -> dict:
         "push_summary": summary,
         "push_summary_one": summary_one,
         "push_plan_ended": plan_ended,
+        "push_trial_ends_tomorrow": trial_ends,
         "nudges": nudges,
     }
 

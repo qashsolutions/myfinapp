@@ -1,8 +1,9 @@
 """Trials and plan ends (owner decision, October 14, 2026). Run hourly by `jobs-loop`.
 
-- The day before a free trial or a cancelled plan ends (plans.yaml `reminder_days_before`):
+- The day before a free trial, a cancelled plan or a Founding term ends
+  (plans.yaml `reminder_days_before`):
   one "ends on …" email with a link to choose a plan (users.ending_notice_for remembers
-  which end date it was for).
+  which end date it was for); for a trial, one push beside it with fixed words.
 - When it has ended with no subscription: a friendly "your trial has wrapped up" email, then one
   reminder a day for the rest of the 7 days (users.lapsed_notice_for, lapsed_reminded_on), each
   with the fixed push to devices that allowed alerts (October 20, 2026).
@@ -28,7 +29,7 @@ from app.models.user import User
 from app.rules_server.entitlements import access, active_subscription, trial_settings
 from app.security.audit import AuditAction, record
 from app.services import email, ops_alerts
-from app.services.alerts import PLAN_ENDED_LABEL
+from app.services.alerts import PLAN_ENDED_LABEL, TRIAL_ENDS_TOMORROW_LABEL
 from app.services.deletion import soft_delete
 from app.services.email import plan_link
 from app.services.stripe_billing import is_blocked
@@ -46,20 +47,26 @@ def _ending(db: DbSession, user: User, now: datetime) -> tuple[datetime, bool] |
     sub = active_subscription(db, user.id, now=now)
     if sub is not None and sub.status == "canceled" and sub.ends_at is not None:
         return sub.ends_at, False
+    if sub is not None and sub.plan == "founding" and sub.ends_at is not None:
+        return sub.ends_at, False  # the Founding term ends like a cancelled plan does
     if sub is not None and sub.cancel_at_period_end and sub.renews_at is not None:
         return sub.renews_at, False
     return None
 
 
-def _push(db: DbSession, user_id: uuid.UUID, now: datetime) -> None:
+def _push(
+    db: DbSession,
+    user_id: uuid.UUID,
+    now: datetime,
+    *,
+    body: str = PLAN_ENDED_LABEL,
+    tag: str = "plan-ended",
+) -> None:
     """The same fixed words to every device that allowed alerts; no amounts, no dates."""
-    from app.jobs.alert_dispatch import _deliver  # noqa: PLC0415 - keeps the job imports light
+    from app.jobs import alert_dispatch  # noqa: PLC0415 - keeps the job imports light
 
-    _deliver(
-        db,
-        user_id,
-        {"title": "Qash", "body": PLAN_ENDED_LABEL, "tag": "plan-ended", "url": "/me/plan"},
-        now,
+    alert_dispatch._deliver(
+        db, user_id, {"title": "Qash", "body": body, "tag": tag, "url": "/me/plan"}, now
     )
 
 
@@ -105,6 +112,9 @@ def _one(
         end, trial = ending
         if end - now <= before and user.ending_notice_for != end:
             sender.send(email.plan_ending_message(user.email, _day(end), plan_link(), trial))
+            if trial:
+                # Beside the email, once (owner, October 28, 2026); nothing daily in a trial.
+                _push(db, user.id, now, body=TRIAL_ENDS_TOMORROW_LABEL, tag="trial-ends")
             user.ending_notice_for = end
             counts["ending_soon"] += 1
         return

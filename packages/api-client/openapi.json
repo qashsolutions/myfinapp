@@ -2526,6 +2526,8 @@
           "purchase_token": {
             "anyOf": [
               {
+                "maxLength": 1024,
+                "pattern": "^[A-Za-z0-9._-]{1,1024}$",
                 "type": "string"
               },
               {

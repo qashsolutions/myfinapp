@@ -22,17 +22,20 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import re
 import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
+from urllib.parse import quote
 
 import httpx2
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, padding
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
+from pydantic import StringConstraints
 
 from app.config import get_settings
 from app.models.billing import BillingEvent, Subscription
@@ -173,7 +176,9 @@ def _owner(
     resolved = from_token or (row.user_id if row else None) or caller_id
     if row is not None and resolved is not None and row.user_id != resolved and from_token is None:
         raise BillingError("wrong_account")
-    if caller_id is not None and from_token is not None and from_token != caller_id:
+    # A signed-in caller syncing a proof that belongs to someone else (by its token or the row
+    # it already made) is told so (409), never answered as if it had worked (October 28, 2026).
+    if caller_id is not None and resolved is not None and resolved != caller_id:
         raise BillingError("wrong_account")
     return resolved
 
@@ -234,6 +239,16 @@ def apply_apple_transaction(
     owner = _owner(db, txn.get("appAccountToken"), row, caller_id)
     if owner is None:
         return "unlinked"  # no account token and never synced: nothing to attach it to
+    # Apple signs every copy of a transaction with the moment it signed it: an older copy (the
+    # purchase's own proof re-sent after a refund) never overrides a newer one (October 28,
+    # 2026). The newest signedDate applied is kept on the row.
+    signed = _ms(txn.get("signedDate")) or datetime.fromtimestamp(0, tz=UTC)
+    if row is not None and row.last_event_at is not None:
+        last = row.last_event_at
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=UTC)
+        if signed < last:
+            return "stale"
     expires = _ms(txn.get("expiresDate"))
     revoked = _ms(txn.get("revocationDate"))
     if revoked is not None:
@@ -256,7 +271,8 @@ def apply_apple_transaction(
         renews_at=renews_at,
         ends_at=ends_at if ends_at else (expires if auto_renew_off else None),
         cancel_at_period_end=auto_renew_off and status == "active",
-    )
+    ).last_event_at = signed
+    db.flush()
     store_entitlements(db, owner)
     return "synced"
 
@@ -313,16 +329,31 @@ def token_ref(purchase_token: str) -> str:
     return f"google:{hashlib.sha256(purchase_token.encode()).hexdigest()}"
 
 
+# Play purchase tokens are URL-safe text (letters, digits, '.', '_', '-'); anything else, or
+# anything absurdly long, is refused before it goes near a URL (October 28, 2026).
+PLAY_ID_SHAPE = r"^[A-Za-z0-9._-]{1,1024}$"
+_PLAY_TOKEN = re.compile(PLAY_ID_SHAPE)
+# The shape a Play purchase id must have before it goes into a Play URL (checked at the door).
+PlayPurchaseId = Annotated[str, StringConstraints(pattern=PLAY_ID_SHAPE, max_length=1024)]
+
+
+def valid_play_token(purchase_token: str) -> bool:
+    return bool(_PLAY_TOKEN.fullmatch(purchase_token))
+
+
 def verify_play_subscription(purchase_token: str) -> dict[str, Any]:
     """The subscription behind a purchase token, from the Play Developer API (the truth)."""
+    if not valid_play_token(purchase_token):
+        raise BillingError("bad_token")
     account = _play_account()
-    package = get_settings().play_package
+    package = quote(get_settings().play_package, safe="")
+    token = quote(purchase_token, safe="")
     try:
         with _client() as client:
             access = access_token(account, PLAY_SCOPE, client, now=time.time())
             response = client.get(
                 f"{PLAY_API}/androidpublisher/v3/applications/{package}"
-                f"/purchases/subscriptionsv2/tokens/{purchase_token}",
+                f"/purchases/subscriptionsv2/tokens/{token}",
                 headers={"authorization": f"Bearer {access}"},
             )
     except httpx2.HTTPError as exc:
@@ -413,6 +444,7 @@ def handle_google_rtdn(db: Any, body: dict[str, Any], *, now: datetime | None = 
     if (
         str(data.get("packageName") or "") == get_settings().play_package
         and notification.get("purchaseToken")
+        and valid_play_token(str(notification["purchaseToken"]))
         and play_configured()
     ):
         token = str(notification["purchaseToken"])

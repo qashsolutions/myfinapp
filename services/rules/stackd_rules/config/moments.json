@@ -252,6 +252,7 @@
   "push_summary": "You have {n} updates waiting",
   "push_summary_one": "You have 1 update waiting",
   "push_plan_ended": "Your Qash trial has wrapped up. Your data is safe on your device.",
+  "push_trial_ends_tomorrow": "Your Qash trial ends tomorrow. Pick a plan to keep going.",
   "nudges": {
     "set_pay": {
       "vars": [],
