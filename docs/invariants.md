@@ -147,7 +147,7 @@ written against both.
     (`delete_completed`, `user:<id>`, no person and no IP) for each account it erases, and none
     for an account it keeps; every audit action in the closed set is one the server writes.
     `test_account.py` "the purge is audited…" · `tests/security/test_audit.py`
-21. **A deleted account hears nothing more.** Deletion switches off every push subscription
+23. **A deleted account hears nothing more.** Deletion switches off every push subscription
     (browser and native) and drops unsent alerts; the dispatcher and the recap scheduler skip
     deleted accounts even if a row slips in. The plan-ended closing email is the one exception,
     sent by the job that closed it.
