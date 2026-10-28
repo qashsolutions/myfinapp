@@ -1,6 +1,6 @@
 # Access control policy
 
-*Version 1.4, effective October 27, 2026 (first adopted October 13, 2026). Owner and approver: the Director of Qash Solutions Inc. Reviewed yearly (next: October 2027) and whenever people, systems or vendors change. Part of the information security program (`security-plan.md`); where they differ, the security plan applies.*
+*Version 1.5, effective October 27, 2026 (first adopted October 13, 2026). Owner and approver: the Director of Qash Solutions Inc. Reviewed yearly (next: October 2027) and whenever people, systems or vendors change. Part of the information security program (`security-plan.md`); where they differ, the security plan applies.*
 
 ## 1. Purpose and scope
 
@@ -45,7 +45,7 @@ Today the administrator is the only person with access to production.
 
 - **AWS permissions are granted by role:** people receive an Identity Center permission set (today one, AdministratorAccess, held by the administrator), and systems use purpose-built identities with only the permissions they need (for example, an email identity that can only send from the company domain), and account-wide deny policies (no AI or ML services).
 - **The production database and API** are reachable only through the application, never from the public internet. Website and app files are in private storage with all public access blocked, served only through CloudFront over TLS.
-- **Code reaches production only through pull requests** that pass automated security checks. This is our own rule, followed for every change: no one pushes to the main branch directly, and a pull request is merged only after every check has passed. GitHub does not enforce it on our plan, so the rule is checked at each access review against the main branch's history.
+- **Code reaches production only through pull requests** that pass automated security checks. GitHub enforces it through branch protection on the main branch (since October 27, 2026; it had been our own rule while the repository was private): changes arrive only through pull requests, a pull request merges only when the required checks have passed and it is up to date with the main branch, force pushes and deleting the branch are refused, and the rule binds administrators too. The access review still checks the main branch's history.
 
 ## 7. Service identities and secrets
 
@@ -86,3 +86,4 @@ An exception needs the administrator's written approval with a reason and an end
 | 1.2 | 2026-10-18 | The in-app Tester role (tester tools for the administrator's own account) | Director, Qash Solutions Inc. |
 | 1.3 | 2026-10-19 | End users may sign a computer in by approval from their signed-in phone after a fresh passkey check; the phishing trade-off and its safeguards are stated | Director, Qash Solutions Inc. (approved 2026-10-27) |
 | 1.4 | 2026-10-27 | The security log also records each completed permanent account deletion | Director, Qash Solutions Inc. (approved 2026-10-27) |
+| 1.5 | 2026-10-27 | GitHub branch protection on the main branch enforces pull requests only and the required checks, administrators included | Director, Qash Solutions Inc. (asked for 2026-10-27) |
