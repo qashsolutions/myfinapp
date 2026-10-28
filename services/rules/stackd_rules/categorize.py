@@ -118,6 +118,12 @@ def _hashed_features(clean: str, ngrams: list, dim: int) -> list[int]:
     return sorted(out)
 
 
+def _is_int(value: object) -> bool:
+    """An int and not a bool: bool is an int subclass here, while the device reads true as no
+    number at all."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
 def _model(value: object) -> dict:
     if not isinstance(value, dict):
         raise RuleError("invalid_model")
@@ -130,23 +136,23 @@ def _model(value: object) -> dict:
         not isinstance(labels, list)
         or not labels
         or not all(isinstance(label, str) and label for label in labels)
-        or not isinstance(dim, int)
+        or not _is_int(dim)
         or dim <= 0
         or not isinstance(ngrams, list)
         or not ngrams
-        or not all(isinstance(n, int) and n > 0 for n in ngrams)
+        or not all(_is_int(n) and n > 0 for n in ngrams)
         or not isinstance(bias, list)
         or len(bias) != len(labels)
-        or not all(isinstance(b, int) for b in bias)
+        or not all(_is_int(b) for b in bias)
         or not isinstance(weights, dict)
-        or not isinstance(value.get("min_score"), int)
-        or not isinstance(value.get("min_margin"), int)
+        or not _is_int(value.get("min_score"))
+        or not _is_int(value.get("min_margin"))
     ):
         raise RuleError("invalid_model")
     for row in weights.values():
         if not isinstance(row, list) or len(row) != len(labels):
             raise RuleError("invalid_model")
-        if not all(isinstance(w, int) for w in row):
+        if not all(_is_int(w) for w in row):
             raise RuleError("invalid_model")
     return value
 

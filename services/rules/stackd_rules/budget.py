@@ -60,7 +60,7 @@ def monthly_take_home(amount_cents: int, frequency: str) -> int:
     amount = _int(amount_cents)
     if amount < 0:
         raise RuleError("invalid_amount")
-    if frequency not in FREQUENCIES:
+    if not isinstance(frequency, str) or frequency not in FREQUENCIES:
         raise RuleError("invalid_frequency")
     per_year, per = FREQUENCIES[frequency]
     return money.round_div(amount * per_year, per)

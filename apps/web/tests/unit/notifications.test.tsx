@@ -183,5 +183,57 @@ describe("Notifications", () => {
     expect(body.items.find((i) => i.dedupe_key === "recap:2026-10-11")).toBeDefined();
     const text = JSON.stringify(body);
     expect(text).not.toMatch(/cents|Rent|merchant|1650/);
+    expectNoAmountInKeys(body.items);
+  });
+
+  it("keys a shortfall by its date and a tag, never the amount", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await db.balance_anchors.add({
+      id: "a1",
+      account_id: "acct-cash",
+      as_of: "2026-10-05",
+      balance_cents: 210000,
+      source: "statement",
+      created_at: "2026-10-05T00:00:00Z",
+    });
+    await db.recurring_series.add({
+      id: "rent",
+      payee: "RENT",
+      label: "Rent",
+      kind: "bill",
+      expected_cents: 345600,
+      interval: "monthly",
+      next_date: "2026-10-25",
+      status: "confirmed",
+      source: "manual",
+      account_id: null,
+      created_at: "2026-10-01T00:00:00Z",
+      updated_at: "2026-10-01T00:00:00Z",
+    });
+    const api = installFakeApi({ session: readySession() });
+    renderApp("/insights");
+    await screen.findByRole("navigation", { name: "Primary" });
+    const shortfallKeys = () =>
+      (
+        api.calls.filter((c) => c.method === "PUT" && c.path === "/api/alerts/schedule").at(-1)
+          ?.body as { items: Array<Record<string, unknown>> } | undefined
+      )?.items.filter((i) => i.type === "shortfall_risk") ?? [];
+    await waitFor(() => expect(shortfallKeys().length).toBe(1), { timeout: 4000 });
+    const key = String(shortfallKeys()[0]?.dedupe_key);
+    expect(key).toMatch(/^shortfall:\d{4}-\d{2}-\d{2}:[a-p]{16}$/);
+    const body = api.calls
+      .filter((c) => c.method === "PUT" && c.path === "/api/alerts/schedule")
+      .at(-1)?.body as { items: Array<Record<string, unknown>> };
+    expectNoAmountInKeys(body.items);
+    expect(JSON.stringify(body)).not.toMatch(/3456|1356/);
   });
 });
+
+/** Outside its ISO dates, no key carries a run of 3 or more digits (an amount, an account). */
+function expectNoAmountInKeys(items: Array<Record<string, unknown>>): void {
+  for (const item of items) {
+    const key = String(item.dedupe_key).replace(/\d{4}-\d{2}-\d{2}/g, "");
+    expect(key, String(item.dedupe_key)).not.toMatch(/\d{3,}/);
+  }
+}

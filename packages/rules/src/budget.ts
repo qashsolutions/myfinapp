@@ -2,7 +2,7 @@
 
 import { type Day, iso, monthBounds, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
-import { allocate, assertInt, roundDiv } from "./money.ts";
+import { allocate, assertInt, mul, roundDiv } from "./money.ts";
 import { compareText } from "./text.ts";
 
 export type Bucket = "need" | "want" | "save";
@@ -52,7 +52,7 @@ export function monthlyTakeHome(amountCents: unknown, frequency: unknown): numbe
   if (typeof frequency !== "string" || !(frequency in FREQUENCIES))
     throw new RuleError("invalid_frequency");
   const [perYear, per] = FREQUENCIES[frequency] as [number, number];
-  return roundDiv(amount * perYear, per);
+  return roundDiv(mul(amount, perYear), per);
 }
 
 function bucketOf(value: unknown): Bucket | null {
@@ -110,6 +110,7 @@ function lines(raw: unknown): Line[] {
     if (
       typeof item !== "object" ||
       item === null ||
+      Array.isArray(item) ||
       typeof (item as Line).category_id !== "string"
     ) {
       throw new RuleError("invalid_line");

@@ -2,7 +2,7 @@
 
 import { addDays, type Day, daysUntil, iso, monthBounds, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
-import { assertInt, pctOf, ratioBps, roundDiv } from "./money.ts";
+import { assertInt, mul, pctOf, ratioBps, roundDiv } from "./money.ts";
 
 export const RULE_IDS = [
   "shortfall",
@@ -265,7 +265,7 @@ export function paydayNudge(
   const monthly = assertInt(monthlyTakeHomeCents);
   const share = assertInt(shareBps);
   if (paycheck < 0 || monthly < 0 || share < 0) throw new RuleError("invalid_amount");
-  if (target !== null && monthly > 0) return roundDiv(target * paycheck, monthly);
+  if (target !== null && monthly > 0) return roundDiv(mul(target, paycheck), monthly);
   return pctOf(paycheck, share);
 }
 

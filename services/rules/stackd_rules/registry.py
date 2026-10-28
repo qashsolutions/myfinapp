@@ -6,6 +6,7 @@ implements, and the shape every golden test exercises. Input keys are keyword ar
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Callable
 
 from . import (
@@ -31,6 +32,7 @@ from . import (
     notify,
     recurring,
 )
+from .errors import RuleError
 
 Rule = Callable[..., dict]
 
@@ -40,7 +42,7 @@ def _money_parse_amount(text: str) -> dict:
 
 
 def _money_round_div(numerator: int, denominator: int) -> dict:
-    return {"cents": money.round_div(numerator, denominator)}
+    return {"cents": money.round_div(money._int(numerator), denominator)}
 
 
 def _money_pct_of(cents: int, bps: int) -> dict:
@@ -152,7 +154,11 @@ def _cashflow_net_change(net_cents: int, previous_net_cents: int) -> dict:
     return {"delta_cents": cashflow.net_change(net_cents, previous_net_cents)}
 
 
-def _cashflow_match_transfers(entries: list, window_days: int = 5) -> dict:
+def _cashflow_match_transfers(entries: list, window_days: int | None = None) -> dict:
+    # null and left out both mean the default, as every other optional input (the device's
+    # registry reads `window_days ?? 5`).
+    if window_days is None:
+        window_days = 5
     return {"pairs": cashflow.match_transfers(entries, window_days)}
 
 
@@ -339,7 +345,7 @@ def _forecast_project(
     return forecast.project(as_of, start_balance_cents, daily_cents, upcoming, buffer_cents, days)
 
 
-RULES: dict[str, Rule] = {
+_BARE: dict[str, Rule] = {
     "money.parse_amount": _money_parse_amount,
     "money.round_div": _money_round_div,
     "money.pct_of": _money_pct_of,
@@ -399,3 +405,23 @@ RULES: dict[str, Rule] = {
     "forecast.upcoming": _forecast_upcoming,
     "forecast.project": _forecast_project,
 }
+
+
+def _guarded(fn: Rule) -> Rule:
+    """Every rule's two boundary checks, the same in both registries: a date pushed past the
+    calendar (year 1 to 9999) is `invalid_date`, never Python's OverflowError, and an output
+    integer past 2^53 - 1 is `too_large`, since the device could not hold it exactly."""
+
+    @functools.wraps(fn)
+    def run(**kwargs: object) -> dict:
+        try:
+            out = fn(**kwargs)
+        except OverflowError as exc:
+            raise RuleError("invalid_date") from exc
+        money.check_output(out)
+        return out
+
+    return run
+
+
+RULES: dict[str, Rule] = {name: _guarded(fn) for name, fn in _BARE.items()}

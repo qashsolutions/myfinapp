@@ -41,7 +41,7 @@ function args(input: JsonObject, required: string[], optional: string[] = []): J
   return input;
 }
 
-export const RULES: Record<string, Rule> = {
+const BARE: Record<string, Rule> = {
   "money.parse_amount": (input) => {
     const { text } = args(input, ["text"]);
     return { cents: money.parseAmount(text) };
@@ -425,3 +425,18 @@ export const RULES: Record<string, Rule> = {
     };
   },
 };
+
+/**
+ * Every rule's output boundary, the same in both registries: an integer past 2^53 − 1 is
+ * `too_large` (Python would hold it exactly; this engine would round it).
+ */
+export const RULES: Record<string, Rule> = Object.fromEntries(
+  Object.entries(BARE).map(([name, fn]) => [
+    name,
+    (input: JsonObject) => {
+      const out = fn(input);
+      money.checkOutput(out);
+      return out;
+    },
+  ]),
+);

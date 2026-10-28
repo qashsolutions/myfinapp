@@ -36,7 +36,8 @@ export function splitContributions(events: unknown, members: unknown): Split {
   if (!Array.isArray(events)) throw new RuleError("invalid_events");
   const totals = new Map<string, number>(ids.map((id) => [id, 0]));
   for (const e of events) {
-    if (typeof e !== "object" || e === null) throw new RuleError("invalid_event");
+    if (typeof e !== "object" || e === null || Array.isArray(e))
+      throw new RuleError("invalid_event");
     const r = e as Record<string, unknown>;
     if (typeof r.member_id !== "string" || typeof r.type !== "string")
       throw new RuleError("invalid_event");
@@ -60,7 +61,8 @@ export function combineTotals(summaries: unknown): CombinedTotals {
   let inCents = 0;
   let outCents = 0;
   for (const s of summaries) {
-    if (typeof s !== "object" || s === null) throw new RuleError("invalid_summary");
+    if (typeof s !== "object" || s === null || Array.isArray(s))
+      throw new RuleError("invalid_summary");
     const r = s as Record<string, unknown>;
     if (typeof r.member_id !== "string" || r.member_id === "")
       throw new RuleError("invalid_summary");

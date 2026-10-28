@@ -1,0 +1,13 @@
+{
+  "inputs": {
+    "now_local": "2026-10-10T18:00",
+    "upcoming": {
+      "a": 1
+    },
+    "prefs": {
+      "upcoming_expense": {
+        "enabled": true
+      }
+    }
+  }
+}

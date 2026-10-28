@@ -14,6 +14,7 @@ from collections.abc import Iterator
 from datetime import date, timedelta
 
 from .errors import RuleError
+from .money import MAX_SAFE
 
 _ISO = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")  # ASCII only, see money.py
 CADENCES = ("weekly", "biweekly", "monthly", "payday")
@@ -41,8 +42,12 @@ def add_months(d: date, months: int) -> date:
     """Calendar months forward or back; the day clamps to the target month's length."""
     if isinstance(months, bool) or not isinstance(months, int):
         raise RuleError("invalid_integer")
+    if abs(months) > MAX_SAFE:
+        raise RuleError("too_large")
     span = d.month - 1 + months
     year, month = d.year + span // 12, span % 12 + 1
+    if not 1 <= year <= 9999:  # past the calendar: the same answer as the device's engine
+        raise RuleError("invalid_date")
     return date(year, month, min(d.day, calendar.monthrange(year, month)[1]))
 
 
@@ -50,7 +55,12 @@ def add_days(day: date, days: int) -> date:
     """Calendar days forward (or back when negative)."""
     if isinstance(days, bool) or not isinstance(days, int):
         raise RuleError("invalid_integer")
-    return day + timedelta(days=days)
+    if abs(days) > MAX_SAFE:
+        raise RuleError("too_large")
+    try:
+        return day + timedelta(days=days)
+    except OverflowError as exc:  # past year 1 or 9999
+        raise RuleError("invalid_date") from exc
 
 
 def days_until(as_of: date, target: date) -> int:

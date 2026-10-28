@@ -21,7 +21,12 @@ export function goalEvents(raw: unknown): Ev[] {
 function events(raw: unknown): Ev[] {
   if (!Array.isArray(raw)) throw new RuleError("invalid_events");
   return raw.map((e, i) => {
-    if (typeof e !== "object" || e === null || !EVENT_TYPES.includes((e as Ev).type))
+    if (
+      typeof e !== "object" ||
+      e === null ||
+      Array.isArray(e) ||
+      !EVENT_TYPES.includes((e as Ev).type)
+    )
       throw new RuleError("invalid_event");
     const r = e as Record<string, unknown>;
     const date = parseDate(r.date);
@@ -61,6 +66,7 @@ export function progress(goal: unknown, rawEvents: unknown, asOf: unknown): Goal
   if (
     typeof goal !== "object" ||
     goal === null ||
+    Array.isArray(goal) ||
     !KINDS.includes((goal as { kind: string }).kind)
   ) {
     throw new RuleError("invalid_goal");

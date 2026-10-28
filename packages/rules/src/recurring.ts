@@ -3,7 +3,7 @@
 import { addDays, addMonths, type Day, daysUntil, iso, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { cleanDescription } from "./fingerprint.ts";
-import { assertInt, roundDiv } from "./money.ts";
+import { assertInt, mul, roundDiv } from "./money.ts";
 import { compareText } from "./text.ts";
 
 export const INTERVALS = ["weekly", "biweekly", "monthly", "quarterly", "yearly"] as const;
@@ -85,7 +85,7 @@ export function medianCents(values: number[]): number {
 }
 
 export function withinTenPercent(cents: number, reference: number): boolean {
-  return 9 * reference <= 10 * cents && 10 * cents <= 11 * reference;
+  return mul(9, reference) <= mul(10, cents) && mul(10, cents) <= mul(11, reference);
 }
 
 export interface Series {
@@ -196,7 +196,7 @@ export function yearlyCost(raw: unknown): {
       throw new RuleError("invalid_interval");
     const cents = assertInt(r.expected_cents, "invalid_amount");
     if (cents < 0) throw new RuleError("invalid_amount");
-    const yearly = cents * PER_YEAR[r.interval as Interval];
+    const yearly = cents * PER_YEAR[r.interval as Interval]; // past 2^53 it is not safe: invalid_amount below
     if (!Number.isSafeInteger(yearly)) throw new RuleError("invalid_amount");
     items.push({
       id: r.id,

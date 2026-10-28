@@ -6,9 +6,39 @@
 import { RuleError } from "./errors.ts";
 import { trimSpaces } from "./text.ts";
 
+/** The largest whole number both engines hold exactly (2^53 − 1): past it, `too_large`. */
+export const MAX_SAFE = Number.MAX_SAFE_INTEGER;
+const MAX_SAFE_BIG = BigInt(MAX_SAFE);
+
 export function assertInt(value: unknown, code = "invalid_integer"): number {
   if (typeof value !== "number" || !Number.isInteger(value)) throw new RuleError(code);
+  if (Math.abs(value) > MAX_SAFE) throw new RuleError("too_large");
   return value;
+}
+
+/** A BigInt result as a Number once it is known to safeNumber; else `too_large`, as in Python. */
+export function safeNumber(value: bigint): number {
+  if (value > MAX_SAFE_BIG || value < -MAX_SAFE_BIG) throw new RuleError("too_large");
+  return Number(value);
+}
+
+/**
+ * The exact product of two integers, as Python's `a * b`: a BigInt, so no digit is lost when
+ * the product passes 2^53 on its way into `roundDiv` or a comparison.
+ */
+export function mul(a: number, b: number): bigint {
+  return BigInt(a) * BigInt(b);
+}
+
+/** `too_large` when any number in a rule's output is past MAX_SAFE (both registries). */
+export function checkOutput(value: unknown): void {
+  if (typeof value === "number") {
+    if (Number.isInteger(value) && Math.abs(value) > MAX_SAFE) throw new RuleError("too_large");
+  } else if (Array.isArray(value)) {
+    for (const v of value) checkOutput(v);
+  } else if (typeof value === "object" && value !== null) {
+    for (const v of Object.values(value)) checkOutput(v);
+  }
 }
 
 const UNSIGNED_DECIMAL = /^[0-9]*\.?[0-9]*$/;
@@ -45,13 +75,16 @@ export function parseAmount(text: unknown): number {
     if (first > "5" || (first === "5" && tailNonZero)) cents += 1n;
     else if (first === "5" && cents % 2n === 1n) cents += 1n; // exact tie: round to even
   }
-  const value = Number(cents);
+  const value = safeNumber(cents);
   return negative ? -value : value;
 }
 
-/** numerator / denominator rounded half to even. The only rounding in the package. */
+/**
+ * numerator / denominator rounded half to even. The only rounding in the package. The
+ * numerator may be an exact BigInt product (`mul`); the answer must safeNumber in MAX_SAFE.
+ */
 export function roundDiv(numerator: unknown, denominator: unknown): number {
-  const n = BigInt(assertInt(numerator));
+  const n = typeof numerator === "bigint" ? numerator : BigInt(assertInt(numerator));
   const d0 = BigInt(assertInt(denominator));
   if (d0 === 0n) throw new RuleError("division_by_zero");
   const d = d0 < 0n ? -d0 : d0;
@@ -64,12 +97,12 @@ export function roundDiv(numerator: unknown, denominator: unknown): number {
   }
   const twice = r * 2n;
   if (twice > d || (twice === d && q % 2n !== 0n)) q += 1n;
-  return Number(q);
+  return safeNumber(q);
 }
 
 /** bps/10000 of cents, half-even. */
 export function pctOf(cents: unknown, bps: unknown): number {
-  return roundDiv(assertInt(cents) * assertInt(bps), 10000);
+  return roundDiv(mul(assertInt(cents), assertInt(bps)), 10000);
 }
 
 /** Split total by weights summing to 10000; the rounding remainder goes to one slot. */
@@ -98,5 +131,5 @@ export function allocate(
 export function ratioBps(part: unknown, whole: unknown): number | null {
   assertInt(part);
   if (assertInt(whole) === 0) return null;
-  return roundDiv((part as number) * 10000, whole);
+  return roundDiv(mul(part as number, 10000), whole);
 }
