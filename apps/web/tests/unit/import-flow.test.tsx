@@ -3,6 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { openDb, seedDefaults } from "../../src/data/db.ts";
 import { parseAmount } from "../../src/engine/bridge.ts";
+import { findTransferPartner } from "../../src/features/entries/transfers.ts";
 import { commitImport, parseFile, prepareRows } from "../../src/features/imports/importFlow.ts";
 import { applyMapping, guessMapping } from "../../src/importers/csv.ts";
 import { installFakeApi, readySession } from "../fakeApi.ts";
@@ -335,6 +336,76 @@ describe("statement import, read on the device", () => {
       category_id: null,
       transfer_pair_id: payment?.id,
     });
+  });
+
+  it("an import never offers a split part, a split parent, a pending row or an already paired row as the other side", async () => {
+    installFakeApi({ session: readySession() });
+    const base = {
+      date: "2026-10-06",
+      amount_cents: 120000,
+      direction: "out" as const,
+      merchant: "PAYMENT TO CARD",
+      clean_description: "PAYMENT TO CARD",
+      raw_description: null,
+      category_id: "cat-other",
+      account_id: "acct-cash",
+      source: "manual" as const,
+      receipt_id: null,
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      split_parent_id: null,
+      is_recurring: false,
+      created_at: "2026-10-06T00:00:00Z",
+      updated_at: "2026-10-06T00:00:00Z",
+    };
+    const cases = {
+      part: [
+        { ...base, id: "parent", amount_cents: 5000 },
+        { ...base, id: "part", split_parent_id: "parent" },
+      ],
+      parent: [
+        { ...base, id: "parent" },
+        { ...base, id: "part", amount_cents: 3000, split_parent_id: "parent" },
+      ],
+      pending: [{ ...base, id: "pending", pending: true }],
+      paired: [{ ...base, id: "paired", transfer_pair_id: "elsewhere" }],
+    };
+    const row = {
+      row: 1,
+      date: "2026-10-07",
+      description: "PAYMENT - THANK YOU",
+      amount_cents: 120000,
+      balance_cents: null,
+    };
+    for (const [name, entries] of Object.entries(cases)) {
+      const db = openDb("u1");
+      await db.entries.clear();
+      await db.entries.bulkAdd(entries);
+      const prepared = await prepareRows(db, "acct-card", [row]);
+      expect({ name, match: prepared.rows[0]?.match ?? null }).toEqual({ name, match: null });
+    }
+    // The same row with a plain entry on the other side is offered
+    const db = openDb("u1");
+    await db.entries.clear();
+    await db.entries.add({ ...base, id: "plain" });
+    const prepared = await prepareRows(db, "acct-card", [row]);
+    expect(prepared.rows[0]?.match?.entry_id).toBe("plain");
+    // Marking by hand takes the same test, and never pairs from a part or a parent either
+    const card = { ...base, account_id: "acct-card", direction: "in" as const };
+    await db.entries.bulkAdd([
+      { ...card, id: "card-parent", amount_cents: 5000 },
+      { ...card, id: "card-part", split_parent_id: "card-parent" },
+      { ...card, id: "card-whole", amount_cents: 120000, date: "2026-10-07" },
+      { ...card, id: "card-whole-part", amount_cents: 100, split_parent_id: "card-whole" },
+    ]);
+    const part = await db.entries.get("card-part");
+    const whole = await db.entries.get("card-whole");
+    expect(part && (await findTransferPartner(db, part))).toBeNull();
+    expect(whole && (await findTransferPartner(db, whole))).toBeNull();
+    await db.entries.update("plain", { pending: true });
+    await db.entries.delete("card-whole-part");
+    expect(whole && (await findTransferPartner(db, whole))).toBeNull();
   });
 
   it("marking an entry a transfer by hand marks and pairs the matching other side", async () => {

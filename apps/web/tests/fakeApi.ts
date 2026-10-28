@@ -1090,6 +1090,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       return json({ ...fakeEntitlements(state.billing.plan), access: state.access });
     if (method === "POST" && path === "/api/billing/trial") {
       if (state.access?.state !== "choose") return json({ detail: "trial_not_available" }, 409);
+      if (state.access.trial_used) return json({ detail: "trial_used" }, 409);
       const plan = b.plan === "connected" ? "connected" : "private";
       const days = 3; // either plan (owner decision, October 22, 2026)
       const ends = new Date(Date.now() + days * 86_400_000);

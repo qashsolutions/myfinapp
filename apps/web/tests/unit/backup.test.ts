@@ -223,6 +223,25 @@ describe("snapshots and merging", () => {
     expect(await a.entries.count()).toBe(1);
   });
 
+  it("a newer row a unique index already holds under another id is skipped too, and the merge goes on", async () => {
+    const a = openDb("u1");
+    await a.entries.bulkAdd([
+      { ...entry("e1", T0), fingerprint: "fp-1" },
+      { ...entry("e2", T0), fingerprint: "fp-2" },
+    ]);
+    const snap = await buildSnapshot(a, { rulesVersion: "t", deviceId: "A" });
+    // Another device holds e2 newer, under the fingerprint e1 has here (two devices syncing
+    // one bank connection suffix their fingerprints differently): the put clashes
+    snap.tables.entries = [
+      { ...entry("e2", T1, "Clash"), fingerprint: "fp-1" },
+      { ...entry("e3", T1, "After"), fingerprint: "fp-3" },
+    ];
+    const report = await mergeSnapshot(a, snap);
+    expect(report).toMatchObject({ added: 1, updated: 0, skipped: 1 });
+    expect((await a.entries.get("e2"))?.merchant).toBe("Corner Market");
+    expect((await a.entries.get("e3"))?.merchant).toBe("After");
+  });
+
   it("builds the snapshot in one read transaction, so a write cannot land halfway", async () => {
     const a = openDb("u1");
     await a.entries.add(entry("e1", T0));

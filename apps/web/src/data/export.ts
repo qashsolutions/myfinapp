@@ -36,7 +36,17 @@ function dollars(cents: number): string {
   return `${sign}${Math.trunc(abs / 100)}.${String(abs % 100).padStart(2, "0")}`;
 }
 
-/** Everything the user owns, as files: the device tables plus the server's part. */
+/** A kept file's name made safe as one ZIP path segment. */
+function safeName(name: string): string {
+  return name.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^\.+/, "_") || "file";
+}
+
+/**
+ * Everything the user owns, as files: the device tables plus the server's part. Left out on
+ * purpose, as device-only bookkeeping that a restore rebuilds: `computed_results` and `forecasts`
+ * (caches of rule results, worked out again from the data), `server_queue` (group percentages
+ * waiting to send) and `tombstones` (which rows a sync must not bring back).
+ */
 export async function collectExport(
   db: StackdDb,
   server: ExportOut | null,
@@ -62,6 +72,10 @@ export async function collectExport(
     worthItems,
     worthSnapshots,
     merchantNames,
+    milestones,
+    templates,
+    csvMappings,
+    statementFiles,
   ] = await Promise.all([
     db.accounts.toArray(),
     db.categories.toArray(),
@@ -82,7 +96,13 @@ export async function collectExport(
     db.net_worth_items.toArray(),
     db.net_worth_snapshots.toArray(),
     db.merchant_names.toArray(),
+    db.goal_milestones.toArray(),
+    db.goal_templates.toArray(),
+    db.csv_mappings.toArray(),
+    db.files.where("kind").equals("statement").toArray(),
   ]);
+  const statementPath = (f: { id: string; name: string }) =>
+    `statements/${f.id}-${safeName(f.name)}`;
   const categoryName = new Map(categories.map((c) => [c.id, c.name]));
   const accountLabel = new Map(accounts.map((a) => [a.id, a.label]));
   const files: ExportFile[] = [
@@ -115,6 +135,12 @@ export async function collectExport(
             "tags",
             "note",
             "counted",
+            // so splits and transfer pairs can be rebuilt
+            "split_parent_id",
+            "transfer_pair_id",
+            "pending",
+            "fingerprint",
+            "provider_txn_id",
           ],
           ...entries.map((e) => [
             e.id,
@@ -131,11 +157,19 @@ export async function collectExport(
             (e.tags ?? []).join("; "),
             e.note ?? "",
             !e.not_counted,
+            e.split_parent_id ?? "",
+            e.transfer_pair_id ?? "",
+            !!e.pending,
+            e.fingerprint ?? "",
+            e.provider_txn_id ?? "",
           ]),
         ]),
       ),
     },
-    { name: "goals.json", data: json({ goals, events: goalEvents }) },
+    {
+      name: "goals.json",
+      data: json({ goals, events: goalEvents, milestones, templates }),
+    },
     { name: "net_worth.json", data: json({ items: worthItems, monthly: worthSnapshots }) },
     {
       name: "groups.json",
@@ -168,6 +202,11 @@ export async function collectExport(
         balance_anchors: anchors,
         statement_imports: imports,
         card_details: cards,
+        csv_mappings: csvMappings,
+        statement_files: statementFiles.map(({ blob: _blob, ...f }) => ({
+          ...f,
+          path: statementPath(f),
+        })),
         receipts,
       }),
     },
@@ -178,6 +217,10 @@ export async function collectExport(
     if (!file || !(file.blob instanceof Blob)) continue;
     const ext = file.type === "image/png" ? "png" : "jpg";
     files.push({ name: `receipts/${r.id}.${ext}`, data: await readBytes(file.blob) });
+  }
+  for (const f of statementFiles) {
+    if (!(f.blob instanceof Blob)) continue;
+    files.push({ name: statementPath(f), data: await readBytes(f.blob) });
   }
   return files;
 }

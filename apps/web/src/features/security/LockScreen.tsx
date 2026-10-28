@@ -58,7 +58,7 @@ export function LockScreen() {
         <h1 className="auth__title">{newDevice ? "Confirm it's you" : `${APP_NAME} is locked`}</h1>
         <p className="auth__lead">
           {newDevice
-            ? "Use the passkey you created on another device, or set one up here."
+            ? "Use the passkey you created when you signed up."
             : `Locked after ${Math.round((session.info?.lock_after_seconds ?? 300) / 60)} minutes without activity. Unlock to pick up where you left off.`}
         </p>
         {error ? (
@@ -74,9 +74,13 @@ export function LockScreen() {
         </Button>
         <NoBiometricsHelp onUsePhone={unlock} />
         {newDevice ? (
-          <Button block variant="secondary" onClick={() => navigate("/signup/passkey")}>
-            Set up a passkey on this device
-          </Button>
+          // A passkey can only be added once unlocked (the server asks for a passkey check
+          // first), so a new device unlocks with the one it has elsewhere; once in, Me → Sign-in
+          // & security adds one here.
+          <p className="auth__hint">
+            No passkey on this device? Tap Unlock and pick the device that has it, such as your
+            phone. Once you're in, you can add a passkey here in Sign-in &amp; security.
+          </p>
         ) : null}
         <Button block variant="ghost" onClick={signOut}>
           Sign out
