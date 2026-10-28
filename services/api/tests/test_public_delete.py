@@ -96,3 +96,58 @@ def test_only_the_site_origin_is_admitted() -> None:
     assert site.get("/api/auth/session").status_code == 200
     assert "access-control-allow-origin" not in site.get("/api/auth/session").headers
     assert site.post("/api/auth/signout").status_code == 403
+
+
+def _answers(email: str) -> list[tuple[int, object, str | None]]:
+    """Every answer the public routes give for one address: verify before any send, send, a
+    resend too soon, then wrong codes through the lockout and one after it, and a send while
+    locked."""
+    site = new_client()
+    site.headers["origin"] = SITE
+    out = []
+
+    def keep(r):
+        body = r.json() if r.content else None
+        out.append((r.status_code, body, r.headers.get("retry-after")))
+
+    verify = {"email": email, "code": "000000"}
+    keep(site.post("/api/public/account/delete/verify", json=verify))
+    keep(site.post("/api/public/account/delete/send", json={"email": email}))
+    keep(site.post("/api/public/account/delete/send", json={"email": email}))
+    for _ in range(6):
+        keep(site.post("/api/public/account/delete/verify", json=verify))
+    keep(site.post("/api/public/account/delete/send", json={"email": email}))
+    return out
+
+
+def test_public_routes_answer_the_same_whether_or_not_an_account_exists() -> None:
+    """No account oracle (CLAUDE.md "Public routes answer the same way whether or not an
+    account exists"): the same status, body and headers for a real and an unknown address,
+    through wrong codes, the lockout and a send while locked."""
+    real = f"maya+{uuid.uuid4().hex[:6]}@example.com"
+    sign_up(new_client(), real, FakeAuthenticator())
+    unknown = f"nobody+{uuid.uuid4().hex[:6]}@example.com"
+    outbox().clear()
+    real_answers = _answers(real)
+    unknown_answers = _answers(unknown)
+    assert real_answers == unknown_answers
+    # The real owner still got the code and the lockout alert; the unknown address nothing
+    assert {m.to for m in outbox()} == {real}
+    assert any("wrong codes" in m.subject for m in outbox())
+
+
+def test_send_does_the_same_work_for_an_unknown_address() -> None:
+    """The time a send takes says nothing either: a code row is written for any address, and
+    the email goes after the answer (a background task), not inside it."""
+    from sqlalchemy import func, select
+
+    from app.db import get_session_factory
+    from app.models.otp_code import OtpCode
+
+    unknown = f"nobody+{uuid.uuid4().hex[:6]}@example.com"
+    site = new_client()
+    site.headers["origin"] = SITE
+    assert site.post("/api/public/account/delete/send", json={"email": unknown}).status_code == 200
+    with get_session_factory()() as db:
+        n = db.scalar(select(func.count()).select_from(OtpCode).where(OtpCode.email == unknown))
+    assert n == 1

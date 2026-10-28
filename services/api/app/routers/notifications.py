@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.db import get_db
 from app.models.notification import ALERT_TYPES, DIGEST_TYPES, PushSubscription
+from app.models.user import User
 from app.rules_server.notify import zone
 from app.security.csrf import same_site_only
 from app.security.principal import Caller, require_unlocked
@@ -234,6 +235,7 @@ def subscribe(
         or "auth" not in body.keys
     ):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="invalid_subscription")
+    _lock_person(db, caller.user.id)
     digest = push.endpoint_hash(body.endpoint)
     row = db.scalar(select(PushSubscription).where(PushSubscription.endpoint_hash == digest))
     payload = {
@@ -256,8 +258,34 @@ def subscribe(
         row.payload_encrypted = push.encrypt_subscription(payload)
         row.revoked_at = None
         row.user_agent = body.user_agent
+    _keep_newest(db, caller.user.id)
     db.commit()
     return PushOut(available=True, subscribed=True)
+
+
+# Live subscriptions per person, web and native together (proposed October 28, 2026, for
+# the owner's sign-off): a phone, a computer and a few browsers fit easily; a script can't
+# make every alert fan out. Registering past it revokes the one registered longest ago.
+MAX_LIVE_SUBSCRIPTIONS = 10
+
+
+def _keep_newest(db: DbSession, user_id) -> None:
+    """Revoke the person's live subscriptions past the newest MAX_LIVE_SUBSCRIPTIONS."""
+    db.flush()
+    rows = db.scalars(
+        select(PushSubscription)
+        .where(PushSubscription.user_id == user_id, PushSubscription.revoked_at.is_(None))
+        .order_by(PushSubscription.updated_at.desc(), PushSubscription.id.desc())
+        .offset(MAX_LIVE_SUBSCRIPTIONS)
+    ).all()
+    now = datetime.now(UTC)
+    for row in rows:
+        row.revoked_at = now
+
+
+def _lock_person(db: DbSession, user_id) -> None:
+    """Two registrations at once count one after the other."""
+    db.execute(select(User.id).where(User.id == user_id).with_for_update())
 
 
 @router.post("/push/unsubscribe", status_code=status.HTTP_204_NO_CONTENT)
@@ -286,6 +314,7 @@ def subscribe_native(
     """An APNs / FCM device token from the shell: stored encrypted, like a Web Push one."""
     if not push_native.available(body.platform):
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="push_unavailable")
+    _lock_person(db, caller.user.id)
     digest = push.endpoint_hash(f"{body.platform}:{body.token}")
     row = db.scalar(select(PushSubscription).where(PushSubscription.endpoint_hash == digest))
     payload = {"platform": body.platform, "token": body.token}
@@ -303,6 +332,7 @@ def subscribe_native(
         row.payload_encrypted = push.encrypt_subscription(payload)
         row.revoked_at = None
         row.user_agent = body.user_agent
+    _keep_newest(db, caller.user.id)
     db.commit()
     return PushOut(available=True, subscribed=True)
 
