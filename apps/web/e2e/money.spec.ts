@@ -1,6 +1,5 @@
-import { join } from "node:path";
 import { expect, test } from "@playwright/test";
-import { FIXTURES, readyAccount } from "./helpers.ts";
+import { readyAccount, statementThisMonth } from "./helpers.ts";
 
 test("import a statement, add an entry, your own category, Don't count, ranges and review", async ({
   page,
@@ -9,10 +8,8 @@ test("import a statement, add an entry, your own category, Don't count, ranges a
 
   // Import: read on this device, columns matched, the card payment confirmed as a transfer.
   await page.goto("/import");
-  await page
-    .getByLabel(/Choose a statement file/)
-    .setInputFiles(join(FIXTURES, "statement_oct.csv"));
-  await expect(page.getByText("statement_oct.csv · 4 rows")).toBeVisible();
+  await page.getByLabel(/Choose a statement file/).setInputFiles(statementThisMonth());
+  await expect(page.getByText("statement.csv · 4 rows")).toBeVisible();
   await page.getByRole("button", { name: "+ New account" }).click();
   await page.getByLabel("Account name").fill("Everyday checking");
   await page.getByRole("button", { name: "Add account" }).click();
