@@ -40,10 +40,13 @@ def enqueue_due(db: DbSession, *, now: datetime | None = None) -> int:
     """Schedule the next recap for everyone who wants it by email. Returns how many were new."""
     now = now or datetime.now(UTC)
     prefs = db.scalars(
-        select(NotificationPref).where(
+        select(NotificationPref)
+        .join(User, User.id == NotificationPref.user_id)
+        .where(
             NotificationPref.type == "weekly_recap",
             NotificationPref.enabled.is_(True),
             NotificationPref.channel.in_(("email", "both")),
+            User.deleted_at.is_(None),  # a deleted account gets nothing (October 28, 2026)
         )
     ).all()
     count = 0

@@ -99,21 +99,36 @@ written against both.
     a purge batch. A deletion Stripe couldn't be told about is retried within the hour and
     refunded as of the deletion day; a charge made after it is refunded in full.
     A refund that can never be paid (the payment was disputed meanwhile) is dropped, never
-    retried for ever.
+    retried for ever, and the hourly settle picks up only what still has something to do.
+    Stripe not answering at all (a dropped connection, a timeout) is the same outage as a 5xx.
+    A Founding payment that lands after the deletion is refunded in full and grants nothing.
+    Every per-account job (purge, settle, plan lifecycle) runs each account in its own
+    savepoint: one failing never undoes or re-sends another's.
     `test_billing.py` "the purge takes the person before their plans…", "one account failing in
     the purge…" · `test_billing_hardening.py` "a founding payment disputed after its deletion…" · `test_billing_change.py` "deleting while Stripe is down…", "a late retry still
-    refunds as of the day…", "a renewal charged after the deletion…"
+    refunds as of the day…", "a renewal charged after the deletion…", "deleting while Stripe
+    cannot be reached…", "one account Stripe cannot reach…", "a disputed plan deleted is
+    settled once…" · `test_founding_cap.py` · `test_trials.py` "one account failing never
+    undoes or resends…"
 13. **A webhook delivered twice, late or out of order changes nothing more; a refund is paid once.**
     Stripe dates events to the second, so two in the same second are settled by reading the
     subscription from Stripe, never by which arrived last. A plan starts only once its money
     has arrived, and a payment that failed stays failed, whatever order its events come in.
+    A checkout completion never stamps the row's newest event (it isn't the subscription's own),
+    and a genuine event signed during a secret roll (two v1 values) is accepted.
+    `test_billing.py` "a signature header with several v1 values…" ·
+    `test_billing_hardening.py` "a subscription created dated before its checkout…"
     `test_billing_hardening.py` "a late checkout completion…", "events in order…", "a founding
     refund is paid once…", "two events in the same second apply what Stripe holds now", "a failed first bank payment delivered before its checkout…", "a bank-funded subscription announced before its checkout…"
 14. **A limit has one count, read the same way everywhere, and is taken under a lock.** The
     Founding places shown on the pricing page are the ones the webhook will grant; the count and
     the row that takes a place happen under one lock for the offer.
+    The same for every count-then-write on the server: bank links against `bank_links_max` and
+    a link session finished once (`linking.finish` locks the person, then the session), and the
+    last passkey (removal locks the person before counting).
     `test_billing_hardening.py` "a failed bank payment never shrinks the cap…", "two buyers
-    paying for the last place at once…"
+    paying for the last place at once…" · `test_linking.py` "two finishes of one session…",
+    "two sessions with one place left…" · `test_auth.py` "two removals at once…"
 15. **Every access state says what is true and has a way forward.** Paused only while a dispute
     is open (it can come back); a lost one is `ended`, open and never closed for it, as the terms
     say; lapsed closes after the grace period with emails that never invite a blocked inbox to
@@ -132,6 +147,11 @@ written against both.
     (`delete_completed`, `user:<id>`, no person and no IP) for each account it erases, and none
     for an account it keeps; every audit action in the closed set is one the server writes.
     `test_account.py` "the purge is audited…" · `tests/security/test_audit.py`
+21. **A deleted account hears nothing more.** Deletion switches off every push subscription
+    (browser and native) and drops unsent alerts; the dispatcher and the recap scheduler skip
+    deleted accounts even if a row slips in. The plan-ended closing email is the one exception,
+    sent by the job that closed it.
+    `test_notifications.py` "a deleted account gets no pushes…"
 
 ## Working to these rules
 

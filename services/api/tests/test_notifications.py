@@ -511,6 +511,60 @@ def test_group_join_schedules_group_activity_for_the_others() -> None:
     assert "Dev" not in json.dumps(items) and "@" not in json.dumps(items)
 
 
+def test_a_deleted_account_gets_no_pushes_and_no_recap_email() -> None:
+    """Invariant: a deleted account hears nothing more from us (October 28, 2026). Deleting
+    revokes every push subscription (web and native tokens alike) and drops the alerts not yet
+    sent; the dispatcher and the recap scheduler skip deleted accounts even if a row slips in
+    (a group join enqueues for every member)."""
+    client, user_id = member("gone")
+    uid = uuid.UUID(user_id)
+    browser = FakeBrowser()
+    push.transport_override = browser.transport()
+    assert client.post("/api/notifications/push", json=browser.subscription()).status_code == 201
+    client.put(
+        "/api/notifications/settings",
+        json={
+            "settings": {"quiet_start": "00:00", "quiet_end": "00:00", "timezone": "UTC"},
+            "prefs": {"weekly_recap": {"channel": "both", "days": "6", "time_of_day": "09:00"}},
+        },
+    )
+    now = datetime(2026, 10, 10, 12, 0, tzinfo=UTC)
+    items = [
+        {
+            "due_at": (now - timedelta(minutes=5)).isoformat(),
+            "type": "upcoming_expense",
+            "dedupe_key": "upcoming:rent:2026-10-25",
+        },
+    ]
+    assert client.put("/api/alerts/schedule", json={"items": items}).status_code == 200
+    assert client.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
+    with get_session_factory()() as s:
+        subs = s.scalars(select(PushSubscription).where(PushSubscription.user_id == uid)).all()
+        assert subs and all(sub.revoked_at is not None for sub in subs)
+        assert s.scalars(select(AlertSchedule).where(AlertSchedule.user_id == uid)).all() == []
+    with get_session_factory()() as s:
+        dispatch_due(s, now=now)
+        enqueue_due(s, now=datetime(2026, 10, 10, 8, 0, tzinfo=UTC))
+        assert s.scalars(select(AlertSchedule).where(AlertSchedule.user_id == uid)).all() == []
+    # A row that slips in anyway (and a subscription somehow live) still sends nothing.
+    with get_session_factory()() as s, s.begin():
+        for sub in s.scalars(select(PushSubscription).where(PushSubscription.user_id == uid)):
+            sub.revoked_at = None
+        s.add(
+            AlertSchedule(
+                user_id=uid,
+                due_at=now - timedelta(minutes=1),
+                type="group_activity",
+                generic_label="Something happened in your group",
+                dedupe_key="group:late",
+            )
+        )
+    with get_session_factory()() as s:
+        dispatch_due(s, now=now)
+    assert browser.received == []
+    assert not [m for m in outbox() if "recap" in m.subject.lower()]
+
+
 def test_weekly_recap_by_email_is_scheduled_by_the_server_and_sent_once() -> None:
     client, user_id = member("maya")
     r = client.put(

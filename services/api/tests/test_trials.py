@@ -164,6 +164,44 @@ def test_ending_soon_ended_then_deleted_after_seven_days() -> None:
     assert client.get("/api/auth/session").json()["deleted_user_id"] is None
 
 
+def test_one_account_failing_never_undoes_or_resends_the_others(monkeypatch) -> None:
+    """Invariant: a job's failure for one account stays with that account (October 28, 2026).
+    Before, one failing send rolled back every stamp of the run, so the next hour re-sent
+    every email already sent."""
+    from app.jobs import plan_lifecycle as job
+    from app.services import email, ops_alerts
+
+    _, a_id, a_email = signed_up()
+    _, b_id, b_email = signed_up()
+    now = datetime.now(UTC)
+    for uid in (a_id, b_id):
+        set_user(uid, trial_plan="connected", trial_ends_at=now + timedelta(days=1))
+    real = email.get_sender()
+
+    class Flaky:
+        def send(self, message) -> None:
+            if message.to == a_email:
+                raise RuntimeError("smtp refused")
+            real.send(message)
+
+    monkeypatch.setattr(email, "get_sender", lambda: Flaky())
+    reports: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        ops_alerts, "report", lambda kind, where, exc: reports.append((kind, where))
+    )
+    for _ in range(2):  # the next hour's run sends B nothing again
+        with get_session_factory()() as db:
+            job.run(db, now=now, only={a_id, b_id})
+    notices = [m for m in outbox() if m.to == b_email and "wraps up" in m.subject]
+    assert len(notices) == 1
+    assert reports == [("plan_lifecycle_failed", "plan_lifecycle.run")] * 2
+    with get_session_factory()() as db:
+        a, b = db.get(User, a_id), db.get(User, b_id)
+        assert a is not None and b is not None
+        assert a.ending_notice_for is None  # tried again next hour
+        assert b.ending_notice_for is not None
+
+
 def test_choosing_never_starts_a_clock() -> None:
     client, user_id, _ = signed_up()
     with get_session_factory()() as db:

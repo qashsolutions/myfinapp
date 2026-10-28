@@ -43,8 +43,7 @@ LIMITS: dict[str, Limit] = {
     # households, offices and carrier NAT, so they no longer spend the attempts above.
     "passkey_options": Limit("passkey_options", 60, timedelta(minutes=15)),
     "invite_join": Limit("invite_join", 10, timedelta(hours=1)),
-    "upload": Limit("upload", 30, timedelta(hours=1)),
-    "export": Limit("export", 5, timedelta(hours=24)),
+    "export": Limit("export", 5, timedelta(hours=24)),  # per signed-in device; each one emails
     # Billing routes that call Stripe live (October 27, 2026): credit, change preview, change,
     # checkout, portal, cancel, resume. Normal use is a handful a visit; a loop can't spend
     # Stripe's API allowance for everyone.

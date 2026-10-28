@@ -31,6 +31,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.linking import plaid, token_vault
 from app.models.linking import BankConnection, LinkSession
+from app.models.user import User
 from app.rules_server.entitlements import check_limit, entitlements
 from app.security.audit import AuditAction, record
 from app.security.authz import get_owned, owned_by
@@ -311,7 +312,17 @@ def finish(
     request: Request,
     db: Annotated[DbSession, Depends(get_db)],
 ) -> FinishOut:
-    link_session = get_owned(db, LinkSession, body.session_id, caller.principal)
+    # One finish at a time per person (October 28, 2026): the person's row, then the session,
+    # both held to the commit, so a second finish of the same session sees it used, and two
+    # sessions count the plan's places one after the other.
+    db.execute(select(User.id).where(User.id == caller.user.id).with_for_update())
+    link_session = db.scalar(
+        owned_by(select(LinkSession), LinkSession, caller.principal)
+        .where(LinkSession.id == body.session_id)
+        .with_for_update()
+    )
+    if link_session is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="not_found")
     now = datetime.now(UTC)
     if link_session.finished_at is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="session_used")

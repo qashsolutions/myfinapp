@@ -48,6 +48,18 @@ def test_export_adds_account_and_groups_and_is_alerted() -> None:
     assert "export" in outbox()[-1].subject.lower()
 
 
+def test_export_is_rate_limited_so_a_stolen_session_cannot_flood_the_inbox() -> None:
+    """Invariant: every abuse-prone route counts (rate_limit.LIMITS "export", 5 a day; October
+    28, 2026). Each export sends an always-on alert email."""
+    client = new_client()
+    email = fresh_email("exporter")
+    sign_up(client, email, FakeAuthenticator())
+    outbox().clear()
+    codes = [client.get("/api/account/export").status_code for _ in range(6)]
+    assert codes == [200] * 5 + [429]
+    assert len([m for m in outbox() if m.to == email]) == 5
+
+
 def test_delete_soft_deletes_now_and_purges_after_the_grace_period() -> None:
     alice, bob = new_client(), new_client()
     alice_email = fresh_email("alice")

@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.jobs import weekly_recap
 from app.models.notification import AlertSchedule, NotificationLog, PushSubscription
+from app.models.user import User
 from app.rules_server import notify as notify_rules
 from app.services import push
 from app.services.alerts import (
@@ -103,7 +104,15 @@ def dispatch_due(db: DbSession, *, now: datetime | None = None) -> dict[str, int
     by_user: dict[uuid.UUID, list[AlertSchedule]] = {}
     for row in rows:
         by_user.setdefault(row.user_id, []).append(row)
+    deleted = set(
+        db.scalars(select(User.id).where(User.id.in_(by_user), User.deleted_at.is_not(None)))
+    )
     for user_id, user_rows in by_user.items():
+        if user_id in deleted:  # a deleted account hears nothing more (October 28, 2026)
+            for r in user_rows:
+                r.status = "skipped"
+            counts["skipped"] += len(user_rows)
+            continue
         settings = ensure_settings(db, user_id)
         prefs = prefs_for(db, user_id)
         enabled = {kind: bool(p["enabled"]) for kind, p in prefs.items()}

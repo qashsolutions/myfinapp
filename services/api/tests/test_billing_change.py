@@ -58,6 +58,9 @@ class FakeStripe:
         ]
         self.calls: list[tuple[str, str, dict[str, list[str]], str | None]] = []
         self.down = False  # Stripe unreachable: every call answers 503
+        # No answer at all (a dropped connection, DNS, a timeout) for a call whose path holds
+        # one of these; "" matches every call.
+        self.unreachable: set[str] = set()
 
     def _sub(self, sub_id: str) -> dict:
         return {
@@ -96,6 +99,8 @@ class FakeStripe:
             path = request.url.path
             form = parse_qs(request.content.decode())
             self.calls.append((request.method, path, form, request.headers.get("Idempotency-Key")))
+            if any(part in path for part in self.unreachable):
+                raise httpx2.ConnectError("no route to Stripe", request=request)
             if self.down:
                 return httpx2.Response(503, json={"error": "down"})
             if path == "/v1/invoices/create_preview":
@@ -547,3 +552,81 @@ def test_a_renewal_charged_after_the_deletion_is_refunded_in_full() -> None:
     refunds = stripe.refunds()
     assert ("ch_renewal", 300) in [(c, a) for c, a, _ in refunds]  # in full: our timing, no fee
     assert "ch_before" not in [c for c, _, _ in refunds]  # the month before deletion is kept
+
+
+# --- Stripe not answering at all (October 28, 2026) -----------------------------------------
+# Invariant: deleting an account never fails and never charges on because Stripe is away; a
+# dropped connection is the same outage as a 503 (BillingError), never an unhandled exception.
+
+
+def test_deleting_while_stripe_cannot_be_reached_still_deletes_and_settles_later() -> None:
+    from app.services import deletion
+
+    client, user_id, stripe = subscribed("noroute", "connected", "yearly", "price_connected_y")
+    due = yearly(stripe)
+    stripe.unreachable = {""}
+    assert client.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
+    assert row(user_id).status == "active"  # Stripe could not be told yet
+    stripe.unreachable = set()
+    with get_session_factory()() as db, db.begin():
+        assert deletion.settle_billing(db, now=datetime.now(UTC) + timedelta(hours=1)) == 1
+    assert row(user_id).status == "canceled"
+    assert [(c, a) for c, a, _ in stripe.refunds()] == [("ch_new", due - fee(due))]
+
+
+def test_one_account_stripe_cannot_reach_never_stops_the_others() -> None:
+    from app.models.user import User
+    from app.services import deletion
+
+    a_client, a_id, _ = subscribed("noroute_a", "private", "monthly", "price_private_m")
+    b_client, b_id, stripe = subscribed("noroute_b", "private", "monthly", "price_private_m")
+    stripe.unreachable = {""}
+    for c in (a_client, b_client):
+        assert c.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
+    stripe.unreachable = {str(row(a_id).external_id)}  # only A's subscription stays away
+    with get_session_factory()() as db, db.begin():
+        assert deletion.settle_billing(db, now=datetime.now(UTC) + timedelta(hours=1)) == 1
+    assert (row(a_id).status, row(b_id).status) == ("active", "canceled")
+    later = datetime.now(UTC) + timedelta(days=31)
+    with get_session_factory()() as db, db.begin():
+        deletion.purge_due(db, grace_days=30, now=later)  # other tests' accounts may go too
+    with get_session_factory()() as db:
+        assert db.get(User, uuid.UUID(a_id)) is not None  # kept until Stripe answers
+        assert db.get(User, uuid.UUID(b_id)) is None
+    stripe.unreachable = set()  # Stripe back: A settles too, and leaves nothing for later tests
+    with get_session_factory()() as db, db.begin():
+        assert deletion.settle_billing(db, now=datetime.now(UTC) + timedelta(hours=2)) == 1
+    assert row(a_id).status == "canceled"
+
+
+def test_a_disputed_plan_deleted_is_settled_once_and_never_again() -> None:
+    """Invariant: a deleted account's billing settles once (October 28, 2026). A disputed
+    renewing plan refunds nothing (the bank has the money), but a refund worked out before the
+    dispute kept refund_due_cents above 0, so the hourly settle picked it up every hour."""
+    from app.services import deletion
+
+    client, user_id, stripe = subscribed("disputed", "connected", "yearly", "price_connected_y")
+    assert yearly(stripe) > 0
+    stripe.unreachable = {"/v1/refunds"}  # the plan ends, the refund has to wait
+    assert client.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
+    assert row(user_id).status == "canceled" and (row(user_id).refund_due_cents or 0) > 0
+    stripe.unreachable = set()
+    with get_session_factory()() as db, db.begin():  # then the payment is disputed
+        found = db.scalar(select(Subscription).where(Subscription.user_id == uuid.UUID(user_id)))
+        assert found is not None
+        found.disputed_at = datetime.now(UTC)
+    settled = []
+    for hours in (1, 2):
+        with get_session_factory()() as db, db.begin():
+            later = datetime.now(UTC) + timedelta(hours=hours)
+            settled.append(deletion.settle_billing(db, now=later))
+    assert settled == [1, 0]
+    assert row(user_id).refund_due_cents == 0
+    assert stripe.refunds() == []
+
+
+def test_the_refund_preview_says_stripe_is_away_instead_of_failing() -> None:
+    client, _, stripe = subscribed("noroute_c", "private", "monthly", "price_private_m")
+    stripe.unreachable = {""}
+    r = client.get("/api/billing/credit")
+    assert (r.status_code, r.json()["detail"]) == (502, "stripe_unreachable")

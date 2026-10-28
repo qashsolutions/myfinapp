@@ -1106,12 +1106,10 @@
             "title": "Kept Until"
           },
           "refund_bank_fee_bps": {
-            "default": 80,
             "title": "Refund Bank Fee Bps",
             "type": "integer"
           },
           "refund_bank_fee_cap_cents": {
-            "default": 500,
             "title": "Refund Bank Fee Cap Cents",
             "type": "integer"
           },
@@ -1121,12 +1119,10 @@
             "type": "integer"
           },
           "refund_fee_bps": {
-            "default": 290,
             "title": "Refund Fee Bps",
             "type": "integer"
           },
           "refund_fee_fixed_cents": {
-            "default": 30,
             "title": "Refund Fee Fixed Cents",
             "type": "integer"
           },
@@ -1146,7 +1142,11 @@
         },
         "required": [
           "credit_cents",
-          "refund_if_deleted_cents"
+          "refund_if_deleted_cents",
+          "refund_fee_bps",
+          "refund_fee_fixed_cents",
+          "refund_bank_fee_bps",
+          "refund_bank_fee_cap_cents"
         ],
         "title": "CreditOut",
         "type": "object"

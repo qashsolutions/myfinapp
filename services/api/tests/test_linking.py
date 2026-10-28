@@ -122,6 +122,73 @@ def test_plan_caps_connections(fake: FakePlaid) -> None:
     assert client_post_start(client).json()["detail"] == "plan_limit"
 
 
+def _finish_while_another_holds_the_person(client, user_id: str, session_id: str, meanwhile):
+    """Two connections (October 28, 2026): the other holds the person's row, as a finish in
+    flight does, and does `meanwhile` there; the route runs on a thread and must wait for it."""
+    import threading
+
+    from app.models.user import User
+
+    answers: list = []
+    with get_session_factory()() as other:
+        other.execute(select(User.id).where(User.id == uuid.UUID(user_id)).with_for_update())
+        meanwhile(other)
+        worker = threading.Thread(
+            target=lambda: answers.append(
+                client.post("/api/linking/finish", json={"session_id": session_id})
+            )
+        )
+        worker.start()
+        worker.join(timeout=1.5)
+        other.commit()
+    worker.join(timeout=10)
+    [r] = answers
+    return r
+
+
+def test_two_finishes_of_one_session_link_once(fake: FakePlaid) -> None:
+    """Invariant: a link session finishes once (409 session_used), even when two arrive at
+    once; before, both exchanged the token and Plaid billed two items."""
+    client, user_id = member("twice")
+    session_id = start(client, fake, "Bank A")
+
+    def finished(other) -> None:
+        row = other.get(LinkSession, uuid.UUID(session_id), with_for_update=True)
+        row.finished_at = datetime.now(UTC)
+
+    r = _finish_while_another_holds_the_person(client, user_id, session_id, finished)
+    assert (r.status_code, r.json()["detail"]) == (409, "session_used")
+    assert fake.bodies("/item/public_token/exchange") == []
+
+
+def test_two_sessions_with_one_place_left_make_one_link(fake: FakePlaid) -> None:
+    """Invariant: the plan's bank_links_max holds under concurrency (October 28, 2026)."""
+    client, user_id = member("lastplace")
+    first = start(client, fake, "Bank A", "Bank B")
+    assert (
+        len(client.post("/api/linking/finish", json={"session_id": first}).json()["connections"])
+        == 2
+    )
+    second = start(client, fake, "Bank C")
+
+    def third_link(other) -> None:  # the other session's finish takes the last place
+        other.add(
+            BankConnection(
+                user_id=uuid.UUID(user_id),
+                provider="plaid",
+                item_id=f"item-{uuid.uuid4().hex}",
+                institution_name="Bank D",
+                last_used_at=datetime.now(UTC),
+                access_token_encrypted=token_vault.seal("access-sandbox-other"),
+                key_id=token_vault.key_id(),
+            )
+        )
+
+    r = _finish_while_another_holds_the_person(client, user_id, second, third_link)
+    assert (r.status_code, r.json()["detail"]) == (403, "plan_limit")
+    assert len(client.get("/api/linking").json()["connections"]) == 3
+
+
 def test_a_bank_already_connected_is_never_exchanged_again(fake: FakePlaid) -> None:
     client, user_id = member("maya")
     first = start(client, fake, "First Platypus Bank")

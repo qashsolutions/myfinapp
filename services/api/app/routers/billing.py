@@ -156,13 +156,15 @@ class CreditOut(BaseModel):
     kept_until: datetime | None = None
     # Stripe's card fee taken off a refund (plans.yaml `refunds`), for the screen to explain.
     refund_before_fee_cents: int = 0  # the unused part and credit, before Stripe's fee
-    refund_fee_bps: int = 290
-    refund_fee_fixed_cents: int = 30
+    # The fee rule comes from plans.yaml `refunds` only (`_fee_rule`), never a literal here
+    # (October 28, 2026).
+    refund_fee_bps: int
+    refund_fee_fixed_cents: int
     # How the plan was paid, so the screen names the right fee (October 24, 2026): a US bank
     # account keeps Stripe's bank fee (0.8%, at most the cap) instead of the card fee.
     refund_fee_method: Literal["card", "bank"] = "card"
-    refund_bank_fee_bps: int = 80
-    refund_bank_fee_cap_cents: int = 500
+    refund_bank_fee_bps: int
+    refund_bank_fee_cap_cents: int
 
 
 CHANGE_PREVIEW_MAX_AGE = 600
