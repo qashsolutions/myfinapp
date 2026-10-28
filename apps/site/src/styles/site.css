@@ -1667,7 +1667,8 @@ a.lp-way:hover {
   margin-left: auto;
   padding: 5px 12px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--c-success) 14%, var(--c-card));
+  /* A lighter tint keeps the green text above 4.5:1 (Lighthouse, October 28, 2026). */
+  background: color-mix(in srgb, var(--c-success) 8%, var(--c-card));
   color: var(--c-success);
   font-size: 0.85rem;
   font-weight: 700;
@@ -2162,7 +2163,8 @@ a.lp-way:hover {
   padding: 8px 14px;
   border: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--c-a1) 10%, var(--c-card));
+  /* A lighter tint keeps the accent text above 4.5:1 (Lighthouse, October 28, 2026). */
+  background: color-mix(in srgb, var(--c-a1) 6%, var(--c-card));
   color: var(--c-a1);
   font: inherit;
   font-weight: 600;

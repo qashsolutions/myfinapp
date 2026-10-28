@@ -5,6 +5,11 @@ import "@fontsource/outfit/600.css";
 import "@fontsource/outfit/700.css";
 import "@stackd/tokens/tokens.css";
 import "../styles/site.css";
+// The body and heading weights, preloaded so text is drawn in Outfit from the start and never
+// reflows when the font arrives (Lighthouse layout shift 0.24 on /privacy, October 28, 2026).
+import outfit400 from "@fontsource/outfit/files/outfit-latin-400-normal.woff2?url";
+import outfit500 from "@fontsource/outfit/files/outfit-latin-500-normal.woff2?url";
+import outfit600 from "@fontsource/outfit/files/outfit-latin-600-normal.woff2?url";
 import Logo from "../components/Logo.astro";
 import { APP_LIVE, APP_URL, COMPANY, FOOTER_LEGAL, FOOTER_PRODUCT, INSTALL_URL, NAME, NAV } from "../data/site.ts";
 
@@ -30,6 +35,9 @@ const path = Astro.url.pathname.replace(/\.html$/, "").replace(/\/index$/, "/").
     <meta property="og:type" content="website" />
     <meta name="theme-color" content="#F4F5F8" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#14163A" media="(prefers-color-scheme: dark)" />
+    {[outfit400, outfit500, outfit600].map((href) => (
+      <link rel="preload" as="font" type="font/woff2" href={href} crossorigin />
+    ))}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="canonical" href={new URL(path, Astro.site)} />
   </head>
