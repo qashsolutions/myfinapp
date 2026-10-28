@@ -7,7 +7,7 @@ import { compareLocal, fmtLocal, type Local, parseClock, parseLocal } from "./no
 import { compareText } from "./text.ts";
 
 export const HORIZON_DAYS = 30;
-export const SEND_TIME = "09:00"; // proposed: morning sends for dated alerts
+export const SEND_TIME = "09:00"; // dated alerts, unless the person picks their own time (`time`)
 
 export interface ScheduledAlert {
   type: string;
@@ -28,6 +28,11 @@ function pref(prefs: Record<string, unknown>, name: string): Record<string, unkn
   if (p === undefined || p === null) return { enabled: false };
   if (!isRecord(p) || typeof p.enabled !== "boolean") throw new RuleError("invalid_prefs");
   return p;
+}
+
+/** Python's dict.get(key, fallback): the fallback only when the key is missing, never for null. */
+function opt(p: Record<string, unknown>, key: string, fallback: unknown): unknown {
+  return p[key] === undefined ? fallback : p[key];
 }
 
 function list(value: unknown): unknown[] {
@@ -57,13 +62,13 @@ export function schedule(inputs: unknown): { alerts: ScheduledAlert[] } {
 
   const up = pref(prefs, "upcoming_expense");
   if (up.enabled) {
-    const lead = assertInt(up.lead_days ?? 3);
+    const lead = assertInt(opt(up, "lead_days", 3));
     if (lead < 0) throw new RuleError("invalid_prefs");
     for (const item of list(inputs.upcoming)) {
       if (!isRecord(item) || item.kind !== "bill" || item.matched) continue;
       const when = parseDate(item.date);
       if (typeof item.series_id !== "string") throw new RuleError("invalid_inputs");
-      let due = at(addDays(when, -lead), SEND_TIME);
+      let due = at(addDays(when, -lead), opt(up, "time", SEND_TIME));
       if (compareLocal(due, now) < 0) due = now;
       add("upcoming_expense", due, `upcoming:${item.series_id}:${iso(when)}`);
     }
@@ -79,7 +84,7 @@ export function schedule(inputs: unknown): { alerts: ScheduledAlert[] } {
 
   const chk = pref(prefs, "challenge_checkin");
   if (chk.enabled) {
-    const clock = chk.time ?? "19:30";
+    const clock = opt(chk, "time", "19:30");
     for (const ch of list(inputs.challenges)) {
       if (!isRecord(ch) || typeof ch.group_id !== "string") throw new RuleError("invalid_inputs");
       const end = parseDate(ch.end_date);
@@ -94,7 +99,7 @@ export function schedule(inputs: unknown): { alerts: ScheduledAlert[] } {
 
   const behind = pref(prefs, "goal_behind_pace");
   if (behind.enabled) {
-    const periods = assertInt(behind.periods ?? 1);
+    const periods = assertInt(opt(behind, "periods", 1));
     if (periods < 1) throw new RuleError("invalid_prefs");
     for (const g of list(inputs.goals)) {
       if (!isRecord(g) || typeof g.id !== "string") throw new RuleError("invalid_inputs");
@@ -122,9 +127,9 @@ export function schedule(inputs: unknown): { alerts: ScheduledAlert[] } {
 
   const recap = pref(prefs, "weekly_recap");
   if (recap.enabled) {
-    const wd = assertInt(recap.day ?? 0);
+    const wd = assertInt(opt(recap, "day", 0));
     if (wd < 0 || wd > 6) throw new RuleError("invalid_prefs");
-    const clock = recap.time ?? "09:00";
+    const clock = opt(recap, "time", "09:00");
     let day = today;
     for (let i = 0; i < 8; i += 1) {
       if (sundayFirst(day) === wd) {

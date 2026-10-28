@@ -19,11 +19,31 @@ import {
 
 export const RETENTION_KEY = "receipts.retention";
 export const DEFAULT_RETENTION: ReceiptRetention = "90d";
-export const RETENTION_LABELS: Record<ReceiptRetention, string> = {
+/** The suggested choices; any number of days from 1 to `MAX_RETENTION_DAYS` is allowed too. */
+export const RETENTION_LABELS: Record<"90d" | "1y" | "forever", string> = {
   "90d": "90 days",
   "1y": "1 year",
   forever: "Forever",
 };
+export const MAX_RETENTION_DAYS = 3650;
+
+function ownDays(retention: string): number | null {
+  const m = /^([0-9]{1,4})d$/.exec(retention);
+  const n = m ? Number(m[1]) : null;
+  return n !== null && n >= 1 && n <= MAX_RETENTION_DAYS ? n : null;
+}
+
+export function isRetention(value: unknown): value is ReceiptRetention {
+  return typeof value === "string" && (value in RETENTION_LABELS || ownDays(value) !== null);
+}
+
+/** "90 days", "1 year", "Forever", or the person's own "45 days". */
+export function retentionLabel(retention: ReceiptRetention): string {
+  if (retention in RETENTION_LABELS)
+    return RETENTION_LABELS[retention as keyof typeof RETENTION_LABELS];
+  const n = ownDays(retention) ?? 90;
+  return `${n} ${n === 1 ? "day" : "days"}`;
+}
 
 export class ReceiptError extends Error {
   constructor(public readonly code: "unsupported" | "unreadable") {
@@ -166,7 +186,8 @@ export async function purgeDateFor(
   created: string,
 ): Promise<string | null> {
   if (retention === "forever") return null;
-  return retention === "90d" ? addDays(created, 90) : addMonths(created, 12);
+  if (retention === "1y") return addMonths(created, 12);
+  return addDays(created, ownDays(retention) ?? 90);
 }
 
 /** Strips the photo, stores it, and opens a pending receipt for the entry being written. */
@@ -239,8 +260,7 @@ export async function purgeExpiredReceipts(db: StackdDb, today: string): Promise
 
 export async function getRetention(db: StackdDb): Promise<ReceiptRetention> {
   const row = await db.settings.get(RETENTION_KEY);
-  const value = row?.value as ReceiptRetention | undefined;
-  return value && value in RETENTION_LABELS ? value : DEFAULT_RETENTION;
+  return isRetention(row?.value) ? row.value : DEFAULT_RETENTION;
 }
 
 /** Saves the setting and re-dates every photo still on the device from its own creation date. */

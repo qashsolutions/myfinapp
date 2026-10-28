@@ -15,8 +15,12 @@ import {
   parseAmount,
 } from "../../engine/bridge.ts";
 import { formatCents, formatDay } from "../../lib/format.ts";
+import { checkpointsText, parseCheckpoints } from "../../lib/ownValues.ts";
 import { payScheduleOf } from "../home/useHome.ts";
+import { ChipsOrOwn } from "./CustomValueSheet.tsx";
 import { CADENCE_WORDS } from "./GoalCard.tsx";
+import { MILESTONE_SETS } from "./presets.ts";
+import { changeMilestones } from "./useGoals.ts";
 
 const CADENCE_NOUN: Record<string, [string, string]> = {
   weekly: ["week", "weeks"],
@@ -68,6 +72,8 @@ export function GoalExtras({
   const [streak, setStreak] = useState<GoalStreak | null>(null);
   const [milestones, setMilestones] = useState<MilestoneResult[] | null>(null);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [milestonesOpen, setMilestonesOpen] = useState(false);
+  const canMilestone = goal.kind === "save" && !goal.is_ongoing && !!goal.target_cents;
   const [moveTo, setMoveTo] = useState<string>("");
   const [moveText, setMoveText] = useState("");
   const [templateOpen, setTemplateOpen] = useState(false);
@@ -130,7 +136,10 @@ export function GoalExtras({
 
   useEffect(() => {
     const bps = goal.milestones_bps ?? [];
-    if (goal.kind !== "save" || goal.is_ongoing || !goal.target_cents || bps.length === 0) return;
+    if (goal.kind !== "save" || goal.is_ongoing || !goal.target_cents || bps.length === 0) {
+      setMilestones(null);
+      return;
+    }
     let alive = true;
     void (async () => {
       const list = await goalMilestones(goal.target_cents as number, savedCents, bps);
@@ -240,7 +249,14 @@ export function GoalExtras({
             label="Progress to the target"
             valueText={`${formatCents(savedCents)} of ${formatCents(goal.target_cents ?? 0)}`}
           />
+          <Button size="sm" variant="ghost" onClick={() => setMilestonesOpen(true)}>
+            Change milestones
+          </Button>
         </Card>
+      ) : canMilestone ? (
+        <Button variant="ghost" block onClick={() => setMilestonesOpen(true)}>
+          Add milestones
+        </Button>
       ) : null}
       <div className="transfer-choice">
         <Button variant="secondary" onClick={() => onPause(!goal.paused_at)}>
@@ -269,6 +285,47 @@ export function GoalExtras({
           {note}
         </p>
       ) : null}
+
+      <Sheet
+        open={milestonesOpen}
+        onClose={() => setMilestonesOpen(false)}
+        title="Cheer at which milestones?"
+      >
+        <ChipsOrOwn
+          name={`${ids}-milestones`}
+          legend="Milestones"
+          options={MILESTONE_SETS.map((set) => [set.join(","), checkpointsText(set)])}
+          value={(goal.milestones_bps ?? []).join(",")}
+          display={(v) => checkpointsText(v.split(",").map(Number))}
+          onPick={async (v) => {
+            await changeMilestones(db, goal, v.split(",").map(Number), savedCents, today);
+            setMilestonesOpen(false);
+          }}
+          own={{
+            label: "Your own milestones, in percent",
+            placeholder: "Or your own, like 10, 50, 90",
+            inputMode: "text",
+            parse: (t) => {
+              const bps = parseCheckpoints(t);
+              return bps
+                ? { value: bps.join(",") }
+                : { error: "Up to five whole percents from 1 to 99, like 10, 50, 90." };
+            },
+          }}
+        />
+        {(goal.milestones_bps ?? []).length > 0 ? (
+          <Button
+            variant="ghost"
+            block
+            onClick={async () => {
+              await changeMilestones(db, goal, [], savedCents, today);
+              setMilestonesOpen(false);
+            }}
+          >
+            No milestones
+          </Button>
+        ) : null}
+      </Sheet>
 
       <Sheet open={moveOpen} onClose={() => setMoveOpen(false)} title="Move money to another jar">
         <p className="auth__hint">

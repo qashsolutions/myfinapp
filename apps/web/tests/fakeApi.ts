@@ -277,7 +277,7 @@ export function defaultNotifications(): FakeApi["notifications"] {
     prefs: {
       upcoming_expense: {
         enabled: true,
-        time_of_day: null,
+        time_of_day: "09:00",
         days: null,
         lead_days: 3,
         threshold: null,

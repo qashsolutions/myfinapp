@@ -1,3 +1,5 @@
+import "../entries/entries.css";
+
 import { Button, Sheet } from "@stackd/ui";
 import { useState } from "react";
 
@@ -130,5 +132,93 @@ export function ChoiceChips({
         </label>
       ))}
     </fieldset>
+  );
+}
+
+/**
+ * Suggested chips plus the person's own value (owner, October 27, 2026): the chips are
+ * suggestions, the box takes anything `parse` accepts. A value that matches no chip shows in
+ * the box, so a saved own value is never hidden.
+ */
+export function ChipsOrOwn({
+  name,
+  legend,
+  options,
+  value,
+  onPick,
+  own,
+  display = (v) => v,
+}: {
+  name: string;
+  legend: string;
+  options: Array<[string, string]>;
+  value: string;
+  onPick: (v: string) => void;
+  /** How a saved value that matches no chip reads in the box (e.g. "10%, 50%" for "1000,5000"). */
+  display?: (value: string) => string;
+  own: {
+    label: string;
+    placeholder?: string;
+    inputMode?: "numeric" | "decimal" | "text";
+    type?: "text" | "date";
+    min?: string;
+    max?: string;
+    /** Returns the value to pick, or a message to show. */
+    parse: (text: string) => { value: string } | { error: string };
+  };
+}) {
+  const known = options.some(([v]) => v === value);
+  const [text, setText] = useState(known ? "" : display(value));
+  const [error, setError] = useState<string | null>(null);
+  function use() {
+    const r = own.parse(text);
+    if ("error" in r) {
+      setError(r.error);
+      return;
+    }
+    setError(null);
+    onPick(r.value);
+  }
+  return (
+    <div className="own-choice">
+      <p className="auth__label">{legend}</p>
+      <ChoiceChips
+        name={name}
+        options={options}
+        value={value}
+        onPick={(v) => {
+          setText("");
+          setError(null);
+          onPick(v);
+        }}
+      />
+      <div className="own-choice__row">
+        <input
+          className="auth__input"
+          type={own.type ?? "text"}
+          inputMode={own.type === "date" ? undefined : (own.inputMode ?? "numeric")}
+          min={own.min}
+          max={own.max}
+          placeholder={own.placeholder}
+          aria-label={own.label}
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setError(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") use();
+          }}
+        />
+        <Button variant="secondary" size="sm" onClick={use} disabled={text.trim() === ""}>
+          Use
+        </Button>
+      </div>
+      {error ? (
+        <p className="auth__error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }

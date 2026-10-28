@@ -3,7 +3,7 @@
 Soft delete happens at once: every session is revoked, passkeys and pending codes are removed,
 the display name is cleared and the email is replaced by a tombstone so the address can sign
 up again. Group memberships stay so the group shows "Former member", and a group the user
-owned passes to its longest-standing other member (proposed) so it survives the purge. The
+owned passes to its longest-standing other member (owner sign-off, October 27, 2026) so it survives the purge. The
 hard purge, after the grace period, deletes the user row and everything that cascades from
 it; `stackd-api purge-deleted` runs it (a scheduled job in production). The device wipes its
 own copy. A live Stripe subscription is ended at once, with no further charge, and the unused

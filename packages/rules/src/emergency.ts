@@ -3,7 +3,8 @@
 import { RuleError } from "./errors.ts";
 import { assertInt, ratioBps, roundDiv } from "./money.ts";
 
-export const TARGET_MONTHS = [3, 6] as const;
+export const MIN_TARGET_MONTHS = 1;
+export const MAX_TARGET_MONTHS = 12;
 export const STARTER_CENTS = 100000;
 
 function amount(value: unknown): number {
@@ -60,7 +61,8 @@ export function summary(
   const essentials = amount(essentialsCents);
   const plan = amount(monthlyPlanCents);
   const months = assertInt(targetMonths);
-  if (!(TARGET_MONTHS as readonly number[]).includes(months)) throw new RuleError("invalid_target");
+  if (months < MIN_TARGET_MONTHS || months > MAX_TARGET_MONTHS)
+    throw new RuleError("invalid_target");
   const milestone = (
     key: Milestone["key"],
     target: number,

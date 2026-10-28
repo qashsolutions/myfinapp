@@ -559,7 +559,7 @@ async function pairTransfers(
   return { others, count };
 }
 
-export const SYNC_EVERY_MS = 15 * 60 * 1000; // proposed: on open, then at most every 15 minutes
+export const SYNC_EVERY_MS = 15 * 60 * 1000; // on open, then at most every 15 minutes (owner sign-off, October 27, 2026)
 
 export interface SyncAllResult {
   report: SyncReport;

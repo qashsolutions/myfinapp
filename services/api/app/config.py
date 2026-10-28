@@ -39,10 +39,10 @@ class Settings(BaseSettings):
     # set, a request without it is refused, so the container's own address is useless directly.
     origin_verify: SecretStr | None = None
     step_up_max_age_seconds: int = (
-        300  # proposed: a passkey check within 5 minutes for sensitive routes
+        300  # a passkey check within 5 minutes for sensitive routes (owner sign-off, October 27, 2026)
     )
 
-    # Auth (chunk 1.2). Values marked proposed come from docs/spec.md "Authentication".
+    # Auth (chunk 1.2). Values from docs/spec.md "Authentication" (owner sign-off, October 27, 2026).
     secret_key: SecretStr  # HMAC key for one-time codes and session tokens at rest
     rp_id: str = "localhost"  # WebAuthn relying party id: the app's registrable domain
     rp_name: str = "Qash"
@@ -103,10 +103,10 @@ class Settings(BaseSettings):
     link_token_key: SecretStr | None = (
         None  # Fernet key (urlsafe base64, 32 bytes); nothing else uses it
     )
-    otp_ttl_seconds: int = 600  # proposed: codes are valid for 10 minutes
-    otp_max_attempts: int = 5  # proposed: then a lockout
-    otp_lockout_seconds: int = 900  # proposed: 15 minutes
-    otp_resend_seconds: int = 60  # proposed: resend cooldown shown as a countdown
+    otp_ttl_seconds: int = 600  # codes are valid for 10 minutes
+    otp_max_attempts: int = 5  # then a lockout
+    otp_lockout_seconds: int = 900  # 15 minutes
+    otp_resend_seconds: int = 60  # resend cooldown shown as a countdown
 
     # Transactional email: SMTP keeps the provider choice open (any provider offers a relay).
     email_backend: Literal["console", "smtp", "memory"] = "console"

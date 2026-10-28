@@ -6,6 +6,8 @@ import { useId, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
 import { parseAmount } from "../../engine/bridge.ts";
 import { formatCents } from "../../lib/format.ts";
+import { parseWholeNumber } from "../../lib/ownValues.ts";
+import { ChipsOrOwn } from "../goals/CustomValueSheet.tsx";
 import { saveEmergencyFund, useEmergencySummary } from "./useEmergency.ts";
 
 function monthsText(n: number): string {
@@ -70,22 +72,24 @@ export function EmergencySection({ savedCents }: { savedCents: number }) {
           Edit essentials and plan
         </Button>
       </Card>
-      <fieldset className="segmented" style={{ border: 0, margin: 0 }}>
-        <legend className="sr-only">Target</legend>
-        {([3, 6] as const).map((months) => (
-          <label className="segmented__option" key={months}>
-            <input
-              className="segmented__input"
-              type="radio"
-              name={`${ids}-target`}
-              value={months}
-              checked={fund.target_months === months}
-              onChange={() => void saveEmergencyFund(db, { target_months: months })}
-            />
-            {months}-month target
-          </label>
-        ))}
-      </fieldset>
+      <ChipsOrOwn
+        name={`${ids}-target`}
+        legend="Target"
+        options={[
+          ["3", "3-month target"],
+          ["6", "6-month target"],
+        ]}
+        value={String(fund.target_months)}
+        onPick={(v) => void saveEmergencyFund(db, { target_months: Number(v) })}
+        own={{
+          label: "Your own target in months, 1 to 12",
+          placeholder: "Or your own: 1 to 12 months",
+          parse: (t) => {
+            const n = parseWholeNumber(t, 1, 12);
+            return n === null ? { error: "Pick 1 to 12 months." } : { value: String(n) };
+          },
+        }}
+      />
       <Card as="section" aria-label="Milestones">
         {summary?.milestones.map((m) => (
           <div key={m.key} style={{ padding: "6px 0" }}>

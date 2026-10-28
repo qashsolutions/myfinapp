@@ -4,7 +4,8 @@ Runway   saved ÷ monthly essentials, one decimal (returned in tenths of a month
          essentials = 0 → hidden (None).
 ETA      ceil((target − saved) ÷ monthly plan) months; plan = 0 → None ("set a monthly amount");
          already there → 0.
-Milestones  the $1,000 starter fund, one month of essentials, and the 3- or 6-month target.
+Milestones  the $1,000 starter fund, one month of essentials, and the target of
+            1 to 12 months (the person picks; 3 and 6 are offered).
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from . import money
 from .errors import RuleError
 from .money import _int
 
-TARGET_MONTHS = (3, 6)
+MIN_TARGET_MONTHS, MAX_TARGET_MONTHS = 1, 12
 STARTER_CENTS = 100000
 
 
@@ -49,7 +50,7 @@ def summary(
         _amount(monthly_plan_cents),
     )
     months = _int(target_months)
-    if months not in TARGET_MONTHS:
+    if not MIN_TARGET_MONTHS <= months <= MAX_TARGET_MONTHS:
         raise RuleError("invalid_target")
     milestones: list[dict] = []
 

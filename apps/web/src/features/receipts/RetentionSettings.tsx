@@ -4,9 +4,15 @@ import { Button, Card } from "@stackd/ui";
 import { useId, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { ReceiptRetention } from "../../data/db.ts";
-import { RETENTION_LABELS, removeReceiptPhoto, setRetention } from "../../data/receipts.ts";
+import {
+  MAX_RETENTION_DAYS,
+  RETENTION_LABELS,
+  removeReceiptPhoto,
+  setRetention,
+} from "../../data/receipts.ts";
 import { todayIso } from "../../lib/format.ts";
-import { ChoiceChips } from "../goals/CustomValueSheet.tsx";
+import { parseWholeNumber } from "../../lib/ownValues.ts";
+import { ChipsOrOwn } from "../goals/CustomValueSheet.tsx";
 import { useRetention } from "./useReceipts.ts";
 
 /** Settings → Receipts & your data: how long receipt photos stay on this device. */
@@ -33,18 +39,26 @@ export function RetentionSettings() {
         Photos stay on this device only. After this long they are removed; the amounts you entered
         stay.
       </p>
-      <fieldset className="chips" style={{ border: 0, margin: 0, padding: "4px 0 0" }}>
-        <legend className="sr-only">Keep receipt photos for</legend>
-        <ChoiceChips
-          name={`${ids}-retention`}
-          options={(Object.keys(RETENTION_LABELS) as ReceiptRetention[]).map((k) => [
-            k,
-            RETENTION_LABELS[k],
-          ])}
-          value={retention}
-          onPick={(v) => void setRetention(db, v as ReceiptRetention, todayIso())}
-        />
-      </fieldset>
+      <ChipsOrOwn
+        name={`${ids}-retention`}
+        legend="Keep receipt photos for"
+        options={(Object.keys(RETENTION_LABELS) as Array<keyof typeof RETENTION_LABELS>).map(
+          (k) => [k, RETENTION_LABELS[k]],
+        )}
+        value={retention}
+        display={(v) => v.replace(/d$/, "")}
+        onPick={(v) => void setRetention(db, v as ReceiptRetention, todayIso())}
+        own={{
+          label: `Your own number of days, 1 to ${MAX_RETENTION_DAYS}`,
+          placeholder: `Or your own: 1 to ${MAX_RETENTION_DAYS} days`,
+          parse: (t) => {
+            const n = parseWholeNumber(t, 1, MAX_RETENTION_DAYS);
+            return n === null
+              ? { error: `Pick a number of days from 1 to ${MAX_RETENTION_DAYS}.` }
+              : { value: `${n}d` };
+          },
+        }}
+      />
       <Button variant="ghost" size="sm" onClick={deleteAll}>
         <span style={{ color: "var(--c-danger)" }}>
           {confirm ? "Really delete every receipt photo" : "Delete all receipt photos"}

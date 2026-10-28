@@ -2,7 +2,7 @@
 
 docs/spec.md "Account security (day 1)": re-verify with the passkey before linking a bank,
 exporting data, deleting the account, changing email or phone, or changing plan, even when
-unlocked. How fresh is "fresh" is STACKD_STEP_UP_MAX_AGE_SECONDS (proposed: 5 minutes).
+unlocked. How fresh is "fresh" is STACKD_STEP_UP_MAX_AGE_SECONDS (5 minutes).
 """
 
 from __future__ import annotations

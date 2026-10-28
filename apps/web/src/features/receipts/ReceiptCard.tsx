@@ -4,9 +4,9 @@ import { Button, Card } from "@stackd/ui";
 import { type ChangeEvent, useId, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
 import {
-  RETENTION_LABELS,
   ReceiptError,
   removeReceiptPhoto,
+  retentionLabel,
   storeReceiptPhoto,
 } from "../../data/receipts.ts";
 import { formatDay, todayIso } from "../../lib/format.ts";
@@ -42,7 +42,7 @@ export function ReceiptCard({
   const keptLine =
     retention === "forever"
       ? "Kept on this device until you remove it"
-      : `Kept on this device for ${RETENTION_LABELS[retention].toLowerCase()}`;
+      : `Kept on this device for ${retentionLabel(retention).toLowerCase()}`;
 
   async function attachFile(file: File) {
     setError(null);
@@ -173,7 +173,7 @@ export function ReceiptCard({
         </p>
         <p className="receipt-card__sub">
           {photoGone
-            ? `Removed after ${retention === "forever" ? "you asked" : RETENTION_LABELS[retention].toLowerCase()}${view.receipt.purged_at ? ` on ${formatDay(view.receipt.purged_at.slice(0, 10))}` : ""}. The entry stays.`
+            ? `Removed after ${retention === "forever" ? "you asked" : retentionLabel(retention).toLowerCase()}${view.receipt.purged_at ? ` on ${formatDay(view.receipt.purged_at.slice(0, 10))}` : ""}. The entry stays.`
             : view.receipt.purge_after
               ? `${keptLine} · until ${formatDay(view.receipt.purge_after)}`
               : keptLine}

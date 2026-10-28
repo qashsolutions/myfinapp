@@ -1,5 +1,6 @@
 /**
- * The blanks' preset choices (docs/spec.md "Custom goals" table; Custom… arrives in 1.5b).
+ * The blanks' suggested choices (docs/spec.md "Custom goals" table; owner sign-off October 27,
+ * 2026). Every blank also takes the person's own value.
  * Amounts in cents. Deadlines are 3, 6 and 12 months out, computed by the engine.
  */
 
@@ -13,9 +14,18 @@ export const KIND_LABELS: Record<GoalKind, string> = {
 };
 
 export const WHAT_FOR = ["Travel", "Kids' education", "Emergency fund", "New car"];
-export const PAYOFF_WHAT = ["Credit card", "Car loan", "Student loan", "Other debt"]; // proposed
-export const HABIT_WHAT = ["no eating out", "no takeout", "cooking at home", "no shopping"]; // proposed
+export const PAYOFF_WHAT = ["Credit card", "Car loan", "Student loan", "Other debt"];
+export const HABIT_WHAT = ["no eating out", "no takeout", "cooking at home", "no shopping"];
 export const AMOUNTS = [50000, 100000, 200000, 500000];
-export const SPEND_LESS_AMOUNTS = [5000, 10000, 15000, 20000]; // proposed
-export const HABIT_DAYS = [7, 14, 30]; // proposed
+export const SPEND_LESS_AMOUNTS = [5000, 10000, 15000, 20000];
+export const HABIT_DAYS = [7, 14, 30];
 export const DEADLINE_MONTHS = [3, 6, 12];
+
+/** Milestones on by default: quarter checkpoints, in basis points. */
+export const DEFAULT_MILESTONES_BPS = [2500, 5000, 7500];
+/** Suggested checkpoint sets; the person can type their own (up to five percents). */
+export const MILESTONE_SETS: number[][] = [
+  DEFAULT_MILESTONES_BPS,
+  [5000],
+  [2000, 4000, 6000, 8000],
+];

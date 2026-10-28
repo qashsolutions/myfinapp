@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -29,6 +29,7 @@ router = APIRouter(
     prefix="/api/notifications", tags=["notifications"], dependencies=[Depends(same_site_only)]
 )
 
+MAX_PAUSE_DAYS = 365  # "Pause until" takes a day up to a year ahead
 CLOCK = re.compile(r"^[0-9]{2}:[0-9]{2}$")
 DAYS = re.compile(r"^[0-6](,[0-6])*$")
 
@@ -186,12 +187,15 @@ def update_settings(
         if g.pause is not None:
             now = datetime.now(UTC)
             s.paused_until = (
-                None
-                if g.pause == "none"
-                else now + (__import__("datetime").timedelta(days=1 if g.pause == "day" else 7))
+                None if g.pause == "none" else now + timedelta(days=1 if g.pause == "day" else 7)
             )
         elif g.paused_until is not None:
-            s.paused_until = g.paused_until
+            now = datetime.now(UTC)
+            until = g.paused_until
+            # A day in the past simply means not paused; more than a year ahead is refused.
+            if until.tzinfo is None or until > now + timedelta(days=MAX_PAUSE_DAYS + 1):
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="invalid_pause")
+            s.paused_until = until
     for kind, patch in (body.prefs or {}).items():
         if kind not in ALERT_TYPES:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="invalid_type")
