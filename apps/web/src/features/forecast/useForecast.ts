@@ -27,6 +27,7 @@ import { addDaysIso } from "../../lib/dates.ts";
 import { compareText } from "../../lib/order.ts";
 import { payDaysOf } from "../budget/payDays.ts";
 import { useBudget } from "../budget/useBudget.ts";
+import { bankRows } from "../entries/splits.ts";
 import { toRecurringEntry } from "./useRecurring.ts";
 
 export const FORECAST_DAYS = 30;
@@ -166,9 +167,8 @@ export function useForecast(asOf: string, days = FORECAST_DAYS): ForecastView {
               (a, b) => compareText(b.as_of, a.as_of) || compareText(b.created_at, a.created_at),
             )[0] ?? null)
         : null;
-      const since = account
-        ? entries.filter((e) => e.account_id === account.id && !e.split_parent_id)
-        : [];
+      // Every entry and every split part: together they are the bank's rows, counted once
+      const since = account ? entries.filter((e) => e.account_id === account.id) : [];
       const start = await startBalance(
         anchor ? { as_of: anchor.as_of, balance_cents: anchor.balance_cents } : null,
         since.map((e) => ({ date: e.date, amount_cents: e.amount_cents, direction: e.direction })),
@@ -177,7 +177,8 @@ export function useForecast(asOf: string, days = FORECAST_DAYS): ForecastView {
         .filter((b) => b.bucket === "need" || b.bucket === "want")
         .reduce((sum, b) => sum + b.planned_cents, 0);
       // A not-counted entry still moved money (the balance keeps it) but isn't typical spending.
-      const past = entries.filter((e) => e.date <= asOf && !e.split_parent_id && !e.not_counted);
+      // Split parts are spending too (each keeps its own Don't count).
+      const past = entries.filter((e) => e.date <= asOf && !e.not_counted);
       const daily = await typicalDailySpending(
         past.map((e) => ({
           date: e.date,
@@ -203,7 +204,7 @@ export function useForecast(asOf: string, days = FORECAST_DAYS): ForecastView {
       ];
       const upcoming = await upcomingItems(
         inputs,
-        entries.filter((e) => !e.split_parent_id).map(toRecurringEntry),
+        bankRows(entries).map(toRecurringEntry),
         asOf,
         days,
       );

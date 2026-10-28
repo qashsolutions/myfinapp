@@ -13,8 +13,12 @@ written against both.
 1. **Every bank cent counts once.** An imported, linked, split, renamed or posted entry, plus its
    split parts, adds up to the bank's row. Split parts never carry `provider_txn_id`; sync sets
    the entry to the bank's amount minus all its parts, a part split again included (parts are
-   collected all the way down, for the sum and for removal; October 28, 2026).
-   `apps/web/tests/invariants/money-month.test.tsx` "a part split again…" ·
+   collected all the way down, for the sum and for removal; October 28, 2026). Every balance
+   (Next 30 days, net worth and its history) counts the entry and all its parts; readers that
+   compare with the bank's amount (recurring payees, matching upcoming bills) use
+   `entries/splits.ts` `bankRows`.
+   `apps/web/tests/invariants/money-month.test.tsx` "a part split again…", "a split entry
+   after the balance…" · `splits.test.ts` ·
    `linked-sync.test.tsx` "a split linked entry"
    · `money.test.tsx` "splits an entry into two parts that still add up"
 2. **A transfer is both sides or neither.** Marking, matching or unmarking one side does the same
@@ -107,9 +111,12 @@ written against both.
 22. **Removing something removes what hangs off it** (October 28, 2026). An account takes its
     entries, imports, anchors, mapping and kept files, its entries' receipts and photos, its
     card details and its net worth choice (with a tombstone where the table syncs); an entry
-    takes its receipt and photo. Nothing is left on the device that no screen can reach.
+    takes its split parts (a part's parts too) and its receipt and photo, also when the bank
+    removes it; a photo replaced on an entry takes its old receipt. Nothing is left on the
+    device that no screen can reach.
     `settings-data.test.tsx` "manages accounts…" · `entries.test.tsx` "edits and deletes an
-    entry…"
+    entry…", "deleting a split entry…" · `linked-sync.test.tsx` "a row the bank removes takes
+    its receipt…" · `receipts.test.tsx` "replacing an entry's photo…"
 
 ## Accounts and money on the server
 

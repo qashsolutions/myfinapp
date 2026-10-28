@@ -285,6 +285,16 @@ export async function removeReceiptPhoto(db: StackdDb, receiptId: string): Promi
 export async function deleteReceiptsOf(db: StackdDb, entryIds: string[]): Promise<void> {
   if (entryIds.length === 0) return;
   const receipts = await db.receipts.where("entry_id").anyOf(entryIds).toArray();
+  await deleteReceipts(
+    db,
+    receipts.map((r) => r.id),
+  );
+}
+
+/** Deletes these receipts and their photos (a photo replaced on its entry, say). */
+export async function deleteReceipts(db: StackdDb, receiptIds: string[]): Promise<void> {
+  if (receiptIds.length === 0) return;
+  const receipts = (await db.receipts.bulkGet(receiptIds)).filter((r) => r !== undefined);
   await db.files.bulkDelete(receipts.map((r) => r.file_id).filter((f): f is string => !!f));
   await db.receipts.bulkDelete(receipts.map((r) => r.id));
 }

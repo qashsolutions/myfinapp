@@ -26,12 +26,14 @@ import type {
   Entry,
   StackdDb,
 } from "../../data/db.ts";
+import { deleteReceiptsOf } from "../../data/receipts.ts";
 import { engine, matchTransfers, type RuleEntry } from "../../engine/bridge.ts";
 import { maskNumbers } from "../../importers/masking.ts";
 import { addDaysIso } from "../../lib/dates.ts";
 import { todayIso } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
 import { savedNames } from "../entries/entryActions.ts";
+import { splitTree } from "../entries/splits.ts";
 import { releasePartners } from "../entries/transfers.ts";
 import { loadCategorizer } from "../imports/importFlow.ts";
 import { unlinkAccounts } from "./linking.ts";
@@ -329,11 +331,17 @@ export async function applySync(
 
   await db.transaction(
     "rw",
-    [db.entries, db.balance_anchors, db.settings, db.tombstones, db.receipts],
+    [db.entries, db.balance_anchors, db.settings, db.tombstones, db.receipts, db.files],
     async () => {
       for (const r of plan.receipts)
         await db.receipts.update(r.id, { entry_id: r.entry_id, updated_at: stamp });
       if (plan.remove.length) {
+        // A receipt a posted row did not take over goes with its entry (moved ones point on now)
+        const kept = new Set(plan.put.map((e) => e.id));
+        await deleteReceiptsOf(
+          db,
+          plan.remove.filter((id) => !kept.has(id)),
+        );
         await db.entries.bulkDelete(plan.remove);
         await recordDeletion(db, "entries", plan.remove, now);
         await releasePartners(db, plan.remove, stamp); // before the puts, which relink posted rows
@@ -407,30 +415,8 @@ async function settleSplits(
   const removing = new Set(plan.remove);
   const kept = new Set<string>();
   const parts: Entry[] = [];
-  // Every part, by its parent: a part can be split again, so parts are collected all the way down.
-  const children = new Map<string, Entry[]>();
-  await db.entries
-    .filter((e) => !!e.split_parent_id)
-    .each((e) => {
-      const list = children.get(e.split_parent_id as string) ?? [];
-      list.push(e);
-      children.set(e.split_parent_id as string, list);
-    });
-  const partsOf = (roots: Iterable<string>): Entry[] => {
-    const found: Entry[] = [];
-    const seen = new Set<string>();
-    const queue = [...roots];
-    while (queue.length) {
-      const id = queue.shift() as string;
-      for (const child of children.get(id) ?? []) {
-        if (seen.has(child.id)) continue;
-        seen.add(child.id);
-        found.push(child);
-        queue.push(child.id);
-      }
-    }
-    return found;
-  };
+  // A part can be split again, so parts are collected all the way down.
+  const partsOf = splitTree(await db.entries.filter((e) => !!e.split_parent_id).toArray());
   for (const entry of plan.put) {
     const cents = bankCents.get(entry.id);
     if (cents === undefined) continue;

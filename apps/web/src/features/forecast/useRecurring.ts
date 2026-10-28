@@ -13,6 +13,7 @@ import {
 } from "../../data/db.ts";
 import { cleanDescription, type DetectedSeries, detectRecurring } from "../../engine/bridge.ts";
 import { byLabel, compareText } from "../../lib/order.ts";
+import { bankRows } from "../entries/splits.ts";
 
 export const INTERVAL_LABELS: Record<RecurringInterval, string> = {
   weekly: "Weekly",
@@ -51,10 +52,7 @@ export function useRecurringSuggestions(asOf: string): Suggestion[] | undefined 
     if (!entries || !known) return;
     let alive = true;
     void (async () => {
-      const detected = await detectRecurring(
-        entries.filter((e) => !e.split_parent_id).map(toRecurringEntry),
-        asOf,
-      );
+      const detected = await detectRecurring(bankRows(entries).map(toRecurringEntry), asOf);
       const seen = new Set(known.map((s) => `${s.payee}\u0000${s.kind}`));
       const byId = new Map(entries.map((e) => [e.id, e]));
       const fresh = detected

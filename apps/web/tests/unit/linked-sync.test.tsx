@@ -234,6 +234,35 @@ describe("linked sync (chunk 3.3)", () => {
     expect(await db.receipts.get("rc-1")).toMatchObject({ entry_id: "lnk-t9" });
   });
 
+  it("a row the bank removes takes its receipt and photo with it", async () => {
+    await applySync(db, "bc1", page({ added: [txn({ amount_cents: 2000 })] }), NOW);
+    await db.entries.update("lnk-t1", { receipt_id: "rc-1" });
+    await db.files.add({
+      id: "f-rc-1",
+      kind: "receipt",
+      import_id: null,
+      name: "receipt.jpg",
+      type: "image/jpeg",
+      size: 3,
+      blob: new Blob([new Uint8Array([1, 2, 3])]),
+      created_at: "2026-10-10T00:00:00Z",
+    });
+    await db.receipts.add({
+      id: "rc-1",
+      entry_id: "lnk-t1",
+      file_id: "f-rc-1",
+      status: "confirmed",
+      purge_after: null,
+      purged_at: null,
+      created_at: "2026-10-10T00:00:00Z",
+      updated_at: "2026-10-10T00:00:00Z",
+    });
+    await applySync(db, "bc1", page({ removed: ["t1"] }), NOW);
+    expect(await db.entries.count()).toBe(0);
+    expect(await db.receipts.count()).toBe(0);
+    expect(await db.files.count()).toBe(0);
+  });
+
   it("a posted transfer stays paired with the other side", async () => {
     await applySync(
       db,
