@@ -185,6 +185,81 @@ describe("manual entries live only on the device", () => {
     expect(tombs).toEqual(["hw", "hw-a", "hw-b"]);
   });
 
+  it("deleting a split part gives its money, and its own parts' money, back to the entry it came from", async () => {
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    const base = {
+      date: "2026-10-09",
+      direction: "out" as const,
+      merchant: "Hardware Store",
+      clean_description: "Hardware Store",
+      raw_description: null,
+      category_id: "cat-shopping",
+      account_id: "acct-cash",
+      source: "manual" as const,
+      receipt_id: null,
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      is_recurring: false,
+      created_at: "2026-10-09T10:00:00Z",
+      updated_at: "2026-10-09T10:00:00Z",
+    };
+    // $100 at the bank: $70 left on the entry, a $20 part, and that part's own $10 part
+    await db.entries.bulkAdd([
+      { ...base, id: "hw", amount_cents: 7000, split_parent_id: null },
+      { ...base, id: "hw-a", amount_cents: 2000, split_parent_id: "hw" },
+      { ...base, id: "hw-b", amount_cents: 1000, split_parent_id: "hw-a" },
+    ]);
+    await renderSignedIn("/entries/hw-a");
+    await waitFor(() => expect(screen.getByLabelText("Merchant")).toHaveValue("Hardware Store"));
+    await user.click(await screen.findByRole("button", { name: "Delete entry" }));
+    await user.click(screen.getByRole("button", { name: "Really delete this entry" }));
+    await waitFor(async () =>
+      expect((await db.entries.toArray()).map((e) => e.id)).toEqual(["hw"]),
+    );
+    expect((await db.entries.get("hw"))?.amount_cents).toBe(10000);
+    expect((await db.entries.get("hw"))?.updated_at).not.toBe(base.updated_at);
+  });
+
+  it("a part's new amount moves the difference to the entry it was split from, never past it", async () => {
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    const base = {
+      date: "2026-10-09",
+      direction: "out" as const,
+      merchant: "Hardware Store",
+      clean_description: "Hardware Store",
+      raw_description: null,
+      category_id: "cat-shopping",
+      account_id: "acct-cash",
+      source: "manual" as const,
+      receipt_id: null,
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      is_recurring: false,
+      created_at: "2026-10-09T10:00:00Z",
+      updated_at: "2026-10-09T10:00:00Z",
+    };
+    await db.entries.bulkAdd([
+      { ...base, id: "hw", amount_cents: 7000, split_parent_id: null },
+      { ...base, id: "hw-a", amount_cents: 3000, split_parent_id: "hw" },
+    ]);
+    await renderSignedIn("/entries/hw-a");
+    await waitFor(() => expect(screen.getByLabelText("Amount")).toHaveValue("30.00"));
+    // More than the $70 left: refused
+    await user.clear(screen.getByLabelText("Amount"));
+    await user.type(screen.getByLabelText("Amount"), "100");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText(/A part can't be more than/)).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Amount"));
+    await user.type(screen.getByLabelText("Amount"), "20");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(async () => expect((await db.entries.get("hw-a"))?.amount_cents).toBe(2000));
+    expect((await db.entries.get("hw"))?.amount_cents).toBe(8000);
+  });
+
   it("the month switcher asks the engine for bounds", async () => {
     const user = userEvent.setup();
     await renderSignedIn("/entries");

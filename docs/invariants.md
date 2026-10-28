@@ -17,16 +17,25 @@ written against both.
    (Next 30 days, net worth and its history) counts the entry and all its parts; readers that
    compare with the bank's amount (recurring payees, matching upcoming bills) use
    `entries/splits.ts` `bankRows`.
+   Deleting a part in the editor gives its amount and its own parts' back to the entry it was
+   split from, and a part's new amount moves the difference there (`splits.centsBackToParent`;
+   October 28, 2026).
    `apps/web/tests/invariants/money-month.test.tsx` "a part split again…", "a split entry
-   after the balance…" · `splits.test.ts` ·
+   after the balance…" · `splits.test.ts` · `entries.test.tsx` "deleting a split part gives its
+   money…", "a part's new amount moves the difference…" ·
    `linked-sync.test.tsx` "a split linked entry"
    · `money.test.tsx` "splits an entry into two parts that still add up"
 2. **A transfer is both sides or neither.** Marking, matching or unmarking one side does the same
    to the other, linked by `transfer_pair_id`.
    Marking by hand (the entry editor, Sort your spending) pairs the matching other side through
-   `entries/transfers.ts`, the same rule import and sync use. A split part (or a split parent) is never
+   `entries/transfers.ts`, the same rule import and sync use. Import, sync and marking by hand
+   take one candidate test, `transfers.isTransferCandidate`: not already a transfer or paired,
+   not pending, never a split part or parent, and never a row the same sync page removes
+   (October 28, 2026). A split part (or a split parent) is never
    a transfer side; both sides posting in one sync page stay paired; when one side goes
    (deleted, with its account, or by the bank) the other counts again (`releasePartners`).
+   `import-flow.test.tsx` "an import never offers a split part…" · `linked-sync.test.tsx` "a
+   transfer is never paired with a row the same page removes" ·
    `import-flow.test.tsx` "a confirmed transfer marks both sides…", "unmarking one side…",
    "marking an entry a transfer by hand…" · `review.test.tsx` "a transfer marks and pairs…" ·
    `linked-sync.test.tsx` "a split part is never taken…", "both sides … in the same page…",
@@ -55,7 +64,10 @@ written against both.
     that saves on every keystroke (Later) saves only the newest one. A form filled from stored
     values takes input only once they are in, and never reloads them over what the person is
     typing (the entry editor waits for its entry; Budget's pay form fills once; October 27,
-    2026).
+    2026). A bank sync plans a page from a read, then checks every row it read inside its write
+    transaction; one changed meanwhile means the page is planned again from what is stored now
+    (October 28, 2026).
+    `linked-sync.test.tsx` "an edit saved while a sync is working survives it…" ·
     `seams.test.ts` · `later-order.test.tsx` · `tags-notes.test.tsx` "the editor takes no
     input…" · `budget.test.tsx` "editing a saved paycheck…"
 
@@ -105,9 +117,12 @@ written against both.
     whose id can come back (a milestone is `<goal>:<bps>`) syncs newer-wins by `updated_at`, and
     adding it back clears its own tombstone, so an old removal from another device never
     deletes it again (and its cheer never plays twice). A merge skips only a row a unique index
-    already holds, and counts it; any other failure stops the merge.
+    already holds, when adding it or writing a newer copy, and counts it; any other failure
+    stops the merge, and a pull that fails still lets the device push its own backup (nothing
+    is pruned then).
     `backup.test.ts` "a milestone removed and added back…", "a row a unique index already
-    holds…", "builds the snapshot in one read transaction…"
+    holds…", "a newer row a unique index already holds…", "builds the snapshot in one read
+    transaction…" · `backup-prune.test.ts` "a merge that fails still lets this device push…"
 22. **Removing something removes what hangs off it** (October 28, 2026). An account takes its
     entries, imports, anchors, mapping and kept files, its entries' receipts and photos, its
     card details and its net worth choice (with a tombstone where the table syncs); an entry
@@ -127,6 +142,12 @@ written against both.
     a row this device lacks whose own time is at or before it, and takes a newer record from any
     snapshot it merges. Absence in a snapshot never deletes; only a tombstone does.
     `backup-prune.test.ts`
+25. **The export holds everything the person made** (October 28, 2026). Every Dexie table is in
+    "Download all my data" except device-only bookkeeping a restore rebuilds (`computed_results`,
+    `forecasts`, `server_queue`, `tombstones`, named in `data/export.ts`), kept statement files
+    included, and entries carry what rebuilds their splits and pairs. A new table joins the
+    export or that list.
+    `settings-data.test.tsx` "the export holds everything the person made…"
 
 ## Accounts and money on the server
 

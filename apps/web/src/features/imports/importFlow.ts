@@ -24,6 +24,7 @@ import { type PdfStatement, parsePdf } from "../../importers/pdf/index.ts";
 import { addDaysIso } from "../../lib/dates.ts";
 import { compareText } from "../../lib/order.ts";
 import { savedNames } from "../entries/entryActions.ts";
+import { isTransferCandidate, splitParents } from "../entries/transfers.ts";
 
 export function detectFormat(name: string, text: string): ImportFormat | null {
   const ext = name.toLowerCase().split(".").pop() ?? "";
@@ -236,8 +237,9 @@ async function attachTransferMatches(
   const dates = fresh.map((r) => r.date).sort();
   const lo = addDaysIso(dates[0] as string, -5);
   const hi = addDaysIso(dates[dates.length - 1] as string, 5);
+  const parents = await splitParents(db);
   const others = (await db.entries.where("date").between(lo, hi, true, true).toArray()).filter(
-    (e) => e.account_id !== accountId && !e.is_transfer,
+    (e) => e.account_id !== accountId && isTransferCandidate(e, parents),
   );
   const candidates: RuleEntry[] = [
     ...fresh.map((r) => ({
@@ -346,11 +348,15 @@ export async function commitImport(db: StackdDb, input: CommitInput): Promise<St
     async () => {
       if (entries.length) await db.entries.bulkAdd(entries);
       // A confirmed transfer with a match marks the other side too, or that side would still
-      // count as money in or out and skew Kept by the transfer's amount.
+      // count as money in or out and skew Kept by the transfer's amount. Checked again as
+      // stored now: the other side may have been split or paired since the preview.
+      const parents = entries.some((e) => e.transfer_pair_id)
+        ? await splitParents(db)
+        : new Set<string>();
       for (const e of entries) {
         if (!e.transfer_pair_id) continue;
         const other = await db.entries.get(e.transfer_pair_id);
-        if (!other || other.is_transfer) {
+        if (!other || !isTransferCandidate(other, parents)) {
           await db.entries.update(e.id, { transfer_pair_id: null });
           continue;
         }

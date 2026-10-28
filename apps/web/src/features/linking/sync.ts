@@ -34,7 +34,7 @@ import { todayIso } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
 import { savedNames } from "../entries/entryActions.ts";
 import { splitTree } from "../entries/splits.ts";
-import { releasePartners } from "../entries/transfers.ts";
+import { isTransferCandidate, releasePartners, splitParents } from "../entries/transfers.ts";
 import { loadCategorizer } from "../imports/importFlow.ts";
 import { unlinkAccounts } from "./linking.ts";
 
@@ -145,14 +145,55 @@ interface Planned {
   receipts: Array<{ id: string; entry_id: string }>; // receipts moved to a posted entry
   anchors: BalanceAnchor[];
   report: SyncReport;
+  /**
+   * Every stored entry the plan rewrites or removes, with its `updated_at` as read. The write
+   * checks each again inside its transaction: one the person changed meanwhile (an edit, a
+   * split, a delete) means the page is planned again from what is stored now, so the plan's
+   * copy never overwrites what they did (invariants 6 and 18).
+   */
+  basis: Map<string, string | undefined>;
 }
 
-/** Apply one page. Exported for tests: the network part is `syncConnection`. */
+/** The row as the plan read it; the first read wins. */
+function remember(plan: Planned, e: Entry): void {
+  if (!plan.basis.has(e.id)) plan.basis.set(e.id, e.updated_at);
+}
+
+/** A stored row changed between planning a page and writing it. */
+class StaleSync extends Error {
+  constructor() {
+    super("stale_sync");
+    this.name = "StaleSync";
+  }
+}
+
+const MAX_REPLANS = 5;
+
+/**
+ * Apply one page. Exported for tests: the network part is `syncConnection`. The page is planned
+ * from a read of the device, then written in one transaction that first checks nothing it read
+ * has changed; if something has, it is planned again (the cursor moves only with a write).
+ */
 export async function applySync(
   db: StackdDb,
   connectionId: string,
   out: SyncOut,
   now: Date = new Date(),
+): Promise<SyncReport> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await applyOnce(db, connectionId, out, now);
+    } catch (error) {
+      if (!(error instanceof StaleSync) || attempt >= MAX_REPLANS) throw error;
+    }
+  }
+}
+
+async function applyOnce(
+  db: StackdDb,
+  connectionId: string,
+  out: SyncOut,
+  now: Date,
 ): Promise<SyncReport> {
   const stamp = now.toISOString();
   const today = todayIso(now);
@@ -167,6 +208,7 @@ export async function applySync(
     receipts: [],
     anchors: [],
     report: emptyReport(),
+    basis: new Map(),
   };
   const names = await savedNames(db);
 
@@ -174,6 +216,7 @@ export async function applySync(
   const removedParents = new Map<string, Entry>(); // provider id -> the removed entry
   for (const providerId of out.removed) {
     const gone = await db.entries.where("provider_txn_id").equals(providerId).toArray();
+    for (const e of gone) remember(plan, e);
     plan.remove.push(...gone.map((e) => e.id));
     const parent = gone.find((e) => !e.split_parent_id);
     if (parent) removedParents.set(providerId, parent);
@@ -212,6 +255,7 @@ export async function applySync(
       (await byProvider(txn.transaction_id)) ??
       (txn.pending_transaction_id ? await byProvider(txn.pending_transaction_id) : undefined);
     if (known && !plan.remove.includes(known.id)) {
+      remember(plan, known);
       const fingerprint = await freeFingerprint(
         db,
         account,
@@ -244,6 +288,7 @@ export async function applySync(
 
     const twin = await uploadedTwin(db, account, fp.fingerprint, txn, claimed);
     if (twin) {
+      remember(plan, twin);
       plan.put.push({
         ...twin,
         provider_txn_id: txn.transaction_id,
@@ -310,7 +355,7 @@ export async function applySync(
 
   await settleSplits(db, plan, bankCents, replaces, removedParents, stamp);
 
-  const { others: paired, count } = await pairTransfers(db, hinted, plan.put);
+  const { others: paired, count } = await pairTransfers(db, hinted, plan);
   plan.report.transfers = count;
 
   for (const b of out.balances) {
@@ -333,6 +378,10 @@ export async function applySync(
     "rw",
     [db.entries, db.balance_anchors, db.settings, db.tombstones, db.receipts, db.files],
     async () => {
+      for (const [id, at] of plan.basis) {
+        const current = await db.entries.get(id);
+        if (!current || current.updated_at !== at) throw new StaleSync();
+      }
       for (const r of plan.receipts)
         await db.receipts.update(r.id, { entry_id: r.entry_id, updated_at: stamp });
       if (plan.remove.length) {
@@ -382,9 +431,11 @@ async function carryEdits(db: StackdDb, plan: Planned, pending: Entry, posted: E
     posted.is_transfer = true;
     posted.transfer_pair_id = pending.transfer_pair_id;
     if (pending.transfer_pair_id) {
-      const other =
-        plan.put.find((e) => e.id === pending.transfer_pair_id) ??
-        (await db.entries.get(pending.transfer_pair_id));
+      let other = plan.put.find((e) => e.id === pending.transfer_pair_id);
+      if (!other) {
+        other = await db.entries.get(pending.transfer_pair_id);
+        if (other) remember(plan, other);
+      }
       if (other && !plan.remove.includes(other.id)) {
         other.transfer_pair_id = posted.id;
         other.updated_at = posted.updated_at;
@@ -423,6 +474,7 @@ async function settleSplits(
     const parents = new Set([entry.id, replaces.get(entry.id)].filter((x) => x !== undefined));
     const mine = partsOf(parents);
     if (mine.length === 0) continue;
+    for (const p of mine) remember(plan, p);
     const split = mine.reduce((sum, e) => sum + e.amount_cents, 0);
     if (split >= cents) {
       for (const p of mine) removing.add(p.id);
@@ -445,7 +497,10 @@ async function settleSplits(
     }
   }
   const orphaned = [...removedParents.values()].map((e) => e.id);
-  for (const p of partsOf(orphaned)) if (!kept.has(p.id)) removing.add(p.id);
+  for (const p of partsOf(orphaned)) {
+    remember(plan, p);
+    if (!kept.has(p.id)) removing.add(p.id);
+  }
   plan.remove = [...removing];
   plan.put.push(...parts);
 }
@@ -504,25 +559,27 @@ async function uploadedTwin(
 /**
  * Transfer-looking rows (the keyword table's hint) paired by `cashflow.match_transfers` with the
  * other side in another account within 5 days. Both sides become transfers and drop out of In
- * and Out, exactly like a transfer confirmed after an import. Returns the pairs made and the
+ * and Out, exactly like a transfer confirmed after an import. Never a row this page removes
+ * (pairing it would write it back while its tombstone travels). Returns the pairs made and the
  * already-stored other sides to rewrite.
  */
 async function pairTransfers(
   db: StackdDb,
   hinted: Entry[],
-  page: Entry[],
+  plan: Planned,
 ): Promise<{ others: Entry[]; count: number }> {
+  const page = plan.put;
+  const removing = new Set(plan.remove);
   if (hinted.length === 0) return { others: [], count: 0 };
   const dates = hinted.map((e) => e.date).sort();
   const lo = addDaysIso(dates[0] as string, -5);
   const hi = addDaysIso(dates[dates.length - 1] as string, 5);
   const stored = await db.entries.where("date").between(lo, hi, true, true).toArray();
   const pool = new Map<string, Entry>();
-  // Never a split part or a split parent (its amount is the bank's less its parts): pairing one
-  // would take part of the money out of the month (October 27, 2026).
-  const parents = new Set([...stored, ...page].map((e) => e.split_parent_id).filter(Boolean));
+  // The same candidates import and marking by hand take (`isTransferCandidate`).
+  const parents = await splitParents(db, page);
   for (const e of [...stored, ...page])
-    if (!e.is_transfer && !e.pending && !e.split_parent_id && !parents.has(e.id)) pool.set(e.id, e);
+    if (!removing.has(e.id) && isTransferCandidate(e, parents)) pool.set(e.id, e);
   const asRule = (e: Entry): RuleEntry => ({
     id: e.id,
     date: e.date,
@@ -549,6 +606,7 @@ async function pairTransfers(
     const other = page.find((e) => e.id === otherId) ?? pool.get(otherId);
     if (!self || !other || self.is_transfer || other.is_transfer) continue;
     count += 1;
+    if (!page.includes(other)) remember(plan, other);
     Object.assign(self, { is_transfer: true, category_id: null, transfer_pair_id: other.id });
     const updatedOther = {
       ...other,

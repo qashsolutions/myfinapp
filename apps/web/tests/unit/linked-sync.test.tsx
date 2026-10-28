@@ -1,8 +1,9 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type Account, type Entry, openDb, type StackdDb } from "../../src/data/db.ts";
 import { DEFAULT_CATEGORIES } from "../../src/data/defaults.ts";
+import { engine } from "../../src/engine/bridge.ts";
 import { billingState } from "../../src/features/billing/billing.ts";
 import { renameEntry } from "../../src/features/entries/entryActions.ts";
 import { linkErrorText } from "../../src/features/linking/linking.ts";
@@ -561,6 +562,75 @@ describe("linked sync (chunk 3.3)", () => {
     expect(await db.entries.get("lnk-tb")).toMatchObject({
       is_transfer: true,
       transfer_pair_id: "lnk-ta",
+    });
+  });
+
+  it("an edit saved while a sync is working survives it, and the bank's new amount still lands", async () => {
+    await applySync(db, "bc1", page({ added: [txn()] }), NOW);
+    const later = new Date("2026-10-12T16:00:00Z");
+    // The real engine, with an edit landing on the second row's fingerprint: the first row was
+    // already read for this page by then
+    const real = engine.call.bind(engine);
+    let n = 0;
+    const edit = vi.spyOn(engine, "call").mockImplementation(async (rule, input) => {
+      if (rule === "fingerprint.row" && ++n === 2)
+        await db.entries.update("lnk-t1", {
+          category_id: "cat-groceries",
+          note: "for the party",
+          updated_at: "2026-10-12T15:30:00Z",
+        });
+      return real(rule, input);
+    });
+    await applySync(
+      db,
+      "bc1",
+      page({
+        // added rows are read first, then modified ones
+        added: [txn({ amount_cents: 700 })],
+        modified: [txn({ transaction_id: "t2", amount_cents: 900, description: "BAKERY" })],
+      }),
+      later,
+    );
+    edit.mockRestore();
+    expect(await db.entries.get("lnk-t1")).toMatchObject({
+      amount_cents: 700,
+      category_id: "cat-groceries",
+      note: "for the party",
+    });
+    expect(await db.entries.get("lnk-t2")).toMatchObject({ amount_cents: 900 });
+    expect((await db.settings.get(cursorKey("bc1")))?.value).toBe("cur-1");
+  });
+
+  it("a transfer is never paired with a row the same page removes", async () => {
+    await applySync(
+      db,
+      "bc1",
+      page({ added: [txn({ transaction_id: "gone", amount_cents: 3000, description: "ATM" })] }),
+      NOW,
+    );
+    await applySync(
+      db,
+      "bc1",
+      page({
+        removed: ["gone"],
+        added: [
+          txn({
+            transaction_id: "pay",
+            account_id: "acc-cc",
+            direction: "in",
+            amount_cents: 3000,
+            date: "2026-10-11",
+            description: "PAYMENT - THANK YOU",
+          }),
+        ],
+      }),
+      NOW,
+    );
+    expect(await db.entries.get("lnk-gone")).toBeUndefined();
+    expect(await db.tombstones.get(["entries", "lnk-gone"])).toBeDefined();
+    expect(await db.entries.get("lnk-pay")).toMatchObject({
+      is_transfer: false,
+      transfer_pair_id: null,
     });
   });
 
