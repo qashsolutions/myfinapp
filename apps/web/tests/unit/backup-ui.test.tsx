@@ -64,7 +64,7 @@ describe("Encrypted backup", () => {
     const api = installFakeApi({ session: readySession(), backup });
     const { unmount } = renderApp("/me/security");
     const section = await screen.findByRole("region", { name: "Encrypted backup" });
-    expect(await within(section).findByText(/Off\./)).toBeInTheDocument();
+    expect(await within(section).findByText("Off")).toBeInTheDocument();
 
     await user.click(within(section).getByRole("button", { name: "Turn on encrypted backup" }));
     const sheet = await screen.findByRole("dialog", { name: "Your recovery key" });
@@ -127,6 +127,6 @@ describe("Encrypted backup", () => {
     await waitFor(() => expect(backup.key).toBeNull());
     expect(backup.blobs).toEqual([]);
     expect(await openDb("u1").entries.count()).toBe(1);
-    expect(await within(fresh).findByText(/Off\./)).toBeInTheDocument();
+    expect(await within(fresh).findByText("Off")).toBeInTheDocument();
   });
 });

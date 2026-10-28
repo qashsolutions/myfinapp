@@ -1,3 +1,4 @@
+import { Word } from "../../app/layout/Word.tsx";
 import "../forecast/forecast.css";
 import { daysUntil } from "../../engine/bridge.ts";
 import { useForecast } from "../forecast/useForecast.ts";
@@ -130,10 +131,8 @@ export function BillsScreen() {
           {series && series.length === 0 ? (
             <Card>
               <Illustration name="calendar" tone="a1" />
-              <p>
-                No bills yet. Confirm what the app finds in your statements, or add one with + Add.
-                Bills feed your upcoming-expense alerts and the 30-day forecast.
-              </p>
+              <Word>None</Word>
+              <p>No bills yet. Confirm the ones Qash finds, or tap + Add.</p>
             </Card>
           ) : null}
           {forecast.upcoming ? (

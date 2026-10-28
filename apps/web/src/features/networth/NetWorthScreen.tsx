@@ -6,6 +6,7 @@ import { Button, Card, Chip, List, ListRow, Sheet, Toggle } from "@stackd/ui";
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
+import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type NetWorthPoint, parseAmount } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
@@ -294,6 +295,11 @@ export function NetWorthScreen() {
       <ScreenHeader title="Net worth" back="/insights" actions={null} />
       <div className="worth">
         <Card as="section" aria-labelledby={`${ids}-total`} className="worth__hero">
+          {s ? (
+            <Word>
+              {(s.change_cents ?? 0) > 0 ? "Up" : (s.change_cents ?? 0) < 0 ? "Down" : "Steady"}
+            </Word>
+          ) : null}
           <p className="sk-card__eyebrow">What you own minus what you owe</p>
           <p className="worth__total" id={`${ids}-total`}>
             {s ? formatCents(s.net_cents) : "…"}

@@ -183,8 +183,8 @@ export function HouseholdScreen() {
       <>
         <ScreenHeader title="Couples & household" actions={null} back="/me/groups" />
         <PlanLimit>
-          Couples & household is part of Connected: invite one partner, share jars and goals by
-          choice, and see your month together. Each of you keeps your own private data.
+          Part of Connected. Invite one partner, share the jars you choose, see your month together.
+          Your own data stays private.
         </PlanLimit>
       </>
     );

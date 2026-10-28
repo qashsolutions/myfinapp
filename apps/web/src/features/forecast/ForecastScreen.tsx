@@ -276,8 +276,8 @@ export function ForecastScreen() {
                     <dd>{formatCents(view.bufferCents)}</dd>
                   </dl>
                   <p className="auth__hint">
-                    Balance on each day = start + income so far − bills so far − daily spending ×
-                    days. Not a prediction: it assumes the days ahead look like your last 90.
+                    Each day: start + pay − bills − your daily spending. It assumes the next days
+                    look like your last 90.
                   </p>
                 </details>
                 {view.account ? (

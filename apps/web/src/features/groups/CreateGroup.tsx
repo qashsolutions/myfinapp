@@ -134,15 +134,14 @@ export function CreateGroup() {
       </fieldset>
       <Card>
         <p>
-          {template.blurb}{" "}
           {template.span === "month"
-            ? `Runs through ${formatMonth(today)}.`
+            ? `Until the end of ${formatMonth(today)}.`
             : template.span === "week"
-              ? "Runs seven days from the start date."
+              ? "Seven days from the start."
               : template.span === "weekend"
-                ? "Runs the Saturday and Sunday from the start date."
-                : "Runs 52 weeks from the start date."}{" "}
-          Members see each other's names and percentages, never amounts.
+                ? "One Saturday and Sunday."
+                : "52 weeks from the start."}{" "}
+          Others see your name and %, never amounts.
         </p>
       </Card>
       {template.span !== "month" ? (

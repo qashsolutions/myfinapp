@@ -75,8 +75,8 @@ export function ChangeEmail() {
       <ScreenHeader title="Change email" actions={null} back="/me/account" />
       <Card>
         <p>
-          Signed in as <strong>{current}</strong>. We'll send a 6-digit code to the new address; it
-          takes over once you enter the code. Both addresses get a note.
+          Signed in as <strong>{current}</strong>. We'll send a code to the new address. Both
+          addresses get a note.
         </p>
       </Card>
       {step === "email" ? (

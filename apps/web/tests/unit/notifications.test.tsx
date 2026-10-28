@@ -133,7 +133,7 @@ describe("Notifications", () => {
     ).toEqual({ prefs: { weekly_recap: { channel: "email" } } });
     await user.click(within(options).getByRole("radio", { name: "Both" }));
     await waitFor(() => expect(row).toHaveTextContent("Sundays 9:00 am · push and email"));
-    expect(options).toHaveTextContent("Your numbers stay on this device.");
+    expect(options).toHaveTextContent("The email has a link, never your numbers.");
   });
 
   it("registers the device's schedule as dates, types and keys only", async () => {

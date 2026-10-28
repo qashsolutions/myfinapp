@@ -3,6 +3,7 @@ import "../auth/auth.css";
 import { Button, Card, List, ListRow, Sheet } from "@stackd/ui";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
+import { Word } from "../../app/layout/Word.tsx";
 import { api, failureOf } from "../../data/api.ts";
 import {
   BackupError,
@@ -278,11 +279,8 @@ export function BackupSettings() {
           </>
         ) : (
           <>
-            <p>
-              <strong>Off.</strong> Turn it on to keep an encrypted copy of your data and sync it
-              between your devices. It's encrypted on this device before upload; we store only
-              scrambled data we can't read.
-            </p>
+            <Word>Off</Word>
+            <p>Keep a locked copy and sync your devices. Only you can open it.</p>
             <Button block onClick={turnOn} disabled={busy}>
               Turn on encrypted backup
             </Button>
@@ -306,8 +304,8 @@ export function BackupSettings() {
         </List>
       ) : null}
       <p className="auth__fineprint">
-        Statement files and receipt photos stay on the device they were added on; everything else is
-        in the backup. <Link to="/me/plan">Your plan</Link> includes backup.
+        Statement files and receipt photos stay on their own device. Backup is in{" "}
+        <Link to="/me/plan">your plan</Link>.
       </p>
 
       <Sheet open={showRecovery} onClose={() => setShowRecovery(false)} title="Your recovery key">

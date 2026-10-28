@@ -238,8 +238,7 @@ export function NotificationSettings() {
               }
             />
             <p className="auth__hint">
-              The email only says your recap is ready and links to it. Your numbers stay on this
-              device.{" "}
+              The email has a link, never your numbers.{" "}
               <Link to="/recap" className="auth__link">
                 See this week's recap
               </Link>
@@ -312,6 +311,7 @@ export function NotificationSettings() {
                   </span>
                   <span className="sk-row__value">
                     <Toggle
+                      hideLabel
                       label={`${copy.title} alerts`}
                       checked={p.enabled}
                       onChange={(checked) =>
