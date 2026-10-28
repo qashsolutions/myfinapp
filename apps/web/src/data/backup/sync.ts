@@ -27,7 +27,9 @@ import {
   isSnapshot,
   type MergeReport,
   mergeSnapshot,
+  pruneTombstonesBefore,
   snapshotHash,
+  TOMBSTONE_HORIZON_DAYS,
 } from "./snapshot.ts";
 
 export const KEY_SETTING = "backup.key"; // base64url of the 32-byte backup key, this device only
@@ -36,6 +38,8 @@ export const RECOVERY_SETTING = "backup.recovery_key"; // shown again from Secur
 export const LAST_HASH_SETTING = "backup.last_hash";
 export const LAST_APPLIED_SETTING = "backup.last_applied";
 export const LAST_SYNC_SETTING = "backup.last_sync_at";
+/** When this device last heard from the backup in full (merged, already had it, or none yet). */
+export const LAST_PULL_SETTING = "backup.last_pull_at";
 export const DEVICE_ID_SETTING = "backup.device_id";
 
 const KEY_VERSION = 1;
@@ -169,6 +173,8 @@ export async function disableBackup(db: StackdDb): Promise<void> {
     LAST_HASH_SETTING,
     LAST_APPLIED_SETTING,
     LAST_SYNC_SETTING,
+    LAST_PULL_SETTING,
+    // the pruned-removals record stays: those tombstones are gone whatever happens next
   ])
     await db.settings.delete(key);
 }
@@ -227,6 +233,7 @@ export async function pullBackup(
   db: StackdDb,
   userId: string,
   key?: Uint8Array,
+  now: Date = new Date(),
 ): Promise<PullResult> {
   const k = key ?? (await localKey(db));
   if (!k) throw new BackupError("no_key", "Backup is off on this device.");
@@ -263,6 +270,7 @@ export async function pullBackup(
     if (row.id === lastApplied) {
       // Already merged; anything above it was unreadable, so don't walk past it again.
       if (newest !== lastApplied) await putSetting(db, LAST_APPLIED_SETTING, newest);
+      await putSetting(db, LAST_PULL_SETTING, now.toISOString(), now);
       return { applied: false, backupId: row.id, report: null };
     }
     let snapshot: unknown = null;
@@ -278,9 +286,13 @@ export async function pullBackup(
     }
     const report = await mergeSnapshot(db, snapshot);
     await putSetting(db, LAST_APPLIED_SETTING, newest);
+    await putSetting(db, LAST_PULL_SETTING, now.toISOString(), now);
     return { applied: true, backupId: row.id, report };
   }
-  if (newest === null) return { applied: false, backupId: null, report: null };
+  if (newest === null) {
+    await putSetting(db, LAST_PULL_SETTING, now.toISOString(), now);
+    return { applied: false, backupId: null, report: null };
+  }
   throw new CryptoError("bad_ciphertext", "Not a Qash backup.");
 }
 
@@ -289,17 +301,40 @@ export interface SyncResult {
   pushed: PushResult;
 }
 
-/** Pull, merge, then push when this device holds something the server does not. */
+/**
+ * Pull, merge, then push when this device holds something the server does not; then prune
+ * old removals, so the upload just made still carried them (invariant 24).
+ */
 export async function syncBackup(
   db: StackdDb,
   userId: string,
   rulesVersion: string,
   now = new Date(),
 ): Promise<SyncResult> {
-  const pulled = await pullBackup(db, userId);
+  const pulled = await pullBackup(db, userId, undefined, now);
   const pushed = await pushBackup(db, userId, rulesVersion, { now });
   await putSetting(db, LAST_SYNC_SETTING, now.toISOString(), now);
+  await pruneOldTombstones(db, now);
   return { pulled, pushed };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Drops removals older than TOMBSTONE_HORIZON_DAYS, only while backup is on here and the last
+ * full pull is within the horizon (an older one may not have seen a newer state). With backup
+ * off nothing is pruned: a later restore that merges this device with another must still tell
+ * a removal here from a row it never had. Household sharing never reads tombstones, so it
+ * changes nothing here. Returns how many went.
+ */
+export async function pruneOldTombstones(db: StackdDb, now: Date = new Date()): Promise<number> {
+  if (!(await localKey(db))) return 0;
+  const lastPull = await setting<string>(db, LAST_PULL_SETTING);
+  const horizonMs = TOMBSTONE_HORIZON_DAYS * DAY_MS;
+  if (!lastPull) return 0;
+  const pulledAt = Date.parse(lastPull);
+  if (!Number.isFinite(pulledAt) || now.getTime() - pulledAt > horizonMs) return 0;
+  return pruneTombstonesBefore(db, new Date(now.getTime() - horizonMs).toISOString());
 }
 
 interface KeyRecord {

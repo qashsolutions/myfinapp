@@ -185,6 +185,76 @@ describe("receipt photos", () => {
     expect((await db.entries.get("e1"))?.receipt_id).toBe(receipts[0]?.id);
   });
 
+  it("removing a photo removes its receipt record too, while the entry stays (October 28, 2026)", async () => {
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    await db.files.add({
+      id: "f-old",
+      kind: "receipt",
+      import_id: null,
+      name: "old.jpg",
+      type: "image/jpeg",
+      size: 3,
+      blob: new Blob([new Uint8Array([1, 2, 3])]),
+      created_at: "2026-10-09T10:00:00Z",
+    });
+    await db.receipts.add({
+      id: "r-old",
+      entry_id: "e1",
+      file_id: "f-old",
+      status: "confirmed",
+      purge_after: null,
+      purged_at: null,
+      created_at: "2026-10-09T10:00:00Z",
+      updated_at: "2026-10-09T10:00:00Z",
+    });
+    await db.entries.add({
+      id: "e1",
+      date: "2026-10-09",
+      amount_cents: 1191,
+      direction: "out",
+      merchant: "Corner Market",
+      clean_description: "CORNER MARKET",
+      raw_description: null,
+      category_id: "cat-groceries",
+      account_id: "acct-cash",
+      source: "manual",
+      receipt_id: "r-old",
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      split_parent_id: null,
+      is_recurring: false,
+      created_at: "2026-10-09T10:00:00Z",
+      updated_at: "2026-10-09T10:00:00Z",
+    });
+    renderApp("/entries/e1");
+    await waitFor(() => expect(screen.getByLabelText("Merchant")).toHaveValue("Corner Market"));
+    const card = await screen.findByRole("region", { name: "Receipt photo" });
+    await waitFor(() => expect(card).toHaveTextContent("Receipt photo attached"));
+    await user.click(within(card).getByRole("button", { name: "Remove photo" }));
+    // Gone at once, with nothing left pointing at it, even if the editor is left unsaved
+    await waitFor(async () => expect(await db.receipts.count()).toBe(0));
+    expect(await db.files.count()).toBe(0);
+    expect((await db.entries.get("e1"))?.receipt_id).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("heading", { level: 1, name: "Money in & out" });
+    expect(await db.receipts.count()).toBe(0);
+    expect(await db.entries.get("e1")).toMatchObject({ amount_cents: 1191, receipt_id: null });
+
+    // A photo just attached to a new entry and removed again leaves no pending record behind
+    await user.click(screen.getByRole("link", { name: "Home" }));
+    await user.click(await screen.findByRole("button", { name: "Add entry or receipt" }));
+    await user.click(await screen.findByRole("button", { name: /A receipt/ }));
+    const fresh = await screen.findByRole("region", { name: "Receipt photo" });
+    await user.upload(within(fresh).getByLabelText("Add a receipt photo"), PHOTO);
+    await waitFor(() => expect(fresh).toHaveTextContent("Receipt photo attached"));
+    expect(await db.receipts.count()).toBe(1);
+    await user.click(within(fresh).getByRole("button", { name: "Remove photo" }));
+    await waitFor(async () => expect(await db.receipts.count()).toBe(0));
+    expect(await db.files.count()).toBe(0);
+  });
+
   it("the retention setting re-dates photos, and expired ones are removed on the next open while the entry stays", async () => {
     const user = userEvent.setup();
     const db = openDb("u1");

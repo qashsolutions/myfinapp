@@ -264,6 +264,26 @@ export async function storeReceiptPhoto(
   return receipt;
 }
 
+/**
+ * The person removed the photo (Remove photo on the receipt card): the receipt record goes with
+ * it, and the entry that pointed at it stays without one (owner decision, October 28, 2026).
+ * Retention keeps the record instead (`removeReceiptPhoto`).
+ */
+export async function removeReceipt(db: StackdDb, receiptId: string): Promise<void> {
+  await db.transaction("rw", [db.receipts, db.files, db.entries], async () => {
+    const receipt = await db.receipts.get(receiptId);
+    if (!receipt) return;
+    await deleteReceipts(db, [receiptId]);
+    const entry = receipt.entry_id ? await db.entries.get(receipt.entry_id) : undefined;
+    if (entry?.receipt_id === receiptId)
+      await db.entries.update(entry.id, {
+        receipt_id: null,
+        updated_at: new Date().toISOString(),
+      });
+  });
+}
+
+/** Retention: the photo goes, the receipt record and the entry stay. */
 export async function removeReceiptPhoto(db: StackdDb, receiptId: string): Promise<void> {
   const receipt = await db.receipts.get(receiptId);
   if (!receipt) return;

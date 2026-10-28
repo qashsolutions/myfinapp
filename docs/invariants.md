@@ -112,11 +112,21 @@ written against both.
     entries, imports, anchors, mapping and kept files, its entries' receipts and photos, its
     card details and its net worth choice (with a tombstone where the table syncs); an entry
     takes its split parts (a part's parts too) and its receipt and photo, also when the bank
-    removes it; a photo replaced on an entry takes its old receipt. Nothing is left on the
-    device that no screen can reach.
+    removes it; a photo replaced on an entry takes its old receipt, and so does one the person
+    removes (retention takes only the photo). Nothing is left on the device that no screen can
+    reach.
     `settings-data.test.tsx` "manages accounts…" · `entries.test.tsx` "edits and deletes an
     entry…", "deleting a split entry…" · `linked-sync.test.tsx` "a row the bank removes takes
-    its receipt…" · `receipts.test.tsx` "replacing an entry's photo…"
+    its receipt…" · `receipts.test.tsx` "replacing an entry's photo…", "removing a photo removes
+    its receipt record too…"
+24. **Forgetting an old removal never brings the row back** (October 28, 2026). Tombstones older
+    than `TOMBSTONE_HORIZON_DAYS` (180) are dropped only after a sync, with backup on and the last
+    full pull within the horizon; never with backup off, never during a merge, never in tables
+    whose rows may have no time (`UNSTAMPED_TABLES`). The newest dropped `deleted_at` is kept
+    (`backup.tombstones_pruned_before`, device-only) and sent in every snapshot; a merge never adds
+    a row this device lacks whose own time is at or before it, and takes a newer record from any
+    snapshot it merges. Absence in a snapshot never deletes; only a tombstone does.
+    `backup-prune.test.ts`
 
 ## Accounts and money on the server
 

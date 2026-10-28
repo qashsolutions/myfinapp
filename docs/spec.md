@@ -374,6 +374,7 @@ Also supported:
 - Fields: merchant, date, total, category, optional "count toward a challenge".
 - Optional **Read text from photo** pre-fills fields, clearly marked for review; the user must confirm before saving.
 - Photo retention setting: 90 days (default), 1 year, forever, or the person's own number of days (1 to 3,650). Entered amounts stay after photos are removed.
+- When the photo's time runs out, the photo goes and the receipt record (with any text read from it) stays on the entry. When the person removes the photo themselves (Remove photo), the receipt record goes with it and the entry stays without one (owner decision, October 28, 2026). A photo replaced by another, a deleted entry and a removed account take their receipts too.
 - Strip EXIF location data on upload.
 
 ### Bills & debt
@@ -788,6 +789,7 @@ No AI removes some risks, but Stackd still stores spending habits, debts, receip
 - At launch: the device encrypts the backup before upload; the server stores ciphertext it cannot read.
 - The key is created on the device and protected by the user's passkey where the platform supports it, with a printable recovery key as the fallback. Lose both and the backup cannot be recovered — say so plainly at setup.
 - Restore on a new device: sign in with email code + passkey, then unlock the backup.
+- Removals are remembered for 180 days (`TOMBSTONE_HORIZON_DAYS`; October 28, 2026). A device drops removals older than that after a sync, but only while backup is on and its last full pull from the server is within the 180 days; with backup off it keeps them all, so a later restore that brings two devices together still tells a removal from a row it never had (household sharing never reads removals, so it changes nothing here). Removals in tables whose rows may carry no time of their own (budget lines, categories, milestones) are never dropped. The device keeps the newest removal it dropped (`backup.tombstones_pruned_before`, this device only) and every backup carries it as `tombstones_pruned_before`; a merge then never adds another device's row that this device lacks when that row's own time (`updated_at`, else `created_at`; none counts as oldest) is at or before that record, and a device takes the newer record from any backup it merges, a restored one included. A row missing from a backup never deletes anything; only a removal does. A device away for longer than 180 days may keep rows removed elsewhere meanwhile; it never brings them back to the others.
 - Confidence: medium on passkey-protected keys across all browsers; prototype in chunk 1.16.
 
 **What the app can know: statements only vs connected accounts** (October 11, 2026; a planning input for pricing, not a commitment)
