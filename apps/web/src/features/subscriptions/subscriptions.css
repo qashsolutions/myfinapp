@@ -1,0 +1,18 @@
+.subs__hero {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+}
+.subs__item .sk-progress {
+  margin: 6px 0;
+}
+.subs__other {
+  padding: 6px 0;
+  gap: 8px;
+}
+.subs__steps {
+  margin: 0 0 12px;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 6px;
+}

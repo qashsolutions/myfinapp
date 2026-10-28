@@ -695,6 +695,26 @@ export async function detectRecurring(
   return series;
 }
 
+export interface YearlyCostItem {
+  id: string;
+  label: string;
+  yearly_cents: number;
+  monthly_cents: number;
+}
+
+export interface YearlyCost {
+  items: YearlyCostItem[];
+  yearly_cents: number;
+  monthly_cents: number;
+}
+
+/** recurring.yearly_cost: each recurring charge's cost a year and a month, highest first. */
+export async function yearlyCost(
+  series: Array<{ id: string; label: string; interval: string; expected_cents: number }>,
+): Promise<YearlyCost> {
+  return engine.call<YearlyCost>("recurring.yearly_cost", { series });
+}
+
 export interface SpendingRuleEntry {
   date: string;
   amount_cents: number;

@@ -4,7 +4,8 @@ import { defineConfig, devices } from "@playwright/test";
  * End-to-end tests (first run October 22, 2026): the real PWA in the installed Chrome against a
  * real API with its own database (stackd_e2e, :8100) and a dev server on :5174, so a run never
  * touches the everyday local stack. Sign-in codes are read from the API's console email log;
- * passkeys come from Chrome's virtual authenticator. Local only for now: `pnpm -C apps/web e2e`.
+ * passkeys come from Chrome's virtual authenticator. `pnpm -C apps/web e2e` on the Mac; CI's `e2e`
+ * job runs the same journeys on every pull request (owner, October 27, 2026).
  */
 export default defineConfig({
   testDir: "e2e",
@@ -13,6 +14,7 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 10_000 },
   reporter: [["list"], ["html", { open: "never" }]],
+  retries: process.env.CI ? 1 : 0,
   use: {
     baseURL: "http://localhost:5174",
     channel: "chrome",

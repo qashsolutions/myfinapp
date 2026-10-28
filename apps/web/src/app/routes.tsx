@@ -49,6 +49,7 @@ import { KeptOnPhone } from "../features/settings/KeptOnPhone.tsx";
 import { LookSettings } from "../features/settings/LookSettings.tsx";
 import { MeLayout } from "../features/settings/MeLayout.tsx";
 import { SettingsScreen } from "../features/settings/SettingsScreen.tsx";
+import { SubscriptionsScreen } from "../features/subscriptions/SubscriptionsScreen.tsx";
 import { AppShell } from "./layout/AppShell.tsx";
 import { NotFound } from "./NotYet.tsx";
 import { PublicOnly, RequireAuth } from "./RequireAuth.tsx";
@@ -88,6 +89,7 @@ export function AppRoutes() {
           <Route path="groups/:id" element={<ChallengeDetail />} />
           <Route path="insights" element={<InsightsHub />} />
           <Route path="insights/spending" element={<SpendingScreen />} />
+          <Route path="subscriptions" element={<SubscriptionsScreen />} />
           <Route path="insights/later" element={<LaterScreen />} />
           <Route path="review" element={<ReviewScreen />} />
           <Route path="net-worth" element={<NetWorthScreen />} />

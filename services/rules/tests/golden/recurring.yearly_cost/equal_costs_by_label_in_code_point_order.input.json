@@ -1,0 +1,22 @@
+{
+  "series": [
+    {
+      "id": "x",
+      "label": "b",
+      "interval": "monthly",
+      "expected_cents": 1000
+    },
+    {
+      "id": "y",
+      "label": "a",
+      "interval": "quarterly",
+      "expected_cents": 3000
+    },
+    {
+      "id": "z",
+      "label": "B",
+      "interval": "yearly",
+      "expected_cents": 12000
+    }
+  ]
+}

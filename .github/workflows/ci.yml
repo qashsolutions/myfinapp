@@ -153,6 +153,84 @@ jobs:
         working-directory: services/api
         run: uv run stackd-api openapi --check -o ../../packages/api-client/openapi.json
 
+  e2e:
+    # Playwright end to end (owner, October 27, 2026): the real PWA in Chrome against a real API,
+    # its own database and storage, desktop and phone sizes. Development values only: no Stripe,
+    # Plaid or push keys, so those stay off exactly as on a fresh local stack.
+    name: end to end (Playwright, Chrome)
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: stackd
+          POSTGRES_PASSWORD: stackd
+          POSTGRES_DB: stackd_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stackd -d stackd_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      STACKD_ENV: dev
+      STACKD_DATABASE_URL: postgresql+psycopg://stackd:stackd@localhost:5432/stackd_e2e
+      STACKD_S3_ENDPOINT_URL: http://localhost:9000
+      STACKD_S3_REGION: us-east-1
+      STACKD_S3_BUCKET: stackd-backups
+      STACKD_S3_ACCESS_KEY: stackd
+      STACKD_S3_SECRET_KEY: stackd-dev-storage
+      STACKD_IP_HASH_KEY: stackd-dev-ip-hash-key
+      STACKD_SECRET_KEY: stackd-dev-secret-key
+      STACKD_SITE_ORIGIN: http://localhost:4321
+      STACKD_COOKIE_SECURE: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Start S3-compatible storage (RustFS)
+        run: |
+          docker run -d --name storage -p 9000:9000 \
+            -e RUSTFS_ACCESS_KEY=stackd -e RUSTFS_SECRET_KEY=stackd-dev-storage \
+            rustfs/rustfs:1.0.1
+          for i in $(seq 1 30); do
+            curl -fsS -o /dev/null http://localhost:9000/health && exit 0
+            sleep 1
+          done
+          echo "storage did not become ready" >&2
+          docker logs storage
+          exit 1
+      - run: pnpm install --frozen-lockfile
+      - name: Build what the dev server imports (tokens, OCR runtime)
+        run: |
+          pnpm exec turbo run build --filter=@stackd/tokens
+          pnpm -C apps/web ocr:assets
+      - name: API dependencies
+        working-directory: services/api
+        run: uv sync --frozen
+      - name: Journeys (desktop and phone)
+        run: pnpm -C apps/web e2e
+      - name: Report, traces and the API log when something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+            apps/web/e2e/.output/api.log
+          retention-days: 7
+
   api-compose:
     # Chunk 0.4 "done when": docker compose up runs API + Postgres + storage,
     # /health returns OK, the first migration applies.

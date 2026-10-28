@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "id": "s4",
+      "label": "Insurance",
+      "yearly_cents": 120000,
+      "monthly_cents": 10000
+    },
+    {
+      "id": "s2",
+      "label": "Gym",
+      "yearly_cents": 65000,
+      "monthly_cents": 5417
+    },
+    {
+      "id": "s5",
+      "label": "Coffee club",
+      "yearly_cents": 26000,
+      "monthly_cents": 2167
+    },
+    {
+      "id": "s1",
+      "label": "Netflix",
+      "yearly_cents": 18588,
+      "monthly_cents": 1549
+    },
+    {
+      "id": "s3",
+      "label": "Cloud storage",
+      "yearly_cents": 999,
+      "monthly_cents": 83
+    }
+  ],
+  "yearly_cents": 230587,
+  "monthly_cents": 19216
+}

@@ -1,0 +1,34 @@
+{
+  "series": [
+    {
+      "id": "s1",
+      "label": "Netflix",
+      "interval": "monthly",
+      "expected_cents": 1549
+    },
+    {
+      "id": "s2",
+      "label": "Gym",
+      "interval": "biweekly",
+      "expected_cents": 2500
+    },
+    {
+      "id": "s3",
+      "label": "Cloud storage",
+      "interval": "yearly",
+      "expected_cents": 999
+    },
+    {
+      "id": "s4",
+      "label": "Insurance",
+      "interval": "quarterly",
+      "expected_cents": 30000
+    },
+    {
+      "id": "s5",
+      "label": "Coffee club",
+      "interval": "weekly",
+      "expected_cents": 500
+    }
+  ]
+}

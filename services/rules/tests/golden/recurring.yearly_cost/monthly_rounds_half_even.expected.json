@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "id": "b",
+      "label": "Eighteen",
+      "yearly_cents": 18,
+      "monthly_cents": 2
+    },
+    {
+      "id": "a",
+      "label": "Six",
+      "yearly_cents": 6,
+      "monthly_cents": 0
+    }
+  ],
+  "yearly_cents": 24,
+  "monthly_cents": 2
+}

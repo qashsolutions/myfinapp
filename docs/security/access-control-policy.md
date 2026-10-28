@@ -1,6 +1,6 @@
 # Access control policy
 
-*Version 1.1, effective October 16, 2026 (first adopted October 13, 2026). Owner and approver: the Director of Qash Solutions Inc. Reviewed yearly (next: October 2027) and whenever people, systems or vendors change. Part of the information security program (`security-plan.md`); where they differ, the security plan applies.*
+*Version 1.4, effective October 27, 2026 (first adopted October 13, 2026). Owner and approver: the Director of Qash Solutions Inc. Reviewed yearly (next: October 2027) and whenever people, systems or vendors change. Part of the information security program (`security-plan.md`); where they differ, the security plan applies.*
 
 ## 1. Purpose and scope
 
@@ -82,7 +82,7 @@ An exception needs the administrator's written approval with a reason and an end
 | Version | Date | Change | Approved by |
 |---|---|---|---|
 | 1.0 | 2026-10-13 | Adopted | Director, Qash Solutions Inc. |
-| 1.2 | 2026-10-18 | The in-app Tester role (tester tools for the administrator's own account) | Director, Qash Solutions Inc. |
 | 1.1 | 2026-10-16 | AWS access for people moved to AWS IAM Identity Center (passkey at every sign-in, short-lived credentials); the admin IAM user's access key and console password removed; pull requests only and every check before merge kept by process once the repository went private; both long-lived machine keys named | Director, Qash Solutions Inc. |
-| 1.3 | 2026-10-19 | End users may sign a computer in by approval from their signed-in phone after a fresh passkey check; the phishing trade-off and its safeguards are stated | Director, Qash Solutions Inc. (pending) |
-| 1.4 | 2026-10-27 | The security log also records each completed permanent account deletion | Director, Qash Solutions Inc. (pending) |
+| 1.2 | 2026-10-18 | The in-app Tester role (tester tools for the administrator's own account) | Director, Qash Solutions Inc. |
+| 1.3 | 2026-10-19 | End users may sign a computer in by approval from their signed-in phone after a fresh passkey check; the phishing trade-off and its safeguards are stated | Director, Qash Solutions Inc. (approved 2026-10-27) |
+| 1.4 | 2026-10-27 | The security log also records each completed permanent account deletion | Director, Qash Solutions Inc. (approved 2026-10-27) |
