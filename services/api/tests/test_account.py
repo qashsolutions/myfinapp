@@ -87,10 +87,14 @@ def test_delete_soft_deletes_now_and_purges_after_the_grace_period() -> None:
     info = sign_in_with_code(again, alice_email)
     assert info["user"]["id"] != alice_info["user"]["id"]
 
-    # The purge after the grace period removes the row and what cascades from it
+    # The purge after the grace period removes the row and what cascades from it. Other tests
+    # leave deleted accounts in the same database, so check Alice's row, not the count.
+    alice_id = uuid.UUID(alice_info["user"]["id"])
     with get_session_factory()() as s, s.begin():
-        assert purge_due(s, grace_days=30, now=datetime.now(UTC) + timedelta(days=29)) == 0
-        assert purge_due(s, grace_days=30, now=datetime.now(UTC) + timedelta(days=31)) == 1
+        purge_due(s, grace_days=30, now=datetime.now(UTC) + timedelta(days=29))
+        assert s.get(User, alice_id) is not None
+        assert purge_due(s, grace_days=30, now=datetime.now(UTC) + timedelta(days=31)) >= 1
+        assert s.get(User, alice_id) is None
     detail = bob.get(f"/api/groups/{group['id']}").json()
     assert detail["member_count"] == 1 and not any(m["former"] for m in detail["members"])
     assert detail["is_owner"] is True  # the group passed to Bob when Alice deleted her account

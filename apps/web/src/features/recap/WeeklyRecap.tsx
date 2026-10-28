@@ -209,7 +209,7 @@ export function WeeklyRecap() {
         </p>
       </Card>
       <p className="auth__fineprint">
-        Transfers are left out; refunds count against their category. Stays on this phone.
+        Transfers are left out; refunds count against their category. Stays on this device.
       </p>
     </>
   );

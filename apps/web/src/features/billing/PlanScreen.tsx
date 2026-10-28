@@ -430,7 +430,7 @@ export function PlanScreen() {
         "4 jars & goals",
         "Start your own challenges",
         "Encrypted backup & sync",
-        "Statements read on your phone",
+        "Statements read on your device",
       ],
     },
     {
@@ -473,7 +473,7 @@ export function PlanScreen() {
           <p>
             Thanks for trying Qash. Pick a plan below to keep going, or download your data. Your
             account stays open until {formatDate(access.delete_at)}; after that, what's on this
-            phone stays here until you decide.
+            device stays here until you decide.
           </p>
           <Link to="/me/data" className="plan-alert__link">
             Download my data

@@ -290,15 +290,14 @@ export function AddEntrySheet() {
 
   /**
    * The receipt row points at its entry once the entry exists. A photo replaced by another goes
-   * with its receipt; a photo removed by the person keeps its receipt row (spec "Receipts").
+   * with its receipt, and so does one the person removed (the card already deleted it; this
+   * catches any left over) (spec "Receipts").
    */
   async function attachReceipt(entryId: string) {
     const stamp = new Date().toISOString();
     if (existing?.receipt_id && existing.receipt_id !== receiptId) {
       const old = existing.receipt_id;
-      if (receiptId)
-        await db.transaction("rw", [db.receipts, db.files], () => deleteReceipts(db, [old]));
-      else await db.receipts.update(old, { entry_id: null, updated_at: stamp });
+      await db.transaction("rw", [db.receipts, db.files], () => deleteReceipts(db, [old]));
     }
     if (receiptId) {
       await db.receipts.update(receiptId, {

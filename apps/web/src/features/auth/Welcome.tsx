@@ -19,7 +19,7 @@ const POINTS: Array<[string, string, string]> = [
   [
     "phone",
     "Your data stays on your device",
-    "On Private, statements and receipts are read on your phone. Connected links your bank and cards, read-only.",
+    "On Private, statements and receipts are read on your device. Connected links your bank and cards, read-only.",
   ],
   ["lock", "We never see your bank password", `Sign in with an email code and ${biometricName()}`],
   ["shield", "No ads. No AI services.", "Everything runs on your device"],

@@ -123,7 +123,7 @@ def plan_ending_message(to: str, end: str, link: str, trial: bool) -> Message:
             f"Hi! {what} wraps up on {end}.\n\n"
             f"Want to keep going? Pick a plan here:\n{link}\n\n"
             "No pressure. If you don't, you'll have 7 more days to choose a plan or download "
-            "your data, and what's on your phone stays there until you decide.\n"
+            "your data, and what's on your device stays there until you decide.\n"
         ),
     )
 
@@ -153,7 +153,7 @@ def plan_lapsed_reminder_message(to: str, delete_on: str, days_left: int, link: 
             f"Just a friendly note: your Qash account stays open for {days} more, until "
             f"{delete_on}.\n\nKeep going: {link}\n\n"
             "Or download your data in the app (Me → Download all my data). Either way, what's "
-            "on your phone stays there until you decide.\n"
+            "on your device stays there until you decide.\n"
         ),
     )
 
@@ -173,7 +173,7 @@ def account_deleted_after_plan_message(to: str, *, welcome_back: bool = True) ->
         text=(
             "Your Qash plan ended 7 days ago, so we've closed your account and removed what we "
             "kept on our servers, as we said we would.\n\n"
-            "What's on your phone is still there. Open Qash to download it or erase it, "
+            "What's on your device is still there. Open Qash to download it or erase it, "
             "whenever you like.\n\n" + again
         ),
     )
