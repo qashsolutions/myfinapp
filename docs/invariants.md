@@ -168,9 +168,14 @@ written against both.
 15. **Every access state says what is true and has a way forward.** Paused only while a dispute
     is open (it can come back); a lost one is `ended`, open and never closed for it, as the terms
     say; lapsed closes after the grace period with emails that never invite a blocked inbox to
-    buy.
+    buy. Every state the app gates (`AccessGate.accessRoutes`, one table) can always reach
+    deletion, and every state that may buy can reach the plans: someone signing up again with an
+    inbox whose trial was used (`choose` with `trial_used`) is told so on /start and led to the
+    plans, and the offer to bring kept data back is made there too (October 28, 2026).
     `test_billing_hardening.py` "a lost dispute ends the plan but the account stays open…", "a
-    fraud refund lapses with honest notes…" · `trials.test.tsx` "a lost dispute ends the plan…"
+    fraud refund lapses with honest notes…" · `trials.test.tsx` "a lost dispute ends the plan…",
+    "every access state reaches what it may…", "a returning person whose trial was used…" ·
+    `test_trials.py` "signing up again says the trial was used…" · `e2e/returning.spec.ts`
 16. **Every route needs a session unless it is public on purpose, and someone else's row is 404.**
     `tests/security/test_route_guards.py` · `tests/authz/`
 17. **A purchase block follows the person.** After a lost dispute or a fraud refund, every

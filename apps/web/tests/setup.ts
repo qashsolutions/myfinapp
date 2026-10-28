@@ -70,6 +70,7 @@ if (typeof window !== "undefined") window.scrollTo = () => {}; // jsdom logs "no
 beforeEach(async () => {
   if (typeof window === "undefined") return;
   localStorage.clear();
+  sessionStorage.clear();
   const { closeDb, deleteDb } = await import("../src/data/db.ts");
   // A short test can end with the shell's live queries still in flight; let them finish
   // before the database they read goes, or Dexie reports a closed-database rejection.
