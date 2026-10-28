@@ -8,7 +8,16 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, LargeBinary, String, UniqueConstraint, Uuid
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    LargeBinary,
+    String,
+    UniqueConstraint,
+    Uuid,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, StackdRow
@@ -27,6 +36,15 @@ class Household(Base, StackdRow):
 
 class HouseholdMember(Base, StackdRow):
     __tablename__ = "household_members"
+    # One household at a time per person, whatever a route does (October 28, 2026).
+    __table_args__ = (
+        Index(
+            "uq_household_members_live_user",
+            "user_id",
+            unique=True,
+            postgresql_where=text("left_at IS NULL"),
+        ),
+    )
 
     household_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("households.id", ondelete="CASCADE"), index=True

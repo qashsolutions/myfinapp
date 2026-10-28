@@ -8,7 +8,8 @@ ciphertext blobs (shared jars with who added what; the optional month totals) it
 - POST /api/household/invites: start a household if needed and issue a code (Connected)
 - POST /api/household/lookup: who is inviting (the code only)
 - POST /api/household/join: join with the code (the owner's plan covers the partner)
-- POST /api/household/leave: leave; own blobs go; an empty household is removed
+- POST /api/household/leave: leave; own blobs go; an empty household is removed, and an
+  owner's passes to the partner (whose plan then covers it)
 - GET /api/household/blobs, PUT /api/household/blobs/{kind}: ciphertext per author and kind
 """
 
@@ -185,6 +186,22 @@ def _out(db: DbSession, household: Household, me: uuid.UUID) -> HouseholdOut:
     )
 
 
+def _lock_person(db: DbSession, user_id: uuid.UUID) -> None:
+    """The lock order for membership changes (October 28, 2026): the person, then the
+    household. Held to the commit, so one person's invites, joins and leaves run one at a time."""
+    db.execute(select(User.id).where(User.id == user_id).with_for_update())
+
+
+def _lock_household(db: DbSession, household_id: uuid.UUID) -> Household | None:
+    """Joins and leaves of one household run one at a time, so it never holds three."""
+    return db.scalar(
+        select(Household)
+        .where(Household.id == household_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+
 def _my_household(db: DbSession, caller: Caller) -> Household:
     membership = _membership(db, caller.user.id)
     household = db.get(Household, membership.household_id) if membership else None
@@ -219,6 +236,7 @@ def invite(
 ) -> InviteOut:
     require_feature(db, caller.user.id, "household")
     now = _now()
+    _lock_person(db, caller.user.id)
     membership = _membership(db, caller.user.id)
     if membership is None:
         household = Household(owner_id=caller.user.id)
@@ -227,7 +245,7 @@ def invite(
         db.add(HouseholdMember(household_id=household.id, user_id=caller.user.id, joined_at=now))
         db.flush()
     else:
-        household = db.get(Household, membership.household_id)
+        household = _lock_household(db, membership.household_id)
         assert household is not None
     if len(_active_members(db, household.id)) >= MAX_MEMBERS:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="household_full")
@@ -280,11 +298,20 @@ def join(
     db: Annotated[DbSession, Depends(get_db)],
 ) -> HouseholdOut:
     now = _now()
+    _lock_person(db, caller.user.id)
     if _membership(db, caller.user.id) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="already_in_household")
-    row = _valid_invite(db, body.code, now)
-    household = db.get(Household, row.household_id)
+    found = _valid_invite(db, body.code, now)
+    household = _lock_household(db, found.household_id)
     if household is None:
+        raise not_found()
+    # Read again under the household's lock: a join that finished meanwhile used it.
+    row = db.scalar(
+        select(HouseholdInvite)
+        .where(HouseholdInvite.id == found.id)
+        .execution_options(populate_existing=True)
+    )
+    if row is None or row.used_at is not None or row.expires_at <= now:
         raise not_found()
     _owner_plan_allows(db, household)
     if len(_active_members(db, household.id)) >= MAX_MEMBERS:
@@ -305,14 +332,18 @@ def join(
 
 
 def leave_households(db: DbSession, user_id: uuid.UUID, *, now: datetime | None = None) -> int:
-    """Leave every household (one at most): own blobs go, an empty household is removed."""
+    """Leave every household (one at most): own blobs go, an empty household is removed, and
+    one the leaver owned passes to the partner, so its plan is the partner's from now on (like
+    a challenge's owner, groups.py; October 28, 2026)."""
     now = now or _now()
     count = 0
+    _lock_person(db, user_id)
     for m in db.scalars(
         select(HouseholdMember).where(
             HouseholdMember.user_id == user_id, HouseholdMember.left_at.is_(None)
         )
     ).all():
+        locked = _lock_household(db, m.household_id)
         m.left_at = now
         db.execute(
             delete(HouseholdBlob).where(
@@ -320,10 +351,17 @@ def leave_households(db: DbSession, user_id: uuid.UUID, *, now: datetime | None 
             )
         )
         db.flush()
-        if not _active_members(db, m.household_id):
-            household = db.get(Household, m.household_id)
-            if household is not None:
-                db.delete(household)
+        rest = _active_members(db, m.household_id)
+        if locked is not None and not rest:
+            db.delete(locked)
+        elif locked is not None and locked.owner_id == user_id:
+            locked.owner_id = rest[0].user_id  # the longest-standing member
+            # The invite was the leaver's to give; the new owner issues their own.
+            db.execute(
+                delete(HouseholdInvite).where(
+                    HouseholdInvite.household_id == locked.id, HouseholdInvite.used_at.is_(None)
+                )
+            )
         count += 1
     db.flush()
     return count

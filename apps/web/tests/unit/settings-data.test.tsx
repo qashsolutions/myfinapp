@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Dexie from "dexie";
 import { dbName, openDb, seedDefaults } from "../../src/data/db.ts";
-import { crc32, toCsv, zipEntryNames, zipStore } from "../../src/data/export.ts";
+import { collectExport, crc32, toCsv, zipEntryNames, zipStore } from "../../src/data/export.ts";
 import { exportState } from "../../src/features/settings/ExportData.tsx";
 import {
   fakeMember,
@@ -120,6 +120,128 @@ describe("Settings + data rights", () => {
     expect(text).toContain("nia@example.com");
     expect(text).toContain("October savings"); // the group, from the server's part
     expect(text).toContain('"Travel"');
+  });
+
+  it("the export holds everything the person made: milestones, templates, column matches, kept statements, and how entries split and pair", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    const row = {
+      date: "2026-10-03",
+      direction: "out" as const,
+      merchant: "Corner Market",
+      clean_description: "CORNER MARKET",
+      raw_description: null,
+      category_id: "cat-groceries",
+      account_id: "acct-cash",
+      source: "linked" as const,
+      receipt_id: null,
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      split_parent_id: null,
+      is_recurring: false,
+      created_at: "2026-10-03T00:00:00Z",
+      updated_at: "2026-10-03T00:00:00Z",
+    };
+    await db.entries.bulkAdd([
+      {
+        ...row,
+        id: "e1",
+        amount_cents: 3000,
+        fingerprint: "fp-e1",
+        provider_txn_id: "txn-9",
+        pending: true,
+        transfer_pair_id: "e3",
+      },
+      { ...row, id: "e2", amount_cents: 1000, split_parent_id: "e1" },
+    ]);
+    await db.goal_milestones.add({
+      id: "g1:5000",
+      goal_id: "g1",
+      bps: 5000,
+      label: "Halfway",
+      target_cents: 1000,
+      reached_at: null,
+    });
+    await db.goal_templates.add({
+      id: "t1",
+      name: "Trip fund",
+      payload: {
+        kind: "save",
+        title: "Trip fund",
+        target_cents: 50000,
+        months: 6,
+        cadence: null,
+        per_period_cents: null,
+        is_ongoing: false,
+        why_text: null,
+        milestones_bps: [],
+      },
+      created_at: "2026-10-01T00:00:00Z",
+    });
+    await db.csv_mappings.add({
+      account_id: "acct-cash",
+      mapping: {
+        date: 0,
+        description: 1,
+        amount: 2,
+        debit: null,
+        credit: null,
+        balance: null,
+        sign: "negative_out",
+        date_format: "YYYY-MM-DD",
+      } as never,
+      updated_at: "2026-10-01T00:00:00Z",
+    });
+    const statement = {
+      id: "f1",
+      kind: "statement" as const,
+      import_id: "imp-1",
+      name: "october/statement.csv",
+      type: "text/csv",
+      size: 18,
+      blob: new Blob(["date,desc,amount\n"], { type: "text/csv" }),
+      created_at: "2026-10-01T00:00:00Z",
+    };
+    await db.files.add(statement);
+    // fake-indexeddb hands a Blob back as a plain object; the browser keeps it a Blob
+    const where = db.files.where.bind(db.files);
+    vi.spyOn(db.files, "where").mockImplementation(((index: string) =>
+      index === "kind"
+        ? { equals: () => ({ toArray: async () => [statement] }) }
+        : where(index)) as never);
+    const files = await collectExport(db, null, TODAY.toISOString());
+    const byName = new Map(files.map((f) => [f.name, new TextDecoder().decode(f.data)]));
+    const goals = JSON.parse(byName.get("goals.json") ?? "{}");
+    expect(goals.milestones.map((m: { id: string }) => m.id)).toEqual(["g1:5000"]);
+    expect(goals.templates.map((t: { name: string }) => t.name)).toEqual(["Trip fund"]);
+    const settings = JSON.parse(byName.get("settings.json") ?? "{}");
+    expect(settings.csv_mappings[0].account_id).toBe("acct-cash");
+    expect(settings.statement_files).toEqual([
+      expect.objectContaining({
+        id: "f1",
+        import_id: "imp-1",
+        path: "statements/f1-october_statement.csv",
+      }),
+    ]);
+    expect(byName.get("statements/f1-october_statement.csv")).toBe("date,desc,amount\n");
+    const [header, first, second] = (byName.get("entries.csv") ?? "").split("\r\n");
+    const cols = header?.split(",") ?? [];
+    for (const c of [
+      "split_parent_id",
+      "transfer_pair_id",
+      "pending",
+      "fingerprint",
+      "provider_txn_id",
+    ])
+      expect(cols).toContain(c);
+    const cell = (line: string | undefined, c: string) => line?.split(",")[cols.indexOf(c)];
+    expect(cell(first, "fingerprint")).toBe("fp-e1");
+    expect(cell(first, "provider_txn_id")).toBe("txn-9");
+    expect(cell(first, "pending")).toBe("true");
+    expect(cell(first, "transfer_pair_id")).toBe("e3");
+    expect(cell(second, "split_parent_id")).toBe("e1");
+    expect(cell(second, "pending")).toBe("false");
   });
 
   it("deletes the account: tick the box, a passkey check, the server call, then this device wipes its copy", async () => {

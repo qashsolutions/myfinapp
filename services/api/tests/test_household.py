@@ -140,3 +140,111 @@ def test_account_deletion_leaves_the_household() -> None:
     left = maya.get("/api/household").json()["household"]
     assert [m["display_name"] for m in left["members"]] == ["Maya R."]
     assert maya.get("/api/household/blobs").json() == []
+
+
+def _pair(partner_plan: str | None):
+    maya, maya_id = member("Maya R.", "connected")
+    dev, dev_id = member("Dev P.", partner_plan)
+    code = maya.post("/api/household/invites").json()["code"]
+    assert dev.post("/api/household/join", json={"code": code}).status_code == 200
+    return maya, maya_id, dev, dev_id
+
+
+def test_when_the_owner_leaves_the_partner_owns_the_household_on_their_own_plan() -> None:
+    """Like a challenge (groups pass to the longest-standing member), the household passes to
+    the partner, and from then on its writes ride the partner's plan, never the plan of
+    someone who left (spec: "a partner on any plan joins under the Connected owner's plan")."""
+    maya, _, dev, dev_id = _pair(None)
+    assert maya.post("/api/household/leave").status_code == 204
+    mine = dev.get("/api/household").json()["household"]
+    assert mine["owner_id"] == dev_id
+    assert [m["display_name"] for m in mine["members"]] == ["Dev P."]
+    blob = {"ciphertext": b64(b"d"), "version": 1}
+    r = dev.put("/api/household/blobs/jars", json=blob)
+    assert r.status_code == 403 and r.json()["detail"] == "plan_required"
+
+
+def test_a_partner_on_connected_keeps_sharing_after_the_owner_leaves() -> None:
+    maya, _, dev, dev_id = _pair("connected")
+    assert maya.post("/api/household/leave").status_code == 204
+    blob = {"ciphertext": b64(b"d"), "version": 1}
+    assert dev.put("/api/household/blobs/jars", json=blob).status_code == 200
+    assert dev.post("/api/household/invites").status_code == 201  # and can invite someone new
+
+
+def test_an_owner_deleting_their_account_passes_the_household_on() -> None:
+    maya, _, dev, dev_id = _pair(None)
+    assert maya.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
+    assert dev.get("/api/household").json()["household"]["owner_id"] == dev_id
+    blob = {"ciphertext": b64(b"d"), "version": 1}
+    assert dev.put("/api/household/blobs/jars", json=blob).status_code == 403
+
+
+def test_two_joins_at_once_still_make_a_household_of_two() -> None:
+    """Two connections: another join holds the household (as one in flight does) and adds its
+    member; this join must wait for it and then find the household full."""
+    import threading
+
+    from sqlalchemy import func, select
+
+    from app.db import get_session_factory
+    from app.models.household import Household, HouseholdMember
+
+    maya, maya_id = member("Maya R.", "connected")
+    dev, _ = member("Dev P.", None)
+    _, sam_id = member("Sam K.", None)
+    code = maya.post("/api/household/invites").json()["code"]
+    household_id = uuid.UUID(maya.get("/api/household").json()["household"]["id"])
+
+    answers: list = []
+    with get_session_factory()() as other:
+        other.execute(select(Household.id).where(Household.id == household_id).with_for_update())
+        from datetime import UTC, datetime
+
+        other.add(
+            HouseholdMember(
+                household_id=household_id, user_id=uuid.UUID(sam_id), joined_at=datetime.now(UTC)
+            )
+        )
+        other.flush()
+        worker = threading.Thread(
+            target=lambda: answers.append(dev.post("/api/household/join", json={"code": code}))
+        )
+        worker.start()
+        worker.join(timeout=1.5)
+        other.commit()
+    worker.join(timeout=10)
+    [r] = answers
+    assert r.status_code == 409 and r.json()["detail"] == "household_full", r.text
+    with get_session_factory()() as db:
+        active = db.scalar(
+            select(func.count())
+            .select_from(HouseholdMember)
+            .where(HouseholdMember.household_id == household_id, HouseholdMember.left_at.is_(None))
+        )
+    assert active == 2
+
+
+def test_one_person_is_in_one_household_at_most() -> None:
+    """The database refuses a second live membership, whatever a route does."""
+    from datetime import UTC, datetime
+
+    import sqlalchemy.exc
+
+    from app.db import get_session_factory
+    from app.models.household import Household, HouseholdMember
+
+    _, maya_id = member("Maya R.", "connected")
+    with get_session_factory()() as db:
+        homes = [Household(owner_id=uuid.UUID(maya_id)) for _ in range(2)]
+        db.add_all(homes)
+        db.flush()
+        for h in homes:
+            db.add(
+                HouseholdMember(
+                    household_id=h.id, user_id=uuid.UUID(maya_id), joined_at=datetime.now(UTC)
+                )
+            )
+        with pytest.raises(sqlalchemy.exc.IntegrityError):
+            db.flush()
+        db.rollback()

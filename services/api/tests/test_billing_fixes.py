@@ -138,7 +138,7 @@ def test_a_failed_first_bank_payment_keeps_the_trial_on_offer() -> None:
     post_event(client, _event("checkout.session.completed", unpaid, T0))
     post_event(client, _event("checkout.session.async_payment_failed", unpaid, T0 + 60))
     access = client.get("/api/billing/entitlements").json()["access"]
-    assert access == {"state": "choose", "plan": "free"}
+    assert access == {"state": "choose", "plan": "free", "trial_used": False}
     assert client.post("/api/billing/trial", json={"plan": "private"}).status_code == 200
 
 

@@ -49,7 +49,7 @@ def parse_clock(value: object) -> int:
 
 
 def fmt_local(value: datetime) -> str:
-    return value.strftime("%Y-%m-%dT%H:%M")
+    return value.isoformat(timespec="minutes")  # strftime("%Y") skips the zero pad on glibc
 
 
 def in_quiet_hours(minute_of_day: int, start: int, end: int) -> bool:
@@ -80,6 +80,10 @@ def decide(
     now = parse_local(now_local)
     if not isinstance(settings, dict) or not isinstance(prefs, dict):
         raise RuleError("invalid_settings")
+    # A switch is on or off: only true and false, never a truthy 1 or "yes" (the device's engine
+    # would read those differently), and a type left out is off.
+    if any(not isinstance(on, bool) for on in prefs.values()):
+        raise RuleError("invalid_settings")
     quiet_start = parse_clock(settings.get("quiet_start"))
     quiet_end = parse_clock(settings.get("quiet_end"))
     daily_max = _int(settings.get("daily_max"))
@@ -103,7 +107,7 @@ def decide(
 
     if key in sent_keys:
         return {"action": "skip", "reason": "duplicate", "send_at_local": None}
-    if not prefs.get(candidate["type"], False):
+    if prefs.get(candidate["type"]) is not True:
         return {"action": "skip", "reason": "disabled", "send_at_local": None}
     if due > now:
         return {"action": "wait", "reason": "not_due", "send_at_local": fmt_local(due)}

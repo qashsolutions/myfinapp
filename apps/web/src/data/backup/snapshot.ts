@@ -208,6 +208,21 @@ export interface MergeReport {
   stale: number;
 }
 
+/**
+ * Runs one write of a merge. True when a unique index (an import fingerprint, a merchant name's
+ * match) already holds the row's value under another id, so the row is left out (invariant 21);
+ * anything else is a real failure and aborts the merge.
+ */
+async function uniqueClashSkips(write: () => Promise<unknown>): Promise<boolean> {
+  try {
+    await write();
+    return false;
+  } catch (error) {
+    if ((error as { name?: string } | null)?.name !== "ConstraintError") throw error;
+    return true;
+  }
+}
+
 function stamp(row: Row, updatedAt: "updated_at" | null): string {
   return String((updatedAt ? row[updatedAt] : null) ?? row.created_at ?? "");
 }
@@ -257,21 +272,16 @@ export async function mergeSnapshot(db: StackdDb, snapshot: Snapshot): Promise<M
             report.stale += 1;
             continue;
           }
-          try {
-            await table.add(remote);
-            report.added += 1;
-          } catch (error) {
-            // a unique index (an import fingerprint) already holds this row under another id;
-            // anything else is a real failure and aborts the merge
-            if ((error as { name?: string } | null)?.name !== "ConstraintError") throw error;
-            report.skipped += 1;
-          }
+          if (await uniqueClashSkips(() => table.add(remote))) report.skipped += 1;
+          else report.added += 1;
         } else if (
           spec.updatedAt &&
           stamp(remote, spec.updatedAt) > stamp(existing, spec.updatedAt)
         ) {
-          await table.put(remote);
-          report.updated += 1;
+          // The newer copy may carry a unique value another row here already holds (two devices
+          // syncing one bank connection suffix fingerprints differently): keep ours, skip it.
+          if (await uniqueClashSkips(() => table.put(remote))) report.skipped += 1;
+          else report.updated += 1;
         }
       }
     }

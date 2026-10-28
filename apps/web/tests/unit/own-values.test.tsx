@@ -61,8 +61,12 @@ describe("own values", () => {
     await user.type(box, "45");
     await user.click(within(section).getByRole("button", { name: "Use" }));
     await waitFor(async () => expect(await getRetention(db)).toBe("45d"));
-    for (const name of ["90 days", "1 year", "Forever"])
-      expect(within(section).getByRole("radio", { name })).not.toBeChecked();
+    // The screen reads the saved value back after the save, so wait for it too (a slow runner
+    // still showed the default checked here).
+    await waitFor(() => {
+      for (const name of ["90 days", "1 year", "Forever"])
+        expect(within(section).getByRole("radio", { name })).not.toBeChecked();
+    });
   });
 
   it("alerts take the person's own days before a bill, its time, the most per day and a pause date", async () => {

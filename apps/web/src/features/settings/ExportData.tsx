@@ -27,7 +27,7 @@ export function ExportData({ label = "Download all my data" }: { label?: string 
     setBusy(true);
     try {
       let server: ExportOut | null = null;
-      const r = await api.GET("/api/account/export");
+      const r = await api.POST("/api/account/export");
       const failure = failureOf(r);
       if (failure && failure.code !== "step_up_required") {
         setStatus(

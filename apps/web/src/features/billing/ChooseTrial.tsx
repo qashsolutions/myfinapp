@@ -1,13 +1,14 @@
 import "../auth/auth.css";
 import "./billing.css";
 
-import { Button } from "@stackd/ui";
+import { Button, buttonClass } from "@stackd/ui";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { api, failureOf } from "../../data/api.ts";
 import { APP_NAME } from "../../lib/brand.ts";
 import { formatCents } from "../../lib/format.ts";
 import { AuthLayout } from "../auth/AuthLayout.tsx";
+import { BringBackOffer } from "../settings/KeptOnPhone.tsx";
 import { priceCents, useBilling } from "./billing.ts";
 import { useEntitlements } from "./entitlements.ts";
 
@@ -49,13 +50,17 @@ const CHOICES: Array<{
 export function ChooseTrial() {
   const navigate = useNavigate();
   const { billing } = useBilling();
-  const { refresh } = useEntitlements();
+  const { entitlements, refresh } = useEntitlements();
   const [picked, setPicked] = useState<TrialPlan>("private");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // Signing up again with an inbox that already had its trial: the server says so up front,
+  // or answers trial_used if it was claimed elsewhere since (October 28, 2026).
+  const [usedHere, setUsedHere] = useState(false);
+  const used = usedHere || entitlements.access?.trial_used === true;
   useEffect(() => {
-    document.title = `Start your free trial · ${APP_NAME}`;
-  }, []);
+    document.title = used ? `Welcome back · ${APP_NAME}` : `Start your free trial · ${APP_NAME}`;
+  }, [used]);
   const days = (plan: TrialPlan): number | null => {
     const d = billing?.trials?.[plan];
     return typeof d === "number" ? d : null;
@@ -68,20 +73,25 @@ export function ChooseTrial() {
     const failure = failureOf(r);
     if (failure) {
       setBusy(false);
+      if (failure.code === "trial_used") {
+        // The plans are open to this account; re-read so the gate lets it through to them.
+        setUsedHere(true);
+        await refresh();
+        return;
+      }
       setNote(
-        failure.code === "trial_used"
-          ? "This email has already had its free trial. Choose a plan to continue."
-          : failure.status === 0
-            ? "You're offline. Try again when connected."
-            : "Couldn't start the trial. Try again.",
+        failure.status === 0
+          ? "You're offline. Try again when connected."
+          : "Couldn't start the trial. Try again.",
       );
-      if (failure.code === "trial_used") navigate("/me/plan");
       return;
     }
     await refresh();
     // Then "Make Qash yours": choices, not a wizard (owner, October 20, 2026).
     navigate("/setup", { replace: true });
   }
+
+  if (used) return <WelcomeBack />;
 
   return (
     <AuthLayout brand>
@@ -159,6 +169,39 @@ export function ChooseTrial() {
           until you decide.
         </li>
       </ul>
+      <p className="auth__hint">
+        Changed your mind? You can <Link to="/me/delete">delete your account</Link>.
+      </p>
+    </AuthLayout>
+  );
+}
+
+/**
+ * Someone signing up again with an email whose free trial was already used: no trial to start,
+ * so say it plainly and lead to the plans; download and delete stay open too. A plan that
+ * ended may have left data on this device, and BringBackOffer offers it here, before any purchase.
+ */
+function WelcomeBack() {
+  return (
+    <AuthLayout brand>
+      <h1 className="auth__title trial__title">Welcome back</h1>
+      <p className="auth__lead">
+        Your free trial was already used on this email, so there isn't another one. Pick a plan to
+        keep going with {APP_NAME}.
+      </p>
+      <div className="auth__spacer" />
+      <div className="auth__actions">
+        <Link className={buttonClass({ block: true })} to="/me/plan">
+          See plans
+        </Link>
+        <Link className={buttonClass({ variant: "secondary", block: true })} to="/me/data">
+          Download my data
+        </Link>
+      </div>
+      <p className="auth__hint">
+        Rather not continue? You can <Link to="/me/delete">delete your account</Link> any time.
+      </p>
+      <BringBackOffer />
     </AuthLayout>
   );
 }

@@ -29,7 +29,8 @@ interface Row {
 export function rank(members: unknown): Ranking {
   if (!Array.isArray(members)) throw new RuleError("invalid_members");
   const rows: Row[] = members.map((m, i) => {
-    if (typeof m !== "object" || m === null) throw new RuleError("invalid_member");
+    if (typeof m !== "object" || m === null || Array.isArray(m))
+      throw new RuleError("invalid_member");
     const r = m as Record<string, unknown>;
     if (typeof r.id !== "string" || r.id === "") throw new RuleError("invalid_member");
     if (typeof r.has_events !== "boolean") throw new RuleError("invalid_member");

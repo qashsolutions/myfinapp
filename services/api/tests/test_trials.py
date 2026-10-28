@@ -51,7 +51,7 @@ def set_user(user_id: uuid.UUID, **fields) -> None:
 
 def test_a_new_account_picks_one_trial_with_no_card() -> None:
     client, _, _ = signed_up()
-    assert access(client) == {"state": "choose", "plan": "free"}
+    assert access(client) == {"state": "choose", "plan": "free", "trial_used": False}
     r = client.post("/api/billing/trial", json={"plan": "connected"})
     assert r.status_code == 200, r.text
     got = r.json()
@@ -350,3 +350,20 @@ def test_the_day_before_a_trial_ends_one_push_goes_with_the_email(monkeypatch) -
     assert TRIAL_ENDS_TOMORROW_LABEL == "Your Qash trial ends tomorrow. Pick a plan to keep going."
     assert [p["body"] for _, p in sent] == [TRIAL_ENDS_TOMORROW_LABEL]
     assert sent[0][0] == user_id and sent[0][1]["url"] == "/me/plan"
+
+
+def test_signing_up_again_says_the_trial_was_used_so_the_app_offers_plans() -> None:
+    """A returning person (deleted, then signed up again with the same inbox) is told up front
+    that the trial was used, and can still buy: checkout is open to them in the choose state."""
+    email = f"back-{uuid.uuid4().hex[:8]}@example.com"
+    first, _, _ = signed_up(email)
+    assert first.post("/api/billing/trial", json={"plan": "private"}).status_code == 200
+    assert first.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
+    again, _, _ = signed_up(email)
+    assert access(again) == {"state": "choose", "plan": "free", "trial_used": True}
+    r = again.post("/api/billing/trial", json={"plan": "private"})
+    assert r.status_code == 409 and r.json()["detail"] == "trial_used"
+    stripe = FakeStripe()
+    stripe_billing.transport_override = stripe.transport()
+    body = buy(again, plan="private", interval="monthly")
+    assert again.post("/api/billing/checkout", json=body).status_code == 200

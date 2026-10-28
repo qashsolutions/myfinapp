@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from enum import StrEnum
 
+from fastapi import BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
@@ -125,13 +126,26 @@ def send_alert(to: str, event: SecurityEvent, *, device_label: str, at: datetime
     return message
 
 
-def alert_if_locked(db: DbSession, exc: OtpError, email: str, *, device_label: str) -> None:
+def alert_if_locked(
+    db: DbSession,
+    exc: OtpError,
+    email: str,
+    *,
+    device_label: str,
+    background: BackgroundTasks | None = None,
+) -> None:
     """The attempt that locks an address's codes tells that account's owner, once per lockout
-    (October 24, 2026). Addresses with no live account get nothing."""
+    (October 24, 2026). Addresses with no live account get nothing. With `background` the
+    email goes after the answer, so a public route takes the same time either way."""
     if exc.code != "locked" or not exc.just_locked:
         return
     user = db.scalar(select(User).where(User.email == email, User.deleted_at.is_(None)))
-    if user is not None:
-        send_alert(
-            user.email, SecurityEvent.CODES_LOCKED, device_label=device_label, at=datetime.now(UTC)
+    if user is None:
+        return
+    at = datetime.now(UTC)
+    if background is not None:
+        background.add_task(
+            send_alert, user.email, SecurityEvent.CODES_LOCKED, device_label=device_label, at=at
         )
+    else:
+        send_alert(user.email, SecurityEvent.CODES_LOCKED, device_label=device_label, at=at)

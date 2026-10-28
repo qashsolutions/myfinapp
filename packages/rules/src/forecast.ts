@@ -3,7 +3,7 @@
 import { addDays, type Day, daysInMonth, daysUntil, iso, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { cleanDescription } from "./fingerprint.ts";
-import { assertInt, roundDiv } from "./money.ts";
+import { assertInt, mul, roundDiv, safeNumber } from "./money.ts";
 import {
   INTERVALS,
   type Interval,
@@ -276,7 +276,7 @@ export function project(
   let firstShort: string | null = start >= buffer ? null : iso(today);
   for (let d = 0; d <= horizon; d += 1) {
     const day = iso(addDays(today, d));
-    let balance = start - daily * d;
+    let balance = safeNumber(BigInt(start) - mul(daily, d));
     for (const item of expected) if (item.when <= day) balance += item.cents;
     out.push({ date: day, balance_cents: balance });
     if (balance < lowest) {

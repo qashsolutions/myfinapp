@@ -59,6 +59,8 @@ function currentLine(billing: BillingOut, access: Access | null): string {
     return `Wrapped up · your account stays open until ${formatDate(access.delete_at)}`;
   if (access?.state === "paused") return "Paused while a payment is disputed";
   if (access?.state === "ended") return "Ended · your bank returned the payment";
+  if (access?.state === "choose" && access.trial_used)
+    return "Your free trial was already used on this email.";
   if (plan === "free") return "No plan yet";
   if (plan === "founding") {
     const once = formatCents(Number(founding.one_time_cents ?? 0));
@@ -539,14 +541,18 @@ export function PlanScreen() {
                   ? "Pending"
                   : billing.cancel_at_period_end
                     ? "Ending"
-                    : billing.plan === "free"
-                      ? "Free"
-                      : "Active"}
+                    : access?.state === "choose" && access.trial_used
+                      ? "None"
+                      : billing.plan === "free"
+                        ? "Free"
+                        : "Active"}
         </Word>
         <p className="sk-card__hero sk-card__hero--empty">
           {access?.state === "trial"
             ? `${access.plan === "connected" ? "Connected" : "Private"} trial`
-            : billing.label}
+            : access?.state === "choose" && access.trial_used
+              ? "No plan yet"
+              : billing.label}
           {billing.interval ? ` · ${billing.interval}` : ""}
         </p>
         <p>{currentLine(billing, access)}</p>

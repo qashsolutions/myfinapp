@@ -304,6 +304,10 @@ export interface SyncResult {
 /**
  * Pull, merge, then push when this device holds something the server does not; then prune
  * old removals, so the upload just made still carried them (invariant 24).
+ *
+ * A pull that fails (the server, or a copy whose rows this database cannot take) never stops
+ * this device from uploading its own rows: it still pushes, then reports the pull's failure.
+ * Nothing is pruned then, since no full pull happened (invariant 21).
  */
 export async function syncBackup(
   db: StackdDb,
@@ -311,7 +315,13 @@ export async function syncBackup(
   rulesVersion: string,
   now = new Date(),
 ): Promise<SyncResult> {
-  const pulled = await pullBackup(db, userId, undefined, now);
+  let pulled: PullResult;
+  try {
+    pulled = await pullBackup(db, userId, undefined, now);
+  } catch (pullError) {
+    await pushBackup(db, userId, rulesVersion, { now });
+    throw pullError;
+  }
   const pushed = await pushBackup(db, userId, rulesVersion, { now });
   await putSetting(db, LAST_SYNC_SETTING, now.toISOString(), now);
   await pruneOldTombstones(db, now);

@@ -28,6 +28,7 @@ type Outcome =
       used: Account[];
       skipped: LinkedAccount[];
       already: string[]; // banks in this trip that were linked before, so not linked again
+      failed: string[]; // banks whose accounts couldn't be read: not linked, link again
       pulled: string | null; // null while the first sync runs
     };
 
@@ -64,6 +65,7 @@ export function LinkDone() {
         return;
       }
       const already = result.already_linked ?? [];
+      const failed = result.failed ?? [];
       if (result.status === "already_linked") {
         setOutcome({ kind: "already", names: already });
         return;
@@ -79,6 +81,7 @@ export function LinkDone() {
         used,
         skipped,
         already,
+        failed,
         pulled: null,
       });
       // The first pull: history arrives with the link, so the numbers fill in right away.
@@ -89,6 +92,7 @@ export function LinkDone() {
         used,
         skipped,
         already,
+        failed,
         pulled: describeReport(report) || "nothing yet",
       });
       // Signing out (or leaving) mid-pull closes the database; the next open pulls again.
@@ -144,6 +148,13 @@ export function LinkDone() {
             <p className="auth__hint">
               {joinNames(outcome.already)} {outcome.already.length === 1 ? "was" : "were"} linked
               already, so {outcome.already.length === 1 ? "it was" : "they were"} not added again.
+            </p>
+          ) : null}
+          {outcome.failed.length > 0 ? (
+            <p className="auth__hint">
+              {joinNames(outcome.failed)} couldn't be read just now, so{" "}
+              {outcome.failed.length === 1 ? "it wasn't" : "they weren't"} linked. Try linking{" "}
+              {outcome.failed.length === 1 ? "it" : "them"} again.
             </p>
           ) : null}
           {outcome.skipped.length > 0 ? (

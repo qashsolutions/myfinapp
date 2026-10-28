@@ -4,7 +4,7 @@
  * pruned, and a merge never adds a row from another device that is older than that record
  * (it can no longer tell whether the row was removed here). Absence never deletes.
  */
-import { randomBytes, toBase64url } from "../../src/data/backup/crypto.ts";
+import { encryptJson, randomBytes, toBase64url } from "../../src/data/backup/crypto.ts";
 import {
   buildSnapshot,
   mergeSnapshot,
@@ -169,6 +169,41 @@ describe("pruning old removals", () => {
     expect(await restored.entries.get("e-old")).toBeUndefined();
     await stale.delete();
     await restored.delete();
+  });
+
+  it("a merge that fails still lets this device push its own backup, and nothing is pruned", async () => {
+    const db = openDb("u1");
+    const key = randomBytes(32);
+    await db.settings.put({ key: KEY_SETTING, value: toBase64url(key), updated_at: "" });
+    await db.entries.add(entry("mine", RECENT, "Mine"));
+    await recordDeletion(db, "entries", ["old1"], new Date(OLD));
+    // Another device's backup holds a row this database can never store (it has no id)
+    const other = await fresh("u1-other");
+    const snap = await buildSnapshot(other, { rulesVersion: "t", deviceId: "B", now: NOW });
+    const { id: _id, ...keyless } = entry("bad", RECENT, "Bad");
+    snap.tables.entries = [keyless];
+    const ciphertext = toBase64url(await encryptJson(key, snap, "stackd-backup:u1"));
+    const backup: FakeBackup = {
+      key: { key_version: 1 },
+      blobs: [
+        {
+          id: "b-other",
+          ciphertext,
+          key_version: 1,
+          snapshot_at: NOW.toISOString(),
+          created_at: NOW.toISOString(),
+          device_label: "B",
+        },
+      ],
+    };
+    installFakeApi({ session: readySession(), backup });
+    await expect(syncBackup(db, "u1", "t", NOW)).rejects.toMatchObject({ name: "DataError" });
+    // This device's own rows still went up
+    expect(backup.blobs).toHaveLength(2);
+    // No full pull happened, so no removal is forgotten
+    expect(await db.tombstones.count()).toBe(1);
+    expect(await db.settings.get(LAST_PULL_SETTING)).toBeUndefined();
+    await other.delete();
   });
 
   it("a sync prunes after it pulled and pushed, and the next upload is smaller", async () => {

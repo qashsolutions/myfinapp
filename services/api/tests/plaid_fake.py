@@ -31,6 +31,10 @@ class FakePlaid:
         self.error_extra: dict[str, Any] = {}  # more fields for that error body
         self.mutation_once = False  # answer the next sync with a pagination mutation error
         self.liabilities_error: str | None = None  # an error_code for /liabilities/get
+        # /accounts/get answers this error_code for the next `accounts_failures` calls
+        self.accounts_error: str | None = None
+        self.accounts_failures = 0
+        self.item_id: str | None = None  # make the next exchange return this item id
         self.signing_key = ec.generate_private_key(ec.SECP256R1())
         self.key_expired = False  # Plaid marks a retired key with expired_at
         self.key_id = "kid-test-1"
@@ -88,9 +92,13 @@ class FakePlaid:
             if path == "/item/public_token/exchange":
                 n = uuid.uuid4().hex[:12]  # item ids are unique across Plaid, so across runs here
                 access = f"access-sandbox-{n}"
-                self.items[access] = {"item_id": f"item-{n}"}
-                return httpx2.Response(200, json={"access_token": access, "item_id": f"item-{n}"})
+                item_id, self.item_id = self.item_id or f"item-{n}", None
+                self.items[access] = {"item_id": item_id}
+                return httpx2.Response(200, json={"access_token": access, "item_id": item_id})
             if path == "/accounts/get":
+                if self.accounts_error and self.accounts_failures > 0:
+                    self.accounts_failures -= 1
+                    return httpx2.Response(400, json={"error_code": self.accounts_error})
                 return httpx2.Response(
                     200,
                     json={

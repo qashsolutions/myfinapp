@@ -1,0 +1,10 @@
+{
+  "as_of": "2026-10-11",
+  "months": 12,
+  "thresholds": {
+    "lumpy_month_cents": 30000
+  },
+  "series": [
+    []
+  ]
+}

@@ -2,7 +2,8 @@
 
 import { addDays, type Day, daysUntil, iso, parseDate, weekday } from "./dates.ts";
 import { RuleError } from "./errors.ts";
-import { assertInt, roundDiv } from "./money.ts";
+import { fnv1a64 } from "./fingerprint.ts";
+import { assertInt, mul, roundDiv } from "./money.ts";
 import { compareLocal, fmtLocal, type Local, parseClock, parseLocal } from "./notify.ts";
 import { compareText } from "./text.ts";
 
@@ -17,6 +18,17 @@ export interface ScheduledAlert {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * 16 letters a–p from FNV-1a 64 of the amount's decimal digits (Python's `amount_tag`): a
+ * different amount gives a different key, and the key the server sees carries no amount.
+ */
+export function amountTag(cents: number): string {
+  const hex = fnv1a64(new TextEncoder().encode(String(cents)))
+    .toString(16)
+    .padStart(16, "0");
+  return Array.from(hex, (c) => String.fromCharCode(97 + Number.parseInt(c, 16))).join("");
 }
 
 function at(day: Day, clock: unknown): Local {
@@ -38,6 +50,13 @@ function opt(p: Record<string, unknown>, key: string, fallback: unknown): unknow
 function list(value: unknown): unknown[] {
   if (value === undefined || value === null) return [];
   if (!Array.isArray(value)) throw new RuleError("invalid_inputs");
+  return value;
+}
+
+/** A yes / no field: true, false, or left out; a truthy 1 or [] is invalid_inputs. */
+function flag(value: unknown): boolean {
+  if (value === undefined || value === null) return false;
+  if (typeof value !== "boolean") throw new RuleError("invalid_inputs");
   return value;
 }
 
@@ -65,7 +84,7 @@ export function schedule(inputs: unknown): { alerts: ScheduledAlert[] } {
     const lead = assertInt(opt(up, "lead_days", 3));
     if (lead < 0) throw new RuleError("invalid_prefs");
     for (const item of list(inputs.upcoming)) {
-      if (!isRecord(item) || item.kind !== "bill" || item.matched) continue;
+      if (!isRecord(item) || item.kind !== "bill" || flag(item.matched)) continue;
       const when = parseDate(item.date);
       if (typeof item.series_id !== "string") throw new RuleError("invalid_inputs");
       let due = at(addDays(when, -lead), opt(up, "time", SEND_TIME));
@@ -79,7 +98,7 @@ export function schedule(inputs: unknown): { alerts: ScheduledAlert[] } {
     if (!isRecord(short)) throw new RuleError("invalid_inputs");
     const first = parseDate(short.first_short_date);
     const cents = assertInt(short.short_by_cents);
-    add("shortfall_risk", now, `shortfall:${iso(first)}:${cents}`);
+    add("shortfall_risk", now, `shortfall:${iso(first)}:${amountTag(cents)}`);
   }
 
   const chk = pref(prefs, "challenge_checkin");
@@ -111,8 +130,9 @@ export function schedule(inputs: unknown): { alerts: ScheduledAlert[] } {
       const weeksTotal = Math.max(1, Math.ceil(daysUntil(start, end) / 7));
       const pace = roundDiv(target, weeksTotal);
       const weeksElapsed = Math.floor(daysUntil(start, today) / 7);
-      const expected = Math.min(target, pace * weeksElapsed);
-      if (expected - current >= periods * pace && pace > 0)
+      const byNow = mul(pace, weeksElapsed);
+      const expected = byNow < BigInt(target) ? byNow : BigInt(target);
+      if (expected - BigInt(current) >= mul(periods, pace) && pace > 0)
         add("goal_behind_pace", now, `behind:${g.id}:${weeksElapsed}`);
     }
   }

@@ -90,7 +90,8 @@ export function plan(
   asOf: unknown,
   schedule: unknown = null,
 ): Plan {
-  if (typeof goal !== "object" || goal === null) throw new RuleError("invalid_goal");
+  if (typeof goal !== "object" || goal === null || Array.isArray(goal))
+    throw new RuleError("invalid_goal");
   const g = goal as Record<string, unknown>;
   const cadence = g.cadence;
   if (!isCadence(cadence)) throw new RuleError("invalid_cadence");
@@ -148,7 +149,8 @@ function pauses(raw: unknown): Pause[] {
   if (raw === null || raw === undefined) return [];
   if (!Array.isArray(raw)) throw new RuleError("invalid_pauses");
   return raw.map((p) => {
-    if (typeof p !== "object" || p === null) throw new RuleError("invalid_pauses");
+    if (typeof p !== "object" || p === null || Array.isArray(p))
+      throw new RuleError("invalid_pauses");
     const r = p as Record<string, unknown>;
     const start = iso(parseDate(r.start));
     const end = r.end === null || r.end === undefined ? null : iso(parseDate(r.end));
@@ -170,7 +172,8 @@ export function streak(
   asOf: unknown,
   schedule: unknown = null,
 ): Streak {
-  if (typeof goal !== "object" || goal === null) throw new RuleError("invalid_goal");
+  if (typeof goal !== "object" || goal === null || Array.isArray(goal))
+    throw new RuleError("invalid_goal");
   const g = goal as Record<string, unknown>;
   const cadence = g.cadence;
   if (!isCadence(cadence)) throw new RuleError("invalid_cadence");

@@ -26,6 +26,8 @@ export interface Access {
   days: number | null;
   card_from: string | null;
   delete_at: string | null;
+  /** choose only: this inbox already had its free trial (signing up again), so only buying is left. */
+  trial_used: boolean;
 }
 
 export interface Entitlements {
@@ -86,6 +88,7 @@ function parseAccess(raw: unknown): Access | null {
     days: typeof r.days === "number" ? r.days : null,
     card_from: text(r.card_from),
     delete_at: text(r.delete_at),
+    trial_used: r.trial_used === true,
   };
 }
 

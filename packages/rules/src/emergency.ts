@@ -1,7 +1,7 @@
 /** Port of stackd_rules/emergency.py: runway, ETA and milestones for the emergency jar. */
 
 import { RuleError } from "./errors.ts";
-import { assertInt, ratioBps, roundDiv } from "./money.ts";
+import { assertInt, mul, ratioBps, roundDiv, safeNumber } from "./money.ts";
 
 export const MIN_TARGET_MONTHS = 1;
 export const MAX_TARGET_MONTHS = 12;
@@ -17,7 +17,7 @@ export function runwayTenths(savedCents: unknown, essentialsCents: unknown): num
   const saved = amount(savedCents);
   const essentials = amount(essentialsCents);
   if (essentials === 0) return null;
-  return roundDiv(saved * 10, essentials);
+  return roundDiv(mul(saved, 10), essentials);
 }
 
 export function etaMonths(
@@ -78,7 +78,7 @@ export function summary(
   const milestones: Milestone[] = [milestone("starter", STARTER_CENTS)];
   if (essentials > 0) {
     milestones.push(milestone("one_month", essentials));
-    milestones.push(milestone("target", essentials * months, { months }));
+    milestones.push(milestone("target", safeNumber(mul(essentials, months)), { months }));
   }
   return {
     saved_cents: saved,

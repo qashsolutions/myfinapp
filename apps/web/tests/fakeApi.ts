@@ -93,7 +93,8 @@ export interface FakeLinking {
   available: boolean;
   connections: FakeConnection[];
   sessions: string[];
-  nextLink: Array<{ institution_name: string; accounts: FakeLinkedAccount[] }>;
+  // `failed`: Plaid linked it but its accounts couldn't be read (the server revokes it)
+  nextLink: Array<{ institution_name: string; accounts: FakeLinkedAccount[]; failed?: boolean }>;
   seq: number;
   /** Chunk 3.3: pages each connection's next syncs answer with, and the cursors asked for. */
   syncPages: Record<string, FakeSyncPage[]>;
@@ -703,7 +704,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       state.schedule = items;
       return json({ registered: items.length, items });
     }
-    if (method === "GET" && path === "/api/account/export") {
+    if (method === "POST" && path === "/api/account/export") {
       if (state.stepUpStale) return json({ detail: "step_up_required" }, 403);
       return json({
         exported_at: now,
@@ -846,10 +847,14 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       const already = state.linking.nextLink
         .filter((l) => working(l.institution_name))
         .map((l) => l.institution_name);
-      const fresh = state.linking.nextLink.filter((l) => !working(l.institution_name));
+      const failed = state.linking.nextLink
+        .filter((l) => l.failed && !working(l.institution_name))
+        .map((l) => l.institution_name);
+      const fresh = state.linking.nextLink.filter((l) => !l.failed && !working(l.institution_name));
       if (fresh.length === 0) {
         state.linking.nextLink = [];
-        return json({ status: "already_linked", connections: [], already_linked: already });
+        if (already.length === 0) return json({ detail: "provider_error" }, 502);
+        return json({ status: "already_linked", connections: [], already_linked: already, failed });
       }
       const connections = fresh.map((l) => {
         state.linking.seq += 1;
@@ -865,7 +870,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
         return { ...row, accounts: l.accounts };
       });
       state.linking.nextLink = [];
-      return json({ status: "linked", connections, already_linked: already });
+      return json({ status: "linked", connections, already_linked: already, failed });
     }
     const cardsMatch = path.match(/^\/api\/linking\/([^/]+)\/cards$/);
     if (method === "POST" && cardsMatch) {
@@ -1085,6 +1090,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       return json({ ...fakeEntitlements(state.billing.plan), access: state.access });
     if (method === "POST" && path === "/api/billing/trial") {
       if (state.access?.state !== "choose") return json({ detail: "trial_not_available" }, 409);
+      if (state.access.trial_used) return json({ detail: "trial_used" }, 409);
       const plan = b.plan === "connected" ? "connected" : "private";
       const days = 3; // either plan (owner decision, October 22, 2026)
       const ends = new Date(Date.now() + days * 86_400_000);

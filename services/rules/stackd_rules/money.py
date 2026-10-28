@@ -16,12 +16,30 @@ from .text import trim_spaces
 
 _CENT = Decimal("0.01")
 _UNSIGNED_DECIMAL = re.compile(r"[0-9]*\.?[0-9]*")  # ASCII only: \d would admit Unicode digits
+# The largest whole number both engines hold exactly (2^53 - 1, JavaScript's largest safe
+# integer). Any integer in or out past it is `too_large`, so the device and the server never
+# differ by a rounded digit (October 28, 2026).
+MAX_SAFE = 2**53 - 1
 
 
 def _int(value: object, code: str = "invalid_integer") -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise RuleError(code)
+    if not -MAX_SAFE <= value <= MAX_SAFE:
+        raise RuleError("too_large")
     return value
+
+
+def check_output(value: object) -> None:
+    """`too_large` when any integer in a rule's output is past MAX_SAFE (both registries)."""
+    if isinstance(value, dict):
+        for v in value.values():
+            check_output(v)
+    elif isinstance(value, list):
+        for v in value:
+            check_output(v)
+    elif isinstance(value, int) and not isinstance(value, bool) and abs(value) > MAX_SAFE:
+        raise RuleError("too_large")
 
 
 def parse_amount(text: str) -> int:
@@ -47,20 +65,31 @@ def parse_amount(text: str) -> int:
         s = trim_spaces(s[1:])
     if not s or s == "." or not _UNSIGNED_DECIMAL.fullmatch(s):
         raise RuleError("invalid_amount")
+    if len(s.split(".")[0].lstrip("0")) > 16:  # past MAX_SAFE cents, before Decimal's precision
+        raise RuleError("too_large")
     try:
         value = Decimal(s)
     except InvalidOperation as exc:
         raise RuleError("invalid_amount") from exc
     cents = int(value.quantize(_CENT, rounding=ROUND_HALF_EVEN) * 100)
+    if cents > MAX_SAFE:
+        raise RuleError("too_large")
     return -cents if negative else cents
 
 
 def round_div(numerator: int, denominator: int) -> int:
-    """numerator / denominator rounded half to even. The only rounding in the package."""
-    _int(numerator)
+    """numerator / denominator rounded half to even. The only rounding in the package.
+
+    The numerator may be any exact product (cents x bps); the answer must fit in MAX_SAFE.
+    """
+    if isinstance(numerator, bool) or not isinstance(numerator, int):
+        raise RuleError("invalid_integer")
     if _int(denominator) == 0:
         raise RuleError("division_by_zero")
-    return round(Fraction(numerator, denominator))
+    q = round(Fraction(numerator, denominator))
+    if abs(q) > MAX_SAFE:
+        raise RuleError("too_large")
+    return q
 
 
 def pct_of(cents: int, bps: int) -> int:

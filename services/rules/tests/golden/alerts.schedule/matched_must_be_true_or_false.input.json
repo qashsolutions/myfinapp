@@ -1,0 +1,18 @@
+{
+  "inputs": {
+    "now_local": "2026-10-10T18:00",
+    "upcoming": [
+      {
+        "kind": "bill",
+        "series_id": "rent",
+        "date": "2026-10-20",
+        "matched": []
+      }
+    ],
+    "prefs": {
+      "upcoming_expense": {
+        "enabled": true
+      }
+    }
+  }
+}
