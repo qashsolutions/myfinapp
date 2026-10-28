@@ -4,6 +4,21 @@ import { addDays, matchTransfers, type RuleEntry } from "../../engine/bridge.ts"
 const WINDOW_DAYS = 5;
 
 /**
+ * The pool automatic pairing may draw from — the import preview, the bank sync and marking by
+ * hand all agree through this one helper (docs/invariants.md rule 2): never an entry already
+ * marked or pointed at, and never a split part or a split parent (its amount is the bank's less
+ * its parts, so pairing one would take part of the money out of the month; October 27, 2026).
+ * Pending rows are each caller's own call: bank-data flows leave them out because a pending
+ * amount can still change when it posts.
+ */
+export function pairablePool(entries: Entry[]): Entry[] {
+  const parents = new Set(entries.map((e) => e.split_parent_id).filter(Boolean));
+  return entries.filter(
+    (e) => !e.is_transfer && !e.transfer_pair_id && !e.split_parent_id && !parents.has(e.id),
+  );
+}
+
+/**
  * The other side of a transfer marked by hand (October 27, 2026; docs/invariants.md rule 2): the
  * entry in another account with the same amount the other way within 5 days, closest date first,
  * by the same rule import and bank sync use (`cashflow.match_transfers`). Only entries not
@@ -14,17 +29,12 @@ export async function findTransferPartner(db: StackdDb, entry: Entry): Promise<E
   const from = await addDays(entry.date, -WINDOW_DAYS);
   const to = await addDays(entry.date, WINDOW_DAYS);
   const nearby = await db.entries.where("date").between(from, to, true, true).toArray();
-  const parents = new Set(nearby.map((e) => e.split_parent_id).filter(Boolean));
-  const candidates = nearby.filter(
+  const candidates = pairablePool(nearby).filter(
     (e) =>
       e.id !== entry.id &&
       e.account_id !== entry.account_id &&
       e.direction !== entry.direction &&
-      e.amount_cents === entry.amount_cents &&
-      !e.is_transfer &&
-      !e.transfer_pair_id &&
-      !e.split_parent_id &&
-      !parents.has(e.id),
+      e.amount_cents === entry.amount_cents,
   );
   if (candidates.length === 0) return null;
   const asRule = (e: Entry): RuleEntry => ({

@@ -24,6 +24,7 @@ import { type PdfStatement, parsePdf } from "../../importers/pdf/index.ts";
 import { addDaysIso } from "../../lib/dates.ts";
 import { compareText } from "../../lib/order.ts";
 import { savedNames } from "../entries/entryActions.ts";
+import { pairablePool } from "../entries/transfers.ts";
 
 export function detectFormat(name: string, text: string): ImportFormat | null {
   const ext = name.toLowerCase().split(".").pop() ?? "";
@@ -236,9 +237,10 @@ async function attachTransferMatches(
   const dates = fresh.map((r) => r.date).sort();
   const lo = addDaysIso(dates[0] as string, -5);
   const hi = addDaysIso(dates[dates.length - 1] as string, 5);
-  const others = (await db.entries.where("date").between(lo, hi, true, true).toArray()).filter(
-    (e) => e.account_id !== accountId && !e.is_transfer,
-  );
+  const nearby = await db.entries.where("date").between(lo, hi, true, true).toArray();
+  // One pool rule with the bank sync and marking by hand (docs/invariants.md rule 2): never a
+  // split part or parent, never a pending row that could still change when it posts.
+  const others = pairablePool(nearby).filter((e) => e.account_id !== accountId && !e.pending);
   const candidates: RuleEntry[] = [
     ...fresh.map((r) => ({
       id: `row:${r.fingerprint}`,

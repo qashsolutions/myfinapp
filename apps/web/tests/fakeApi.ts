@@ -247,6 +247,8 @@ export interface FakeApi {
   foundingLeft: number;
   /** Trials (October 14, 2026): what GET /api/billing/entitlements says under `access`. */
   access: Record<string, unknown> | null;
+  /** When true, POST /api/billing/trial answers 409 trial_used (the inbox had its trial). */
+  trialUsed?: boolean;
   /** When true, step-up endpoints answer 403 step_up_required until an assertion happens. */
   stepUpStale: boolean;
   /** Link with your phone (October 19, 2026): what the computer's next status check sees;
@@ -1084,6 +1086,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     if (method === "GET" && path === "/api/billing/entitlements")
       return json({ ...fakeEntitlements(state.billing.plan), access: state.access });
     if (method === "POST" && path === "/api/billing/trial") {
+      if (state.trialUsed) return json({ detail: "trial_used" }, 409);
       if (state.access?.state !== "choose") return json({ detail: "trial_not_available" }, 409);
       const plan = b.plan === "connected" ? "connected" : "private";
       const days = 3; // either plan (owner decision, October 22, 2026)

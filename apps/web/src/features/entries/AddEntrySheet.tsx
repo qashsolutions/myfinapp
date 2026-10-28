@@ -316,8 +316,21 @@ export function AddEntrySheet() {
     }
     await db.transaction("rw", [db.entries, db.tombstones, db.receipts, db.files], async () => {
       // Its split parts are pieces of it, so they go with it (a part's parts too)
-      const parts = splitTree(await db.entries.filter((e) => !!e.split_parent_id).toArray());
-      const ids = [existing.id, ...parts([existing.id]).map((p) => p.id)];
+      const allParts = await db.entries.filter((e) => !!e.split_parent_id).toArray();
+      const parts = splitTree(allParts);
+      const gone = parts([existing.id]);
+      const ids = [existing.id, ...gone.map((p) => p.id)];
+      // A part was carved out of its entry, so deleting it puts the money back where it came
+      // from: the bank's cents stay counted once (docs/invariants.md rule 1).
+      if (existing.split_parent_id) {
+        const carved = existing.amount_cents + gone.reduce((sum, p) => sum + p.amount_cents, 0);
+        const parent = await db.entries.get(existing.split_parent_id);
+        if (parent)
+          await db.entries.update(parent.id, {
+            amount_cents: parent.amount_cents + carved,
+            updated_at: new Date().toISOString(),
+          });
+      }
       await deleteReceiptsOf(db, ids);
       await db.entries.bulkDelete(ids);
       await recordDeletion(db, "entries", ids);

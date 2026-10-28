@@ -34,7 +34,7 @@ import { todayIso } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
 import { savedNames } from "../entries/entryActions.ts";
 import { splitTree } from "../entries/splits.ts";
-import { releasePartners } from "../entries/transfers.ts";
+import { pairablePool, releasePartners } from "../entries/transfers.ts";
 import { loadCategorizer } from "../imports/importFlow.ts";
 import { unlinkAccounts } from "./linking.ts";
 
@@ -310,7 +310,7 @@ export async function applySync(
 
   await settleSplits(db, plan, bankCents, replaces, removedParents, stamp);
 
-  const { others: paired, count } = await pairTransfers(db, hinted, plan.put);
+  const { others: paired, count } = await pairTransfers(db, hinted, plan.put, new Set(plan.remove));
   plan.report.transfers = count;
 
   for (const b of out.balances) {
@@ -511,6 +511,7 @@ async function pairTransfers(
   db: StackdDb,
   hinted: Entry[],
   page: Entry[],
+  removed: ReadonlySet<string>,
 ): Promise<{ others: Entry[]; count: number }> {
   if (hinted.length === 0) return { others: [], count: 0 };
   const dates = hinted.map((e) => e.date).sort();
@@ -518,11 +519,11 @@ async function pairTransfers(
   const hi = addDaysIso(dates[dates.length - 1] as string, 5);
   const stored = await db.entries.where("date").between(lo, hi, true, true).toArray();
   const pool = new Map<string, Entry>();
-  // Never a split part or a split parent (its amount is the bank's less its parts): pairing one
-  // would take part of the money out of the month (October 27, 2026).
-  const parents = new Set([...stored, ...page].map((e) => e.split_parent_id).filter(Boolean));
-  for (const e of [...stored, ...page])
-    if (!e.is_transfer && !e.pending && !e.split_parent_id && !parents.has(e.id)) pool.set(e.id, e);
+  // One pool rule with the import preview and marking by hand (`pairablePool`): never a split
+  // part or parent, never already marked; pending left out because it can change when it posts,
+  // and a row this page removes left out so pairing cannot quietly re-add it after its delete.
+  for (const e of pairablePool([...stored, ...page]))
+    if (!e.pending && !removed.has(e.id)) pool.set(e.id, e);
   const asRule = (e: Entry): RuleEntry => ({
     id: e.id,
     date: e.date,

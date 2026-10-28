@@ -270,8 +270,15 @@ export async function mergeSnapshot(db: StackdDb, snapshot: Snapshot): Promise<M
           spec.updatedAt &&
           stamp(remote, spec.updatedAt) > stamp(existing, spec.updatedAt)
         ) {
-          await table.put(remote);
-          report.updated += 1;
+          try {
+            await table.put(remote);
+            report.updated += 1;
+          } catch (error) {
+            // same rule as add: a unique index (an import fingerprint) holds these fields
+            // under another id; anything else is a real failure and aborts the merge
+            if ((error as { name?: string } | null)?.name !== "ConstraintError") throw error;
+            report.skipped += 1;
+          }
         }
       }
     }

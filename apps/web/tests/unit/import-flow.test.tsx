@@ -337,6 +337,75 @@ describe("statement import, read on the device", () => {
     });
   });
 
+  it("the suggested other side is never a split part (invariant 2)", async () => {
+    // The bank's $2,000 row was split; its $1,200 part matches the card payment by amount and
+    // date, but marking a part a transfer would take money out of the month (invariant 1).
+    const user = userEvent.setup();
+    const db0 = openDb("u1");
+    await seedDefaults(db0);
+    const base = {
+      date: "2026-10-06",
+      direction: "out" as const,
+      raw_description: null,
+      category_id: "cat-other",
+      account_id: "acct-cash",
+      source: "manual" as const,
+      receipt_id: null,
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      is_recurring: false,
+      created_at: "2026-10-06T00:00:00Z",
+      updated_at: "2026-10-06T00:00:00Z",
+    };
+    await db0.entries.bulkAdd([
+      {
+        ...base,
+        id: "chk-parent",
+        amount_cents: 80000,
+        merchant: "BIG SHOP",
+        clean_description: "BIG SHOP",
+        split_parent_id: null,
+      },
+      {
+        ...base,
+        id: "chk-part",
+        amount_cents: 120000,
+        merchant: "BIG SHOP · part",
+        clean_description: "BIG SHOP",
+        split_parent_id: "chk-parent",
+      },
+    ]);
+    await start();
+    await user.upload(
+      screen.getByLabelText(/Choose a statement file/),
+      fileOf("card_oct.ofx", "application/x-ofx"),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "+ New account: Rewards Bank ••1173 · Card" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: /Rewards Bank Card/ })).toBeChecked(),
+    );
+    await user.click(screen.getByRole("button", { name: "Read file" }));
+    const card = await screen.findByRole("group", { name: "PAYMENT - THANK YOU: transfer?" });
+    expect(within(card).getByRole("button", { name: "Yes, transfer" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await user.click(screen.getByRole("button", { name: "Import 2 transactions" }));
+    await screen.findByRole("heading", { level: 1, name: "Money in & out" });
+
+    const db = openDb("u1");
+    const payment = (await db.entries.toArray()).find((e) => e.merchant === "PAYMENT - THANK YOU");
+    // Confirmed as a transfer, but with no recorded other side: the split part stays untouched
+    expect(payment).toMatchObject({ is_transfer: true, transfer_pair_id: null });
+    expect(await db.entries.get("chk-part")).toMatchObject({
+      is_transfer: false,
+      transfer_pair_id: null,
+    });
+  });
+
   it("marking an entry a transfer by hand marks and pairs the matching other side", async () => {
     const user = userEvent.setup();
     const db = openDb("u1");

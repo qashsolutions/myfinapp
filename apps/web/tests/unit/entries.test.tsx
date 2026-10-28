@@ -185,6 +185,44 @@ describe("manual entries live only on the device", () => {
     expect(tombs).toEqual(["hw", "hw-a", "hw-b"]);
   });
 
+  it("deleting a split part puts its money back on the entry it came from (invariant 1)", async () => {
+    // The bank's row was $100: split $20 (then $10 of that again), the entry keeps $70.
+    // Deleting the $20 part takes its $10 sub-part with it and the entry is $100 again.
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    const base = {
+      date: "2026-10-09",
+      direction: "out" as const,
+      merchant: "Hardware Store",
+      clean_description: "Hardware Store",
+      raw_description: null,
+      category_id: "cat-shopping",
+      account_id: "acct-cash",
+      source: "manual" as const,
+      receipt_id: null,
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      is_recurring: false,
+      created_at: "2026-10-09T10:00:00Z",
+      updated_at: "2026-10-09T10:00:00Z",
+    };
+    await db.entries.bulkAdd([
+      { ...base, id: "hw", amount_cents: 7000, split_parent_id: null },
+      { ...base, id: "hw-a", amount_cents: 2000, split_parent_id: "hw" },
+      { ...base, id: "hw-b", amount_cents: 1000, split_parent_id: "hw-a" },
+    ]);
+    await renderSignedIn("/entries/hw-a");
+    await waitFor(() => expect(screen.getByLabelText("Merchant")).toHaveValue("Hardware Store"));
+    await user.click(await screen.findByRole("button", { name: "Delete entry" }));
+    await user.click(screen.getByRole("button", { name: "Really delete this entry" }));
+    await waitFor(async () =>
+      expect((await db.entries.toArray()).map((e) => e.id)).toEqual(["hw"]),
+    );
+    expect((await db.entries.get("hw"))?.amount_cents).toBe(10000);
+    expect((await db.tombstones.toArray()).map((t) => t.id).sort()).toEqual(["hw-a", "hw-b"]);
+  });
+
   it("the month switcher asks the engine for bounds", async () => {
     const user = userEvent.setup();
     await renderSignedIn("/entries");

@@ -223,6 +223,23 @@ describe("snapshots and merging", () => {
     expect(await a.entries.count()).toBe(1);
   });
 
+  it("an update a unique index refuses is skipped and counted, and the merge goes on", async () => {
+    // Two devices sync the same bank: A's twin adoption gave its row the -2 fingerprint, so
+    // B's copy of the same id carries the fingerprint A's other entry holds (invariant 21).
+    const a = openDb("u1");
+    await a.entries.bulkAdd([
+      { ...entry("e1", T0), fingerprint: "fp-1" },
+      { ...entry("e2", T0), fingerprint: "fp-1-2" },
+    ]);
+    const snap = await buildSnapshot(a, { rulesVersion: "t", deviceId: "A" });
+    snap.tables.entries = [{ ...entry("e2", T1), fingerprint: "fp-1" }];
+    const report = await mergeSnapshot(a, snap);
+    expect(report).toMatchObject({ updated: 0, skipped: 1 });
+    // The local rows are untouched and the merge finished instead of aborting
+    expect((await a.entries.get("e2"))?.fingerprint).toBe("fp-1-2");
+    expect((await a.entries.get("e1"))?.fingerprint).toBe("fp-1");
+  });
+
   it("builds the snapshot in one read transaction, so a write cannot land halfway", async () => {
     const a = openDb("u1");
     await a.entries.add(entry("e1", T0));

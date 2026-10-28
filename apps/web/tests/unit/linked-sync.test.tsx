@@ -298,6 +298,36 @@ describe("linked sync (chunk 3.3)", () => {
     });
   });
 
+  it("a hinted transfer never pairs with a row the same page removes (invariant 2)", async () => {
+    await applySync(
+      db,
+      "bc1",
+      page({ added: [txn({ transaction_id: "a1", amount_cents: 2000 })] }),
+      NOW,
+    );
+    await applySync(
+      db,
+      "bc1",
+      page({
+        removed: ["a1"],
+        added: [
+          txn({
+            transaction_id: "b1",
+            account_id: "acc-cc",
+            direction: "in",
+            amount_cents: 2000,
+            description: "ONLINE TRANSFER FROM CHECKING",
+          }),
+        ],
+      }),
+      NOW,
+    );
+    // The removed row stays removed — not quietly re-added as the transfer's other side,
+    // which would leave other devices deleting it by its tombstone while this one keeps it.
+    expect(await db.entries.get("lnk-a1")).toBeUndefined();
+    expect(await db.entries.get("lnk-b1")).toMatchObject({ transfer_pair_id: null });
+  });
+
   describe("a split linked entry (October 25, 2026)", () => {
     /** Split $5.00 off the synced $20.00 coffee, the way the entry editor does. */
     async function splitCoffee(parentId: string, legacy = false) {

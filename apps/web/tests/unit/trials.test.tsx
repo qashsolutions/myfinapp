@@ -48,6 +48,20 @@ describe("trials", () => {
     expect(screen.getByText(/No card needed yet/)).toBeInTheDocument();
   });
 
+  it("an inbox that already had its trial can still choose a plan (invariant 15)", async () => {
+    resetEntitlements();
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    api.access = { state: "choose", plan: "free" };
+    api.trialUsed = true;
+    renderApp("/");
+    await screen.findByRole("heading", { name: "Try Qash free" });
+    await user.click(await screen.findByRole("button", { name: "Start my 3-day free trial" }));
+    // No second trial — but the plan screen opens so there is a way forward (invariant 15),
+    // instead of the gate bouncing every path back to /start forever.
+    expect(await screen.findByRole("heading", { level: 1, name: "Your plan" })).toBeInTheDocument();
+  });
+
   it("near the end the trial card asks for a card, charged only when the trial ends", async () => {
     resetEntitlements();
     const user = userEvent.setup();

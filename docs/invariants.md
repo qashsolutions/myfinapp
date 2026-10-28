@@ -17,20 +17,28 @@ written against both.
    (Next 30 days, net worth and its history) counts the entry and all its parts; readers that
    compare with the bank's amount (recurring payees, matching upcoming bills) use
    `entries/splits.ts` `bankRows`.
+   Deleting a split part puts its money (its own parts' too) back on the entry it was carved
+   from, so the bank's cents stay counted once (October 28, 2026).
    `apps/web/tests/invariants/money-month.test.tsx` "a part split again…", "a split entry
    after the balance…" · `splits.test.ts` ·
    `linked-sync.test.tsx` "a split linked entry"
    · `money.test.tsx` "splits an entry into two parts that still add up"
+   · `entries.test.tsx` "deleting a split part puts its money back…"
 2. **A transfer is both sides or neither.** Marking, matching or unmarking one side does the same
    to the other, linked by `transfer_pair_id`.
    Marking by hand (the entry editor, Sort your spending) pairs the matching other side through
-   `entries/transfers.ts`, the same rule import and sync use. A split part (or a split parent) is never
-   a transfer side; both sides posting in one sync page stay paired; when one side goes
-   (deleted, with its account, or by the bank) the other counts again (`releasePartners`).
+   `entries/transfers.ts`, the same rule import and sync use. Every automatic pairing draws from
+   one pool (`entries/transfers.ts` `pairablePool`, October 28, 2026): never a row already marked
+   or pointed at, never a split part or a split parent, and in bank-data flows never a pending
+   row or one the same sync page removes. Both sides posting in one sync page stay paired; when
+   one side goes (deleted, with its account, or by the bank) the other counts again
+   (`releasePartners`).
    `import-flow.test.tsx` "a confirmed transfer marks both sides…", "unmarking one side…",
-   "marking an entry a transfer by hand…" · `review.test.tsx` "a transfer marks and pairs…" ·
+   "marking an entry a transfer by hand…", "the suggested other side is never a split part…" ·
+   `review.test.tsx` "a transfer marks and pairs…" ·
    `linked-sync.test.tsx` "a split part is never taken…", "both sides … in the same page…",
-   "a row the bank removes…" · `import-flow.test.tsx` "deleting one side of a transfer…" ·
+   "a row the bank removes…", "a hinted transfer never pairs with a row the same page removes…" ·
+   `import-flow.test.tsx` "deleting one side of a transfer…" ·
    `money-month.test.tsx` "a transfer marked by hand…" ·
    `linked-sync.test.tsx` "a card payment from checking pairs…", "a posted transfer stays paired…"
 3. **Every screen shows the same month.** Home, Money in & out, Insights and the recap read one
@@ -105,9 +113,10 @@ written against both.
     whose id can come back (a milestone is `<goal>:<bps>`) syncs newer-wins by `updated_at`, and
     adding it back clears its own tombstone, so an old removal from another device never
     deletes it again (and its cheer never plays twice). A merge skips only a row a unique index
-    already holds, and counts it; any other failure stops the merge.
+    already holds, and counts it — adding and updating alike, so one clashing row never stalls
+    every later backup (October 28, 2026); any other failure stops the merge.
     `backup.test.ts` "a milestone removed and added back…", "a row a unique index already
-    holds…", "builds the snapshot in one read transaction…"
+    holds…", "an update a unique index refuses…", "builds the snapshot in one read transaction…"
 22. **Removing something removes what hangs off it** (October 28, 2026). An account takes its
     entries, imports, anchors, mapping and kept files, its entries' receipts and photos, its
     card details and its net worth choice (with a tombstone where the table syncs); an entry
@@ -168,9 +177,11 @@ written against both.
 15. **Every access state says what is true and has a way forward.** Paused only while a dispute
     is open (it can come back); a lost one is `ended`, open and never closed for it, as the terms
     say; lapsed closes after the grace period with emails that never invite a blocked inbox to
-    buy.
+    buy; choosing opens the plan screen too, so an inbox that already had its free trial can
+    still buy instead of being bounced to /start forever (October 28, 2026).
     `test_billing_hardening.py` "a lost dispute ends the plan but the account stays open…", "a
-    fraud refund lapses with honest notes…" · `trials.test.tsx` "a lost dispute ends the plan…"
+    fraud refund lapses with honest notes…" · `trials.test.tsx` "a lost dispute ends the plan…",
+    "an inbox that already had its trial can still choose a plan…"
 16. **Every route needs a session unless it is public on purpose, and someone else's row is 404.**
     `tests/security/test_route_guards.py` · `tests/authz/`
 17. **A purchase block follows the person.** After a lost dispute or a fraud refund, every
