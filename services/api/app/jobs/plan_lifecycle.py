@@ -27,7 +27,7 @@ from app.models.billing import Subscription
 from app.models.user import User
 from app.rules_server.entitlements import access, active_subscription, trial_settings
 from app.security.audit import AuditAction, record
-from app.services import email
+from app.services import email, ops_alerts
 from app.services.alerts import PLAN_ENDED_LABEL
 from app.services.deletion import soft_delete
 from app.services.email import plan_link
@@ -75,50 +75,67 @@ def run(
         *db.scalars(select(Subscription.user_id).distinct()),
     }
     sender = email.get_sender()
-    for user_id in candidates if only is None else candidates & only:
-        user = db.get(User, user_id)
-        if user is None or user.deleted_at is not None:
-            continue
-        ending = _ending(db, user, now)
-        if ending is not None:
-            end, trial = ending
-            if end - now <= before and user.ending_notice_for != end:
-                sender.send(email.plan_ending_message(user.email, _day(end), plan_link(), trial))
-                user.ending_notice_for = end
-                counts["ending_soon"] += 1
-            continue
-        state = access(db, user, now=now)
-        if state["state"] != "lapsed":
-            continue
-        ended, delete_at = state["ended_at"], state["delete_at"]
-        # The payment was refunded as possible fraud and this inbox may not buy again: honest
-        # notes with no "keep going" (October 25, 2026).
-        blocked = is_blocked(db, user)
-        if now >= delete_at:
-            address = user.email
-            record(db, actor_id=user.id, action=AuditAction.DELETE_REQUESTED, target="plan_lapsed")
-            soft_delete(db, user, now=now, plan_ended=True)
-            sender.send(email.account_deleted_after_plan_message(address, welcome_back=not blocked))
-            counts["deleted"] += 1
-        elif user.lapsed_notice_for != ended:
-            if blocked:
-                sender.send(email.plan_ended_payment_returned_message(user.email, _day(delete_at)))
-            else:
-                sender.send(email.plan_ended_message(user.email, _day(delete_at), plan_link()))
-            user.lapsed_notice_for = ended
-            user.lapsed_reminded_on = now.date()
-            _push(db, user.id, now)
-            counts["ended"] += 1
-        elif not blocked and user.lapsed_reminded_on != now.date():
-            # One friendly note a day for the rest of the 7 days (owner, October 20, 2026).
-            days_left = max(1, -(-int((delete_at - now).total_seconds()) // 86400))
-            sender.send(
-                email.plan_lapsed_reminder_message(
-                    user.email, _day(delete_at), days_left, plan_link()
-                )
-            )
-            user.lapsed_reminded_on = now.date()
-            _push(db, user.id, now)
-            counts["reminded"] += 1
-    db.commit()
+    for user_id in sorted(candidates if only is None else candidates & only):
+        # Each account on its own (October 28, 2026): a failure (an email refused, a database
+        # error) rolls back only that account's stamps, to be tried again next hour, and each
+        # account is committed once its emails went, so a later failure never re-sends them.
+        try:
+            with db.begin_nested():
+                _one(db, user_id, now, before, sender, counts)
+            db.commit()
+        except Exception as exc:  # noqa: BLE001 - reported, and the run goes on
+            db.rollback()
+            ops_alerts.report("plan_lifecycle_failed", "plan_lifecycle.run", exc)
     return counts
+
+
+def _one(
+    db: DbSession,
+    user_id: uuid.UUID,
+    now: datetime,
+    before: timedelta,
+    sender: email.EmailSender,
+    counts: dict[str, int],
+) -> None:
+    user = db.get(User, user_id)
+    if user is None or user.deleted_at is not None:
+        return
+    ending = _ending(db, user, now)
+    if ending is not None:
+        end, trial = ending
+        if end - now <= before and user.ending_notice_for != end:
+            sender.send(email.plan_ending_message(user.email, _day(end), plan_link(), trial))
+            user.ending_notice_for = end
+            counts["ending_soon"] += 1
+        return
+    state = access(db, user, now=now)
+    if state["state"] != "lapsed":
+        return
+    ended, delete_at = state["ended_at"], state["delete_at"]
+    # The payment was refunded as possible fraud and this inbox may not buy again: honest
+    # notes with no "keep going" (October 25, 2026).
+    blocked = is_blocked(db, user)
+    if now >= delete_at:
+        address = user.email
+        record(db, actor_id=user.id, action=AuditAction.DELETE_REQUESTED, target="plan_lapsed")
+        soft_delete(db, user, now=now, plan_ended=True)
+        sender.send(email.account_deleted_after_plan_message(address, welcome_back=not blocked))
+        counts["deleted"] += 1
+    elif user.lapsed_notice_for != ended:
+        if blocked:
+            sender.send(email.plan_ended_payment_returned_message(user.email, _day(delete_at)))
+        else:
+            sender.send(email.plan_ended_message(user.email, _day(delete_at), plan_link()))
+        user.lapsed_notice_for = ended
+        user.lapsed_reminded_on = now.date()
+        _push(db, user.id, now)
+        counts["ended"] += 1
+    elif not blocked and user.lapsed_reminded_on != now.date():
+        # One friendly note a day for the rest of the 7 days (owner, October 20, 2026).
+        days_left = max(1, -(-int((delete_at - now).total_seconds()) // 86400))
+        sender.send(
+            email.plan_lapsed_reminder_message(user.email, _day(delete_at), days_left, plan_link())
+        )
+        user.lapsed_reminded_on = now.date()
+        _push(db, user.id, now)
+        counts["reminded"] += 1

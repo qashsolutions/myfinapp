@@ -208,6 +208,43 @@ def test_step_up_is_needed_to_remove_a_passkey_and_the_last_one_stays() -> None:
     assert r.json() == {"detail": "last_passkey"}
 
 
+def test_two_removals_at_once_never_take_the_last_passkey() -> None:
+    """Invariant: the last passkey stays (409 last_passkey), even when two removals race
+    (October 28, 2026). Both counted 2 and both deleted, leaving none. Two connections: the
+    first holds the person's row, as a removal in flight does, and deletes passkey one; the
+    route removing passkey two must wait for it and then count what is left."""
+    import threading
+
+    from sqlalchemy import delete, select
+
+    from app.models.user import User
+    from app.models.webauthn_credential import WebauthnCredential
+
+    authenticator = FakeAuthenticator()
+    client = new_client()
+    info = sign_up(client, _email(), authenticator)
+    register_passkey(client, authenticator, label="MacBook passkey")
+    first, second = client.get("/api/security/passkeys").json()
+    uid = uuid.UUID(info["user"]["id"])
+    answers: list[int] = []
+    with get_session_factory()() as other:
+        other.execute(select(User.id).where(User.id == uid).with_for_update())
+        other.execute(
+            delete(WebauthnCredential).where(WebauthnCredential.id == uuid.UUID(first["id"]))
+        )
+        worker = threading.Thread(
+            target=lambda: answers.append(
+                client.delete(f"/api/security/passkeys/{second['id']}").status_code
+            )
+        )
+        worker.start()
+        worker.join(timeout=1.5)  # waits for the person's row while the first removal runs
+        other.commit()
+    worker.join(timeout=10)
+    assert answers == [409]
+    assert len(client.get("/api/security/passkeys").json()) == 1
+
+
 def test_adding_another_passkey_needs_an_unlocked_session_and_a_fresh_check() -> None:
     """A stolen cookie, locked or not, must not enrol its own passkey and come out unlocked."""
     email = _email()

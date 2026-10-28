@@ -32,7 +32,7 @@ from app.security.audit import AuditAction, record
 from app.security.client import client_ip
 from app.security.csrf import same_site_only
 from app.security.principal import Caller, require_step_up, require_unlocked
-from app.security.rate_limit import rate_limited
+from app.security.rate_limit import rate_limited, session_or_ip
 from app.services import sessions as sessions_svc
 from app.services import stripe_billing
 from app.services.deletion import soft_delete
@@ -160,7 +160,7 @@ def update_account(
     return _out(caller)
 
 
-@router.get("/export")
+@router.get("/export", dependencies=[Depends(rate_limited("export", key=session_or_ip))])
 def export_data(
     caller: Annotated[Caller, Depends(require_step_up)],
     request: Request,

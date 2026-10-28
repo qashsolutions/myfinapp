@@ -76,6 +76,22 @@ def buy(**body):
     return {**body, "consent": CONSENT}
 
 
+def test_a_signature_header_with_several_v1_values_is_accepted_when_one_matches() -> None:
+    """Invariant: a genuine Stripe event is never refused. While a webhook secret is rolled,
+    Stripe signs with both secrets and sends one v1 per secret, in no promised order
+    (October 28, 2026)."""
+    payload = b'{"id": "evt_rotate"}'
+    now = int(time.time())
+    good = stripe_billing.sign(payload, SECRET, timestamp=now).split("v1=")[1]
+    other = stripe_billing.sign(payload, "whsec_old_secret", timestamp=now).split("v1=")[1]
+    for header in (f"t={now},v1={good},v1={other}", f"t={now},v1={other},v1={good}"):
+        assert stripe_billing.verify_signature(payload, header, SECRET)["id"] == "evt_rotate"
+    with pytest.raises(stripe_billing.BillingError):
+        stripe_billing.verify_signature(payload, f"t={now},v1={other},v1={other}", SECRET)
+    with pytest.raises(stripe_billing.BillingError):  # an old scheme alone is not enough
+        stripe_billing.verify_signature(payload, f"t={now},v0={good}", SECRET)
+
+
 def test_free_plan_and_prices() -> None:
     client, _ = member("maya")
     r = client.get("/api/billing")

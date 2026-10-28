@@ -115,6 +115,24 @@ def test_a_late_checkout_completion_keeps_what_the_subscription_events_said() ->
     assert _plan(client) == "private"
 
 
+def test_a_subscription_created_dated_before_its_checkout_still_sets_the_renewal() -> None:
+    """Invariant: the plan row reflects what Stripe holds (October 28, 2026). Stripe dates the
+    subscription's creation before the checkout's completion and may deliver it after; the
+    checkout stamped its own date as the row's newest event, so the creation was skipped as
+    stale and the renewal date stayed empty."""
+    client, user_id = member("ord4")
+    sub = f"sub_{uuid.uuid4().hex[:10]}"
+    r = post_event(
+        client, _event("checkout.session.completed", _checkout_obj(sub, user_id), T0 + 5)
+    )
+    assert r.json()["outcome"] == "subscribed"
+    assert _row(sub).renews_at is None  # the checkout doesn't know the period
+    r = post_event(client, _event("customer.subscription.created", _sub_obj(sub, user_id), T0))
+    assert r.json()["outcome"] == "active"
+    assert _row(sub).renews_at == datetime.fromtimestamp(T0 + 30 * 86400, tz=UTC)
+    assert _plan(client) == "private"
+
+
 def test_events_in_order_still_move_the_plan_along() -> None:
     client, user_id = member("ord3")
     sub = f"sub_{uuid.uuid4().hex[:10]}"

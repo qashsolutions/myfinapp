@@ -17,7 +17,7 @@ import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, or_, select, update
+from sqlalchemy import and_, delete, or_, select, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session as DbSession
 
@@ -25,6 +25,7 @@ from app.models.billing import PurchaseConsent, Subscription
 from app.models.group import Group
 from app.models.group_member import GroupMember
 from app.models.linking import BankConnection
+from app.models.notification import AlertSchedule, PushSubscription
 from app.models.otp_code import OtpCode
 from app.models.session import Session
 from app.models.user import User
@@ -130,7 +131,13 @@ def cancel_billing(
                 sub.refund_due_cents = 0
             except stripe_billing.BillingError:
                 ended = False
-    for customer_id in sorted({r.customer_id for r in rows if r.customer_id} - _disputed(rows)):
+    disputed = _disputed(rows)
+    for r in rows:
+        if r.interval and r.refund_due_cents and r.customer_id in disputed:
+            # As for Founding above: nothing more comes back while a payment is disputed, so the
+            # amount is cleared and the hourly settle never picks it up again (October 28, 2026).
+            r.refund_due_cents = 0
+    for customer_id in sorted({r.customer_id for r in rows if r.customer_id} - disputed):
         owed = [
             r for r in rows if r.customer_id == customer_id and r.interval and r.refund_due_cents
         ]
@@ -228,6 +235,20 @@ def soft_delete(
         row.ended_reason = "plan_ended" if plan_ended else "account_deleted"
     db.execute(delete(WebauthnCredential).where(WebauthnCredential.user_id == user.id))
     db.execute(delete(OtpCode).where(OtpCode.email == user.email))
+    # No more pushes or alerts (October 28, 2026): every subscription (web and native tokens)
+    # is revoked and every alert not yet sent is dropped; the dispatcher also skips deleted
+    # accounts. The plan-ended email that follows a plan_ended closure is sent by its job.
+    db.execute(
+        update(PushSubscription)
+        .where(PushSubscription.user_id == user.id, PushSubscription.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    db.execute(
+        delete(AlertSchedule).where(
+            AlertSchedule.user_id == user.id,
+            AlertSchedule.status.in_(("pending", "deferred", "summary")),
+        )
+    )
     for group in db.scalars(select(Group).where(Group.owner_id == user.id)):
         successor = db.scalar(
             select(GroupMember.user_id)
@@ -301,8 +322,19 @@ def settle_billing(db: DbSession, *, now: datetime | None = None) -> int:
         .where(
             User.deleted_at.is_not(None),
             Subscription.source == "stripe",
+            # Exactly what cancel_billing acts on (`_live_stripe`, or a refund still owed), so a
+            # row with nothing left to do at Stripe (a Founding payment still clearing or
+            # failed, a subscription Stripe already ended) is never picked up again every
+            # hour (October 28, 2026).
             or_(
-                Subscription.stripe_status.is_distinct_from("canceled"),
+                and_(
+                    Subscription.external_id.is_not(None),
+                    Subscription.stripe_status.is_distinct_from("canceled"),
+                    or_(
+                        Subscription.status.in_(("active", "past_due")),
+                        and_(Subscription.status == "canceled", Subscription.ends_at > now),
+                    ),
+                ),
                 Subscription.refund_due_cents > 0,
             ),
         )

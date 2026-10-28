@@ -125,16 +125,22 @@ def _request(
     kwargs: dict[str, Any] = {}
     if transport_override is not None:
         kwargs["transport"] = transport_override
-    with outbound_client(**kwargs) as client:
-        return client.request(
-            method,
-            f"{STRIPE_API}{path}",
-            data=form,
-            headers={
-                "Authorization": f"Bearer {s.stripe_secret_key.get_secret_value()}",
-                **({"Idempotency-Key": idempotency_key} if idempotency_key else {}),
-            },
-        )
+    try:
+        with outbound_client(**kwargs) as client:
+            return client.request(
+                method,
+                f"{STRIPE_API}{path}",
+                data=form,
+                headers={
+                    "Authorization": f"Bearer {s.stripe_secret_key.get_secret_value()}",
+                    **({"Idempotency-Key": idempotency_key} if idempotency_key else {}),
+                },
+            )
+    except httpx2.HTTPError as exc:
+        # No answer at all (connection, DNS, timeout) is the same outage as a 5xx: every
+        # caller already handles BillingError, and deletion waits and retries (October 28,
+        # 2026). Only the type is kept; the request carries the secret key.
+        raise BillingError("stripe_unreachable") from exc
 
 
 def _post(path: str, form: dict[str, str], *, idempotency_key: str | None = None) -> dict[str, Any]:
@@ -613,19 +619,22 @@ def refund_credit(customer_id: str, *, key: str, extra_cents: int = 0) -> int:
 def verify_signature(
     payload: bytes, header: str, secret: str, *, now: float | None = None
 ) -> dict[str, Any]:
-    """Stripe's scheme: HMAC-SHA256 over "{t}.{payload}"; a five-minute tolerance on t."""
+    """Stripe's scheme: HMAC-SHA256 over "{t}.{payload}"; a five-minute tolerance on t. While
+    a secret is rolled Stripe sends one v1 per secret, so any one matching is enough."""
     now = now or time.time()
-    parts = dict(p.split("=", 1) for p in header.split(",") if "=" in p)
-    timestamp = parts.get("t")
-    signature = parts.get("v1")
-    if not timestamp or not signature or not timestamp.isdigit():
+    pairs = [p.split("=", 1) for p in header.split(",") if "=" in p]
+    timestamp = next((v for k, v in pairs if k.strip() == "t"), None)
+    signatures = [v.strip() for k, v in pairs if k.strip() == "v1" and v.strip()]
+    if not timestamp or not signatures or not timestamp.isdigit():
         raise BillingError("bad_signature")
     if abs(now - int(timestamp)) > SIGNATURE_TOLERANCE_SECONDS:
         raise BillingError("bad_signature")
     expected = hmac.new(
         secret.encode(), f"{timestamp}.".encode() + payload, hashlib.sha256
     ).hexdigest()
-    if not hmac.compare_digest(expected, signature):
+    # Every value is compared (no early exit), so the time taken says nothing about which.
+    matched = [hmac.compare_digest(expected, s) for s in signatures]
+    if not any(matched):
         raise BillingError("bad_signature")
     try:
         return json.loads(payload)
@@ -722,6 +731,9 @@ def _checkout_completed(
         held = db.scalar(select(Subscription).where(Subscription.external_id == external_id))
         if held is not None and held.status == "active":
             return "founding"  # already granted (a redelivery under a new event id)
+        person = db.get(User, user_id)
+        if person is None or person.deleted_at is not None:
+            return _founding_after_deletion(db, person, external_id, held, customer, paid, now)
         # Every grant passes the cap: a new purchase, and one whose place was given back (a
         # failed bank payment, `expired`). Only a place still held (`incomplete`) skips it.
         holds_place = held is not None and held.status != "expired"
@@ -791,7 +803,8 @@ def _checkout_completed(
                 ends_at=None,
                 cancel_at_period_end=False,
             )
-            row.last_event_at = created
+            # No last_event_at: the checkout is not the subscription's own event, and its date
+            # comes after the subscription's creation, which must still apply (October 28).
         if row.first_payment == "failed":
             return "payment_failed"  # its failure arrived first: nothing to wait for
         if row.first_payment is None:
@@ -815,7 +828,7 @@ def _checkout_completed(
             ends_at=None,
             cancel_at_period_end=False,
         )
-        row.last_event_at = created
+        # No last_event_at, as above: every subscription event, however dated, still applies.
     else:
         # The subscription's own events got here first and know more: keep their status,
         # dates and cancel flag, and only fill in the customer.
@@ -1261,6 +1274,50 @@ def _refund_oversold(db: DbSession, user_id: uuid.UUID, payment_intent: str, cus
     if user is not None and user.deleted_at is None:
         get_sender().send(founding_sold_out_message(user.email))
     return "founding_sold_out"
+
+
+def _founding_after_deletion(
+    db: DbSession,
+    person: User | None,
+    payment_intent: str,
+    held: Subscription | None,
+    customer: Any,
+    paid: bool,
+    now: datetime,
+) -> str:
+    """A Founding payment that lands after the account was deleted (a US bank payment takes up
+    to 4 business days; owner decision, October 28, 2026): refunded in full (our timing, so no
+    fee), at most once however often Stripe redelivers, and no plan is granted. Its row is
+    closed (`canceled`, final), so the hourly settle has nothing left to do. A Stripe error
+    raises, so the webhook fails and Stripe retries; the refund's tag keeps it to one."""
+    if not paid:
+        return "account_deleted"  # still clearing: nothing to refund, and no place is held
+    refund_payment(
+        payment_intent,
+        int(load_plans()["founding"]["one_time_cents"]),
+        key=f"founding_deleted:{payment_intent}",
+        fee=False,
+    )
+    if held is None and person is not None:
+        held = _upsert(
+            db,
+            external_id=payment_intent,
+            user_id=person.id,
+            plan="founding",
+            status="canceled",
+            interval=None,
+            customer_id=customer,
+            renews_at=None,
+            ends_at=now,
+            cancel_at_period_end=False,
+        )
+    if held is not None:
+        held.status, held.stripe_status = "canceled", "canceled"
+        held.ends_at = held.ends_at or now
+        held.refund_due_cents = 0
+        db.flush()
+        store_entitlements(db, held.user_id)
+    return "account_deleted"
 
 
 def _subscription_event(

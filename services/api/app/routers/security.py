@@ -21,7 +21,7 @@ from webauthn.helpers import base64url_to_bytes
 from app.db import get_db
 from app.models.audit_log import AuditLog
 from app.models.session import Session
-from app.models.user import LOCK_MAX_MINUTES, LOCK_MIN_MINUTES
+from app.models.user import LOCK_MAX_MINUTES, LOCK_MIN_MINUTES, User
 from app.models.webauthn_credential import WebauthnCredential
 from app.security.audit import AuditAction, record
 from app.security.authz import get_owned, owned_by
@@ -217,6 +217,9 @@ def remove_passkey(
     request: Request,
     db: Annotated[DbSession, Depends(get_db)],
 ) -> None:
+    # The person's row first, so two removals at once look and count one after the other and
+    # the last passkey always stays (October 28, 2026).
+    db.execute(select(User.id).where(User.id == caller.user.id).with_for_update())
     row = get_owned(db, WebauthnCredential, passkey_id, caller.principal)
     if len(webauthn_svc.credentials_for(db, caller.user.id)) <= 1:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="last_passkey")

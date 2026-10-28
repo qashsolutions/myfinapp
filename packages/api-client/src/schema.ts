@@ -1949,30 +1949,18 @@ export interface components {
             credit_cents: number;
             /** Kept Until */
             kept_until?: string | null;
-            /**
-             * Refund Bank Fee Bps
-             * @default 80
-             */
+            /** Refund Bank Fee Bps */
             refund_bank_fee_bps: number;
-            /**
-             * Refund Bank Fee Cap Cents
-             * @default 500
-             */
+            /** Refund Bank Fee Cap Cents */
             refund_bank_fee_cap_cents: number;
             /**
              * Refund Before Fee Cents
              * @default 0
              */
             refund_before_fee_cents: number;
-            /**
-             * Refund Fee Bps
-             * @default 290
-             */
+            /** Refund Fee Bps */
             refund_fee_bps: number;
-            /**
-             * Refund Fee Fixed Cents
-             * @default 30
-             */
+            /** Refund Fee Fixed Cents */
             refund_fee_fixed_cents: number;
             /**
              * Refund Fee Method

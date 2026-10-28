@@ -1,5 +1,7 @@
+import re
 import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from fastapi import Depends, FastAPI, Request
@@ -46,9 +48,9 @@ def test_keys_are_independent(migrated: Engine) -> None:
 def test_stored_key_is_a_pseudonym(migrated: Engine) -> None:
     raw = f"198.51.100.7-{uuid.uuid4()}"
     with get_session_factory()() as s, s.begin():
-        hit(s, Limit("upload", 30, timedelta(hours=1)), raw, now=T0)
+        hit(s, Limit("test_pseudonym", 30, timedelta(hours=1)), raw, now=T0)
         keys = s.execute(
-            text("SELECT key FROM rate_limit_buckets WHERE scope = 'upload'")
+            text("SELECT key FROM rate_limit_buckets WHERE scope = 'test_pseudonym'")
         ).scalars()
         keys = list(keys)
     assert raw not in keys
@@ -71,6 +73,26 @@ def test_dependency_answers_429_with_retry_after(migrated: Engine) -> None:
     assert r.status_code == 429
     assert r.json() == {"detail": "rate_limited"}
     assert int(r.headers["retry-after"]) >= 1
+
+
+def used_scopes(root: Path) -> set[str]:
+    """Every scope the app counts: `rate_limited("…")` dependencies and `LIMITS["…"]` lookups."""
+    found: set[str] = set()
+    for path in root.rglob("*.py"):
+        source = path.read_text()
+        found |= set(re.findall(r"rate_limited\(\s*\"([a-z0-9_]+)\"", source))
+        found |= set(re.findall(r"LIMITS\[\s*\"([a-z0-9_]+)\"\s*\]", source))
+    return found
+
+
+def test_every_limit_is_used_and_every_used_scope_has_a_limit() -> None:
+    """No dead config (October 28, 2026): a limit nothing counts promises a control that isn't
+    there (the old "upload" scope), and documents that list limits must match what runs."""
+    app_dir = Path(__file__).resolve().parents[2] / "app"
+    used = used_scopes(app_dir)
+    assert set(LIMITS) - used == set(), "limits no route counts"
+    assert used - set(LIMITS) == set(), "scopes with no limit"
+    assert all(limit.scope == name for name, limit in LIMITS.items())
 
 
 def _request(client_host: str, forwarded: str | None) -> Request:

@@ -40,3 +40,19 @@ def test_limits_follow_the_owner_decision() -> None:
         and limits_for("private")["statement_accounts_max"] is None
     )
     assert set(limits_for("free")) == set(LIMIT_KEYS)
+
+
+def test_the_refund_fee_on_screen_comes_from_plans_yaml_only() -> None:
+    """No second copy of the fee rule (October 28, 2026): CreditOut had literal defaults that
+    would have gone stale silently if plans.yaml changed."""
+    from app.routers.billing import CreditOut, _fee_rule
+
+    for name in _fee_rule():
+        assert CreditOut.model_fields[name].is_required(), name
+    rule = load_plans()["refunds"]
+    assert _fee_rule() == {
+        "refund_fee_bps": rule["fee_bps"],
+        "refund_fee_fixed_cents": rule["fee_fixed_cents"],
+        "refund_bank_fee_bps": rule["bank_fee_bps"],
+        "refund_bank_fee_cap_cents": rule["bank_fee_cap_cents"],
+    }
