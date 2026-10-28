@@ -5,7 +5,7 @@
 # import review asks about. Category ids are the defaults in apps/web/src/data/defaults.ts.
 #
 # Edit this file, then `uv run python scripts/build_keywords.py` to refresh both keywords.json
-# copies (tests/test_keywords.py fails if they are stale). Proposed; tune from real statements.
+# copies (tests/test_keywords.py fails if they are stale). The launch table (owner sign-off, October 27, 2026); tune from real statements.
 
 transfer:
   - PAYMENT TO CARD

@@ -8,7 +8,7 @@ import { recordDeletion } from "../../data/backup/snapshot.ts";
 import type { Bucket, Category, StackdDb } from "../../data/db.ts";
 
 export const NAME_MAX = 24;
-/** Proposed: enough for anyone's own list, few enough that the pickers stay usable. */
+/** Owner sign-off, October 27, 2026: enough for anyone's own list, few enough that the pickers stay usable. */
 export const MAX_OWN = 40;
 
 export type CategoryKind = Category["kind"];

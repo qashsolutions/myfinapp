@@ -4,7 +4,7 @@ docs/spec.md "Security program": rate limits on code sends, sign-in attempts, in
 uploads and exports. Fixed windows are counted in Postgres (rate_limit_buckets) so every API
 instance shares one view and nothing new has to be deployed. Keys are stored as pseudonyms.
 
-Values are proposed (spec open question "OTP limits"); change them here, never in a router.
+Values signed off by the owner on October 27, 2026; change them here, never in a router.
 """
 
 from __future__ import annotations
@@ -37,26 +37,26 @@ LIMITS: dict[str, Limit] = {
     # Email-code checks (October 24, 2026): sign-in, email change and the website's deletion.
     # Each code still locks its address after 5 wrong tries; this stops one IP spraying guesses
     # or lockouts across many addresses. Four checks for every code an IP may be sent.
-    "otp_verify": Limit("otp_verify", 20, timedelta(minutes=15)),  # proposed, per IP
+    "otp_verify": Limit("otp_verify", 20, timedelta(minutes=15)),  # per IP
     # Passkey sign-in challenges (October 22, 2026): every visit to the sign-in or Welcome back
     # screen asks for one so a saved passkey can appear in autofill; they share an IP with
     # households, offices and carrier NAT, so they no longer spend the attempts above.
-    "passkey_options": Limit("passkey_options", 60, timedelta(minutes=15)),  # proposed
+    "passkey_options": Limit("passkey_options", 60, timedelta(minutes=15)),
     "invite_join": Limit("invite_join", 10, timedelta(hours=1)),
     "upload": Limit("upload", 30, timedelta(hours=1)),
     "export": Limit("export", 5, timedelta(hours=24)),
     # Billing routes that call Stripe live (October 27, 2026): credit, change preview, change,
     # checkout, portal, cancel, resume. Normal use is a handful a visit; a loop can't spend
     # Stripe's API allowance for everyone.
-    "billing_stripe": Limit("billing_stripe", 30, timedelta(minutes=15)),  # proposed, per session
+    "billing_stripe": Limit("billing_stripe", 30, timedelta(minutes=15)),  # per session
     "backup_upload": Limit("backup_upload", 60, timedelta(hours=1)),
-    "link_start": Limit("link_start", 10, timedelta(hours=1)),  # proposed
-    "link_sync": Limit("link_sync", 120, timedelta(hours=1)),  # proposed: pages of a big first sync
+    "link_start": Limit("link_start", 10, timedelta(hours=1)),
+    "link_sync": Limit("link_sync", 120, timedelta(hours=1)),  # pages of a big first sync
     # "Link with your phone" (October 19, 2026): 3 requests an hour per IP is the owner's figure;
     # the computer checks every 2 seconds for up to 2 minutes; lookups stop code guessing.
     "device_link_start": Limit("device_link_start", 3, timedelta(hours=1)),
-    "device_link_status": Limit("device_link_status", 150, timedelta(minutes=10)),  # proposed
-    "device_link_lookup": Limit("device_link_lookup", 10, timedelta(minutes=15)),  # proposed
+    "device_link_status": Limit("device_link_status", 150, timedelta(minutes=10)),
+    "device_link_lookup": Limit("device_link_lookup", 10, timedelta(minutes=15)),
 }
 
 

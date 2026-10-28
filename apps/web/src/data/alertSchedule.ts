@@ -127,6 +127,7 @@ export async function buildInputs(db: StackdDb, sources: ScheduleSources): Promi
       upcoming_expense: {
         enabled: prefs.upcoming_expense?.enabled ?? false,
         lead_days: prefs.upcoming_expense?.lead_days ?? 3,
+        time: prefs.upcoming_expense?.time_of_day ?? "09:00",
       },
       shortfall_risk: { enabled: prefs.shortfall_risk?.enabled ?? false },
       challenge_checkin: {

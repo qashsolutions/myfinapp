@@ -30,7 +30,7 @@ export interface ChallengeTemplate {
   categoryName: string | null;
 }
 
-export const FIFTY_TWO_WEEK_TOTAL = 137800; // $1 + $2 + … + $52, the classic sum (proposed default)
+export const FIFTY_TWO_WEEK_TOTAL = 137800; // $1 + $2 + … + $52, the classic sum (owner sign-off, Oct 27, 2026)
 
 export const TEMPLATES: ChallengeTemplate[] = [
   {

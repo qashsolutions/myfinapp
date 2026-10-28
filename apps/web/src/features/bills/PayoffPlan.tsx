@@ -9,7 +9,7 @@ import { engine, type PayoffPlan as Plan, parseAmount, payoffPlan } from "../../
 import { formatCents, formatMonth, todayIso } from "../../lib/format.ts";
 
 export const EXTRA_SETTING = "debt.extra_cents";
-const PRESETS = [0, 5000, 10000, 20000]; // proposed
+const PRESETS = [0, 5000, 10000, 20000]; // suggestions; any amount works (owner sign-off, October 27, 2026)
 
 function monthsText(n: number): string {
   return `${n} ${n === 1 ? "month" : "months"}`;

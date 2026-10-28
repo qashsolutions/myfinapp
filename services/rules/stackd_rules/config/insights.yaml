@@ -1,5 +1,5 @@
 # Insight thresholds (fast-follow 8; docs/spec.md "Rules added for money in & out, imports and
-# the forecast"). All proposed until [owner] confirms. The rules take these as input so they
+# the forecast"). Signed off by the owner, October 27, 2026. The rules take these as input so they
 # stay pure. Edit, then: uv run python scripts/build_insights.py
 version: 1
 thresholds:

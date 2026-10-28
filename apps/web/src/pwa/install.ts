@@ -1,15 +1,16 @@
 /**
  * Install prompt logic (docs/spec.md "PWA-only screens and states"): never inside the installed
  * app; offered after the second visit or from Settings; "Not now" hides it for 14 days
- * (proposed). iPhone gets the Share → Add to Home Screen steps; everything else uses the
- * browser's own install dialog when it offers one (`beforeinstallprompt`).
+ * (owner sign-off, October 27, 2026). iPhone gets the Share → Add to Home Screen steps;
+ * everything else uses the browser's own install dialog when it offers one
+ * (`beforeinstallprompt`).
  */
 
 import { isStandalone } from "../lib/platform.ts";
 
 export const VISITS_KEY = "stackd.visits";
 export const DISMISSED_KEY = "stackd.install_dismissed";
-export const DISMISS_DAYS = 14; // proposed
+export const DISMISS_DAYS = 14; // owner sign-off, October 27, 2026
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;

@@ -325,7 +325,8 @@ export interface ForecastRow {
   computed_at: string;
 }
 
-export type ReceiptRetention = "90d" | "1y" | "forever";
+/** "90d", "1y" and "forever" are suggested; "<n>d" is the person's own number of days (1 to 3650). */
+export type ReceiptRetention = "90d" | "1y" | "forever" | `${number}d`;
 export type ReceiptStatus = "pending" | "confirmed";
 
 /**
@@ -407,7 +408,7 @@ export interface CardDetail {
 export interface EmergencyFund {
   id: "me";
   essentials_cents: number | null; // null = not entered yet (Budget's needs stand in)
-  target_months: 3 | 6;
+  target_months: number; // 1 to 12 (emergency.summary); 3 and 6 are the suggestions
   monthly_plan_cents: number | null;
   updated_at: string;
 }

@@ -1,7 +1,7 @@
 """One-time sign-in codes (docs/spec.md "Authentication").
 
 6 digits, valid 10 minutes, single use, 5 wrong tries then a 15-minute lockout, and a
-resend cooldown. All values are settings marked proposed. Codes are stored hashed.
+resend cooldown. All values are settings (owner sign-off, October 27, 2026). Codes are stored hashed.
 """
 
 from __future__ import annotations

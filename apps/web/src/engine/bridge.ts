@@ -1004,7 +1004,7 @@ export async function netWorthHistory(
 export async function emergencySummary(
   savedCents: number,
   essentialsCents: number,
-  targetMonths: 3 | 6,
+  targetMonths: number,
   monthlyPlanCents: number,
 ): Promise<EmergencySummary> {
   return engine.call<EmergencySummary>("emergency.summary", {

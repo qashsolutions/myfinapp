@@ -1,5 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
+import { recordDeletion } from "../../data/backup/snapshot.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import {
   entriesBetween,
@@ -11,7 +12,13 @@ import {
   type StackdDb,
 } from "../../data/db.ts";
 import { enqueueGroupProgress, flushServerQueue } from "../../data/serverQueue.ts";
-import { engine, type GoalProgress, goalProgress, monthBounds } from "../../engine/bridge.ts";
+import {
+  engine,
+  type GoalProgress,
+  goalMilestones,
+  goalProgress,
+  monthBounds,
+} from "../../engine/bridge.ts";
 import { compareText } from "../../lib/order.ts";
 
 export async function createGoal(
@@ -262,6 +269,36 @@ export async function ensureMilestones(
         reached_at: null,
       });
   }
+}
+
+/**
+ * The person's own checkpoints for a jar, changed on the goal screen (owner, October 27, 2026).
+ * Removed checkpoints go with a tombstone; added ones the jar has already passed are recorded as
+ * reached today without a cheer, so changing milestones never sets off a celebration.
+ */
+export async function changeMilestones(
+  db: StackdDb,
+  goal: Goal,
+  bps: number[],
+  savedCents: number,
+  today: string,
+): Promise<void> {
+  const old = goal.milestones_bps ?? [];
+  const removed = old.filter((b) => !bps.includes(b)).map((b) => `${goal.id}:${b}`);
+  const results =
+    bps.length > 0 && goal.target_cents
+      ? await goalMilestones(goal.target_cents, savedCents, bps)
+      : [];
+  await db.transaction("rw", [db.goals, db.goal_milestones, db.tombstones], async () => {
+    await db.goals.update(goal.id, { milestones_bps: bps, updated_at: new Date().toISOString() });
+    await db.goal_milestones.bulkDelete(removed);
+    await recordDeletion(db, "goal_milestones", removed);
+    await ensureMilestones(db, goal, results);
+    for (const r of results) {
+      if (!r.reached || old.includes(r.bps)) continue;
+      await db.goal_milestones.update(`${goal.id}:${r.bps}`, { reached_at: today });
+    }
+  });
 }
 
 export async function stampMilestones(

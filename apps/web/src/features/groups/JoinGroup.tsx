@@ -197,6 +197,7 @@ export function JoinGroup() {
               custom={custom}
               onCustom={setCustom}
               presets={template.targetPresets}
+              weeklyStep={template.span === "year"}
               label={
                 template.kind === "spend_less"
                   ? "How much to keep back"

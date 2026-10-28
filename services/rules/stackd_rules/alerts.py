@@ -2,7 +2,8 @@
 30 days, computed from the device's own data, so the server only ever learns a date, a type
 and a dedupe key. Nothing here carries an amount or a merchant.
 
-- upcoming_expense  an unmatched expected bill, `lead_days` before its date, at the send time
+- upcoming_expense  an unmatched expected bill, `lead_days` before its date,
+                    at `time` (09:00 unless the person picks one)
 - shortfall_risk    once per change in the forecast (keyed by the first short date and amount)
 - challenge_checkin daily at the chosen time while a challenge runs
 - goal_behind_pace  expected-by-now − saved ≥ periods × weekly pace (weekly pace = target ÷
@@ -21,7 +22,7 @@ from .money import _int
 from .notify import fmt_local, parse_clock, parse_local
 
 HORIZON_DAYS = 30
-SEND_TIME = "09:00"  # proposed: morning sends for dated alerts
+SEND_TIME = "09:00"  # dated alerts, unless the person picks their own time (`time`)
 
 
 def _at(day: date, clock: str) -> datetime:
@@ -65,7 +66,7 @@ def schedule(inputs: object) -> dict:
             series = item.get("series_id")
             if not isinstance(series, str):
                 raise RuleError("invalid_inputs")
-            due = _at(when - timedelta(days=lead), SEND_TIME)
+            due = _at(when - timedelta(days=lead), up.get("time", SEND_TIME))
             if due < now:
                 due = now
             add("upcoming_expense", due, f"upcoming:{series}:{when.isoformat()}")

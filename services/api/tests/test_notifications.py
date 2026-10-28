@@ -94,7 +94,7 @@ def test_settings_defaults_and_updates() -> None:
     }
     assert data["prefs"]["upcoming_expense"] == {
         "enabled": True,
-        "time_of_day": None,
+        "time_of_day": "09:00",
         "days": None,
         "lead_days": 3,
         "threshold": None,
@@ -134,6 +134,21 @@ def test_settings_defaults_and_updates() -> None:
         ).status_code
         == 422
     )
+    # Pause until a day the person picks: up to a year ahead, with a time zone
+    until = (datetime.now(UTC) + timedelta(days=30)).replace(microsecond=0)
+    r = client.put(
+        "/api/notifications/settings", json={"settings": {"paused_until": until.isoformat()}}
+    )
+    assert r.status_code == 200, r.text
+    assert datetime.fromisoformat(r.json()["settings"]["paused_until"]) == until
+    too_far = datetime.now(UTC) + timedelta(days=400)
+    for bad in (too_far.isoformat(), "2026-11-01T00:00:00"):
+        assert (
+            client.put(
+                "/api/notifications/settings", json={"settings": {"paused_until": bad}}
+            ).status_code
+            == 422
+        ), bad
     assert (
         client.put(
             "/api/notifications/settings", json={"settings": {"timezone": "Mars/Olympus"}}

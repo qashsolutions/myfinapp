@@ -7,8 +7,11 @@ import { useId, useState } from "react";
 import { Link } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import type { NotificationSettingsOut } from "../../data/api.ts";
+import { addDaysIso } from "../../lib/dates.ts";
+import { todayIso } from "../../lib/format.ts";
+import { parseWholeNumber } from "../../lib/ownValues.ts";
 import { needsHomeScreen, type PushOutcome, unsubscribeFromPush } from "../../pwa/pushSubscribe.ts";
-import { ChoiceChips } from "../goals/CustomValueSheet.tsx";
+import { ChipsOrOwn, ChoiceChips } from "../goals/CustomValueSheet.tsx";
 import { NotificationPrePrompt } from "./NotificationPrePrompt.tsx";
 import {
   clockText,
@@ -17,6 +20,14 @@ import {
   TYPE_COPY,
   useNotificationSettings,
 } from "./useNotifications.ts";
+
+/** The server takes a pause of up to a year (routers/notifications.py MAX_PAUSE_DAYS). */
+const MAX_PAUSE_DAYS = 365;
+
+/** Paused through the end of `day` (YYYY-MM-DD) on this device's clock, as the instant after. */
+function pauseUntil(day: string): string {
+  return new Date(`${addDaysIso(day, 1)}T00:00:00`).toISOString();
+}
 
 const TYPE_ORDER = [
   "upcoming_expense",
@@ -116,9 +127,9 @@ export function NotificationSettings() {
       case "upcoming_expense":
         return (
           <>
-            <p className="auth__label">Days before</p>
-            <ChoiceChips
+            <ChipsOrOwn
               name={`${ids}-lead`}
+              legend="Days before"
               options={[
                 ["1", "1 day"],
                 ["3", "3 days"],
@@ -126,7 +137,29 @@ export function NotificationSettings() {
               ]}
               value={String(prefs.upcoming_expense?.lead_days ?? 3)}
               onPick={(v) => void update({ prefs: { upcoming_expense: { lead_days: Number(v) } } })}
+              own={{
+                label: "Your own number of days before, 0 to 14",
+                placeholder: "Or your own: 0 to 14",
+                parse: (t) => {
+                  const n = parseWholeNumber(t, 0, 14);
+                  return n === null
+                    ? { error: "Pick a number from 0 to 14." }
+                    : { value: String(n) };
+                },
+              }}
             />
+            <label className="auth__field">
+              <span className="auth__label">Alert time</span>
+              <input
+                className="auth__input"
+                type="time"
+                defaultValue={prefs.upcoming_expense?.time_of_day ?? "09:00"}
+                onBlur={(e) =>
+                  e.target.value &&
+                  void update({ prefs: { upcoming_expense: { time_of_day: e.target.value } } })
+                }
+              />
+            </label>
           </>
         );
       case "challenge_checkin":
@@ -148,18 +181,24 @@ export function NotificationSettings() {
         );
       case "goal_behind_pace":
         return (
-          <>
-            <p className="auth__label">Alert after</p>
-            <ChoiceChips
-              name={`${ids}-periods`}
-              options={[
-                ["1", "1 missed period"],
-                ["2", "2 missed periods"],
-              ]}
-              value={String(prefs.goal_behind_pace?.threshold ?? 1)}
-              onPick={(v) => void update({ prefs: { goal_behind_pace: { threshold: Number(v) } } })}
-            />
-          </>
+          <ChipsOrOwn
+            name={`${ids}-periods`}
+            legend="Alert after"
+            options={[
+              ["1", "1 missed period"],
+              ["2", "2 missed periods"],
+            ]}
+            value={String(prefs.goal_behind_pace?.threshold ?? 1)}
+            onPick={(v) => void update({ prefs: { goal_behind_pace: { threshold: Number(v) } } })}
+            own={{
+              label: "Your own number of missed periods, 1 to 4",
+              placeholder: "Or your own: 1 to 4",
+              parse: (t) => {
+                const n = parseWholeNumber(t, 1, 4);
+                return n === null ? { error: "Pick a number from 1 to 4." } : { value: String(n) };
+              },
+            }}
+          />
         );
       case "weekly_recap":
         return (
@@ -335,8 +374,9 @@ export function NotificationSettings() {
               {s.daily_max === 0 ? "No limit" : `${s.daily_max} · extras go in one summary`}
             </span>
           </div>
-          <ChoiceChips
+          <ChipsOrOwn
             name={`${ids}-max`}
+            legend="Most alerts a day"
             options={[
               ["1", "1"],
               ["3", "3"],
@@ -345,6 +385,14 @@ export function NotificationSettings() {
             ]}
             value={String(s.daily_max)}
             onPick={(v) => void update({ settings: { daily_max: Number(v) } })}
+            own={{
+              label: "Your own most alerts a day, 1 to 20",
+              placeholder: "Or your own: 1 to 20",
+              parse: (t) => {
+                const n = parseWholeNumber(t, 1, 20);
+                return n === null ? { error: "Pick a number from 1 to 20." } : { value: String(n) };
+              },
+            }}
           />
           <div className="hero-split">
             <span className="receipt-card__title">Pause all</span>
@@ -376,6 +424,20 @@ export function NotificationSettings() {
                 >
                   1 week
                 </Button>
+                <label className="auth__field">
+                  <span className="auth__label">Or until the end of</span>
+                  <input
+                    className="auth__input"
+                    type="date"
+                    aria-label="Pause until the end of this day"
+                    min={todayIso()}
+                    max={addDaysIso(todayIso(), MAX_PAUSE_DAYS - 1)}
+                    onChange={(e) =>
+                      e.target.value &&
+                      void update({ settings: { paused_until: pauseUntil(e.target.value) } })
+                    }
+                  />
+                </label>
               </>
             )}
           </div>

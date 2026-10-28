@@ -50,7 +50,7 @@ URLS: dict[str, str] = {
 }
 
 DEFAULT_PREFS: dict[str, dict] = {
-    "upcoming_expense": {"enabled": True, "lead_days": 3},
+    "upcoming_expense": {"enabled": True, "lead_days": 3, "time_of_day": "09:00"},
     # delivery: instant, or "daily" for one summary at time_of_day (DIGEST_TYPES only)
     "shortfall_risk": {"enabled": True, "delivery": "instant", "time_of_day": "19:00"},
     "challenge_checkin": {"enabled": True, "time_of_day": "19:30"},

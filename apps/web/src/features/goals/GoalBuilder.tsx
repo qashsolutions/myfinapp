@@ -27,17 +27,20 @@ import {
   spendLessBaseline,
 } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
+import { checkpointsText, parseCheckpoints, parseWholeNumber } from "../../lib/ownValues.ts";
 import { PlanLimit } from "../billing/PlanLimit.tsx";
 import { payScheduleOf } from "../home/useHome.ts";
 import { useHouseholdLocal, useHouseholdStatus } from "../household/useHousehold.ts";
-import { CustomValueSheet } from "./CustomValueSheet.tsx";
+import { ChipsOrOwn, CustomValueSheet } from "./CustomValueSheet.tsx";
 import { CADENCE_WORDS } from "./GoalCard.tsx";
 import {
   AMOUNTS,
   DEADLINE_MONTHS,
+  DEFAULT_MILESTONES_BPS,
   HABIT_DAYS,
   HABIT_WHAT,
   KIND_LABELS,
+  MILESTONE_SETS,
   PAYOFF_WHAT,
   SPEND_LESS_AMOUNTS,
   WHAT_FOR,
@@ -46,7 +49,7 @@ import { activeGoalCount, useGoalCaps } from "./useGoalCaps.ts";
 import { createGoal, ensureMilestones, useTemplates } from "./useGoals.ts";
 
 type Blank = "what" | "amount" | "when" | "days" | "category" | "baseline" | "cadence" | null;
-const DEFAULT_MILESTONES = [2500, 5000, 7500]; // proposed: quarter checkpoints on every jar
+const MAX_HABIT_DAYS = 365;
 type When =
   | { kind: "months"; months: number }
   | { kind: "none" }
@@ -115,6 +118,7 @@ export function GoalBuilder() {
   const [ongoing, setOngoing] = useState(false);
   const [why, setWhy] = useState("");
   const [withMilestones, setWithMilestones] = useState(true);
+  const [milestonesBps, setMilestonesBps] = useState<number[]>(DEFAULT_MILESTONES_BPS);
   const [planLine, setPlanLine] = useState<string | null>(null);
   const templates = useTemplates();
   const pay = useLiveQuery(
@@ -293,6 +297,7 @@ export function GoalBuilder() {
     if (p.is_ongoing && p.per_period_cents) setAmount(p.per_period_cents);
     setWhy(p.why_text ?? "");
     setWithMilestones(p.milestones_bps.length > 0);
+    if (p.milestones_bps.length > 0) setMilestonesBps(p.milestones_bps);
   }
 
   async function create() {
@@ -325,7 +330,7 @@ export function GoalBuilder() {
       pauses: [],
       priority: null,
       why_text: why.trim() || null,
-      milestones_bps: kind === "save" && !ongoing && withMilestones ? DEFAULT_MILESTONES : [],
+      milestones_bps: kind === "save" && !ongoing && withMilestones ? milestonesBps : [],
     });
     if (goal.milestones_bps?.length && goal.target_cents)
       await ensureMilestones(
@@ -454,12 +459,35 @@ export function GoalBuilder() {
             />
           ) : null}
           {!ongoing ? (
-            <Toggle
-              checked={withMilestones}
-              onChange={setWithMilestones}
-              label="Milestones at 25%, 50%, 75%"
-              description="Each one gets its own cheer, and an alert if you turn those on."
-            />
+            <>
+              <Toggle
+                checked={withMilestones}
+                onChange={setWithMilestones}
+                label={`Milestones at ${checkpointsText(milestonesBps)}`}
+                description="Each one gets its own cheer, and an alert if you turn those on."
+              />
+              {withMilestones ? (
+                <ChipsOrOwn
+                  name={`${ids}-milestones`}
+                  legend="Cheer at"
+                  options={MILESTONE_SETS.map((set) => [set.join(","), checkpointsText(set)])}
+                  value={milestonesBps.join(",")}
+                  display={(v) => checkpointsText(v.split(",").map(Number))}
+                  onPick={(v) => setMilestonesBps(v.split(",").map(Number))}
+                  own={{
+                    label: "Your own milestones, in percent",
+                    placeholder: "Or your own, like 10, 50, 90",
+                    inputMode: "text",
+                    parse: (t) => {
+                      const bps = parseCheckpoints(t);
+                      return bps
+                        ? { value: bps.join(",") }
+                        : { error: "Up to five whole percents from 1 to 99, like 10, 50, 90." };
+                    },
+                  }}
+                />
+              ) : null}
+            </>
           ) : null}
           <label className="auth__field" style={{ marginTop: 8 }}>
             <span className="auth__label">Why it matters (optional)</span>
@@ -597,6 +625,17 @@ export function GoalBuilder() {
         options={HABIT_DAYS.map((d) => [String(d), `${d} days`])}
         value={String(days)}
         onPick={(v) => setDays(Number(v))}
+        custom={{
+          label: "Or any number of days",
+          placeholder: `1 to ${MAX_HABIT_DAYS}`,
+          type: "decimal",
+          commit: async (text) => {
+            const n = parseWholeNumber(text, 1, MAX_HABIT_DAYS);
+            if (n === null) return `Pick a whole number of days from 1 to ${MAX_HABIT_DAYS}.`;
+            setDays(n);
+            return null;
+          },
+        }}
       />
       <CustomValueSheet
         open={open === "category"}

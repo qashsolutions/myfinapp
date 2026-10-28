@@ -45,7 +45,7 @@ from app.services.security_alerts import SecurityEvent, send_alert
 
 router = APIRouter(prefix="/api/auth/link", tags=["auth"], dependencies=[Depends(same_site_only)])
 
-LINK_TTL = timedelta(minutes=2)  # proposed (owner, October 19, 2026)
+LINK_TTL = timedelta(minutes=2)  # owner, October 19, 2026; signed off October 27, 2026
 COOKIE = "stackd_link"
 # No 0/O/1/I, like invite codes; 32 letters, so 8 of them carry 40 bits.
 ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
