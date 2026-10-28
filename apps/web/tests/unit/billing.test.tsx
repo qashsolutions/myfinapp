@@ -3,7 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { openDb, seedDefaults } from "../../src/data/db.ts";
 import { billingState } from "../../src/features/billing/billing.ts";
-import { FREE_ENTITLEMENTS } from "../../src/features/billing/entitlements.ts";
+import { FREE_ENTITLEMENTS, resetEntitlements } from "../../src/features/billing/entitlements.ts";
 import { createGoal } from "../../src/features/goals/useGoals.ts";
 import {
   fakeMember,
@@ -544,6 +544,39 @@ describe("Plans & billing", () => {
       await screen.findByText(/To become a Founding member, cancel your current plan first/),
     ).toBeInTheDocument();
     expect(billingState.lastUrl).toBeNull();
+  });
+
+  it("a bank payment still clearing: on its way, and nothing else can be bought meanwhile", async () => {
+    installFakeApi({
+      session: readySession(),
+      billing: { ...freeBilling(), payment_pending: true },
+    });
+    renderApp("/me/plan");
+    expect(await screen.findByText("Your bank payment is on its way")).toBeInTheDocument();
+    for (const name of ["Private", "Connected"]) {
+      const card = screen.getByRole("article", { name });
+      expect(within(card).getByRole("button", { name: `Choose ${name}` })).toBeDisabled();
+    }
+    const founding = screen.getByRole("article", { name: "Founding member" });
+    expect(
+      within(founding).getByRole("button", { name: "Become a Founding member" }),
+    ).toBeDisabled();
+  });
+
+  it("after a plan ends, receipts and invoices are still one tap away", async () => {
+    const user = userEvent.setup();
+    resetEntitlements();
+    const api = installFakeApi({
+      session: readySession(),
+      billing: { ...freeBilling(), has_customer: true },
+    });
+    api.access = { state: "lapsed", plan: "free", delete_at: "2026-10-20T00:00:00Z" };
+    renderApp("/me/plan");
+    const receipts = await screen.findByRole("list", { name: "Receipts" });
+    await user.click(within(receipts).getByRole("button", { name: /Receipts & invoices/ }));
+    await waitFor(() =>
+      expect(billingState.lastUrl).toBe("https://billing.stripe.com/p/session/test"),
+    );
   });
 
   it("Founding member: four years of Connected, no renewal, nothing to buy", async () => {

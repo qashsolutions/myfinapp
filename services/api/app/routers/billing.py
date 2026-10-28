@@ -18,13 +18,12 @@
 from __future__ import annotations
 
 import time
-import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
 from app.config import get_settings
@@ -42,6 +41,7 @@ from app.rules_server.entitlements import (
     founding_left,
     is_tester,
     load_plans,
+    payment_pending,
     store_entitlements,
     tester_plan,
     trial_settings,
@@ -63,22 +63,6 @@ router = APIRouter(prefix="/api/billing", tags=["billing"], dependencies=[Depend
 class PriceOut(BaseModel):
     monthly_cents: int
     yearly_cents: int
-
-
-def _payment_pending(db: DbSession, user_id: uuid.UUID) -> bool:
-    """A checkout paid by bank that hasn't cleared: a Stripe row still `incomplete`, recent."""
-    since = datetime.now(UTC) - timedelta(days=14)
-    return (
-        db.scalar(
-            select(Subscription.id).where(
-                Subscription.user_id == user_id,
-                Subscription.source == "stripe",
-                or_(Subscription.status == "incomplete", Subscription.first_payment == "pending"),
-                Subscription.created_at >= since,
-            )
-        )
-        is not None
-    )
 
 
 class BillingOut(BaseModel):
@@ -219,7 +203,8 @@ class NativeSyncIn(BaseModel):
 
     platform: Literal["ios", "android"]
     jws: str | None = None  # iOS: the transaction's jwsRepresentation (StoreKit 2)
-    purchase_token: str | None = None  # Android: the Play Billing purchase token
+    # Android: the Play Billing purchase token, URL-safe text only (it goes into a Play URL).
+    purchase_token: native_billing.PlayPurchaseId | None = None
 
 
 def _origin(request: Request) -> str:
@@ -246,7 +231,8 @@ def _out(db: DbSession, caller: Caller) -> BillingOut:
         # Open to buy, or already paying through Stripe (so a plan can always be managed).
         available=stripe_billing.open_for(caller.user)
         or (stripe_billing.configured() and bool(sub and sub.customer_id)),
-        has_customer=bool(sub and sub.customer_id),
+        # Any Stripe customer on file, so receipts stay reachable after a plan ends.
+        has_customer=_latest_customer(db, caller, sub) is not None,
         prices={
             name: PriceOut(
                 monthly_cents=p["price_cents"]["monthly"], yearly_cents=p["price_cents"]["yearly"]
@@ -263,7 +249,7 @@ def _out(db: DbSession, caller: Caller) -> BillingOut:
         entitlements=entitlements(db, caller.user.id),
         store_products=native_billing.store_products(),
         trials={k: int(trial_settings()[k]["days"]) for k in TRIAL_PLANS},
-        payment_pending=_payment_pending(db, caller.user.id),
+        payment_pending=payment_pending(db, caller.user.id),
         downgrade_from=_downgrade_from(sub, caller),
         downgrade_after_days=int(plans["changes"]["downgrade_after_days"]),
         tester=is_tester(caller.user),
@@ -408,6 +394,15 @@ def checkout(
     plan, sub = effective_plan(db, caller.user.id, tester=False)
     if plan == "founding":
         raise HTTPException(status.HTTP_409_CONFLICT, detail="already_founding")
+    if payment_pending(db, caller.user.id):
+        # A bank payment is still clearing for a plan already bought: never a second one
+        # beside it (October 28, 2026). The Plan screen says it's on its way.
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="payment_pending")
+    if sub is not None and sub.source in ("apple", "google"):
+        # A live App Store / Google Play plan is changed in the store; Founding may follow
+        # once the store plan is set not to renew, as with a Stripe plan.
+        if body.plan != "founding" or not sub.cancel_at_period_end:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="manage_in_store")
     if _renewing(sub):
         assert sub is not None
         # Never a second subscription beside a live one: plan changes go through /change.
@@ -728,6 +723,22 @@ def _customers(db: DbSession, caller: Caller) -> set[str]:
     }
 
 
+def _latest_customer(db: DbSession, caller: Caller, sub: Subscription | None) -> str | None:
+    """The Stripe customer to open the portal for: the live plan's, else the newest on file."""
+    if sub is not None and sub.source == "stripe" and sub.customer_id:
+        return sub.customer_id
+    return db.scalar(
+        select(Subscription.customer_id)
+        .where(
+            Subscription.user_id == caller.user.id,
+            Subscription.source == "stripe",
+            Subscription.customer_id.is_not(None),
+        )
+        .order_by(Subscription.created_at.desc())
+        .limit(1)
+    )
+
+
 def _may_refund(db: DbSession, caller: Caller, customers: set[str]) -> bool:
     """Deleting could pay something back only through Stripe: a customer, or a Founding row."""
     founding = any(
@@ -896,10 +907,13 @@ def portal(
     if not stripe_billing.configured():
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="billing_unavailable")
     _, sub = effective_plan(db, caller.user.id, tester=False)
-    if sub is None or not sub.customer_id:
+    # Receipts stay reachable after a plan ends (October 28, 2026): the live plan's customer,
+    # else the newest one this account paid with. The portal shows receipts and the card only.
+    customer = _latest_customer(db, caller, sub)
+    if customer is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="no_customer")
     try:
-        session = stripe_billing.portal_session(sub.customer_id, _origin(request))
+        session = stripe_billing.portal_session(customer, _origin(request))
     except stripe_billing.BillingError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=exc.code) from exc
     return UrlOut(url=str(session["url"]))

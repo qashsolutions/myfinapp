@@ -81,16 +81,26 @@ export async function payByBank(
   await page.getByRole("textbox", { name: "Full name" }).fill("E2E Tester");
   await page.getByRole("button", { name: "Test (Non-OAuth)" }).click();
   const fc = page.frameLocator('iframe[src*="linked-accounts-inner"]');
-  // Stripe shows either a consent page first or Link's sign-in first (it varies between runs);
-  // either way the next step is to continue as a guest.
+  // Stripe varies what comes first between runs: a consent page, Link's sign-in ("Continue as
+  // guest"), or (since October 2026) straight to choosing the account. Step through whichever
+  // appear until the account list shows.
   const agree = fc.getByRole("button", { name: "Agree and continue" });
   const guest = fc.getByRole("button", { name: "Continue as guest" });
-  await agree.or(guest).first().waitFor({ timeout: 60_000 });
-  if (await agree.isVisible()) await agree.click();
-  await guest.click();
-  await fc.getByRole("button", { name: new RegExp(`^${account}`) }).click({ timeout: 60_000 });
+  const pick = fc.getByRole("button", { name: new RegExp(`^${account}`) });
+  for (let step = 0; step < 3; step++) {
+    await agree.or(guest).or(pick).first().waitFor({ timeout: 60_000 });
+    if (await pick.isVisible()) break;
+    if (await agree.isVisible()) await agree.click();
+    else if (await guest.isVisible()) await guest.click();
+  }
+  await pick.click({ timeout: 60_000 });
   await fc.getByRole("button", { name: "Connect account" }).click();
-  await fc.getByRole("button", { name: /^Continue to / }).click({ timeout: 60_000 });
+  // Stripe may offer to save the bank with Link first (since October 2026): finish without it.
+  const done = fc.getByRole("button", { name: /^Continue to / });
+  const noSave = fc.getByRole("button", { name: "Finish without saving" });
+  await done.or(noSave).first().waitFor({ timeout: 60_000 });
+  if (await noSave.isVisible()) await noSave.click();
+  await done.click({ timeout: 60_000 });
   await page.getByTestId("hosted-payment-submit-button").click();
 }
 

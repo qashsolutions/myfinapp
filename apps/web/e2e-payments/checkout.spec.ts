@@ -17,6 +17,7 @@ import {
   blockedFor,
   customerOf,
   quote,
+  setTrialEnd,
   sql,
   stripe,
   subjectsTo,
@@ -109,6 +110,35 @@ test("A3 during the trial: the card is saved now and charged only when the trial
     sql(`SELECT extract(epoch FROM trial_ends_at)::int FROM users WHERE email = ${quote(email)}`),
   );
   expect(Math.abs(sub.trial_end - trialEnd)).toBeLessThan(120);
+});
+
+// Owner decision, October 28, 2026: nothing is charged until the trial ends, even under
+// Stripe's 48-hour trial_end minimum. There the checkout anchors the billing cycle on the
+// trial end with proration_behavior none (stripe_billing.checkout_session). Not yet run against
+// Stripe test mode: run it before merging, and check the $0 first invoice and the saved card.
+test("A3b late in the trial (30 hours left): $0 today, the first charge on the trial end", async ({
+  page,
+}) => {
+  const email = await readyAccount(page, "a3b");
+  setTrialEnd(email, "30 hours");
+  await toCheckout(page, "Private", "Monthly");
+  await payByCard(page, CARDS.ok);
+  await backFromStripe(page);
+  await waitForPlan(page, (x) => x.plan === "private", "Private");
+  const customer = customerOf(email);
+  const charges = (await stripe("GET", "/charges", { customer })).data ?? [];
+  expect(charges.filter((c) => Number(c.amount) > 0)).toEqual([]);
+  // Stripe makes no invoice at all before a future billing date with no proration: nothing paid.
+  const invoices = await stripe("GET", "/invoices", { customer });
+  expect((invoices.data ?? []).filter((i) => Number(i.amount_paid) > 0)).toEqual([]);
+  const subs = await stripe("GET", "/subscriptions", { customer, status: "all" });
+  const sub = subs.data?.[0] as { billing_cycle_anchor: number; default_payment_method: unknown };
+  const trialEnd = Number(
+    sql(`SELECT extract(epoch FROM trial_ends_at)::int FROM users WHERE email = ${quote(email)}`),
+  );
+  expect(Math.abs(sub.billing_cycle_anchor - trialEnd)).toBeLessThan(120);
+  // The card was kept for the first real charge on the trial-end day.
+  expect(sub.default_payment_method).toBeTruthy();
 });
 
 // Every Stripe test card that triggers 3-D Secure is issued outside the US, so with the

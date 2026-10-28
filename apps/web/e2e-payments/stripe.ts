@@ -45,7 +45,8 @@ export function sql(query: string): string {
 
 export const quote = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
-/** Move this account's trial end, e.g. so a checkout charges at once (under 49 hours left). */
+/** Move this account's trial end: into the past so a checkout charges at once; with under
+ * 49 hours left the first charge still waits for the trial end (billing_cycle_anchor). */
 export function setTrialEnd(email: string, interval: string): void {
   sql(
     `UPDATE users SET trial_ends_at = now() + interval ${quote(interval)} WHERE email = ${quote(email)}`,

@@ -153,6 +153,8 @@ export function PlanScreen() {
   async function choose(plan: CheckoutPlan, iv: Interval = interval) {
     if (native && plan !== "founding") return chooseNative(plan);
     if (!billing?.available) return;
+    // A bank payment still clearing: never a second purchase beside it (October 28, 2026).
+    if (billing.payment_pending) return;
     // Already paying: a switch on the same subscription, never a second one.
     if (plan !== "founding" && subscribed) return void openChange(plan, iv);
     setStatus(null);
@@ -274,17 +276,21 @@ export function PlanScreen() {
           ? "To become a Founding member, cancel your current plan first. It runs to the end of what you've paid, and you can buy Founding straight after."
           : failure.code === "already_subscribed"
             ? "You already have a plan. Choose another one above to switch."
-            : failure.code === "founding_sold_out"
-              ? "All the Founding places are taken. Connected is still here for you."
-              : failure.code === "purchase_blocked"
-                ? "We can't take a new payment on this account. Write to support@qash.solutions and we'll help."
-                : failure.code === "consent_outdated"
-                  ? "The terms changed. Reload the app and review them again."
-                  : failure.code === "consent_mismatch"
-                    ? "The terms changed since you opened them. Choose the plan again to see them."
-                    : failure.status === 0
-                      ? "You're offline. Try again when connected."
-                      : "Couldn't open the payment page. Try again.",
+            : failure.code === "payment_pending"
+              ? "Your bank payment is still clearing. Once it does, you can change plans here."
+              : failure.code === "manage_in_store"
+                ? "Your plan was bought in the App Store or Google Play. Change or cancel it there first."
+                : failure.code === "founding_sold_out"
+                  ? "All the Founding places are taken. Connected is still here for you."
+                  : failure.code === "purchase_blocked"
+                    ? "We can't take a new payment on this account. Write to support@qash.solutions and we'll help."
+                    : failure.code === "consent_outdated"
+                      ? "The terms changed. Reload the app and review them again."
+                      : failure.code === "consent_mismatch"
+                        ? "The terms changed since you opened them. Choose the plan again to see them."
+                        : failure.status === 0
+                          ? "You're offline. Try again when connected."
+                          : "Couldn't open the payment page. Try again.",
     );
   }
 
@@ -327,7 +333,9 @@ export function PlanScreen() {
   }
 
   async function portal(what: string) {
-    if (!billing?.available) return;
+    // Receipts stay reachable after a plan ends, even while plans aren't on sale (the server
+    // answers when Stripe isn't set up at all).
+    if (!billing?.has_customer) return;
     setStatus(null);
     if (!(await stepUp.confirm(what))) return;
     setBusy(true);
@@ -390,6 +398,8 @@ export function PlanScreen() {
   const onTrial = limits?.access?.state === "trial";
   const paid = (billing.plan === "private" || billing.plan === "connected") && !onTrial;
   const founding = billing.plan === "founding";
+  // A bank payment still clearing (October 28, 2026): buying waits for it, as the server does.
+  const clearing = billing.payment_pending === true;
   // A downgrade opens 30 days after the plan started or last changed (October 17, 2026).
   const downFrom = billing.downgrade_from ? formatDate(billing.downgrade_from) : null;
   const isDown = (plan: CheckoutPlan, iv: Interval) =>
@@ -514,7 +524,7 @@ export function PlanScreen() {
           <p className="plan-alert__title">Your bank payment is on its way</p>
           <p>
             Bank payments take up to 4 business days to clear. Your plan starts as soon as it does,
-            and we'll email you if it doesn't go through.
+            and we'll email you if it doesn't go through. Plans can be chosen again once it clears.
           </p>
         </div>
       ) : null}
@@ -651,6 +661,19 @@ export function PlanScreen() {
         </List>
       ) : null}
 
+      {!native && !paid && billing.has_customer ? (
+        // After a plan ends, on a trial with a card saved, or as a Founding member: the
+        // receipts are still there (October 28, 2026).
+        <List card aria-label="Receipts">
+          <ListRow
+            label="Receipts & invoices"
+            sublabel="Opens the secure billing page"
+            onClick={() => portal("Opening your billing page")}
+            chevron
+          />
+        </List>
+      ) : null}
+
       {access?.state === "ended" ? null : founding ? (
         <Card>
           <p>Before your term ends you'll choose a plan. Nothing is deleted either way.</p>
@@ -732,7 +755,7 @@ export function PlanScreen() {
                     <Button
                       block
                       variant={current || locked ? "secondary" : "primary"}
-                      disabled={current || busy || !billing.available}
+                      disabled={current || busy || !billing.available || clearing}
                       onClick={() =>
                         locked
                           ? setLockedFor(interval === "monthly" ? `${p.name} monthly` : p.name)
@@ -795,7 +818,7 @@ export function PlanScreen() {
                   ) : null}
                   <Button
                     block
-                    disabled={busy || !billing.available || (cap !== "" && left <= 0)}
+                    disabled={busy || !billing.available || clearing || (cap !== "" && left <= 0)}
                     onClick={() => void choose("founding")}
                   >
                     {cap !== "" && left <= 0 ? "All places taken" : "Become a Founding member"}

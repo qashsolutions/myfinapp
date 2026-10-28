@@ -21,9 +21,11 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 # an older version gets 409 consent_outdated and loads the terms again.
 CONSENT_VERSION = "2026-10-24"
 
-# Stripe needs a trial end at least 48 hours ahead; closer, the first charge is today
-# (stripe_billing.TRIAL_END_MIN, repeated here so this module stays pure).
-TRIAL_END_MIN = timedelta(hours=49)
+# During a trial the first charge is on the trial-end day (owner decision, October 28, 2026),
+# through Stripe's trial or, closer than 49 hours, a billing cycle anchored on the trial end.
+# Under 31 minutes left the first charge is today (stripe_billing.ANCHOR_MIN, repeated here
+# so this module stays pure).
+ANCHOR_MIN = timedelta(minutes=31)
 
 SHORT = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
@@ -156,11 +158,11 @@ def purchase(
     price = money(_price(plans, plan, interval))
     if trial_ends_at is not None and trial_ends_at.tzinfo is None:
         trial_ends_at = trial_ends_at.replace(tzinfo=UTC)
-    # During a trial the card is saved now and first charged when the trial ends, when that is
-    # far enough away for Stripe (the checkout passes the same end).
+    # During a trial the card is saved now and first charged when the trial ends (the
+    # checkout passes the same end).
     trial = (
         day(trial_ends_at, tz)
-        if trial_ends_at is not None and trial_ends_at - now >= TRIAL_END_MIN
+        if trial_ends_at is not None and trial_ends_at - now >= ANCHOR_MIN
         else None
     )
     points = [

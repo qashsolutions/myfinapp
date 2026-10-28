@@ -15,7 +15,7 @@ from typing import Any
 
 import yaml
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session as DbSession
 
 from app.config import get_settings
@@ -67,10 +67,37 @@ def active_subscription(
         if row.first_payment in ("pending", "failed"):
             continue  # a first bank payment that hasn't cleared (or never did)
         if row.status in ("active", "past_due"):
+            if row.plan == "founding" and row.ends_at is not None and row.ends_at <= now:
+                continue  # Founding is one payment for a fixed term: it ends with the term
             return row
         if row.status == "canceled" and row.ends_at is not None and row.ends_at > now:
             return row
     return None
+
+
+def never_started(row: Subscription) -> bool:
+    """A purchase whose money never arrived: a first bank debit that failed, or a Founding
+    place given back (`expired`). It leaves the account where it was (October 28, 2026)."""
+    return row.first_payment == "failed" or (row.plan == "founding" and row.status == "expired")
+
+
+def payment_pending(db: DbSession, user_id: uuid.UUID, *, now: datetime | None = None) -> bool:
+    """A web purchase whose bank payment is still clearing: a subscription waiting on its
+    first debit, or a Founding place held (`incomplete`). The plan waits for it, so does any
+    other purchase (one helper for the Plan screen's "on its way" and checkout's 409). Two
+    weeks bounds it, so a payment Stripe never reported on can't block buying for ever."""
+    since = (now or datetime.now(UTC)) - timedelta(days=14)
+    return (
+        db.scalar(
+            select(Subscription.id).where(
+                Subscription.user_id == user_id,
+                Subscription.source == "stripe",
+                or_(Subscription.status == "incomplete", Subscription.first_payment == "pending"),
+                Subscription.created_at >= since,
+            )
+        )
+        is not None
+    )
 
 
 TRIAL_PLANS = ("private", "connected")
@@ -84,6 +111,8 @@ def _ended_at(db: DbSession, user: User, now: datetime) -> datetime | None:
     """When this account last had a plan: the end of its trial or of its last paid period."""
     ends = [user.trial_ends_at] if user.trial_ends_at and user.trial_ends_at <= now else []
     for row in db.scalars(select(Subscription).where(Subscription.user_id == user.id)):
+        if never_started(row):
+            continue  # a plan whose first payment never arrived never ended either
         end = row.ends_at or (row.updated_at if row.status in ("canceled", "expired") else None)
         if end is not None and end <= now:
             ends.append(end)
