@@ -280,3 +280,26 @@ def test_a_burst_of_bad_uploads_cannot_push_out_yesterdays_backup() -> None:
     assert base64.urlsafe_b64decode(got["ciphertext"] + "==") == good
     r = client.get("/api/backup/blob/latest", params={"before": good_id})
     assert r.status_code == 404 and r.json()["detail"] == "no_backup"
+
+
+def test_stepping_back_from_a_pruned_copy_says_so_instead_of_no_backup() -> None:
+    """Invariant 20: "nothing older" and "that copy is gone" are different answers. A restore
+    walking back past copies it can't open must not read a copy pruned mid-walk (another
+    device uploaded meanwhile) as "no backups exist"."""
+    client, user_id, _, _ = member("noor", "private")
+    assert client.put("/api/backup/key", json=KEY).status_code == 200
+    oldest = _upload(client, os.urandom(64))
+    walked_to = _upload(client, os.urandom(64))
+    _upload(client, os.urandom(64))
+    # Another device uploads twice; pruning keeps the newest 3, so the walk's copy goes
+    _upload(client, os.urandom(64))
+    _upload(client, os.urandom(64))
+    with get_session_factory()() as db:
+        ids = {str(r.id) for r in backup_store.backups_for(db, uuid.UUID(user_id))}
+    assert walked_to not in ids and oldest not in ids and len(ids) == 3
+
+    r = client.get("/api/backup/blob/latest", params={"before": walked_to})
+    assert r.status_code == 409 and r.json()["detail"] == "backup_gone"
+    # An id that was never this account's reads the same way: nothing about it is told
+    r = client.get("/api/backup/blob/latest", params={"before": str(uuid.uuid4())})
+    assert r.status_code == 409 and r.json()["detail"] == "backup_gone"

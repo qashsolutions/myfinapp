@@ -224,11 +224,16 @@ def latest_blob(
     before: uuid.UUID | None = None,
 ) -> BackupBlobOut:
     """The newest backup, or with `before` the newest one older than that backup: a device that
-    can't open a copy steps back to the one before it (October 24, 2026)."""
+    can't open a copy steps back to the one before it (October 24, 2026). A `before` copy that
+    is no longer kept (pruned while the device walked, after another upload) answers 409
+    `backup_gone`, never 404 `no_backup`, which means there is nothing (older) to restore; the
+    device then starts again from the newest (invariant 20, October 27, 2026)."""
     rows = backup_store.backups_for(db, caller.user.id)
     if before is not None:
         ids = [r.id for r in rows]
-        rows = rows[ids.index(before) + 1 :] if before in ids else []
+        if before not in ids:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="backup_gone")
+        rows = rows[ids.index(before) + 1 :]
     if not rows:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="no_backup")
     row = rows[0]
