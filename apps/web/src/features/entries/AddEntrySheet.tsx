@@ -33,10 +33,12 @@ export function AddEntrySheet() {
   const navigate = useNavigate();
   const { db } = useDb();
   const ids = useId();
-  const existing = useLiveQuery<Entry | undefined>(
-    async () => (editId ? db.entries.get(editId) : undefined),
+  // undefined while the device database answers, null when there is no such entry.
+  const found = useLiveQuery<Entry | null | undefined>(
+    async () => (editId ? ((await db.entries.get(editId)) ?? null) : null),
     [db, editId],
   );
+  const existing = found ?? undefined;
   const accounts = useLiveQuery(() => db.accounts.orderBy("type").toArray(), [db]);
   const categories = useLiveQuery(() => db.categories.orderBy("[kind+sort]").toArray(), [db]);
   const knownTags = useLiveQuery(
@@ -312,6 +314,27 @@ export function AddEntrySheet() {
     });
     navigate(ENTRIES_PATH, { replace: true });
   }
+
+  // An entry being edited shows its form only once its values are in: typing into fields the
+  // load is about to fill would be overwritten (invariant 18, October 27, 2026).
+  if (editId && (found === undefined || (found && loadedId !== found.id)))
+    return (
+      <>
+        <ScreenHeader title={title} actions={null} back={ENTRIES_PATH} />
+        <p className="auth__hint" role="status">
+          Opening the entry…
+        </p>
+      </>
+    );
+  if (editId && found === null)
+    return (
+      <>
+        <ScreenHeader title={title} actions={null} back={ENTRIES_PATH} />
+        <p className="auth__hint" role="status">
+          This entry isn't on this device any more.
+        </p>
+      </>
+    );
 
   return (
     <>

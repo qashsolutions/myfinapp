@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import Dexie from "dexie";
 import { type Entry, openDb, seedDefaults } from "../../src/data/db.ts";
 import { addTag, MAX_TAGS, suggestTags, tidyTag } from "../../src/features/entries/tags.ts";
 import { installFakeApi, readySession } from "../fakeApi.ts";
@@ -92,6 +93,45 @@ describe("tags and notes on entries (owner decision, October 19, 2026)", () => {
     const list = screen.getByRole("list", { name: "Entries tagged Hawaii trip" });
     expect(within(list).getByText("Island Air")).toBeInTheDocument();
     expect(within(list).queryByText("Corner Market")).toBeNull();
+  });
+
+  it("the editor takes no input until the entry's own values are in (invariant 18)", async () => {
+    // Hold the read back, as a slow phone would: the form must not be there to type into, or
+    // the load would overwrite what was typed (the cause of three flaky tests, October 27, 2026).
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await db.entries.add(entry("e9", "Corner Market", 900, { note: "Milk", is_transfer: false }));
+    let release = () => {};
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    const held = db.transaction("rw", db.entries, async () => {
+      await db.entries.get("e9");
+      await Dexie.waitFor(gate);
+    });
+    installFakeApi({ session: readySession() });
+    renderApp("/entries/e9");
+    expect(await screen.findByText("Opening the entry…")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Note")).toBeNull();
+    expect(screen.queryByRole("switch", { name: /Transfer between my accounts/ })).toBeNull();
+    release();
+    await held;
+    const note = await screen.findByLabelText("Note");
+    expect(note).toHaveValue("Milk");
+    await user.type(note, " and eggs");
+    expect(note).toHaveValue("Milk and eggs");
+  });
+
+  it("an entry that is gone says so instead of an empty form", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    installFakeApi({ session: readySession() });
+    renderApp("/entries/nope");
+    expect(
+      await screen.findByText("This entry isn't on this device any more."),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Note")).toBeNull();
   });
 
   it("saving an edit keeps what the screen doesn't show, like a linked row's bank id", async () => {

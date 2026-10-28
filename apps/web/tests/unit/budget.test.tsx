@@ -187,6 +187,32 @@ describe("Budget", () => {
     );
   });
 
+  it("editing a saved paycheck keeps what the person types (invariant 18)", async () => {
+    // The saved pay fills the form once; recomputing the monthly figure must never reload it
+    // over the new amount being typed.
+    const user = userEvent.setup();
+    await seedOctober();
+    await openDb("u1").settings.put({
+      key: "pay",
+      value: {
+        amount_cents: 260000,
+        frequency: "biweekly",
+        next_payday: null,
+        monthly_cents: 563333,
+      },
+      updated_at: "2026-10-01T00:00:00Z",
+    });
+    await renderSignedIn("/budget");
+    const amount = await screen.findByLabelText("Each paycheck");
+    await waitFor(() => expect(amount).toHaveValue("2600.00"));
+    await user.clear(amount);
+    await user.type(amount, "3,000");
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("That's about $6,500.00 a month"),
+    );
+    expect(amount).toHaveValue("3,000");
+  });
+
   it("zero-based: every dollar gets a job, and over-assigning shows", async () => {
     const user = userEvent.setup();
     const db = await seedOctober();
