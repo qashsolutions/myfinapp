@@ -8,7 +8,7 @@ import { closeDb, deleteDb, openDb, type StackdDb } from "../../data/db.ts";
 import { collectExport, downloadBytes, zipStore } from "../../data/export.ts";
 import { engine } from "../../engine/bridge.ts";
 import { formatDate, todayIso } from "../../lib/format.ts";
-import { currentHashFor, forgetKept, keptAccount } from "../../lib/keptAccount.ts";
+import { currentHashFor, emailHash, forgetKept, keptAccount } from "../../lib/keptAccount.ts";
 import { useSession } from "../auth/useSession.tsx";
 
 /** Download everything a kept account left on this device, built here with no server. */
@@ -114,9 +114,29 @@ export function KeptOnPhone() {
   );
 }
 
+/** Offered on /start and in the app shell; answered in one, it isn't asked again in this tab. */
+const ASKED = "qash.bring_back_asked";
+
+function askedThisTab(): boolean {
+  try {
+    return sessionStorage.getItem(ASKED) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markAsked(): void {
+  try {
+    sessionStorage.setItem(ASKED, "1");
+  } catch {
+    // storage blocked: it may be asked again on the next screen, nothing worse
+  }
+}
+
 /**
- * Home after signing up again with the same email on the same phone: offer to bring the kept
- * data into the new account (a backup snapshot merged in, on the device). Asked once.
+ * After signing up again with the same email on the same device (on /start, then in the app):
+ * offer to bring the kept data into the new account (a backup snapshot merged in, on the
+ * device). Asked once per tab.
  */
 export function BringBackOffer() {
   const session = useSession();
@@ -126,25 +146,41 @@ export function BringBackOffer() {
   // Read once: bringing the data back forgets the record, and the sheet still says so.
   const [kept] = useState(() => keptAccount());
   const me = session.info?.user?.id ?? null;
+  const email = session.info?.user?.email ?? null;
 
   useEffect(() => {
-    if (!kept || !me || kept.user_id === me || !kept.email_hash) return;
-    // Same person: the email hash recorded while they were signed in matches this account's.
-    const mine = currentHashFor(me);
-    if (mine && mine === kept.email_hash) setOpen(true);
-  }, [kept, me]);
+    if (!kept || !me || kept.user_id === me || !kept.email_hash || askedThisTab()) return;
+    let live = true;
+    // Same person: the email hash recorded while the old account was signed in matches this
+    // account's email. Worked out here rather than read back from what useSession stores, which
+    // may not be written yet on the first screen after signing up (October 28, 2026).
+    const mine = email
+      ? emailHash(email).catch(() => currentHashFor(me))
+      : Promise.resolve(currentHashFor(me));
+    void mine.then((hash) => {
+      if (live && hash && hash === kept.email_hash) setOpen(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, [kept, me, email]);
+
+  const close = () => {
+    markAsked();
+    setOpen(false);
+  };
 
   if (!kept || !open) return null;
   return (
     <Sheet
       open={open}
-      onClose={() => setOpen(false)}
+      onClose={close}
       title={state === "done" ? "Welcome back" : "Bring back your data?"}
     >
       {state === "done" ? (
         <>
           <p className="auth__lead">Everything from before is back, right where you left it.</p>
-          <Button block onClick={() => setOpen(false)}>
+          <Button block onClick={close}>
             Done
           </Button>
         </>
@@ -171,7 +207,7 @@ export function BringBackOffer() {
           >
             {state === "busy" ? "Bringing it back…" : "Yes, bring it back"}
           </Button>
-          <Button variant="secondary" block onClick={() => setOpen(false)}>
+          <Button variant="secondary" block onClick={close}>
             Not now
           </Button>
         </>
