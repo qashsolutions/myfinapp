@@ -492,6 +492,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/billing/consent/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cancel Consent
+         * @description The "If you cancel" lines for the plan that renews now, as /cancel will check them.
+         */
+        get: operations["cancel_consent_api_billing_consent_cancel_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/consent/purchase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Purchase Consent
+         * @description The "Before you subscribe" lines for one offer, as the checkout will check them.
+         */
+        get: operations["purchase_consent_api_billing_consent_purchase_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/billing/credit": {
         parameters: {
             query?: never;
@@ -1797,8 +1837,24 @@ export interface components {
             /** Proration Date */
             proration_date?: number | null;
         };
+        /** ChangePreviewIn */
+        ChangePreviewIn: {
+            /**
+             * Interval
+             * @enum {string}
+             */
+            interval: "monthly" | "yearly";
+            /**
+             * Plan
+             * @enum {string}
+             */
+            plan: "private" | "connected";
+            /** Tz */
+            tz?: string | null;
+        };
         /** ChangePreviewOut */
         ChangePreviewOut: {
+            consent: components["schemas"]["ConsentTextOut"];
             /** Credit After Cents */
             credit_after_cents: number;
             /** Disconnects Banks */
@@ -1814,19 +1870,6 @@ export interface components {
             price_cents: number;
             /** Proration Date */
             proration_date: number;
-        };
-        /** ChangeTarget */
-        ChangeTarget: {
-            /**
-             * Interval
-             * @enum {string}
-             */
-            interval: "monthly" | "yearly";
-            /**
-             * Plan
-             * @enum {string}
-             */
-            plan: "private" | "connected";
         };
         /** CheckoutIn */
         CheckoutIn: {
@@ -1887,7 +1930,10 @@ export interface components {
         };
         /**
          * ConsentIn
-         * @description What the person read and ticked, as the app showed it (recorded verbatim).
+         * @description What the person read and ticked: the lines the server built for this offer (GET
+         *     /api/billing/consent/*, or the change preview's `consent`), sent back unchanged. The route
+         *     builds them again from the same facts and refuses any difference (409 consent_mismatch,
+         *     October 28, 2026), so what is kept is always the server's own text.
          */
         ConsentIn: {
             /**
@@ -1899,6 +1945,8 @@ export interface components {
             agreement: string;
             /** Lines */
             lines: string[];
+            /** Tz */
+            tz?: string | null;
             /** Version */
             version: string;
         };
@@ -1924,6 +1972,29 @@ export interface components {
             terms_text: string;
             /** Terms Version */
             terms_version: string;
+        };
+        /** ConsentPointOut */
+        ConsentPointOut: {
+            /** Head */
+            head?: string | null;
+            /** Icon */
+            icon?: ("price" | "renew" | "cancel" | "card" | "term" | "refund" | "unlink") | null;
+            /** Text */
+            text: string;
+        };
+        /**
+         * ConsentTextOut
+         * @description What to show above the box, and exactly what to send back when it is ticked.
+         */
+        ConsentTextOut: {
+            /** Agreement */
+            agreement: string;
+            /** Lines */
+            lines: string[];
+            /** Points */
+            points: components["schemas"]["ConsentPointOut"][];
+            /** Version */
+            version: string;
         };
         /** CreateGroupRequest */
         CreateGroupRequest: {
@@ -3707,7 +3778,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ChangeTarget"];
+                "application/json": components["schemas"]["ChangePreviewIn"];
             };
         };
         responses: {
@@ -3751,6 +3822,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UrlOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_consent_api_billing_consent_cancel_get: {
+        parameters: {
+            query?: {
+                tz?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentTextOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    purchase_consent_api_billing_consent_purchase_get: {
+        parameters: {
+            query: {
+                plan: "private" | "connected" | "founding";
+                interval?: ("monthly" | "yearly") | null;
+                tz?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentTextOut"];
                 };
             };
             /** @description Validation Error */

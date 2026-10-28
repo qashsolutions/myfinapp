@@ -114,12 +114,24 @@ export async function appFetch(
   );
 }
 
+/** For requests refused before the words are compared (already subscribed, blocked, a stale
+ * version, no step-up): the server builds the real lines and refuses any others. */
 export const CONSENT = {
   version: "2026-10-24",
   lines: ["$3.00 today, then every month."],
   agreement: "I have read and understood these terms.",
   accepted: true,
 };
+
+/** The ticked "If you cancel" lines exactly as the server builds them (October 28, 2026). */
+export async function cancelConsent(page: Page): Promise<typeof CONSENT & { tz: string }> {
+  return page.evaluate(async () => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const r = await fetch(`/api/billing/consent/cancel?tz=${encodeURIComponent(tz)}`);
+    const j = (await r.json()) as { version: string; lines: string[]; agreement: string };
+    return { version: j.version, lines: j.lines, agreement: j.agreement, tz, accepted: true };
+  });
+}
 
 /** Answer Stripe's 3-D Secure test page (its own frame, found by name wherever it nests). */
 export async function answer3ds(page: Page, choice: "Complete" | "Fail"): Promise<void> {

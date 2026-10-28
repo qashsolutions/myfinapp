@@ -39,7 +39,7 @@ from app.security.client import client_ip, device_label
 from app.security.csrf import same_site_only
 from app.security.hashing import pseudonym, token_hash
 from app.security.principal import Caller, require_step_up, require_unlocked
-from app.security.rate_limit import rate_limited
+from app.security.rate_limit import rate_limited, session_or_ip
 from app.services import sessions as sessions_svc
 from app.services.security_alerts import SecurityEvent, send_alert
 
@@ -218,7 +218,9 @@ def lookup(
     )
 
 
-@router.post("/approve")
+@router.post(
+    "/approve", dependencies=[Depends(rate_limited("device_link_approve", key=session_or_ip))]
+)
 def approve(
     body: ApproveIn,
     request: Request,

@@ -745,8 +745,49 @@
         "title": "ChangeIn",
         "type": "object"
       },
+      "ChangePreviewIn": {
+        "properties": {
+          "interval": {
+            "enum": [
+              "monthly",
+              "yearly"
+            ],
+            "title": "Interval",
+            "type": "string"
+          },
+          "plan": {
+            "enum": [
+              "private",
+              "connected"
+            ],
+            "title": "Plan",
+            "type": "string"
+          },
+          "tz": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tz"
+          }
+        },
+        "required": [
+          "plan",
+          "interval"
+        ],
+        "title": "ChangePreviewIn",
+        "type": "object"
+      },
       "ChangePreviewOut": {
         "properties": {
+          "consent": {
+            "$ref": "#/components/schemas/ConsentTextOut"
+          },
           "credit_after_cents": {
             "title": "Credit After Cents",
             "type": "integer"
@@ -783,35 +824,10 @@
           "credit_after_cents",
           "price_cents",
           "proration_date",
-          "disconnects_banks"
+          "disconnects_banks",
+          "consent"
         ],
         "title": "ChangePreviewOut",
-        "type": "object"
-      },
-      "ChangeTarget": {
-        "properties": {
-          "interval": {
-            "enum": [
-              "monthly",
-              "yearly"
-            ],
-            "title": "Interval",
-            "type": "string"
-          },
-          "plan": {
-            "enum": [
-              "private",
-              "connected"
-            ],
-            "title": "Plan",
-            "type": "string"
-          }
-        },
-        "required": [
-          "plan",
-          "interval"
-        ],
-        "title": "ChangeTarget",
         "type": "object"
       },
       "CheckoutIn": {
@@ -951,7 +967,7 @@
         "type": "object"
       },
       "ConsentIn": {
-        "description": "What the person read and ticked, as the app showed it (recorded verbatim).",
+        "description": "What the person read and ticked: the lines the server built for this offer (GET\n/api/billing/consent/*, or the change preview's `consent`), sent back unchanged. The route\nbuilds them again from the same facts and refuses any difference (409 consent_mismatch,\nOctober 28, 2026), so what is kept is always the server's own text.",
         "properties": {
           "accepted": {
             "const": true,
@@ -972,6 +988,18 @@
             "minItems": 1,
             "title": "Lines",
             "type": "array"
+          },
+          "tz": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tz"
           },
           "version": {
             "maxLength": 16,
@@ -1037,6 +1065,85 @@
           "agreed_at"
         ],
         "title": "ConsentOut",
+        "type": "object"
+      },
+      "ConsentPointOut": {
+        "properties": {
+          "head": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "enum": [
+                  "price",
+                  "renew",
+                  "cancel",
+                  "card",
+                  "term",
+                  "refund",
+                  "unlink"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "ConsentPointOut",
+        "type": "object"
+      },
+      "ConsentTextOut": {
+        "description": "What to show above the box, and exactly what to send back when it is ticked.",
+        "properties": {
+          "agreement": {
+            "title": "Agreement",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentPointOut"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "points",
+          "lines",
+          "agreement"
+        ],
+        "title": "ConsentTextOut",
         "type": "object"
       },
       "CreateGroupRequest": {
@@ -4660,7 +4767,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ChangeTarget"
+                "$ref": "#/components/schemas/ChangePreviewIn"
               }
             }
           },
@@ -4730,6 +4837,142 @@
           }
         },
         "summary": "Checkout",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/consent/cancel": {
+      "get": {
+        "description": "The \"If you cancel\" lines for the plan that renews now, as /cancel will check them.",
+        "operationId": "cancel_consent_api_billing_consent_cancel_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tz",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tz"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentTextOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Consent",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/billing/consent/purchase": {
+      "get": {
+        "description": "The \"Before you subscribe\" lines for one offer, as the checkout will check them.",
+        "operationId": "purchase_consent_api_billing_consent_purchase_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "plan",
+            "required": true,
+            "schema": {
+              "enum": [
+                "private",
+                "connected",
+                "founding"
+              ],
+              "title": "Plan",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "interval",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "monthly",
+                    "yearly"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Interval"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tz",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tz"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentTextOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Purchase Consent",
         "tags": [
           "billing"
         ]

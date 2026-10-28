@@ -28,7 +28,7 @@ from app.security.audit import AuditAction, record
 from app.security.client import client_ip
 from app.security.csrf import same_site_only
 from app.security.principal import Caller, require_step_up, require_unlocked
-from app.security.rate_limit import rate_limited
+from app.security.rate_limit import rate_limited, session_or_ip
 from app.services import backup_store
 from app.services.security_alerts import SecurityEvent, send_alert
 
@@ -144,7 +144,7 @@ def backup_status(
     )
 
 
-@router.put("/key")
+@router.put("/key", dependencies=[Depends(rate_limited("backup_key", key=session_or_ip))])
 def put_key(
     body: KeyIn,
     caller: Annotated[Caller, Depends(require_step_up)],
@@ -241,7 +241,11 @@ def latest_blob(
     return BackupBlobOut(**_backup_out(row).model_dump(), ciphertext=encode_b64url(data))
 
 
-@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(rate_limited("backup_off", key=session_or_ip))],
+)
 def backup_off(
     caller: Annotated[Caller, Depends(require_step_up)],
     request: Request,

@@ -20,10 +20,13 @@ import {
   type BillingOut,
   type ChangePreview,
   type CheckoutPlan,
+  type ConsentText,
   type Credit,
   changePlan,
   changeRenewal,
+  fetchCancelConsent,
   fetchCredit,
+  fetchPurchaseConsent,
   type Interval,
   isFailure,
   openPortal,
@@ -90,13 +93,19 @@ export function PlanScreen() {
   const [interval, setInterval] = useState<Interval>("yearly");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [cancelOpen, setCancelOpen] = useState(false);
+  // The "If you cancel" lines, from the server; the sheet is open while they are here.
+  const [cancelConsent, setCancelConsent] = useState<ConsentText | null>(null);
   // Ticked before cancelling (owner decision, October 18, 2026), kept like a purchase's.
   const [cancelAgreed, setCancelAgreed] = useState(false);
   const cancelAgreeId = useId();
   // A switch down that isn't open yet: the sheet says when and why (October 18, 2026).
   const [lockedFor, setLockedFor] = useState<string | null>(null);
-  const [pending, setPending] = useState<CheckoutPlan | null>(null);
+  // "Before you subscribe" for one offer, with the server's lines for it.
+  const [pending, setPending] = useState<{
+    plan: CheckoutPlan;
+    interval: Interval;
+    consent: ConsentText;
+  } | null>(null);
   const [change, setChange] = useState<{
     plan: "private" | "connected";
     interval: Interval;
@@ -137,14 +146,44 @@ export function PlanScreen() {
   }, [outcome, refresh, refreshEntitlements, setParams]);
 
   /** Web purchases open "Before you subscribe" first (October 14, 2026): the renewal terms are
-   * read and ticked before the payment page, as auto-renewal laws expect. */
-  function choose(plan: CheckoutPlan, iv: Interval = interval) {
+   * read and ticked before the payment page, as auto-renewal laws expect. The lines are the
+   * server's (October 28, 2026), shown and sent back as they came. */
+  async function choose(plan: CheckoutPlan, iv: Interval = interval) {
     if (native && plan !== "founding") return chooseNative(plan);
     if (!billing?.available) return;
     // Already paying: a switch on the same subscription, never a second one.
     if (plan !== "founding" && subscribed) return void openChange(plan, iv);
+    setStatus(null);
+    setBusy(true);
+    const consent = await fetchPurchaseConsent(plan, iv);
+    setBusy(false);
+    if (isFailure(consent)) {
+      setStatus(
+        consent.status === 0
+          ? "You're offline. Try again when connected."
+          : "Couldn't load the terms. Try again.",
+      );
+      return;
+    }
     setAgreed(false);
-    setPending(plan);
+    setPending({ plan, interval: iv, consent });
+  }
+
+  async function openCancel() {
+    setStatus(null);
+    setBusy(true);
+    const consent = await fetchCancelConsent();
+    setBusy(false);
+    if (isFailure(consent)) {
+      setStatus(
+        consent.status === 0
+          ? "You're offline. Try again when connected."
+          : "Couldn't load the terms. Try again.",
+      );
+      return;
+    }
+    setCancelAgreed(false);
+    setCancelConsent(consent);
   }
 
   async function openChange(plan: "private" | "connected", iv: Interval) {
@@ -170,10 +209,7 @@ export function PlanScreen() {
     setChange(null);
     if (!(await stepUp.confirm("Changing your plan"))) return;
     setBusy(true);
-    const result = await changePlan(plan, iv, preview.proration_date, {
-      lines: changePoints(plan, iv, preview, billing).map(([, text]) => text),
-      agreement: agreementText(plan, iv),
-    });
+    const result = await changePlan(plan, iv, preview.proration_date, preview.consent);
     setBusy(false);
     if (isFailure(result)) {
       setStatus(
@@ -181,9 +217,11 @@ export function PlanScreen() {
           ? "Your card was declined, so nothing changed. Update it in Receipts & invoices and try again."
           : result.code === "downgrade_too_soon"
             ? "You changed plans less than 30 days ago. You can switch down after that."
-            : result.status === 0
-              ? "You're offline. Try again when connected."
-              : "Couldn't change your plan. Nothing was charged. Try again.",
+            : result.code === "consent_mismatch" || result.code === "consent_outdated"
+              ? "The amounts changed since you looked. Nothing was charged. Open the switch again to see them."
+              : result.status === 0
+                ? "You're offline. Try again when connected."
+                : "Couldn't change your plan. Nothing was charged. Try again.",
       );
       return;
     }
@@ -217,16 +255,14 @@ export function PlanScreen() {
     );
   }
 
-  async function proceed(plan: CheckoutPlan) {
+  async function proceed(offer: { plan: CheckoutPlan; interval: Interval; consent: ConsentText }) {
     if (!billing) return;
+    const { plan, interval: iv, consent } = offer;
     setPending(null);
     setStatus(null);
     if (!(await stepUp.confirm("Changing your plan"))) return;
     setBusy(true);
-    const failure = await startCheckout(plan, plan === "founding" ? null : interval, {
-      lines: consentPoints(plan, interval, billing, trialEnd(billing)).map(([, text]) => text),
-      agreement: agreementText(plan, interval),
-    });
+    const failure = await startCheckout(plan, plan === "founding" ? null : iv, consent);
     setBusy(false);
     if (!failure) return;
     setStatus(
@@ -242,9 +278,11 @@ export function PlanScreen() {
                 ? "We can't take a new payment on this account. Write to support@qash.solutions and we'll help."
                 : failure.code === "consent_outdated"
                   ? "The terms changed. Reload the app and review them again."
-                  : failure.status === 0
-                    ? "You're offline. Try again when connected."
-                    : "Couldn't open the payment page. Try again.",
+                  : failure.code === "consent_mismatch"
+                    ? "The terms changed since you opened them. Choose the plan again to see them."
+                    : failure.status === 0
+                      ? "You're offline. Try again when connected."
+                      : "Couldn't open the payment page. Try again.",
     );
   }
 
@@ -301,25 +339,20 @@ export function PlanScreen() {
     );
   }
 
-  async function setRenewal(cancel: boolean) {
+  async function setRenewal(cancel: ConsentText | null) {
     if (!billing) return;
     setStatus(null);
     if (!(await stepUp.confirm(cancel ? "Cancelling your plan" : "Keeping your plan"))) return;
     setBusy(true);
-    const result = await changeRenewal(
-      cancel
-        ? {
-            lines: cancelPoints(billing, credit).map(([head, line]) => `${head}: ${line}`),
-            agreement: CANCEL_AGREEMENT,
-          }
-        : null,
-    );
+    const result = await changeRenewal(cancel);
     setBusy(false);
     if (isFailure(result)) {
       setStatus(
         result.status === 0
           ? "You're offline. Try again when connected."
-          : "Couldn't change your plan. Try again.",
+          : result.code === "consent_mismatch"
+            ? "The terms changed since you opened them. Open Cancel plan again to see them."
+            : "Couldn't change your plan. Try again.",
       );
       return;
     }
@@ -577,7 +610,7 @@ export function PlanScreen() {
               onClick={() =>
                 downFrom
                   ? setLockedFor(`${billing.label} monthly`)
-                  : choose(billing.plan as CheckoutPlan, "monthly")
+                  : void choose(billing.plan as CheckoutPlan, "monthly")
               }
               chevron
             />
@@ -585,7 +618,7 @@ export function PlanScreen() {
             <ListRow
               label="Switch to yearly"
               sublabel={`${formatCents(priceCents(billing, billing.plan, "yearly"))} a year · save ${saving}%`}
-              onClick={() => choose(billing.plan as CheckoutPlan, "yearly")}
+              onClick={() => void choose(billing.plan as CheckoutPlan, "yearly")}
               chevron
             />
           )}
@@ -603,18 +636,11 @@ export function PlanScreen() {
                   ? `Ends ${formatDate(billing.renews_at)} unless you keep it`
                   : "Undo the cancellation"
               }
-              onClick={() => void setRenewal(false)}
+              onClick={() => void setRenewal(null)}
               chevron
             />
           ) : (
-            <ListRow
-              label="Cancel plan"
-              onClick={() => {
-                setCancelAgreed(false);
-                setCancelOpen(true);
-              }}
-              chevron
-            />
+            <ListRow label="Cancel plan" onClick={() => void openCancel()} chevron />
           )}
         </List>
       ) : null}
@@ -704,7 +730,7 @@ export function PlanScreen() {
                       onClick={() =>
                         locked
                           ? setLockedFor(interval === "monthly" ? `${p.name} monthly` : p.name)
-                          : choose(p.key)
+                          : void choose(p.key)
                       }
                     >
                       {current
@@ -764,7 +790,7 @@ export function PlanScreen() {
                   <Button
                     block
                     disabled={busy || !billing.available || (cap !== "" && left <= 0)}
-                    onClick={() => choose("founding")}
+                    onClick={() => void choose("founding")}
                   >
                     {cap !== "" && left <= 0 ? "All places taken" : "Become a Founding member"}
                   </Button>
@@ -809,16 +835,7 @@ export function PlanScreen() {
       <Sheet open={pending !== null} onClose={() => setPending(null)} title="Before you subscribe">
         {pending ? (
           <div className="consent">
-            <ul className="consent__points">
-              {consentPoints(pending, interval, billing, trialEnd(billing)).map(([icon, text]) => (
-                <li key={text}>
-                  <span className="consent__icon" aria-hidden="true">
-                    <ConsentIcon kind={icon} />
-                  </span>
-                  <span>{text}</span>
-                </li>
-              ))}
-            </ul>
+            <ConsentPoints consent={pending.consent} />
             <label className="consent__agree" htmlFor={agreeId}>
               <input
                 id={agreeId}
@@ -826,7 +843,7 @@ export function PlanScreen() {
                 checked={agreed}
                 onChange={(e) => setAgreed(e.target.checked)}
               />
-              <span>{agreementText(pending, interval)}</span>
+              <span>{pending.consent.agreement}</span>
             </label>
             <Button block disabled={!agreed || busy} onClick={() => void proceed(pending)}>
               Continue to secure payment
@@ -838,18 +855,7 @@ export function PlanScreen() {
       <Sheet open={change !== null} onClose={() => setChange(null)} title="Change your plan">
         {change ? (
           <div className="consent">
-            <ul className="consent__points">
-              {changePoints(change.plan, change.interval, change.preview, billing).map(
-                ([icon, text]) => (
-                  <li key={text}>
-                    <span className="consent__icon" aria-hidden="true">
-                      <ConsentIcon kind={icon} />
-                    </span>
-                    <span>{text}</span>
-                  </li>
-                ),
-              )}
-            </ul>
+            <ConsentPoints consent={change.preview.consent} />
             <label className="consent__agree" htmlFor={agreeId}>
               <input
                 id={agreeId}
@@ -857,7 +863,7 @@ export function PlanScreen() {
                 checked={agreed}
                 onChange={(e) => setAgreed(e.target.checked)}
               />
-              <span>{agreementText(change.plan, change.interval)}</span>
+              <span>{change.preview.consent.agreement}</span>
             </label>
             <Button block disabled={!agreed || busy} onClick={() => void confirmChange()}>
               {change.preview.due_now_cents > 0
@@ -882,12 +888,16 @@ export function PlanScreen() {
         </Button>
       </Sheet>
 
-      <Sheet open={cancelOpen} onClose={() => setCancelOpen(false)} title="If you cancel">
+      <Sheet
+        open={cancelConsent !== null}
+        onClose={() => setCancelConsent(null)}
+        title="If you cancel"
+      >
         <ul className="cancel-points">
-          {cancelPoints(billing, credit).map(([head, line]) => (
-            <li key={head}>
-              <strong>{head}</strong>
-              <span>{line}</span>
+          {(cancelConsent?.points ?? []).map((point) => (
+            <li key={point.text}>
+              <strong>{point.head}</strong>
+              <span>{point.text}</span>
             </li>
           ))}
         </ul>
@@ -898,9 +908,9 @@ export function PlanScreen() {
             checked={cancelAgreed}
             onChange={(e) => setCancelAgreed(e.target.checked)}
           />
-          <span>{CANCEL_AGREEMENT}</span>
+          <span>{cancelConsent?.agreement}</span>
         </label>
-        <Button block onClick={() => setCancelOpen(false)}>
+        <Button block onClick={() => setCancelConsent(null)}>
           Keep {billing.label}
         </Button>
         <Button
@@ -908,8 +918,9 @@ export function PlanScreen() {
           variant="ghost"
           disabled={busy || !cancelAgreed}
           onClick={() => {
-            setCancelOpen(false);
-            void setRenewal(true);
+            const consent = cancelConsent;
+            setCancelConsent(null);
+            void setRenewal(consent);
           }}
         >
           <span style={cancelAgreed ? { color: "var(--c-danger)" } : undefined}>Cancel plan</span>
@@ -919,173 +930,34 @@ export function PlanScreen() {
   );
 }
 
-type ConsentKind = "price" | "renew" | "cancel" | "card" | "term" | "refund" | "unlink";
+type ConsentKind = NonNullable<ConsentText["points"][number]["icon"]>;
 
 const PLAN_NAMES = { private: "Private", connected: "Connected" } as const;
+
 const TESTER_NAMES = {
   free: "No plan",
   private: "Private",
   connected: "Connected",
   founding: "Founding",
 } as const;
+
 const TIERS = { private: 1, connected: 2 } as const;
 
-/** The "If you cancel" sheet (owner, October 18, 2026): a one- or two-word headline per point,
- * then a short line. Sent verbatim with the ticked box and kept by the server. */
-const CANCEL_AGREEMENT = "I have read and understood these terms.";
-
-function cancelPoints(billing: BillingOut, credit: Credit | null): Array<[string, string]> {
-  const until = billing.renews_at ? formatDate(billing.renews_at) : "the paid period ends";
-  const points: Array<[string, string]> = [
-    ["Stays on", `${billing.label} runs until ${until}.`],
-    ["No charges", "Nothing more is billed after that."],
-    ["7-day grace", "Then subscribe again or download your data."],
-    ["Then deleted", "Account and data go; leftover credit is refunded."],
-  ];
-  // Only when deleting would pay something back (none during a trial or on a monthly plan).
-  const back = credit?.refund_if_deleted_cents ?? 0;
-  if (back > 0)
-    points.push(["Want money back?", `Delete your account instead: ${formatCents(back)} back.`]);
-  return points;
-}
-
-/**
- * Leaving (owner decisions, October 17 and 22, 2026), said before every purchase and switch: a
- * yearly plan deleted early pays the monthly price for the months used, this one included.
- */
-function refundLine(
-  plan: "private" | "connected",
-  interval: Interval,
-  billing: Parameters<typeof priceCents>[0],
-): [ConsentKind, string] {
-  if (interval === "yearly")
-    return [
-      "refund",
-      `Delete your account early: the months used, this one included, cost the monthly price (${formatCents(priceCents(billing, plan, "monthly"))}); the rest of the year comes back, less Stripe's fee.`,
-    ];
-  return [
-    "refund",
-    "Delete your account: we keep this month; any credit comes back, less Stripe's fee.",
-  ];
-}
-const SWITCH_LINE: [ConsentKind, string] = [
-  "renew",
-  "Switch up any time for the difference. Switch down from 30 days in; the rest becomes credit.",
-];
-
-/** What a switch means, in the same short lines as "Before you subscribe" (October 17, 2026). */
-function changePoints(
-  plan: "private" | "connected",
-  interval: Interval,
-  preview: ChangePreview,
-  billing: BillingOut,
-): Array<[ConsentKind, string]> {
-  const per = interval === "yearly" ? "year" : "month";
-  const price = formatCents(preview.price_cents);
-  const name = PLAN_NAMES[plan];
-  const lines: Array<[ConsentKind, string]> =
-    preview.kind === "up"
-      ? [
-          [
-            "price",
-            `${formatCents(preview.due_now_cents)} today: ${name} less what's left of ${billing.label}.`,
-          ],
-          ["term", `${name} · ${interval} starts now. Switching down again opens in 30 days.`],
-        ]
-      : [
-          [
-            "price",
-            preview.credit_after_cents > 0
-              ? `Nothing today. ${formatCents(preview.credit_after_cents)} credit pays your next bills.`
-              : "Nothing is charged today.",
-          ],
-          ["term", `${name} · ${interval} starts now.`],
-        ];
-  if (preview.disconnects_banks)
-    lines.push([
-      "unlink",
-      `${name} doesn't link banks: yours are disconnected now. Accounts and entries stay.`,
-    ]);
-  lines.push(
-    ["renew", `Then ${price} every ${per} until you cancel.`],
-    refundLine(plan, interval, billing),
+/** The server's lines for an offer, each with its icon (October 28, 2026: never written here). */
+function ConsentPoints({ consent }: { consent: ConsentText }) {
+  return (
+    <ul className="consent__points">
+      {consent.points.map((point) => (
+        <li key={point.text}>
+          <span className="consent__icon" aria-hidden="true">
+            {point.icon ? <ConsentIcon kind={point.icon} /> : null}
+          </span>
+          <span>{point.text}</span>
+        </li>
+      ))}
+    </ul>
   );
-  return lines;
 }
-
-function trialEnd(billing: BillingOut): string | null {
-  const a = parseEntitlements(billing.entitlements)?.access;
-  return a?.state === "trial" ? a.trial_ends_at : null;
-}
-
-/** The box people tick; recorded verbatim on the server with the lines above it. */
-function agreementText(plan: CheckoutPlan, interval: "monthly" | "yearly"): string {
-  return plan === "founding"
-    ? "I understand this is one payment for the whole term, and it doesn't renew."
-    : interval === "yearly"
-      ? "I understand my plan renews every year until I cancel, cancelling refunds nothing, and deleting my account early charges the months used at the monthly price."
-      : "I understand my plan renews every month until I cancel.";
-}
-
-/** What someone agrees to, in four short lines with an icon each. */
-function consentPoints(
-  plan: CheckoutPlan,
-  interval: "monthly" | "yearly",
-  billing: { founding: Record<string, unknown> } & Parameters<typeof priceCents>[0],
-  trialEndsAt: string | null = null,
-): Array<[ConsentKind, string]> {
-  if (plan === "founding") {
-    const years = String(billing.founding.term_years ?? 4);
-    return [
-      [
-        "price",
-        `${formatCents(Number(billing.founding.one_time_cents ?? 0))} today, once. No renewal.`,
-      ],
-      ["term", `${years} years of Connected, every feature.`],
-      ["cancel", "Before it ends, you pick a plan. Nothing is deleted."],
-      ["refund", "Delete your account: we keep this month and refund the rest, less Stripe's fee."],
-      ["card", PAY_WITH],
-    ];
-  }
-  const per = interval === "yearly" ? "year" : "month";
-  const price = formatCents(priceCents(billing, plan, interval));
-  // During a trial the card is saved now and first charged when the trial ends (the server
-  // passes the end to Stripe when it is at least 49 hours away).
-  const trialEnd =
-    trialEndsAt && new Date(trialEndsAt).getTime() - Date.now() >= 49 * 60 * 60 * 1000
-      ? formatDate(trialEndsAt)
-      : null;
-  return [
-    [
-      "price",
-      trialEnd
-        ? `Free until ${trialEnd}, then ${price} every ${per}.`
-        : `${price} today, then every ${per}.`,
-    ],
-    ["renew", `Renews automatically each ${per} until you cancel.`],
-    ...(interval === "yearly"
-      ? ([
-          [
-            "term",
-            `Yearly costs less than 12 monthly payments (${formatCents(12 * priceCents(billing, plan, "monthly"))}) only if you stay the year.`,
-          ],
-          [
-            "cancel",
-            "Cancel any time in Me → Plan. It runs to the end of the paid year; nothing is refunded.",
-          ],
-        ] as Array<[ConsentKind, string]>)
-      : ([["cancel", "Cancel any time in Me → Plan. It runs to the month's end."]] as Array<
-          [ConsentKind, string]
-        >)),
-    SWITCH_LINE,
-    refundLine(plan, interval, billing),
-    ["card", PAY_WITH],
-  ];
-}
-
-/** How a plan can be paid (owner decision, October 24, 2026: US cards or a US bank account). */
-const PAY_WITH =
-  "A credit or debit card issued by a US bank (Visa, Mastercard, Amex, Discover), or a US bank account. Paid through Stripe; we never see your card or bank details. A bank payment takes up to 4 business days to clear, and the plan starts when it does.";
 
 function ConsentIcon({ kind }: { kind: ConsentKind }) {
   const d: Record<ConsentKind, string> = {

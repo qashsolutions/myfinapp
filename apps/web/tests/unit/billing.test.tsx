@@ -58,6 +58,63 @@ describe("Plans & billing", () => {
     vi.useRealTimers();
   });
 
+  it("the sheets show the server's lines and send them back unchanged", async () => {
+    // Invariant: consent wording has one source, the server (October 28, 2026). Whatever it
+    // says is what the sheet shows and what goes back; the app never writes or edits a line.
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession(), billing: freeBilling() });
+    const fake = globalThis.fetch;
+    const words = {
+      version: "2026-10-24",
+      points: [
+        { icon: "price", text: "Words only the server wrote." },
+        { icon: null, text: "A second line, also the server's." },
+      ],
+      lines: ["Words only the server wrote.", "A second line, also the server's."],
+      agreement: "I agree to exactly these words.",
+    };
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input, init);
+      if (new URL(request.url).pathname === "/api/billing/consent/purchase") {
+        await fake(request); // recorded like any call
+        return new Response(JSON.stringify(words), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return fake(request);
+    };
+    renderApp("/me/plan");
+    const priv = await screen.findByRole("article", { name: "Private" });
+    await user.click(within(priv).getByRole("button", { name: "Choose Private" }));
+    const sheet = await screen.findByRole("dialog", { name: "Before you subscribe" });
+    expect(
+      within(sheet)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(["Words only the server wrote.", "A second line, also the server's."]);
+    expect(sheet).not.toHaveTextContent("today, then every year");
+    await user.click(within(sheet).getByRole("checkbox", { name: words.agreement }));
+    await user.click(within(sheet).getByRole("button", { name: "Continue to secure payment" }));
+    await waitFor(() =>
+      expect(api.calls.find((c) => c.path === "/api/billing/checkout")?.body).toMatchObject({
+        consent: {
+          version: words.version,
+          lines: words.lines,
+          agreement: words.agreement,
+          accepted: true,
+        },
+      }),
+    );
+    // The fake server did not write these words, so it refuses them, as the real one would.
+    expect(
+      await screen.findByText(
+        "The terms changed since you opened them. Choose the plan again to see them.",
+      ),
+    ).toBeInTheDocument();
+    expect(billingState.lastUrl).toBeNull();
+  });
+
   it("the Free fallback on the device matches plans.yaml", () => {
     const yaml = readFileSync(
       `${process.cwd()}/../../services/api/app/rules_server/plans.yaml`,
@@ -129,9 +186,15 @@ describe("Plans & billing", () => {
         ],
         agreement:
           "I understand my plan renews every year until I cancel, cancelling refunds nothing, and deleting my account early charges the months used at the monthly price.",
+        // The device's zone: the server wrote the lines' dates on this calendar.
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
         accepted: true,
       },
     });
+    // The lines came from the server for this offer (October 28, 2026).
+    expect(api.calls.find((c) => c.path === "/api/billing/consent/purchase")?.url).toMatch(
+      /plan=private&interval=yearly/,
+    );
 
     await user.click(screen.getByRole("radio", { name: "Monthly" }));
     expect(priv).toHaveTextContent("$3.00 a month");

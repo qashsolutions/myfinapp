@@ -17,7 +17,7 @@ from app.services import stripe_billing
 from app.services.deletion import soft_delete
 from tests.auth_flow import new_client, outbox, sign_up
 from tests.conftest import stripe_default_transport
-from tests.test_billing import CONSENT, FakeStripe
+from tests.test_billing import FakeStripe, buy
 from tests.webauthn_fake import FakeAuthenticator
 
 
@@ -112,7 +112,7 @@ def test_subscribing_during_a_trial_charges_only_when_it_ends() -> None:
     client.post("/api/billing/trial", json={"plan": "private"})
     stripe = FakeStripe()
     stripe_billing.transport_override = stripe.transport()
-    body = {"plan": "private", "interval": "yearly", "consent": CONSENT}
+    body = buy(client, plan="private", interval="yearly")
     assert client.post("/api/billing/checkout", json=body).status_code == 200
     form = dict(p.split("=", 1) for p in stripe.requests[-1].content.decode().split("&"))
     trial_end = int(form["subscription_data%5Btrial_end%5D"])

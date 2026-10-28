@@ -9,7 +9,7 @@ from app.services import stripe_billing
 from tests.auth_flow import outbox
 from tests.conftest import stripe_default_transport
 from tests.test_billing import member, post_event
-from tests.test_billing_cancel import CANCEL, FakeStripe
+from tests.test_billing_cancel import FakeStripe, cancel_body
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +47,7 @@ def test_trial_purchase_cancel_keep_and_end_newest_first() -> None:
 
     stripe = FakeStripe()
     stripe_billing.transport_override = stripe.transport()
-    assert client.post("/api/billing/cancel", json=CANCEL).status_code == 200
+    assert client.post("/api/billing/cancel", json=cancel_body(client)).status_code == 200
     assert client.post("/api/billing/resume").status_code == 200
     gone = {**created, "status": "canceled"}
     assert post_event(client, event("customer.subscription.deleted", gone)).status_code == 200

@@ -56,6 +56,23 @@ LIMITS: dict[str, Limit] = {
     "device_link_start": Limit("device_link_start", 3, timedelta(hours=1)),
     "device_link_status": Limit("device_link_status", 150, timedelta(minutes=10)),
     "device_link_lookup": Limit("device_link_lookup", 10, timedelta(minutes=15)),
+    # Security routes whose success sends an always-on alert email (signed off October 28,
+    # 2026): 10 a day per signed-in device each, so a stolen or scripted session can't flood
+    # the owner's inbox. Failed attempts count too.
+    **{
+        scope: Limit(scope, 10, timedelta(hours=24))
+        for scope in (
+            "passkey_add",  # POST /api/security/passkeys/register/verify
+            "passkey_remove",  # DELETE /api/security/passkeys/{id}
+            "device_sign_out",  # DELETE /api/security/devices/{id}
+            "device_link_approve",  # POST /api/auth/link/approve (the new device's alert)
+            "backup_key",  # PUT /api/backup/key
+            "backup_off",  # DELETE /api/backup
+            "tester_plan",  # POST /api/billing/tester
+            "bank_link_finish",  # POST /api/linking/finish
+            "bank_disconnect",  # DELETE /api/linking/{id}
+        )
+    },
 }
 
 

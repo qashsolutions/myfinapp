@@ -17,7 +17,7 @@ from app.services import stripe_billing
 from tests.auth_flow import outbox
 from tests.billing_helpers import grant_plan
 from tests.conftest import stripe_default_transport
-from tests.test_billing import CONSENT, FakeStripe, member, post_event
+from tests.test_billing import CONSENT, FakeStripe, buy, member, post_event
 
 
 @pytest.fixture(autouse=True)
@@ -278,7 +278,7 @@ def test_a_founding_checkout_page_expires_in_about_30_minutes() -> None:
     client, _ = member("fexp")
     fake = FakeStripe()
     stripe_billing.transport_override = fake.transport()
-    r = client.post("/api/billing/checkout", json={"plan": "founding", "consent": CONSENT})
+    r = client.post("/api/billing/checkout", json=buy(client, plan="founding"))
     assert r.status_code == 200, r.text
     form = {k: v[0] for k, v in parse_qs(fake.requests[-1].content.decode()).items()}
     left = int(form["expires_at"]) - datetime.now(UTC).timestamp()
@@ -743,7 +743,7 @@ def _warning(actionable: bool = True) -> dict:
 
 
 def _try_to_buy(client) -> int:
-    body = {"plan": "private", "interval": "yearly", "consent": CONSENT}
+    body = buy(client, plan="private", interval="yearly")
     return client.post("/api/billing/checkout", json=body).status_code
 
 

@@ -12,7 +12,7 @@ from app.db import get_session_factory
 from app.models.billing import PurchaseConsent
 from app.services import stripe_billing
 from tests.auth_flow import new_client, outbox, sign_up
-from tests.billing_helpers import grant_plan
+from tests.billing_helpers import PLACEHOLDER_CONSENT, grant_plan, purchase_consent
 from tests.conftest import stripe_default_transport
 from tests.webauthn_fake import FakeAuthenticator
 
@@ -64,16 +64,13 @@ def post_event(client, event: dict, *, timestamp: int | None = None):
     )
 
 
-CONSENT = {
-    "version": "2026-10-24",
-    "lines": ["$20.00 today, then every year.", "Renews automatically each year until you cancel."],
-    "agreement": "I understand my plan renews every year until I cancel.",
-    "accepted": True,
-}
+# For requests refused before the words are compared; agreeing uses the server's own lines.
+CONSENT = PLACEHOLDER_CONSENT
 
 
-def buy(**body):
-    return {**body, "consent": CONSENT}
+def buy(client, **body):
+    """A checkout body with the "Before you subscribe" lines the server built for it."""
+    return {**body, "consent": purchase_consent(client, body.get("plan"), body.get("interval"))}
 
 
 def test_a_signature_header_with_several_v1_values_is_accepted_when_one_matches() -> None:
@@ -112,7 +109,7 @@ def test_checkout_sends_the_price_and_the_user_to_stripe() -> None:
     client, user_id = member("maya")
     stripe = FakeStripe()
     stripe_billing.transport_override = stripe.transport()
-    assert client.post("/api/billing/checkout", json=buy(plan="private")).status_code == 422
+    assert client.post("/api/billing/checkout", json=buy(client, plan="private")).status_code == 422
     # No consent, a stale consent version, or an unticked box: no payment page.
     no_consent = {"plan": "private", "interval": "yearly"}
     assert client.post("/api/billing/checkout", json=no_consent).status_code == 422
@@ -121,7 +118,7 @@ def test_checkout_sends_the_price_and_the_user_to_stripe() -> None:
     unticked = {**no_consent, "consent": {**CONSENT, "accepted": False}}
     assert client.post("/api/billing/checkout", json=unticked).status_code == 422
     assert stripe.requests == []
-    r = client.post("/api/billing/checkout", json=buy(plan="private", interval="yearly"))
+    r = client.post("/api/billing/checkout", json=buy(client, plan="private", interval="yearly"))
     assert r.status_code == 200, r.text
     assert r.json()["url"].startswith("https://checkout.stripe.com/")
     form = dict(p.split("=", 1) for p in stripe.requests[-1].content.decode().split("&"))
@@ -136,7 +133,7 @@ def test_checkout_sends_the_price_and_the_user_to_stripe() -> None:
     assert form["success_url"].endswith("%2Fme%2Fplan%3Fcheckout%3Dsuccess")
     assert stripe.requests[-1].url.host == "api.stripe.com"
     assert stripe.requests[-1].headers["authorization"] == "Bearer sk_test_stackd"
-    r = client.post("/api/billing/checkout", json=buy(plan="founding"))
+    r = client.post("/api/billing/checkout", json=buy(client, plan="founding"))
     assert r.status_code == 200
     form = dict(p.split("=", 1) for p in stripe.requests[-1].content.decode().split("&"))
     assert form["mode"] == "payment" and form["line_items%5B0%5D%5Bprice%5D"] == "price_founding"
@@ -153,7 +150,8 @@ def test_checkout_sends_the_price_and_the_user_to_stripe() -> None:
         ("founding", None, 15000),
     ]
     assert rows[0].terms_version == "2026-10-24"
-    assert rows[0].terms_text.endswith("[x] I understand my plan renews every year until I cancel.")
+    assert rows[0].terms_text.startswith("$20.00 today, then every year.\n")
+    assert rows[0].terms_text.endswith("charges the months used at the monthly price.")
     assert rows[0].email_hash and "@" not in rows[0].email_hash
 
 
@@ -268,7 +266,7 @@ def test_founding_member_is_four_years_of_connected_without_renewal() -> None:
     )
     assert (
         client.post(
-            "/api/billing/checkout", json=buy(plan="private", interval="monthly")
+            "/api/billing/checkout", json=buy(client, plan="private", interval="monthly")
         ).status_code
         == 409
     )

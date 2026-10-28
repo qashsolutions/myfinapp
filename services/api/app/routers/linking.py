@@ -38,7 +38,7 @@ from app.security.authz import get_owned, owned_by
 from app.security.client import client_ip
 from app.security.csrf import same_site_only
 from app.security.principal import Caller, require_step_up, require_unlocked
-from app.security.rate_limit import rate_limited
+from app.security.rate_limit import rate_limited, session_or_ip
 from app.services.security_alerts import SecurityEvent, send_alert
 
 router = APIRouter(prefix="/api/linking", tags=["linking"], dependencies=[Depends(same_site_only)])
@@ -305,7 +305,7 @@ def _finish_relink(db: DbSession, link_session: LinkSession, now: datetime) -> F
     )
 
 
-@router.post("/finish")
+@router.post("/finish", dependencies=[Depends(rate_limited("bank_link_finish", key=session_or_ip))])
 def finish(
     body: FinishIn,
     caller: Annotated[Caller, Depends(require_unlocked)],
@@ -488,7 +488,11 @@ def revoke(db: DbSession, row: BankConnection) -> None:
     db.delete(row)
 
 
-@router.delete("/{connection_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{connection_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(rate_limited("bank_disconnect", key=session_or_ip))],
+)
 def disconnect(
     connection_id: uuid.UUID,
     caller: Annotated[Caller, Depends(require_unlocked)],

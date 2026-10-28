@@ -16,6 +16,8 @@ import { describeLimits, parseEntitlements } from "./entitlements.ts";
 export type BillingOut = components["schemas"]["BillingOut"];
 export type ChangePreview = components["schemas"]["ChangePreviewOut"];
 export type Credit = components["schemas"]["CreditOut"];
+/** What someone reads above the box, and exactly what goes back when it is ticked. */
+export type ConsentText = components["schemas"]["ConsentTextOut"];
 export type CheckoutPlan = "private" | "connected" | "founding";
 export type Interval = "monthly" | "yearly";
 
@@ -36,25 +38,65 @@ export async function fetchBilling(): Promise<BillingOut | ApiFailure> {
   return failureOf(r) ?? (r.data as BillingOut);
 }
 
-/** The "Before you subscribe" wording version; the server refuses any other (409). Bump it
- * with services/api/app/routers/billing.py CONSENT_VERSION when the wording changes. */
-export const CONSENT_VERSION = "2026-10-24";
+/** The device's time zone: the server writes the dates in the consent lines on its calendar. */
+export function deviceZone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
 
-export interface Consent {
-  lines: string[];
-  agreement: string;
+/**
+ * The ticked box, sent back with the server's own lines unchanged (October 28, 2026): the
+ * server builds the wording for every offer and refuses any other text (409 consent_mismatch),
+ * so nothing here writes or edits a line.
+ */
+function ticked(consent: ConsentText) {
+  return {
+    version: consent.version,
+    lines: consent.lines,
+    agreement: consent.agreement,
+    tz: deviceZone(),
+    accepted: true as const,
+  };
+}
+
+/** The "Before you subscribe" lines for one offer, from the server. */
+export async function fetchPurchaseConsent(
+  plan: CheckoutPlan,
+  interval: Interval,
+): Promise<ConsentText | ApiFailure> {
+  const r = await api.GET("/api/billing/consent/purchase", {
+    params: {
+      query: {
+        plan,
+        interval: plan === "founding" ? null : interval,
+        tz: deviceZone(),
+      },
+    },
+  });
+  return failureOf(r) ?? (r.data as ConsentText);
+}
+
+/** The "If you cancel" lines for the plan that renews now, from the server. */
+export async function fetchCancelConsent(): Promise<ConsentText | ApiFailure> {
+  const r = await api.GET("/api/billing/consent/cancel", {
+    params: { query: { tz: deviceZone() } },
+  });
+  return failureOf(r) ?? (r.data as ConsentText);
 }
 
 export async function startCheckout(
   plan: CheckoutPlan,
   interval: Interval | null,
-  consent: Consent,
+  consent: ConsentText,
 ): Promise<ApiFailure | null> {
   const r = await api.POST("/api/billing/checkout", {
     body: {
       plan,
       interval: plan === "founding" ? null : interval,
-      consent: { version: CONSENT_VERSION, ...consent, accepted: true },
+      consent: ticked(consent),
     },
   });
   const failure = failureOf(r);
@@ -68,7 +110,9 @@ export async function previewChange(
   plan: "private" | "connected",
   interval: Interval,
 ): Promise<ChangePreview | ApiFailure> {
-  const r = await api.POST("/api/billing/change/preview", { body: { plan, interval } });
+  const r = await api.POST("/api/billing/change/preview", {
+    body: { plan, interval, tz: deviceZone() },
+  });
   return failureOf(r) ?? (r.data as ChangePreview);
 }
 
@@ -77,14 +121,14 @@ export async function changePlan(
   plan: "private" | "connected",
   interval: Interval,
   prorationDate: number | null,
-  consent: Consent,
+  consent: ConsentText,
 ): Promise<BillingOut | ApiFailure> {
   const r = await api.POST("/api/billing/change", {
     body: {
       plan,
       interval,
       proration_date: prorationDate,
-      consent: { version: CONSENT_VERSION, ...consent, accepted: true },
+      consent: ticked(consent),
     },
   });
   return failureOf(r) ?? (r.data as BillingOut);
@@ -115,15 +159,11 @@ export async function openPortal(): Promise<ApiFailure | null> {
 /**
  * Stop renewal (cancel) or undo that (resume). The plan stays on until the end of the period
  * already paid for; the server talks to Stripe (owner decision, October 13, 2026). Cancelling
- * sends the ticked "I have read and understood" with the lines shown (October 18, 2026).
+ * sends the ticked "I have read and understood" with the server's lines (October 18, 2026).
  */
-export async function changeRenewal(
-  cancel: { lines: string[]; agreement: string } | null,
-): Promise<BillingOut | ApiFailure> {
+export async function changeRenewal(cancel: ConsentText | null): Promise<BillingOut | ApiFailure> {
   const r = cancel
-    ? await api.POST("/api/billing/cancel", {
-        body: { consent: { version: CONSENT_VERSION, ...cancel, accepted: true } },
-      })
+    ? await api.POST("/api/billing/cancel", { body: { consent: ticked(cancel) } })
     : await api.POST("/api/billing/resume");
   return failureOf(r) ?? (r.data as BillingOut);
 }

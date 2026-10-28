@@ -14,9 +14,9 @@ from app.db import get_session_factory
 from app.models.billing import PurchaseConsent, Subscription
 from app.services import stripe_billing
 from tests.auth_flow import outbox
-from tests.billing_helpers import grant_plan
+from tests.billing_helpers import cancel_consent, grant_plan
 from tests.conftest import stripe_default_transport
-from tests.test_billing import CONSENT, member, post_event
+from tests.test_billing import member, post_event
 
 PERIOD_END = int(time.time()) + 20 * 86400  # 20 days of the paid month left
 
@@ -43,7 +43,7 @@ class FakeStripe:
                     json={
                         "id": request.url.path.rsplit("/", 1)[-1],
                         "status": "active",
-                        "cancel_at_period_end": form["cancel_at_period_end"] == ["true"],
+                        "cancel_at_period_end": form.get("cancel_at_period_end") == ["true"],
                         "current_period_end": PERIOD_END,
                     },
                 )
@@ -53,13 +53,9 @@ class FakeStripe:
 
 
 # The "If you cancel" sheet's ticked box (owner decision, October 18, 2026).
-CANCEL = {
-    "consent": {
-        **CONSENT,
-        "lines": ["Keep everything: Connected stays on until Oct 26, 2026."],
-        "agreement": "I have read and understood these terms.",
-    }
-}
+def cancel_body(client) -> dict:
+    """The "If you cancel" lines the server built for this plan, ticked."""
+    return {"consent": cancel_consent(client)}
 
 
 def sub_row(user_id: str) -> Subscription:
@@ -81,7 +77,7 @@ def test_cancel_keeps_the_plan_until_the_paid_period_ends_and_resume_undoes_it()
     assert client.post("/api/billing/cancel", json={}).status_code == 422
     assert stripe.calls == []
 
-    r = client.post("/api/billing/cancel", json=CANCEL)
+    r = client.post("/api/billing/cancel", json=cancel_body(client))
     assert r.status_code == 200, r.text
     with get_session_factory()() as db:
         kept = db.scalars(
@@ -102,8 +98,9 @@ def test_cancel_keeps_the_plan_until_the_paid_period_ends_and_resume_undoes_it()
     assert any("plan" in m.subject.lower() for m in outbox())  # the always-on alert
 
     # Cancelling twice changes nothing and asks Stripe nothing.
+    again = cancel_body(client)
     n = len(stripe.calls)
-    assert client.post("/api/billing/cancel", json=CANCEL).json()["cancel_at_period_end"] is True
+    assert client.post("/api/billing/cancel", json=again).json()["cancel_at_period_end"] is True
     assert len(stripe.calls) == n
 
     r = client.post("/api/billing/resume")
@@ -160,7 +157,7 @@ def test_a_cancelled_plan_still_counts_until_its_end_date() -> None:
 def test_founding_never_renews_so_there_is_nothing_to_cancel() -> None:
     client, user_id = member("founder")
     grant_plan(user_id, "founding")
-    r = client.post("/api/billing/cancel", json=CANCEL)
+    r = client.post("/api/billing/cancel", json=cancel_body(client))
     assert r.status_code == 409 and r.json()["detail"] == "does_not_renew"
     assert client.get("/api/billing").json()["plan"] == "founding"
 
@@ -172,10 +169,13 @@ def test_store_plans_are_cancelled_in_the_store_and_free_has_nothing() -> None:
         db.execute(
             text("UPDATE subscriptions SET source = 'apple' WHERE user_id = :u"), {"u": user_id}
         )
-    r = client.post("/api/billing/cancel", json=CANCEL)
+    r = client.post("/api/billing/cancel", json=cancel_body(client))
     assert r.status_code == 409 and r.json()["detail"] == "manage_in_store"
     other, _ = member("freeuser")
-    assert other.post("/api/billing/cancel", json=CANCEL).json()["detail"] == "no_subscription"
+    assert (
+        other.post("/api/billing/cancel", json=cancel_body(client)).json()["detail"]
+        == "no_subscription"
+    )
 
 
 def test_cancelling_needs_a_fresh_passkey() -> None:
@@ -190,4 +190,4 @@ def test_cancelling_needs_a_fresh_passkey() -> None:
             ),
             {"id": session_id},
         )
-    assert client.post("/api/billing/cancel", json=CANCEL).status_code == 403
+    assert client.post("/api/billing/cancel", json=cancel_body(client)).status_code == 403
