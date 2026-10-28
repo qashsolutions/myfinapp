@@ -46,8 +46,12 @@ written against both.
 18. **A write applies to what is stored now, and the newest input wins.** Budget moves, assigns,
     their undos and Start from last month read the stored line inside their transaction, never
     a screen's snapshot; an undo reverses its own amount and keeps edits made since; a screen
-    that saves on every keystroke (Later) saves only the newest one.
-    `seams.test.ts` · `later-order.test.tsx`
+    that saves on every keystroke (Later) saves only the newest one. A form filled from stored
+    values takes input only once they are in, and never reloads them over what the person is
+    typing (the entry editor waits for its entry; Budget's pay form fills once; October 27,
+    2026).
+    `seams.test.ts` · `later-order.test.tsx` · `tags-notes.test.tsx` "the editor takes no
+    input…" · `budget.test.tsx` "editing a saved paycheck…"
 
 ## Nothing hangs, nothing leaks
 

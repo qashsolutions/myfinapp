@@ -1,5 +1,5 @@
 import { Button, Card, Chip } from "@stackd/ui";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { BudgetMethod, PayFrequency, PaySettings } from "../../data/db.ts";
 import { budgetTargets, EngineError, monthlyTakeHome, parseAmount } from "../../engine/bridge.ts";
@@ -59,20 +59,24 @@ export function BudgetSetup({
   const total = [pct.need, pct.want, pct.save].reduce((sum, t) => sum + (Number(t) || 0), 0);
   const [error, setError] = useState<string | null>(null);
 
+  // The saved pay fills the form once, and never over what the person has started typing
+  // (invariant 18, October 27, 2026: it used to reload on every new monthly figure, which put
+  // the old paycheck back while a new one was being typed).
+  const touched = useRef(false);
   useEffect(() => {
     let alive = true;
     void db.settings.get("pay").then((row) => {
       const pay = row?.value as PaySettings | undefined;
-      if (!alive || !pay) return;
+      if (!alive || !pay || touched.current) return;
       setAmount((pay.amount_cents / 100).toFixed(2));
       setFrequency(pay.frequency);
       setNextPayday(pay.next_payday ?? "");
-      if (monthly === null) setMonthly(pay.monthly_cents);
+      setMonthly((m) => m ?? pay.monthly_cents);
     });
     return () => {
       alive = false;
     };
-  }, [db, monthly]);
+  }, [db]);
 
   useEffect(() => {
     let alive = true;
@@ -196,7 +200,10 @@ export function BudgetSetup({
               inputMode="decimal"
               placeholder="2,600.00"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                touched.current = true;
+                setAmount(e.target.value);
+              }}
             />
           </div>
           <fieldset className="pay-freqs" style={{ border: 0, margin: 0, padding: "12px 0" }}>
@@ -211,7 +218,10 @@ export function BudgetSetup({
                   name={`${ids}-frequency`}
                   value={value}
                   checked={frequency === value}
-                  onChange={() => setFrequency(value)}
+                  onChange={() => {
+                    touched.current = true;
+                    setFrequency(value);
+                  }}
                 />
                 {label}
               </label>
@@ -226,7 +236,10 @@ export function BudgetSetup({
               className="field__input"
               type="date"
               value={nextPayday}
-              onChange={(e) => setNextPayday(e.target.value)}
+              onChange={(e) => {
+                touched.current = true;
+                setNextPayday(e.target.value);
+              }}
             />
           </div>
         </div>

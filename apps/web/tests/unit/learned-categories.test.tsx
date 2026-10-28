@@ -75,7 +75,7 @@ describe("learned categories (fast-follow 7)", () => {
     const user = userEvent.setup();
     renderApp("/entries/e1");
     await screen.findByRole("heading", { level: 1, name: "Edit entry" });
-    const chips = screen.getByRole("group", { name: "Category" });
+    const chips = await screen.findByRole("group", { name: "Category" });
     await user.click(await within(chips).findByRole("radio", { name: "Dining" }));
     const offer = await screen.findByRole("switch", {
       name: "Always put BLUE BOTTLE 0042 in Dining",
