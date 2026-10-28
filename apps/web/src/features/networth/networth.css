@@ -12,20 +12,20 @@
 }
 .worth__total {
   margin: 0;
-  font-size: 2rem;
+  font-size: var(--fs-word);
   font-weight: 700;
   color: var(--c-ink);
 }
 .worth__stale {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--fs-small);
   color: var(--c-warning);
 }
 .worth__h {
   display: flex;
   justify-content: space-between;
   margin: 0 0 8px;
-  font-size: 1.0625rem;
+  font-size: var(--fs-body);
 }
 .worth__h span {
   color: var(--c-sub);
@@ -38,7 +38,7 @@
 }
 .worth__note {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: var(--fs-small);
   color: var(--c-sub);
   text-align: center;
 }
@@ -52,7 +52,7 @@
   grid-template-columns: 40px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  font-size: 0.875rem;
+  font-size: var(--fs-small);
   font-weight: 600;
 }
 .worth-bars__track {
@@ -88,11 +88,11 @@
   fill: var(--c-a1);
 }
 .worth-trend__label {
-  font: 700 12px var(--font-body);
+  font: 700 var(--fs-caption) var(--font-body);
   fill: var(--c-ink);
 }
 .worth-trend__axis {
-  font: 600 11px var(--font-body);
+  font: 600 var(--fs-caption) var(--font-body);
   fill: var(--c-sub);
 }
 .worth-row {
@@ -116,7 +116,7 @@
   color: var(--c-ink);
 }
 .worth-row__sub {
-  font-size: 0.8125rem;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .worth-row__sub a {

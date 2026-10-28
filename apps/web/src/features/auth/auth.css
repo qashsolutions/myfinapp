@@ -15,7 +15,7 @@
   align-items: center;
   gap: 10px;
   min-height: 44px;
-  font: 700 20px / 1 var(--font-display);
+  font: 700 var(--fs-title) / 1 var(--font-display);
 }
 .auth__back {
   display: inline-flex;
@@ -31,17 +31,17 @@
   cursor: pointer;
 }
 .auth__hero {
-  font-size: clamp(32px, 9vw, 40px);
+  font-size: var(--fs-hero);
   line-height: 1.1;
   letter-spacing: -0.02em;
   margin-top: 8vh;
 }
 .auth__title {
-  font-size: 28px;
+  font-size: var(--fs-word);
   line-height: 1.15;
 }
 .auth__lead {
-  font-size: 17px;
+  font-size: var(--fs-body);
   color: var(--c-sub);
 }
 .auth__lead strong {
@@ -57,7 +57,7 @@
 }
 .auth__fineprint {
   text-align: center;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   color: var(--c-sub);
 }
 .auth__fineprint a {
@@ -70,7 +70,7 @@
 }
 .auth__label {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-small);
 }
 .auth__input {
   min-height: 52px;
@@ -79,18 +79,18 @@
   border: 1.5px solid var(--c-line);
   background: var(--c-card);
   color: var(--c-ink);
-  font: 500 17px var(--font-body);
+  font: 500 var(--fs-body) var(--font-body);
 }
 .auth__input:focus-visible {
   border-color: var(--c-a1);
 }
 .auth__error {
   color: var(--c-danger);
-  font-size: 14px;
+  font-size: var(--fs-small);
   font-weight: 600;
 }
 .auth__hint {
-  font-size: 14px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .auth__hint strong {
@@ -103,7 +103,7 @@
   padding: 0;
   border: 0;
   background: none;
-  font: 600 15px var(--font-body);
+  font: 600 var(--fs-body) var(--font-body);
   color: var(--c-a1);
   cursor: pointer;
 }
@@ -176,10 +176,10 @@
 }
 .auth__point-title {
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 .auth__point-sub {
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .auth__dot {
@@ -205,7 +205,7 @@
   border-radius: 14px;
   border: 1.5px solid var(--c-line);
   background: var(--c-card);
-  font: 700 26px var(--font-data);
+  font: 700 var(--fs-heading) var(--font-data);
   font-variant-numeric: var(--numeric-data);
 }
 .code__box--active {
@@ -217,7 +217,7 @@
   width: 100%;
   height: 100%;
   opacity: 0;
-  font-size: 24px;
+  font-size: var(--fs-heading);
   letter-spacing: 2em;
 }
 .code__input:focus-visible + .code__boxes .code__box--active {
@@ -251,14 +251,14 @@
   gap: 6px;
   padding-top: 8px;
   border-top: 1px solid var(--c-line);
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .auth__footer-brand {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font: 700 15px var(--font-display);
+  font: 700 var(--fs-body) var(--font-display);
   color: var(--c-ink);
 }
 .auth__footer nav {
@@ -277,7 +277,7 @@
 }
 .auth__footer-legal a {
   font-weight: 500;
-  font-size: 12px;
+  font-size: var(--fs-caption);
 }
 .auth__footer a {
   display: inline-flex;
@@ -292,7 +292,7 @@
 }
 .auth__footer p {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-caption);
 }
 
 /* Welcome back: the remembered account, one tap to continue */
@@ -317,7 +317,7 @@
     color-mix(in srgb, var(--c-a1) 55%, var(--c-success))
   );
   color: var(--c-on-accent);
-  font: 700 30px / 1 var(--font-display);
+  font: 700 var(--fs-word) / 1 var(--font-display);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--c-a1) 30%, transparent);
 }
 .auth__who {
@@ -345,12 +345,12 @@
   flex-direction: column;
   gap: 2px;
   flex: 1;
-  font-size: 14px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .auth__install-text strong {
   color: var(--c-ink);
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 
 /* A gentle way on (not an error): e.g. no passkey on this device yet */
@@ -360,7 +360,7 @@
   border-radius: 14px;
   background: color-mix(in srgb, var(--c-a1) 8%, var(--c-card));
   color: var(--c-ink);
-  font-size: 14px;
+  font-size: var(--fs-small);
   text-align: center;
 }
 .auth__note a {
@@ -371,7 +371,7 @@
 /* No Touch ID on this computer: the phone-as-passkey guide (October 14, 2026) */
 .auth__nobio {
   align-self: center;
-  font-size: 14px;
+  font-size: var(--fs-small);
 }
 .nobio__art {
   display: block;
@@ -395,12 +395,12 @@
 .nobio__steps li > span:last-child {
   display: flex;
   flex-direction: column;
-  font-size: 14px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .nobio__steps strong {
   color: var(--c-ink);
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 .nobio__n {
   flex: none;
@@ -416,7 +416,7 @@
 }
 .nobio__more {
   margin: 14px 0 0;
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 
@@ -429,7 +429,7 @@
   padding: 12px 14px;
   border-radius: 14px;
   background: var(--c-bg);
-  font-size: 0.8125rem;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .nobio__bt-icon {
@@ -442,7 +442,7 @@
 }
 .nobio__bt strong {
   color: var(--c-ink);
-  font-size: 0.875rem;
+  font-size: var(--fs-small);
 }
 
 /* Link with your phone, the computer's screen (B2, October 19, 2026). */
@@ -484,7 +484,7 @@
 }
 .link__code {
   margin: 0;
-  font: 700 28px / 1.1 var(--font-body);
+  font: 700 var(--fs-word) / 1.1 var(--font-body);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.12em;
   color: var(--c-ink);
@@ -494,7 +494,7 @@
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-size: 14px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .link__status {

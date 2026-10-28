@@ -15,13 +15,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: var(--fs-word);
 }
 .receipt-card__title {
   font-weight: 700;
 }
 .receipt-card__sub {
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .receipt-card__actions {
@@ -45,7 +45,7 @@
   margin: var(--space-3, 12px) 0 0;
   padding: var(--space-3, 12px);
   border-radius: var(--radius-card);
-  background: var(--c-surface-2, var(--c-surface));
+  background: var(--c-bg);
 }
 
 .receipt-card__found {

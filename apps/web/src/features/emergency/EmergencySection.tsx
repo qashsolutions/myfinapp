@@ -59,9 +59,13 @@ export function EmergencySection({ savedCents }: { savedCents: number }) {
     <>
       <Card tone="accent" as="section" aria-label="Runway">
         <p className="sk-card__eyebrow">Runway if income stopped</p>
-        <p className="sk-card__hero">
-          {runway === null ? "Add your essentials" : `${(runway / 10).toFixed(1)} months`}
-        </p>
+        {runway === null ? (
+          <p className="sk-card__hero sk-card__hero--empty">Add your essentials</p>
+        ) : (
+          <p className="sk-card__hero">
+            {(runway / 10).toFixed(1)} <span className="sk-card__hero-unit">months</span>
+          </p>
+        )}
         <p>
           {formatCents(savedCents)} saved
           {essentialsCents > 0

@@ -27,11 +27,11 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font: 700 30px / 1.1 var(--font-hero, var(--font-display));
+  font: 700 var(--fs-word) / 1.1 var(--font-hero, var(--font-display));
   font-variant-numeric: var(--numeric-data);
 }
 .card-facts__sub {
-  font: 500 14px / 1.3 var(--font-body);
+  font: 500 var(--fs-small) / 1.3 var(--font-body);
   color: var(--c-sub);
 }
 .card-facts__use {
@@ -41,7 +41,7 @@
 }
 .card-facts__hint {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .card-facts__grid {
@@ -57,7 +57,7 @@
   background: color-mix(in srgb, var(--c-ink) 5%, var(--c-card));
 }
 .card-facts__grid dt {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   color: var(--c-sub);
 }
 .card-facts__grid dd {
@@ -78,5 +78,5 @@
   padding: 6px 12px;
   border-radius: 999px;
   border: 1px solid var(--c-line);
-  font-size: 14px;
+  font-size: var(--fs-small);
 }

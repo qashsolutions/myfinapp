@@ -108,7 +108,7 @@ export function PayoffPlan() {
         </p>
       ) : (
         <>
-          <p className="sk-card__hero" role="status">
+          <p className="sk-card__hero sk-card__hero--empty" role="status">
             Debt-free by {plan.debt_free_month ? formatMonth(`${plan.debt_free_month}-01`) : "now"}
           </p>
           <p>

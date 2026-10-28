@@ -52,7 +52,7 @@
   border-radius: calc(var(--radius-card) * 0.35);
   padding: 6px 8px;
   font-family: var(--font-hero);
-  font-size: 1.15rem;
+  font-size: var(--fs-title);
   font-weight: 700;
   line-height: 1.1;
 }
@@ -71,7 +71,7 @@
 .look-tile__name {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: var(--fs-body);
 }
 
 .look-tile__line {

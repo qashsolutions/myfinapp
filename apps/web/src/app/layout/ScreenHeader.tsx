@@ -32,6 +32,10 @@ export interface ScreenHeaderProps {
   /** A path to go back to; renders the round back button before the title. */
   back?: string;
   /** Defaults to the global add button; pass null for none. */
+  /**
+   * Top-right: the global + when left out; otherwise one small secondary button (October 28,
+   * 2026: one look for every screen's action), or null for none.
+   */
   actions?: ReactNode;
 }
 

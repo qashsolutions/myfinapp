@@ -500,7 +500,7 @@ export function PlanScreen() {
                       ? "Free"
                       : "Active"}
         </Word>
-        <p className="sk-card__hero">
+        <p className="sk-card__hero sk-card__hero--empty">
           {access?.state === "trial"
             ? `${access.plan === "connected" ? "Connected" : "Private"} trial`
             : billing.label}

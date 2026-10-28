@@ -6,8 +6,8 @@
 
 .insight__fine {
   font-weight: 400;
-  color: var(--c-text-2, var(--c-text));
-  font-size: 0.9em;
+  color: var(--c-sub);
+  font-size: var(--fs-small);
 }
 
 .insight__list {
@@ -27,8 +27,8 @@
 
 .insight__sub {
   display: block;
-  font-size: 0.9em;
-  color: var(--c-text-2, var(--c-text));
+  font-size: var(--fs-small);
+  color: var(--c-sub);
 }
 
 /* Insights hub (October 18, 2026): summary cards, headline first, small pictures. */
@@ -59,20 +59,20 @@
   gap: 8px;
 }
 .insight-card__title {
-  font-size: 0.8125rem;
+  font-size: var(--fs-small);
   font-weight: 600;
   color: var(--c-sub);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 .insight-card__headline {
-  font-size: 1.5rem;
+  font-size: var(--fs-heading);
   font-weight: 700;
   color: var(--c-ink);
   line-height: 1.2;
 }
 .insight-card__line {
-  font-size: 0.9375rem;
+  font-size: var(--fs-body);
   font-weight: 600;
   color: var(--c-ink);
 }
@@ -108,7 +108,7 @@
   display: flex;
   justify-content: space-between;
   margin-top: 6px;
-  font-size: 0.8125rem;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .insight-ring {
@@ -122,7 +122,7 @@
     conic-gradient(var(--c-success) var(--ring-pct), var(--c-line) 0);
   color: var(--c-ink);
   font-weight: 700;
-  font-size: 0.875rem;
+  font-size: var(--fs-small);
 }
 .bill-chips {
   display: flex;
@@ -142,12 +142,12 @@
   background: var(--c-bg);
 }
 .bill-chips__date {
-  font-size: 0.75rem;
+  font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--c-a1);
 }
 .bill-chips__name {
-  font-size: 0.8125rem;
+  font-size: var(--fs-small);
   color: var(--c-ink);
   white-space: nowrap;
   overflow: hidden;
@@ -162,7 +162,7 @@
   grid-template-columns: 52px 1fr;
   align-items: center;
   gap: 8px;
-  font-size: 0.8125rem;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .bucket-bars__track {
@@ -215,7 +215,7 @@
   fill: var(--c-danger);
 }
 .runway__label {
-  font: 700 13px var(--font-body);
+  font: 700 var(--fs-small) var(--font-body);
   fill: var(--c-ink);
 }
 .runway__label--short {
@@ -223,7 +223,7 @@
 }
 .runway__note,
 .runway__axis {
-  font: 600 12px var(--font-body);
+  font: 600 var(--fs-caption) var(--font-body);
   fill: var(--c-sub);
 }
 
@@ -247,7 +247,7 @@
 }
 .often__count {
   grid-row: 2;
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .often__total {
@@ -265,7 +265,7 @@
   display: flex;
   justify-content: space-between;
   padding: 6px 0;
-  font-size: 14px;
+  font-size: var(--fs-small);
   color: var(--c-ink);
   text-decoration: none;
 }
@@ -276,7 +276,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 13px;
+  font-size: var(--fs-small);
 }
 .top-merchants li {
   display: flex;

@@ -65,6 +65,7 @@ export function BillsScreen() {
         actions={
           <Button
             size="sm"
+            variant="secondary"
             onClick={() => (tab === "debt" ? setEditingDebt("new") : setEditing("new"))}
           >
             + Add

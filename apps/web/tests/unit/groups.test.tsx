@@ -53,7 +53,12 @@ describe("Groups", () => {
       await screen.findByRole("heading", { level: 1, name: "October savings challenge" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Group · 1 person · ends Oct 31/)).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText("$0.00 of $500.00")).toBeInTheDocument());
+    // Big number, small unit: one line, two sizes
+    await waitFor(() =>
+      expect(
+        screen.getByText((_, el) => el?.tagName === "P" && el.textContent === "$0.00 of $500.00"),
+      ).toBeInTheDocument(),
+    );
     expect(screen.getByText(/Nobody has logged a deposit yet/)).toBeInTheDocument();
     expect(screen.getByText(/Not on the board yet: you/)).toBeInTheDocument();
 

@@ -8,7 +8,7 @@
   border: 1px solid var(--c-line);
   border-radius: var(--radius-card);
   background: var(--c-card);
-  color: var(--c-ink-2);
+  color: var(--c-sub);
 }
 .settings-search:focus-within {
   outline: 2px solid var(--c-a1);
@@ -20,14 +20,14 @@
   min-height: 46px;
   border: 0;
   background: none;
-  font: 500 16px / 1.2 var(--font-body);
+  font: 500 var(--fs-body) / 1.2 var(--font-body);
   color: var(--c-ink);
 }
 .settings-search__input:focus {
   outline: none;
 }
 .settings-search__input::placeholder {
-  color: var(--c-ink-2);
+  color: var(--c-sub);
 }
 
 .settings-flash {
@@ -92,7 +92,7 @@
     min-height: 44px;
     padding: 0 14px;
     border-radius: 12px;
-    font: 600 15px / 1.2 var(--font-body);
+    font: 600 var(--fs-body) / 1.2 var(--font-body);
     color: var(--c-ink);
     text-decoration: none;
   }

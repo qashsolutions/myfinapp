@@ -198,7 +198,7 @@ export function MoneyScreen() {
         title="Money in & out"
         back="/"
         actions={
-          <Link to="/import" className={buttonClass({ variant: "ghost", size: "sm" })}>
+          <Link to="/import" className={buttonClass({ variant: "secondary", size: "sm" })}>
             Import
           </Link>
         }

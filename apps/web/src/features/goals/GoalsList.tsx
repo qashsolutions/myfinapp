@@ -155,7 +155,7 @@ export function GoalsList() {
       <ScreenHeader
         title="Goals"
         actions={
-          <Link to="/goals/new" className={buttonClass({ size: "sm" })}>
+          <Link to="/goals/new" className={buttonClass({ size: "sm", variant: "secondary" })}>
             + New
           </Link>
         }

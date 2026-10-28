@@ -10,16 +10,16 @@
 }
 .plan-card__name {
   font-weight: 600;
-  font-size: 1.05rem;
+  font-size: var(--fs-body);
 }
 .plan-card__price {
-  font-size: 1.5rem;
+  font-size: var(--fs-heading);
   font-weight: 700;
   letter-spacing: -0.01em;
 }
 .plan-card__per {
-  color: var(--c-ink-2);
-  font-size: 0.9rem;
+  color: var(--c-sub);
+  font-size: var(--fs-small);
 }
 .plan-list {
   display: grid;
@@ -38,12 +38,12 @@
 }
 .founding-left p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .founding-left strong {
   color: var(--c-ink);
-  font-size: 18px;
+  font-size: var(--fs-title);
 }
 
 /* Before you subscribe: read, tick, then pay */
@@ -64,7 +64,7 @@
   display: flex;
   gap: 12px;
   align-items: center;
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 .consent__icon {
   flex: none;
@@ -96,7 +96,7 @@
 }
 .plan-card__sub {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .plan-card__value {
@@ -157,7 +157,7 @@
   background: linear-gradient(135deg, var(--c-a1), var(--c-a3));
 }
 .trial__name {
-  font: 700 18px var(--font-display);
+  font: 700 var(--fs-title) var(--font-display);
 }
 .trial__days {
   margin-left: auto;
@@ -165,7 +165,7 @@
   border-radius: 999px;
   background: #fcd34d;
   color: #14163a;
-  font-size: 13px;
+  font-size: var(--fs-small);
   font-weight: 700;
 }
 .trial__value {
@@ -180,14 +180,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: var(--fs-small);
 }
 .trial__picon {
   display: inline-flex;
   color: var(--c-a1);
 }
 .trial__after {
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 
@@ -223,7 +223,7 @@
   transform-origin: 22px 22px;
 }
 .trial-card__n {
-  font: 700 13px var(--font-display);
+  font: 700 var(--fs-small) var(--font-display);
   fill: var(--c-ink);
 }
 .trial-card__text {
@@ -236,7 +236,7 @@
 }
 .trial-card__sub {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .trial-card__cta {
@@ -246,7 +246,7 @@
   background: var(--c-a1);
   color: var(--c-on-accent);
   font-weight: 700;
-  font-size: 14px;
+  font-size: var(--fs-small);
   text-decoration: none;
 }
 .trial-card__link {
@@ -263,7 +263,7 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--c-success) 14%, var(--c-card));
   color: var(--c-success);
-  font-size: 13px;
+  font-size: var(--fs-small);
   font-weight: 700;
 }
 .plan-alert {
@@ -308,7 +308,7 @@
 }
 .plan-lock__value {
   margin: 0 0 6px;
-  font: 700 22px / 1.25 var(--font-hero);
+  font: 700 var(--fs-heading) / 1.25 var(--font-hero);
 }
 .plan-lock p:last-child {
   margin: 0;
@@ -328,7 +328,7 @@
   gap: 2px;
 }
 .cancel-points strong {
-  font: 700 17px / 1.3 var(--font-hero);
+  font: 700 var(--fs-body) / 1.3 var(--font-hero);
 }
 .cancel-points span {
   color: var(--c-sub);
@@ -358,7 +358,7 @@
 .plan-history span,
 .plan-history time {
   color: var(--c-sub);
-  font-size: 14px;
+  font-size: var(--fs-small);
 }
 .plan-history time {
   text-align: right;
@@ -388,7 +388,7 @@
 .trial__how {
   margin: 4px 0 0;
   padding-left: 1.2em;
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
   display: grid;
   gap: 4px;
@@ -401,7 +401,7 @@
   margin: 4px 0 8px;
   padding: 0;
   list-style: none;
-  font-size: 14px;
+  font-size: var(--fs-small);
 }
 .plan-card__features li {
   display: flex;

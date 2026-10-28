@@ -1,7 +1,7 @@
 /* Sort your spending (October 20, 2026). */
 .review__left {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .review__card {
@@ -11,12 +11,12 @@
 }
 .review__merchant {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: var(--fs-title);
   font-weight: 700;
 }
 .review__amount {
   margin: 0;
-  font-size: 1.75rem;
+  font-size: var(--fs-word);
   font-weight: 800;
 }
 .review__amount--in {
@@ -24,7 +24,7 @@
 }
 .review__meta {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .review__ask {
