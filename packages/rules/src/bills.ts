@@ -2,7 +2,7 @@
 
 import { addMonths, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
-import { assertInt, roundDiv } from "./money.ts";
+import { assertInt, mul, roundDiv } from "./money.ts";
 import { compareText } from "./text.ts";
 
 export interface Debt {
@@ -124,7 +124,7 @@ export function payoffPlan(debts: unknown, extraCents: unknown, asOf: unknown): 
     for (const d of order) {
       if (paidMonth.has(d.id)) continue;
       const balance = balances.get(d.id) ?? 0;
-      const accrued = roundDiv(balance * d.apr_bps, 120000);
+      const accrued = roundDiv(mul(balance, d.apr_bps), 120000);
       interest.set(d.id, (interest.get(d.id) ?? 0) + accrued);
       const withInterest = balance + accrued;
       const payment = Math.min(d.min_payment_cents, withInterest, remaining);
@@ -188,7 +188,8 @@ export function consolidation(
   asOf: unknown,
 ): Consolidation {
   const payment = assertInt(paymentCents, "invalid_amount");
-  if (typeof offer !== "object" || offer === null) throw new RuleError("invalid_offer");
+  if (typeof offer !== "object" || offer === null || Array.isArray(offer))
+    throw new RuleError("invalid_offer");
   const o = offer as Record<string, unknown>;
   const apr = assertInt(o.apr_bps, "invalid_offer");
   const feeBps = assertInt(o.fee_bps, "invalid_offer");
@@ -200,7 +201,7 @@ export function consolidation(
   if (payment < minimums) throw new RuleError("payment_below_minimums");
   const today = payoffPlan(debts, payment - minimums, asOf);
   const total = order.reduce((sum, d) => sum + d.balance_cents, 0);
-  const fee = roundDiv(total * feeBps, 10000);
+  const fee = roundDiv(mul(total, feeBps), 10000);
   let balance = total + fee;
   let interest = 0;
   let month = 0;
@@ -213,7 +214,7 @@ export function consolidation(
       break;
     }
     const rate = month <= promoMonths ? promoApr : apr;
-    const accrued = roundDiv(balance * rate, 120000);
+    const accrued = roundDiv(mul(balance, rate), 120000);
     interest += accrued;
     balance += accrued;
     balance -= Math.min(payment, balance);

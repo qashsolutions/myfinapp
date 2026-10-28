@@ -161,7 +161,12 @@ export function history(dates: unknown, accounts: unknown, items: unknown): NetW
     throw new RuleError("duplicate_account");
   const seen = new Set<string>();
   const fixed = items.map((raw) => {
-    if (typeof raw !== "object" || raw === null || typeof (raw as { id?: unknown }).id !== "string")
+    if (
+      typeof raw !== "object" ||
+      raw === null ||
+      Array.isArray(raw) ||
+      typeof (raw as { id?: unknown }).id !== "string"
+    )
       throw new RuleError("invalid_item");
     const r = raw as Record<string, unknown>;
     if (r.kind !== "asset" && r.kind !== "debt") throw new RuleError("invalid_kind");

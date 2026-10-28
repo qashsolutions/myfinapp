@@ -52,7 +52,7 @@ MAX_MONTHS = 600  # fifty years: past this the plan is not a plan
 
 def _month_label(as_of: str, months_ahead: int) -> str:
     first = parse_date(as_of).replace(day=1)
-    return add_months(first, months_ahead).strftime("%Y-%m")
+    return add_months(first, months_ahead).isoformat()[:7]  # strftime skips the zero pad on glibc
 
 
 def payoff_plan(debts: object, extra_cents: object, as_of: str) -> dict:

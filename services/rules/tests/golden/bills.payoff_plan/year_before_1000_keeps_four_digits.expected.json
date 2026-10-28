@@ -1,0 +1,24 @@
+{
+  "stalled": false,
+  "months": 4,
+  "debt_free_month": "0999-02",
+  "monthly_budget_cents": 10000,
+  "total_interest_cents": 614,
+  "total_paid_cents": 30614,
+  "series_cents": [
+    20300,
+    10503,
+    608,
+    0
+  ],
+  "order": [
+    {
+      "id": "c",
+      "label": "Card",
+      "rank": 1,
+      "payoff_month": "0999-02",
+      "months": 4,
+      "interest_cents": 614
+    }
+  ]
+}

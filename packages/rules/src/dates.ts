@@ -56,9 +56,16 @@ function toNumber(day: Day): number {
   return utcMs(day.y, day.m - 1, day.d) / MS_PER_DAY;
 }
 
+/** Python's dates run from year 1 to 9999; a step past either end is `invalid_date` in both. */
+function inCalendar(y: number): void {
+  if (!(y >= 1 && y <= 9999)) throw new RuleError("invalid_date");
+}
+
 function fromNumber(n: number): Day {
   const dt = new Date(n * MS_PER_DAY);
-  return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
+  const y = dt.getUTCFullYear();
+  inCalendar(y);
+  return { y, m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
 }
 
 export function addDays(day: Day, days: number): Day {
@@ -84,8 +91,10 @@ export function monthBounds(asOf: Day): [Day, Day] {
 /** Calendar months forward or back; the day clamps to the target month's length. */
 export function addMonths(day: Day, months: unknown): Day {
   if (!isInt(months)) throw new RuleError("invalid_integer");
+  if (Math.abs(months) > Number.MAX_SAFE_INTEGER) throw new RuleError("too_large");
   const span = day.m - 1 + months;
   const y = day.y + Math.floor(span / 12);
+  inCalendar(y);
   const m = (((span % 12) + 12) % 12) + 1;
   return { y, m, d: Math.min(day.d, daysInMonthOf(y, m)) };
 }

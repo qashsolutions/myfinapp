@@ -4,7 +4,9 @@ and a dedupe key. Nothing here carries an amount or a merchant.
 
 - upcoming_expense  an unmatched expected bill, `lead_days` before its date,
                     at `time` (09:00 unless the person picks one)
-- shortfall_risk    once per change in the forecast (keyed by the first short date and amount)
+- shortfall_risk    once per change in the forecast (keyed by the first short date and a tag of
+                    the amount: FNV-1a 64 over its decimal digits, one letter a-p per hex
+                    digit, so the key changes with the amount and carries no amount)
 - challenge_checkin daily at the chosen time while a challenge runs
 - goal_behind_pace  expected-by-now − saved ≥ periods × weekly pace (weekly pace = target ÷
                     weeks in the goal); keyed by the goal and the week
@@ -18,6 +20,7 @@ from datetime import date, datetime, timedelta
 
 from . import dates, money
 from .errors import RuleError
+from .fingerprint import fnv1a_64
 from .money import _int
 from .notify import fmt_local, parse_clock, parse_local
 
@@ -30,6 +33,12 @@ def _at(day: date, clock: str) -> datetime:
     return datetime(day.year, day.month, day.day, minutes // 60, minutes % 60)
 
 
+def amount_tag(cents: int) -> str:
+    """16 letters a-p from FNV-1a 64 of the amount's decimal digits: a different amount gives a
+    different key, and the key the server sees has no digits of the amount in it."""
+    return "".join(chr(ord("a") + int(c, 16)) for c in f"{fnv1a_64(str(cents).encode()):016x}")
+
+
 def _pref(prefs: dict, name: str) -> dict:
     p = prefs.get(name)
     if p is None:
@@ -37,6 +46,24 @@ def _pref(prefs: dict, name: str) -> dict:
     if not isinstance(p, dict) or not isinstance(p.get("enabled"), bool):
         raise RuleError("invalid_prefs")
     return p
+
+
+def _list(value: object) -> list:
+    """A list, or none at all; anything else is invalid_inputs (never iterated as text)."""
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise RuleError("invalid_inputs")
+    return value
+
+
+def _flag(value: object) -> bool:
+    """A yes / no field: true, false, or left out; a truthy 1 or [] is invalid_inputs."""
+    if value is None:
+        return False
+    if not isinstance(value, bool):
+        raise RuleError("invalid_inputs")
+    return value
 
 
 def schedule(inputs: object) -> dict:
@@ -59,8 +86,12 @@ def schedule(inputs: object) -> dict:
         lead = _int(up.get("lead_days", 3))
         if lead < 0:
             raise RuleError("invalid_prefs")
-        for item in inputs.get("upcoming") or []:
-            if not isinstance(item, dict) or item.get("kind") != "bill" or item.get("matched"):
+        for item in _list(inputs.get("upcoming")):
+            if (
+                not isinstance(item, dict)
+                or item.get("kind") != "bill"
+                or _flag(item.get("matched"))
+            ):
                 continue
             when = dates.parse_date(item.get("date"))
             series = item.get("series_id")
@@ -77,12 +108,12 @@ def schedule(inputs: object) -> dict:
             raise RuleError("invalid_inputs")
         first = dates.parse_date(short.get("first_short_date"))
         cents = _int(short.get("short_by_cents"))
-        add("shortfall_risk", now, f"shortfall:{first.isoformat()}:{cents}")
+        add("shortfall_risk", now, f"shortfall:{first.isoformat()}:{amount_tag(cents)}")
 
     chk = _pref(prefs, "challenge_checkin")
     if chk["enabled"]:
         clock = chk.get("time", "19:30")
-        for ch in inputs.get("challenges") or []:
+        for ch in _list(inputs.get("challenges")):
             if not isinstance(ch, dict) or not isinstance(ch.get("group_id"), str):
                 raise RuleError("invalid_inputs")
             end = dates.parse_date(ch.get("end_date"))
@@ -98,7 +129,7 @@ def schedule(inputs: object) -> dict:
         periods = _int(behind.get("periods", 1))
         if periods < 1:
             raise RuleError("invalid_prefs")
-        for g in inputs.get("goals") or []:
+        for g in _list(inputs.get("goals")):
             if not isinstance(g, dict) or not isinstance(g.get("id"), str):
                 raise RuleError("invalid_inputs")
             start = dates.parse_date(g.get("start_date"))
@@ -115,7 +146,7 @@ def schedule(inputs: object) -> dict:
                 add("goal_behind_pace", now, f"behind:{g['id']}:{weeks_elapsed}")
 
     if _pref(prefs, "milestone_reached")["enabled"]:
-        for m in inputs.get("milestones") or []:
+        for m in _list(inputs.get("milestones")):
             if not isinstance(m, dict) or not isinstance(m.get("goal_id"), str):
                 raise RuleError("invalid_inputs")
             if not isinstance(m.get("key"), str):

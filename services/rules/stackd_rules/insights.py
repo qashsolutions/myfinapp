@@ -32,7 +32,7 @@ def _threshold(thresholds: object, key: str) -> int:
 
 
 def _month_key(day: date) -> str:
-    return day.strftime("%Y-%m")
+    return day.isoformat()[:7]  # strftime("%Y") skips the zero pad before 1000 on glibc
 
 
 def _month_start(day: date) -> date:

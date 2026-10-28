@@ -27,6 +27,7 @@ function rules(value: unknown, code: string): RuleLike[] {
     if (
       typeof rule !== "object" ||
       rule === null ||
+      Array.isArray(rule) ||
       typeof (rule as RuleLike).match !== "string" ||
       (rule as RuleLike).match === ""
     ) {
@@ -49,8 +50,9 @@ export function match(
     throw new RuleError("invalid_keywords");
   }
   const kw = keywords as { transfer?: unknown; keywords?: unknown };
-  const transferWords = kw.transfer ?? [];
-  const table = rules(kw.keywords ?? [], "invalid_keywords");
+  // Python's dict.get(key, []): the fallback only when the key is left out, never for null.
+  const transferWords = kw.transfer === undefined ? [] : kw.transfer;
+  const table = rules(kw.keywords === undefined ? [] : kw.keywords, "invalid_keywords");
   if (!Array.isArray(transferWords) || !transferWords.every((w) => typeof w === "string")) {
     throw new RuleError("invalid_keywords");
   }
@@ -67,7 +69,7 @@ export function match(
     }
   }
   for (const entry of table) {
-    const wanted = entry.direction ?? "any";
+    const wanted = entry.direction === undefined ? "any" : entry.direction;
     if (wanted !== "in" && wanted !== "out" && wanted !== "any")
       throw new RuleError("invalid_keywords");
     if (wanted !== "any" && wanted !== direction) continue;
@@ -149,7 +151,8 @@ function isIntList(value: unknown, length: number | null): value is number[] {
 }
 
 function model(value: unknown): SuggestModel {
-  if (typeof value !== "object" || value === null) throw new RuleError("invalid_model");
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    throw new RuleError("invalid_model");
   const m = value as Partial<SuggestModel>;
   if (
     !Array.isArray(m.labels) ||
@@ -163,6 +166,7 @@ function model(value: unknown): SuggestModel {
     !isIntList(m.bias, m.labels.length) ||
     typeof m.weights !== "object" ||
     m.weights === null ||
+    Array.isArray(m.weights) ||
     !Number.isInteger(m.min_score) ||
     !Number.isInteger(m.min_margin)
   ) {

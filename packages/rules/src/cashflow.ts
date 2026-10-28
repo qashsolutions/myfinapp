@@ -276,11 +276,12 @@ export function matchTransfers(rawEntries: unknown, windowDays: unknown = 5): Tr
       const gap = Math.abs(daysUntil(o.date, i.date));
       if (gap > window) continue;
       const key: [number, string, string] = [gap, dayKey(i.date), i.id as string];
+      // Python's tuple order: the gap, then the date, then the id by code point (invariant 10).
       if (
         bestKey === null ||
-        key[0] < bestKey[0] ||
-        (key[0] === bestKey[0] &&
-          (key[1] < bestKey[1] || (key[1] === bestKey[1] && key[2] < bestKey[2])))
+        (key[0] - bestKey[0] ||
+          compareText(key[1], bestKey[1]) ||
+          compareText(key[2], bestKey[2])) < 0
       ) {
         best = i;
         bestKey = key;

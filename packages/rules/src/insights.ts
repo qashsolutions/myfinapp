@@ -7,14 +7,14 @@
 import { addMonths, type Day, daysInMonth, iso, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { cleanDescription } from "./fingerprint.ts";
-import { assertInt, roundDiv } from "./money.ts";
+import { assertInt, mul, roundDiv } from "./money.ts";
 import { INTERVALS, step } from "./recurring.ts";
 import { compareText, trimSpaces } from "./text.ts";
 
 const LUMPY = new Set(["quarterly", "yearly"]);
 
 function threshold(thresholds: unknown, key: string): number {
-  if (typeof thresholds !== "object" || thresholds === null)
+  if (typeof thresholds !== "object" || thresholds === null || Array.isArray(thresholds))
     throw new RuleError("invalid_thresholds");
   const value = (thresholds as Record<string, unknown>)[key];
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0)
@@ -67,7 +67,8 @@ export function safeToSpend(
   if (!Array.isArray(days)) throw new RuleError("invalid_days");
   const window: Array<[Day, number]> = [];
   for (const raw of days) {
-    if (typeof raw !== "object" || raw === null) throw new RuleError("invalid_days");
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+      throw new RuleError("invalid_days");
     const r = raw as Record<string, unknown>;
     const day = parseDate(r.date);
     const balance = assertInt(r.balance_cents);
@@ -104,7 +105,8 @@ interface SpendRow {
 function spendRows(entries: unknown): SpendRow[] {
   if (!Array.isArray(entries)) throw new RuleError("invalid_entries");
   return entries.map((raw) => {
-    if (typeof raw !== "object" || raw === null) throw new RuleError("invalid_entry");
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+      throw new RuleError("invalid_entry");
     const r = raw as Record<string, unknown>;
     const date = parseDate(r.date);
     const cents = assertInt(r.amount_cents);
@@ -171,7 +173,7 @@ export function vsUsual(
     for (const [category, now] of current) {
       const usual = roundDiv(past.get(category) ?? 0, used);
       const increase = now - usual;
-      if (increase >= floorCents && now * 10000 >= usual * (10000 + floorBps)) {
+      if (increase >= floorCents && mul(now, 10000) >= mul(usual, 10000 + floorBps)) {
         flagged.push({
           category_id: category,
           current_cents: now,
@@ -217,7 +219,8 @@ export function lumpyBills(
   const bills: LumpyBill[] = [];
   const totals = new Map<string, number>();
   for (const raw of series) {
-    if (typeof raw !== "object" || raw === null) throw new RuleError("invalid_series");
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+      throw new RuleError("invalid_series");
     const r = raw as Record<string, unknown>;
     const interval = r.interval;
     if (typeof interval !== "string" || !(INTERVALS as readonly string[]).includes(interval))
@@ -245,9 +248,7 @@ export function lumpyBills(
       occurrence = step(occurrence, interval);
     }
   }
-  bills.sort((a, b) =>
-    a.due_date !== b.due_date ? (a.due_date < b.due_date ? -1 : 1) : compareText(a.payee, b.payee),
-  );
+  bills.sort((a, b) => compareText(a.due_date, b.due_date) || compareText(a.payee, b.payee));
   return {
     bills,
     months: [...totals.keys()].sort().map((month) => ({
@@ -302,7 +303,7 @@ export function seasonal(
       if (!withEntries.has(lastYear)) continue;
       const spent = byMonth.get(lastYear) ?? 0;
       const increase = spent - usual;
-      if (increase >= floorCents && spent * 10000 >= usual * (10000 + floorBps)) {
+      if (increase >= floorCents && mul(spent, 10000) >= mul(usual, 10000 + floorBps)) {
         flagged.push({
           month: monthKey(month),
           last_year_month: lastYear,
