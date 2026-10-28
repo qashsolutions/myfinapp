@@ -761,6 +761,8 @@ export interface SeriesInput {
   expected_cents: number;
   interval: "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly";
   next_date: string;
+  /** The day of the month a monthly series keeps (31 = the last day); forecast.upcoming. */
+  day?: number;
 }
 
 export interface UpcomingItem {

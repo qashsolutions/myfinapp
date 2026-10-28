@@ -17,6 +17,9 @@ test("@phone swipe an entry to Don't count and undo, arrange Home, the bills cal
 
   // Swipe left on an entry: the actions show; Don't count, then Undo.
   const row = page.getByRole("button", { name: /CORNER MKT #214/ });
+  // Mid-screen first, as a person would scroll it: at the list's end it can sit under the
+  // phone's tab bar, and a swipe there lands on the bar.
+  await row.evaluate((el) => el.scrollIntoView({ block: "center" }));
   const box = await row.boundingBox();
   if (!box) throw new Error("no row");
   const y = box.y + box.height / 2;
@@ -52,8 +55,11 @@ test("@phone swipe an entry to Don't count and undo, arrange Home, the bills cal
     .getByLabel(/paycheck/i)
     .first()
     .fill("2600");
-  await page.getByRole("radio", { name: "Twice a month" }).check();
-  await page.getByLabel("Next payday").fill(payday);
+  await page.getByRole("radio", { name: "Every 2 weeks" }).check();
+  // A suggested date is picked already; this one is the person's own.
+  await page.getByLabel("Next payday, your own date").fill(payday);
+  await page.getByRole("button", { name: "Use", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText(`Next paydays ${dayLabel(payday)}`);
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText(/Needs · 50%/)).toBeVisible();

@@ -1,9 +1,19 @@
 import { Button, Card, Chip } from "@stackd/ui";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { BudgetMethod, PayFrequency, PaySettings } from "../../data/db.ts";
-import { budgetTargets, EngineError, monthlyTakeHome, parseAmount } from "../../engine/bridge.ts";
-import { formatCents, formatDay } from "../../lib/format.ts";
+import {
+  budgetTargets,
+  EngineError,
+  monthlyTakeHome,
+  nextPaydays,
+  parseAmount,
+} from "../../engine/bridge.ts";
+import { addDaysIso } from "../../lib/dates.ts";
+import { formatCents, todayIso } from "../../lib/format.ts";
+import { PaydayPicker, type PaydayValue } from "./PaydayPicker.tsx";
+import { payDaysOf, scheduleFor } from "./payDays.ts";
 import { type Split, SUGGESTED, splitFromPercents } from "./split.ts";
 import { createBudget } from "./useBudget.ts";
 
@@ -42,6 +52,12 @@ export function BudgetSetup({
   const [amount, setAmount] = useState("");
   const [frequency, setFrequency] = useState<PayFrequency>("biweekly");
   const [nextPayday, setNextPayday] = useState("");
+  const [days, setDays] = useState<number[] | null>(null);
+  const today = todayIso();
+  const setPayday = useCallback((v: PaydayValue) => {
+    setNextPayday(v.nextPayday);
+    setDays(v.days);
+  }, []);
   const [monthly, setMonthly] = useState<number | null>(existing?.take_home_cents ?? null);
   const [method, setMethod] = useState<BudgetMethod>(existing?.method ?? "50_30_20");
   const [targets, setTargets] = useState<{ need: number; want: number; save: number } | null>(null);
@@ -71,6 +87,7 @@ export function BudgetSetup({
       setAmount((pay.amount_cents / 100).toFixed(2));
       setFrequency(pay.frequency);
       setNextPayday(pay.next_payday ?? "");
+      setDays(payDaysOf(pay));
       setMonthly((m) => m ?? pay.monthly_cents);
     });
     return () => {
@@ -128,11 +145,20 @@ export function BudgetSetup({
       return;
     }
     const m = await monthlyTakeHome(cents, frequency);
+    // Twice a month and monthly keep their days; next_payday is the first of them from today.
+    const weeklyKind = frequency === "weekly" || frequency === "biweekly";
+    const schedule = scheduleFor(
+      frequency,
+      weeklyKind ? nextPayday || null : null,
+      weeklyKind ? null : days,
+    );
+    const first = schedule ? (await nextPaydays(addDaysIso(today, -1), schedule, 1))[0] : undefined;
     const pay: PaySettings = {
       amount_cents: cents,
       frequency,
-      next_payday: nextPayday || null,
+      next_payday: (weeklyKind ? nextPayday : first) || null,
       monthly_cents: m,
+      days: weeklyKind ? null : days,
     };
     await db.settings.put({ key: "pay", value: pay, updated_at: new Date().toISOString() });
     setMonthly(m);
@@ -185,20 +211,30 @@ export function BudgetSetup({
   if (step === "pay") {
     return (
       <>
-        <h2 className="auth__title">What do you take home?</h2>
-        <p className="auth__lead">
-          Your pay after tax. It stays on this device and powers your budget and forecast.
-        </p>
+        <h2 className="auth__title">Your pay</h2>
+        {/* One word first (owner, October 25 and 28, 2026): the value, then one short line. */}
+        <Card as="section" aria-label="Your pay a month" className="pay-hero">
+          <Word>{monthly !== null && amount.trim() ? "Monthly" : "Start"}</Word>
+          {monthly !== null && amount.trim() ? (
+            <p className="sk-card__hero pay-hero__value">
+              {formatCents(monthly)} <span className="pay-hero__unit">a month</span>
+            </p>
+          ) : (
+            <p className="sk-card__hero sk-card__hero--empty">What you take home</p>
+          )}
+          <p className="sk-card__eyebrow">After tax. Stays on this phone.</p>
+        </Card>
         <div className="fields">
           <div className="field">
             <label className="field__label" htmlFor={`${ids}-amount`}>
-              Each paycheck
+              Paycheck
             </label>
             <input
               id={`${ids}-amount`}
               className="field__input"
               inputMode="decimal"
               placeholder="2,600.00"
+              aria-describedby={`${ids}-amount-hint`}
               value={amount}
               onChange={(e) => {
                 touched.current = true;
@@ -206,10 +242,11 @@ export function BudgetSetup({
               }}
             />
           </div>
+          <p className="auth__hint" id={`${ids}-amount-hint`}>
+            Pay changes? Use an average.
+          </p>
           <fieldset className="pay-freqs" style={{ border: 0, margin: 0, padding: "12px 0" }}>
-            <legend className="field__label" style={{ marginBottom: 8 }}>
-              How often are you paid?
-            </legend>
+            <legend className="field__label pay-freqs__legend">How often are you paid?</legend>
             {FREQUENCIES.map(([value, label]) => (
               <label className="chip-option" key={value}>
                 <input
@@ -227,32 +264,18 @@ export function BudgetSetup({
               </label>
             ))}
           </fieldset>
-          <div className="field">
-            <label className="field__label" htmlFor={`${ids}-payday`}>
-              Next payday
-            </label>
-            <input
-              id={`${ids}-payday`}
-              className="field__input"
-              type="date"
-              value={nextPayday}
-              onChange={(e) => {
-                touched.current = true;
-                setNextPayday(e.target.value);
-              }}
-            />
-          </div>
+          <PaydayPicker
+            frequency={frequency}
+            value={{ nextPayday, days }}
+            today={today}
+            onChange={(v) => {
+              touched.current = true;
+              setNextPayday(v.nextPayday);
+              setDays(v.days);
+            }}
+            onDefault={setPayday}
+          />
         </div>
-        <p className="auth__hint" role="status">
-          {monthly !== null && amount.trim() ? (
-            <>
-              That's about <strong>{formatCents(monthly)} a month</strong>
-              {nextPayday ? ` · next payday ${formatDay(nextPayday)}` : ""}
-            </>
-          ) : (
-            "My income changes? Use an average paycheck."
-          )}
-        </p>
         {error ? (
           <p className="auth__error" role="alert">
             {error}

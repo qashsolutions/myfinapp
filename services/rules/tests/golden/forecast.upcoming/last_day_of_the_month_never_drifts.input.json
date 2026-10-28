@@ -1,0 +1,24 @@
+{
+  "series": [
+    {
+      "id": "kept",
+      "payee": "Paycheck",
+      "kind": "income",
+      "expected_cents": 260000,
+      "interval": "monthly",
+      "next_date": "2026-10-31",
+      "day": 31
+    },
+    {
+      "id": "drifts",
+      "payee": "Rent",
+      "kind": "bill",
+      "expected_cents": 150000,
+      "interval": "monthly",
+      "next_date": "2026-10-31"
+    }
+  ],
+  "entries": [],
+  "as_of": "2026-10-20",
+  "days": 140
+}

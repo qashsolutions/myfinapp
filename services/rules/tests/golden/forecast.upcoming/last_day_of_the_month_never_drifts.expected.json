@@ -1,0 +1,96 @@
+{
+  "start": "2026-10-20",
+  "end": "2027-03-09",
+  "items": [
+    {
+      "date": "2026-10-31",
+      "series_id": "kept",
+      "payee": "PAYCHECK",
+      "kind": "income",
+      "amount_cents": 260000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2026-10-31",
+      "series_id": "drifts",
+      "payee": "RENT",
+      "kind": "bill",
+      "amount_cents": 150000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2026-11-30",
+      "series_id": "kept",
+      "payee": "PAYCHECK",
+      "kind": "income",
+      "amount_cents": 260000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2026-11-30",
+      "series_id": "drifts",
+      "payee": "RENT",
+      "kind": "bill",
+      "amount_cents": 150000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2026-12-30",
+      "series_id": "drifts",
+      "payee": "RENT",
+      "kind": "bill",
+      "amount_cents": 150000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2026-12-31",
+      "series_id": "kept",
+      "payee": "PAYCHECK",
+      "kind": "income",
+      "amount_cents": 260000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2027-01-30",
+      "series_id": "drifts",
+      "payee": "RENT",
+      "kind": "bill",
+      "amount_cents": 150000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2027-01-31",
+      "series_id": "kept",
+      "payee": "PAYCHECK",
+      "kind": "income",
+      "amount_cents": 260000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2027-02-28",
+      "series_id": "kept",
+      "payee": "PAYCHECK",
+      "kind": "income",
+      "amount_cents": 260000,
+      "matched": false,
+      "entry_id": null
+    },
+    {
+      "date": "2027-02-28",
+      "series_id": "drifts",
+      "payee": "RENT",
+      "kind": "bill",
+      "amount_cents": 150000,
+      "matched": false,
+      "entry_id": null
+    }
+  ]
+}

@@ -122,6 +122,8 @@ interface SeriesIn {
   interval: Interval;
   cents: number;
   next: Day;
+  /** The day of the month a monthly, quarterly or yearly series keeps (31 = the last day). */
+  day: number | null;
 }
 
 function series(raw: unknown): SeriesIn {
@@ -134,7 +136,14 @@ function series(raw: unknown): SeriesIn {
     throw new RuleError("invalid_interval");
   const cents = assertInt(r.expected_cents);
   if (cents < 0) throw new RuleError("invalid_amount");
+  let keep: number | null = null;
+  if (r.day !== undefined && r.day !== null) {
+    keep = assertInt(r.day, "invalid_series");
+    if (keep < 1 || keep > 31 || r.interval === "weekly" || r.interval === "biweekly")
+      throw new RuleError("invalid_series");
+  }
   return {
+    day: keep,
     id: r.id,
     payee: cleanDescription(r.payee),
     kind: r.kind,
@@ -160,6 +169,12 @@ export interface Upcoming {
   items: UpcomingItem[];
 }
 
+/** One step on, back on the series' own day of the month when it has one (clamped). */
+function nextOf(day: Day, s: SeriesIn): Day {
+  const stepped = step(day, s.interval);
+  return s.day === null ? stepped : { ...stepped, d: Math.min(s.day, daysInMonth(stepped)) };
+}
+
 export function upcoming(
   rawSeries: unknown,
   rawEntries: unknown,
@@ -176,7 +191,7 @@ export function upcoming(
   const items: Array<UpcomingItem & { day: Day }> = [];
   for (const s of rawSeries.map(series)) {
     let day = s.next;
-    while (iso(day) < todayIso) day = step(day, s.interval);
+    while (iso(day) < todayIso) day = nextOf(day, s);
     while (iso(day) <= endIso) {
       items.push({
         day,
@@ -188,7 +203,7 @@ export function upcoming(
         matched: false,
         entry_id: null,
       });
-      day = step(day, s.interval);
+      day = nextOf(day, s);
     }
   }
   items.sort(

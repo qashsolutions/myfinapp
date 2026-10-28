@@ -23,7 +23,9 @@ import {
   type Upcoming,
   upcomingItems,
 } from "../../engine/bridge.ts";
+import { addDaysIso } from "../../lib/dates.ts";
 import { compareText } from "../../lib/order.ts";
+import { payDaysOf } from "../budget/payDays.ts";
 import { useBudget } from "../budget/useBudget.ts";
 import { toRecurringEntry } from "./useRecurring.ts";
 
@@ -45,25 +47,44 @@ export interface ForecastView {
   needsBalance: boolean;
 }
 
-/** Budget's pay settings as income series the forecast can expand. */
+/**
+ * Budget's pay settings as income series the forecast can expand. Twice a month and monthly are
+ * one monthly series per payday, each keeping its own day of the month (`day`, so the 31st stays
+ * the last day); a payday today counts.
+ */
 export async function payAsSeries(
   pay: PaySettings | undefined,
   asOf: string,
 ): Promise<SeriesInput[]> {
   if (!pay?.next_payday || pay.amount_cents <= 0) return [];
   const base = { payee: "Paycheck", kind: "income" as const, expected_cents: pay.amount_cents };
-  if (pay.frequency === "semimonthly") {
-    const d = Number(pay.next_payday.slice(8, 10));
-    const days = d <= 15 ? [d, d + 15] : [d - 15, d];
-    const dates = await nextPaydays(asOf, { kind: "monthly_days", days }, 2);
-    return dates.map((next, i) => ({
-      ...base,
-      id: `pay-${i}`,
-      interval: "monthly",
-      next_date: next,
-    }));
+  const days = payDaysOf(pay);
+  if (!days)
+    return [
+      {
+        ...base,
+        id: "pay",
+        interval: pay.frequency as "weekly" | "biweekly",
+        next_date: pay.next_payday,
+      },
+    ];
+  const out: SeriesInput[] = [];
+  for (const [i, day] of days.entries()) {
+    const [next] = await nextPaydays(
+      addDaysIso(asOf, -1),
+      { kind: "monthly_days", days: [day] },
+      1,
+    );
+    if (next)
+      out.push({
+        ...base,
+        id: days.length === 1 ? "pay" : `pay-${i}`,
+        interval: "monthly",
+        next_date: next,
+        day,
+      });
   }
-  return [{ ...base, id: "pay", interval: pay.frequency, next_date: pay.next_payday }];
+  return out;
 }
 
 export function pickAccount(
@@ -205,7 +226,11 @@ export function useForecast(asOf: string, days = FORECAST_DAYS): ForecastView {
       for (const s of confirmed)
         series.set(s.id, { label: s.label, interval: s.interval, source: "confirmed" });
       for (const p of pay)
-        series.set(p.id, { label: "Paycheck", interval: p.interval, source: "pay" });
+        series.set(p.id, {
+          label: "Paycheck",
+          interval: settings.pay?.frequency === "semimonthly" ? "twice a month" : p.interval,
+          source: "pay",
+        });
       setView({
         loading: false,
         account,

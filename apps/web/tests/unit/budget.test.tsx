@@ -85,13 +85,13 @@ describe("Budget", () => {
     const user = userEvent.setup();
     const db = await seedOctober();
     await renderSignedIn("/budget");
-    expect(
-      await screen.findByRole("heading", { name: "What do you take home?" }),
-    ).toBeInTheDocument();
-    await user.type(screen.getByLabelText("Each paycheck"), "5200");
+    expect(await screen.findByRole("heading", { name: "Your pay" })).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Paycheck"), "5200");
     await user.click(screen.getByRole("radio", { name: "Monthly" }));
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("That's about $5,200.00 a month"),
+      expect(screen.getByRole("region", { name: "Your pay a month" })).toHaveTextContent(
+        "$5,200.00 a month",
+      ),
     );
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
@@ -141,7 +141,7 @@ describe("Budget", () => {
     const user = userEvent.setup();
     const db = await seedOctober();
     await renderSignedIn("/budget");
-    await user.type(await screen.findByLabelText("Each paycheck"), "5200");
+    await user.type(await screen.findByLabelText("Paycheck"), "5200");
     await user.click(screen.getByRole("radio", { name: "Monthly" }));
     await user.click(screen.getByRole("button", { name: "Continue" }));
     await screen.findByRole("heading", { name: "Pick a budget style" });
@@ -176,14 +176,18 @@ describe("Budget", () => {
     const user = userEvent.setup();
     await seedOctober();
     await renderSignedIn("/budget");
-    await user.type(await screen.findByLabelText("Each paycheck"), "2,600");
+    await user.type(await screen.findByLabelText("Paycheck"), "2,600");
     await user.click(screen.getByRole("radio", { name: "Every 2 weeks" }));
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("That's about $5,633.33 a month"),
+      expect(screen.getByRole("region", { name: "Your pay a month" })).toHaveTextContent(
+        "$5,633.33 a month",
+      ),
     );
     await user.click(screen.getByRole("radio", { name: "Weekly" }));
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("That's about $11,266.67 a month"),
+      expect(screen.getByRole("region", { name: "Your pay a month" })).toHaveTextContent(
+        "$11,266.67 a month",
+      ),
     );
   });
 
@@ -203,12 +207,14 @@ describe("Budget", () => {
       updated_at: "2026-10-01T00:00:00Z",
     });
     await renderSignedIn("/budget");
-    const amount = await screen.findByLabelText("Each paycheck");
+    const amount = await screen.findByLabelText("Paycheck");
     await waitFor(() => expect(amount).toHaveValue("2600.00"));
     await user.clear(amount);
     await user.type(amount, "3,000");
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("That's about $6,500.00 a month"),
+      expect(screen.getByRole("region", { name: "Your pay a month" })).toHaveTextContent(
+        "$6,500.00 a month",
+      ),
     );
     expect(amount).toHaveValue("3,000");
   });

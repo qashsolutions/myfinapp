@@ -1,20 +1,19 @@
 import { expect, test } from "@playwright/test";
-import { isoInDays, readyAccount } from "./helpers.ts";
+import { readyAccount } from "./helpers.ts";
 
 test("budget your way, a jar, export, sign out and back in with the passkey, delete", async ({
   page,
 }) => {
   await readyAccount(page, "life");
 
-  // Budget: take-home, then your own split instead of 50/30/20; payday three days from today.
-  const payday = isoInDays(3);
+  // Budget: take-home, then your own split instead of 50/30/20; paid on the suggested 1st & 15th.
   await page.goto("/budget");
   await page
-    .getByLabel(/Each paycheck|paycheck/i)
+    .getByLabel(/paycheck/i)
     .first()
     .fill("2600");
   await page.getByRole("radio", { name: "Twice a month" }).check();
-  await page.getByLabel("Next payday").fill(payday);
+  await expect(page.getByRole("radio", { name: "1st & 15th" })).toBeChecked();
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByRole("heading", { name: "Pick a budget style" })).toBeVisible();
   await page.getByLabel("Needs, percent of pay").fill("60");

@@ -194,3 +194,52 @@
   text-align: center;
   font-weight: 700;
 }
+
+/* Your pay (October 28, 2026): the monthly figure first, then when you're paid. */
+.pay-hero {
+  gap: 4px;
+}
+.pay-hero__value {
+  font-size: clamp(34px, 10vw, 48px);
+}
+.pay-hero__unit {
+  font-size: 0.42em;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.pay-freqs__legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+.payday {
+  display: grid;
+  gap: 8px;
+  padding: 4px 0 14px;
+}
+.payday__pick {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.payday__days {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.payday__day {
+  display: grid;
+  gap: 4px;
+}
+.payday__next {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--c-ink);
+}
+.payday__next strong {
+  font-variant-numeric: tabular-nums;
+}
+.payday__pick legend {
+  padding: 0;
+}

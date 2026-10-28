@@ -208,6 +208,11 @@ export interface PaySettings {
   frequency: PayFrequency;
   next_payday: string | null;
   monthly_cents: number;
+  /**
+   * Twice a month: the two days; monthly: the one day (31 = the last day). Chosen by the person
+   * (October 28, 2026); unset on pay saved before then, which keeps its old reading.
+   */
+  days?: number[] | null;
 }
 
 export type GoalKind = "save" | "payoff" | "spend_less" | "habit";
