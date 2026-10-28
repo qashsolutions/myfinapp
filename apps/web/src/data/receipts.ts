@@ -283,7 +283,31 @@ export async function removeReceipt(db: StackdDb, receiptId: string): Promise<vo
   });
 }
 
-/** Retention: the photo goes, the receipt record and the entry stay. */
+/** Every receipt photo still on this device, and how many a person removing them all removes. */
+export async function deleteAllReceiptPhotos(db: StackdDb): Promise<number> {
+  const withPhoto = await db.receipts.filter((r) => r.file_id !== null).primaryKeys();
+  for (const id of withPhoto) await removeReceipt(db, id);
+  return withPhoto.length;
+}
+
+/** How many photos still here a change to `retention` would remove today. */
+export async function photosRemovedBy(
+  db: StackdDb,
+  retention: ReceiptRetention,
+  today: string,
+): Promise<number> {
+  let n = 0;
+  for (const r of await db.receipts.filter((r) => r.file_id !== null).toArray()) {
+    const due = await purgeDateFor(retention, r.created_at.slice(0, 10));
+    if (due !== null && due <= today) n += 1;
+  }
+  return n;
+}
+
+/**
+ * Retention: the photo goes, and with it the text read from it; the receipt record and the
+ * entry stay, so nothing derived from a deleted photo is left (October 28, 2026).
+ */
 export async function removeReceiptPhoto(db: StackdDb, receiptId: string): Promise<void> {
   const receipt = await db.receipts.get(receiptId);
   if (!receipt) return;
@@ -291,6 +315,8 @@ export async function removeReceiptPhoto(db: StackdDb, receiptId: string): Promi
     if (receipt.file_id) await db.files.delete(receipt.file_id);
     await db.receipts.update(receiptId, {
       file_id: null,
+      ocr_text: null,
+      ocr_engine_version: null,
       purged_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });

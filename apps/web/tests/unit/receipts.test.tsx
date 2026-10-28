@@ -281,6 +281,13 @@ describe("receipt photos", () => {
       expect((await db.receipts.toArray())[0]?.purge_after).toBe("2027-01-08"),
     );
 
+    // Text read from the photo goes with the photo when its time runs out
+    const rid = (await db.receipts.toArray())[0]?.id ?? "";
+    await db.receipts.update(rid, {
+      ocr_text: "CORNER MARKET TOTAL 9.50",
+      ocr_engine_version: "x",
+    });
+
     // 91 days later the app opens: the photo goes, the receipt row and the entry stay
     vi.setSystemTime(new Date("2027-01-09T09:00:00"));
     renderApp("/");
@@ -289,7 +296,124 @@ describe("receipt photos", () => {
     const receipt = (await db.receipts.toArray())[0];
     expect(receipt).toMatchObject({ file_id: null, status: "confirmed" });
     expect(receipt?.purged_at).not.toBeNull();
+    expect(receipt?.ocr_text ?? null).toBeNull();
+    expect(receipt?.ocr_engine_version ?? null).toBeNull();
     expect(await db.entries.count()).toBe(1);
     expect((await db.entries.toArray())[0]?.amount_cents).toBe(950);
+  });
+  async function seedPhoto(db: ReturnType<typeof openDb>, n: number, created: string) {
+    await db.files.add({
+      id: `f${n}`,
+      kind: "receipt",
+      import_id: null,
+      name: `p${n}.jpg`,
+      type: "image/jpeg",
+      size: 3,
+      blob: new Blob([new Uint8Array([1, 2, 3])]),
+      created_at: created,
+    });
+    await db.receipts.add({
+      id: `r${n}`,
+      entry_id: `e${n}`,
+      file_id: `f${n}`,
+      status: "confirmed",
+      purge_after: null,
+      purged_at: null,
+      ocr_text: "TOTAL 1.00",
+      ocr_engine_version: "x",
+      created_at: created,
+      updated_at: created,
+    });
+    await db.entries.add({
+      id: `e${n}`,
+      date: created.slice(0, 10),
+      amount_cents: 100 * n,
+      direction: "out",
+      merchant: `Shop ${n}`,
+      clean_description: `SHOP ${n}`,
+      raw_description: null,
+      category_id: "cat-groceries",
+      account_id: "acct-cash",
+      source: "manual",
+      receipt_id: `r${n}`,
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      split_parent_id: null,
+      is_recurring: false,
+      created_at: created,
+      updated_at: created,
+    });
+  }
+
+  it("Delete all receipt photos asks in a sheet with the real count, then removes photos and their records", async () => {
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    await db.settings.put({ key: "receipts.retention", value: "forever", updated_at: "" });
+    await seedPhoto(db, 1, "2026-10-01T10:00:00Z");
+    await seedPhoto(db, 2, "2026-10-02T10:00:00Z");
+    renderApp("/me/data");
+    const section = await screen.findByRole("region", { name: "Receipt photos" });
+    await user.click(
+      await within(section).findByRole("button", { name: "Delete all receipt photos" }),
+    );
+    const sheet = await screen.findByRole("dialog", { name: "Delete all receipt photos?" });
+    expect(sheet).toHaveTextContent("This removes 2 photos from this phone, for good.");
+    expect(sheet).toHaveTextContent(
+      "We don't keep a copy, and they aren't in your backup, so there's no way to get them back.",
+    );
+    expect(sheet).toHaveTextContent("Your entries and amounts stay.");
+    expect(within(sheet).getByRole("button", { name: "Keep them" })).toHaveFocus();
+    await user.click(within(sheet).getByRole("button", { name: "Keep them" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(await db.receipts.count()).toBe(2);
+
+    await user.click(within(section).getByRole("button", { name: "Delete all receipt photos" }));
+    const again = await screen.findByRole("dialog", { name: "Delete all receipt photos?" });
+    await user.click(within(again).getByRole("button", { name: "Delete 2 photos" }));
+    expect(
+      await within(section).findByText("2 photos deleted from this phone."),
+    ).toBeInTheDocument();
+    expect(await db.receipts.count()).toBe(0);
+    expect(await db.files.count()).toBe(0);
+    expect((await db.entries.toArray()).map((e) => [e.amount_cents, e.receipt_id])).toEqual([
+      [100, null],
+      [200, null],
+    ]);
+    // Nothing left to delete: the button says so
+    expect(within(section).getByRole("button", { name: "No photos to delete" })).toBeDisabled();
+  });
+
+  it("a shorter keep time that would delete photos asks first; Keep them leaves the setting as it was", async () => {
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    await db.settings.put({ key: "receipts.retention", value: "forever", updated_at: "" });
+    await seedPhoto(db, 1, "2026-03-01T10:00:00Z"); // 223 days old
+    renderApp("/me/data");
+    const section = await screen.findByRole("region", { name: "Receipt photos" });
+    // 1 year deletes nothing: no sheet, it just applies
+    await user.click(within(section).getByRole("radio", { name: "1 year" }));
+    await waitFor(async () =>
+      expect((await db.settings.get("receipts.retention"))?.value).toBe("1y"),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await user.click(within(section).getByRole("radio", { name: "90 days" }));
+    const sheet = await screen.findByRole("dialog", { name: "Delete older receipt photos?" });
+    expect(sheet).toHaveTextContent("This deletes 1 photo older than 90 days, for good.");
+    expect(sheet).toHaveTextContent("Your entries and amounts stay.");
+    await user.click(within(sheet).getByRole("button", { name: "Keep them" }));
+    expect((await db.settings.get("receipts.retention"))?.value).toBe("1y");
+    expect(within(section).getByRole("radio", { name: "1 year" })).toBeChecked();
+    expect(await db.files.count()).toBe(1);
+
+    await user.click(within(section).getByRole("radio", { name: "90 days" }));
+    const again = await screen.findByRole("dialog", { name: "Delete older receipt photos?" });
+    await user.click(within(again).getByRole("button", { name: "Delete 1 photo" }));
+    await waitFor(async () => expect(await db.files.count()).toBe(0));
+    expect((await db.settings.get("receipts.retention"))?.value).toBe("90d");
+    // Retention keeps the record, without the text read from the photo
+    expect(await db.receipts.get("r1")).toMatchObject({ file_id: null, ocr_text: null });
+    expect(await db.entries.get("e1")).toMatchObject({ receipt_id: "r1" });
   });
 });

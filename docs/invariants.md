@@ -113,7 +113,7 @@ written against both.
     card details and its net worth choice (with a tombstone where the table syncs); an entry
     takes its split parts (a part's parts too) and its receipt and photo, also when the bank
     removes it; a photo replaced on an entry takes its old receipt, and so does one the person
-    removes (retention takes only the photo). Nothing is left on the device that no screen can
+    removes, one or all (retention takes the photo and the text read from it). Nothing is left on the device that no screen can
     reach.
     `settings-data.test.tsx` "manages accounts…" · `entries.test.tsx` "edits and deletes an
     entry…", "deleting a split entry…" · `linked-sync.test.tsx` "a row the bank removes takes
