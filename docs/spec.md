@@ -497,7 +497,7 @@ Rules:
 
 ### Founding member offer (day 1)
 
-- **$150 one-time for 4 years of Connected** — $37.50 a year, about 42% below Connected yearly ($65; 61% below the earlier $95.88). The first 250 only (200 until October 22, 2026). Places taken are counted one way everywhere (`entitlements.founding_taken`: every Founding purchase except a failed bank payment, `expired`), by the pricing page, the Plan screen, checkout and the webhook that grants it; the webhook counts and takes the place under one lock for the whole offer, so two buyers paying for the last place at once never both get it (October 25, 2026).
+- **$150 one-time for 4 years of Connected** — $37.50 a year, about 42% below Connected yearly ($65; 61% below the earlier $95.88). The first 250 only (200 until October 22, 2026). Places taken are counted one way everywhere (`entitlements.founding_taken`: every Founding purchase except a failed bank payment, `expired`; a place refunded because its bank payment cleared after the account was deleted stays taken, owner decision October 28, 2026), by the pricing page, the Plan screen, checkout and the webhook that grants it; the webhook counts and takes the place under one lock for the whole offer, so two buyers paying for the last place at once never both get it (October 25, 2026).
 - Sold only on the website and PWA through Stripe; Apple and Google subscriptions don't support a 4-year term, so the native apps honour it but don't sell it.
 - Includes every Connected feature from day 1: read-only bank and card linking (up to 3 connections), couples / household.
 - Doesn't auto-renew. 30 days before the end, the member chooses a plan; nothing is deleted.
