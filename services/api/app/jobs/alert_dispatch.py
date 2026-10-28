@@ -29,7 +29,7 @@ from app.jobs import weekly_recap
 from app.models.notification import AlertSchedule, NotificationLog, PushSubscription
 from app.models.user import User
 from app.rules_server import notify as notify_rules
-from app.services import push
+from app.services import ops_alerts, push
 from app.services.alerts import (
     SUMMARY_LABEL,
     SUMMARY_LABEL_ONE,
@@ -79,14 +79,20 @@ def _deliver(db: DbSession, user_id: uuid.UUID, payload: dict, now: datetime) ->
     ):
         try:
             status = push.deliver(push.decrypt_subscription(sub.payload_encrypted), payload)
-        except Exception:  # noqa: BLE001 - one bad endpoint must not stop the run
+        except Exception as exc:  # noqa: BLE001 - one bad endpoint must not stop the run
             log.exception("push failed")
+            # A bad VAPID key or a refused host fails every push: a person hears of it
+            # (once per kind and place an hour, ops_alerts), never silence (invariant 11).
+            ops_alerts.report("push_failed", "alert_dispatch.deliver", exc)
             continue
         if status in (404, 410):
-            sub.revoked_at = now
+            sub.revoked_at = now  # the subscription went away: nothing for a person to do
         elif 200 <= status < 300:
             sub.last_used_at = now
             delivered += 1
+        else:
+            # 401 / 403 is the push service refusing our key; 429 / 5xx it being down.
+            ops_alerts.report("push_rejected", f"alert_dispatch.deliver: HTTP {status}", None)
     return delivered
 
 

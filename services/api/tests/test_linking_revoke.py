@@ -93,9 +93,18 @@ def test_sixty_days_without_opening_the_app_revokes_and_tells_the_owner(fake: Fa
     client, user_id, conn_id, access = linked(fake)
     age(conn_id, 59)
     assert run_job()["dormant_revoked"] == 0
-    # Opening the app (GET /api/linking, which LinkedSync calls) counts as use.
+    # Reading the list changes nothing (a cross-site GET carries the cookie too, October 28,
+    # 2026); opening the app pulls (LinkedSync's POST .../sync), and that counts as use.
     age(conn_id, 61)
-    client.get("/api/linking")
+    assert client.get("/api/linking").status_code == 200
+    assert row(conn_id).last_used_at < datetime.now(UTC) - timedelta(days=60)
+    assert client.post(f"/api/linking/{conn_id}/sync", json={}).status_code == 200
+    assert run_job()["dormant_revoked"] == 0
+    # Even when the bank wants the person to sign in again, opening the app counted.
+    age(conn_id, 61)
+    fake.sync_error = "ITEM_LOGIN_REQUIRED"
+    assert client.post(f"/api/linking/{conn_id}/sync", json={}).status_code == 409
+    fake.sync_error = None
     assert run_job()["dormant_revoked"] == 0
     age(conn_id, 61)
     outbox().clear()

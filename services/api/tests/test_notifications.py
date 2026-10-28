@@ -565,6 +565,97 @@ def test_a_deleted_account_gets_no_pushes_and_no_recap_email() -> None:
     assert not [m for m in outbox() if "recap" in m.subject.lower()]
 
 
+def test_push_subscriptions_keep_the_newest_ten_per_person() -> None:
+    """A person's live subscriptions are capped (10, proposed October 28, 2026): an 11th
+    revokes the one registered longest ago, so a script can't make every alert fan out."""
+    client, user_id = member("many")
+    browsers = [FakeBrowser() for _ in range(11)]
+    for b in browsers:
+        r = client.post("/api/notifications/push", json=b.subscription())
+        assert r.status_code == 201, r.text
+
+    def live() -> set[str]:
+        with get_session_factory()() as s:
+            rows = s.scalars(
+                select(PushSubscription).where(
+                    PushSubscription.user_id == uuid.UUID(user_id),
+                    PushSubscription.revoked_at.is_(None),
+                )
+            ).all()
+            return {push.decrypt_subscription(r.payload_encrypted)["endpoint"] for r in rows}
+
+    assert live() == {b.endpoint for b in browsers[1:]}
+    # Registering the first again brings it back and lets the next oldest go.
+    assert client.post("/api/notifications/push", json=browsers[0].subscription()).status_code == (
+        201
+    )
+    assert live() == {b.endpoint for b in [browsers[0], *browsers[2:]]}
+
+
+def test_push_failures_reach_the_admins_but_a_gone_endpoint_does_not(monkeypatch) -> None:
+    """Invariant 11, an error never fails silently: a push service refusing us (a bad VAPID
+    key answers 401 / 403) or a push we can't even build is reported through ops_alerts (which
+    sends one email per kind and place an hour); a 404 / 410 is a subscription that went away,
+    revoked quietly as before."""
+    from app.services import ops_alerts
+
+    reports: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        ops_alerts, "report", lambda kind, where, exc, **_: reports.append((kind, where)) or True
+    )
+    client, user_id = member("pushy")
+    browser = FakeBrowser()
+    push.transport_override = browser.transport()
+    assert client.post("/api/notifications/push", json=browser.subscription()).status_code == 201
+    client.put(
+        "/api/notifications/settings",
+        json={"settings": {"quiet_start": "00:00", "quiet_end": "00:00", "timezone": "UTC"}},
+    )
+    now = datetime(2026, 10, 10, 12, 0, tzinfo=UTC)
+
+    def due(key: str) -> None:
+        items = [
+            {
+                "due_at": (now - timedelta(minutes=5)).isoformat(),
+                "type": "upcoming_expense",
+                "dedupe_key": key,
+            }
+        ]
+        assert client.put("/api/alerts/schedule", json={"items": items}).status_code == 200
+
+    browser.status = 403
+    due("upcoming:a:2026-10-25")
+    with get_session_factory()() as s:
+        dispatch_due(s, now=now)
+    assert ("push_rejected", "alert_dispatch.deliver: HTTP 403") in reports
+
+    reports.clear()
+
+    def broken(*_a, **_k):
+        raise ValueError("Could not deserialize key data")
+
+    monkeypatch.setattr(push, "build_request", broken)
+    due("upcoming:b:2026-10-25")
+    with get_session_factory()() as s:
+        dispatch_due(s, now=now)
+    assert ("push_failed", "alert_dispatch.deliver") in reports
+    monkeypatch.undo()
+    monkeypatch.setattr(
+        ops_alerts, "report", lambda kind, where, exc, **_: reports.append((kind, where)) or True
+    )
+
+    reports.clear()
+    browser.status = 410
+    due("upcoming:c:2026-10-25")
+    with get_session_factory()() as s:
+        dispatch_due(s, now=now)
+        subs = s.scalars(
+            select(PushSubscription).where(PushSubscription.user_id == uuid.UUID(user_id))
+        ).all()
+        assert all(sub.revoked_at is not None for sub in subs)
+    assert not [r for r in reports if "410" in r[1]]
+
+
 def test_weekly_recap_by_email_is_scheduled_by_the_server_and_sent_once() -> None:
     client, user_id = member("maya")
     r = client.put(

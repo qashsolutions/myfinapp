@@ -246,7 +246,7 @@ def approve(
     return StatusOut(status="approved")
 
 
-@router.post("/deny")
+@router.post("/deny", dependencies=[Depends(rate_limited("device_link_deny", key=session_or_ip))])
 def deny(
     body: CodeIn,
     request: Request,

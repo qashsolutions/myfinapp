@@ -103,7 +103,12 @@ def test_leaving_without_linking_is_cancelled(fake: FakePlaid) -> None:
     client, _ = member("maya")
     session_id = start(client, fake)
     r = client.post("/api/linking/finish", json={"session_id": session_id})
-    assert r.json() == {"status": "cancelled", "connections": [], "already_linked": []}
+    assert r.json() == {
+        "status": "cancelled",
+        "connections": [],
+        "already_linked": [],
+        "failed": [],
+    }
     assert client.get("/api/linking").json()["connections"] == []
 
 
@@ -205,6 +210,7 @@ def test_a_bank_already_connected_is_never_exchanged_again(fake: FakePlaid) -> N
         "status": "already_linked",
         "connections": [],
         "already_linked": ["First Platypus Bank"],
+        "failed": [],
     }
     assert len(fake.bodies("/item/public_token/exchange")) == exchanges  # Plaid's guidance
     assert len(outbox()) == alerts  # nothing new was connected
@@ -233,6 +239,104 @@ def test_a_disconnected_bank_can_be_linked_afresh(fake: FakePlaid) -> None:
     again = start(client, fake, "First Platypus Bank")
     out = client.post("/api/linking/finish", json={"session_id": again}).json()
     assert out["status"] == "linked"
+
+
+def _sealed_tokens(user_id: str) -> dict[str, str]:
+    """access token -> status, for every connection row the person has."""
+    with get_session_factory()() as db:
+        rows = db.scalars(
+            select(BankConnection).where(BankConnection.user_id == uuid.UUID(user_id))
+        ).all()
+        return {token_vault.open_(r.access_token_encrypted): r.status for r in rows}
+
+
+def _no_orphaned_token(fake: FakePlaid, user_id: str) -> None:
+    """Every access token Plaid issued is revoked there or sealed in a row of ours."""
+    sealed = _sealed_tokens(user_id)
+    for token in fake.access_tokens():
+        assert token in fake.removed or token in sealed, token
+
+
+def test_a_failed_account_read_after_the_exchange_never_orphans_the_token(fake: FakePlaid) -> None:
+    """Plaid bills an item while its access token lives: a token we hold is sealed in a row or
+    revoked at once, never dropped (docs/security/linking.md)."""
+    client, user_id = member("maya")
+    fake.accounts_error, fake.accounts_failures = "INTERNAL_SERVER_ERROR", 1
+    session_id = start(client, fake, "First Platypus Bank")
+    r = client.post("/api/linking/finish", json={"session_id": session_id})
+    assert r.status_code == 502
+    assert len(fake.access_tokens()) == 1
+    _no_orphaned_token(fake, user_id)
+    assert fake.removed == fake.access_tokens()  # revoked at once
+    assert client.get("/api/linking").json()["connections"] == []
+    # The person can link again straight away
+    again = start(client, fake, "First Platypus Bank")
+    assert client.post("/api/linking/finish", json={"session_id": again}).json()["status"] == (
+        "linked"
+    )
+
+
+def test_when_the_revoke_fails_too_the_token_is_sealed_for_the_retry_job(fake: FakePlaid) -> None:
+    client, user_id = member("maya")
+    fake.accounts_error, fake.accounts_failures = "INTERNAL_SERVER_ERROR", 1
+    fake.fail_remove = True
+    session_id = start(client, fake, "First Platypus Bank")
+    assert client.post("/api/linking/finish", json={"session_id": session_id}).status_code == 502
+    [token] = fake.access_tokens()
+    assert _sealed_tokens(user_id) == {token: "revoke_pending"}  # stackd-api revoke-links retries
+    assert client.get("/api/linking").json()["connections"] == []  # gone, as far as they know
+    fake.fail_remove = False
+    assert client_post_start(client).status_code == 200  # never counted against the plan
+    from app.jobs.link_revoke import revoke_due
+
+    with get_session_factory()() as db:
+        assert revoke_due(db)["pending_revoked"] >= 1
+    assert token in fake.removed and _sealed_tokens(user_id) == {}
+
+
+def test_one_bank_failing_keeps_the_others_it_linked(fake: FakePlaid) -> None:
+    client, user_id = member("maya")
+    session_id = start(client, fake, "Bank A", "Bank B")
+    fake.accounts_error = "INTERNAL_SERVER_ERROR"
+    # Bank A reads fine; Bank B's account read fails (the second /accounts/get call)
+    calls = {"n": 0}
+    transport = fake.transport()
+
+    def handle(request):
+        if request.url.path == "/accounts/get":
+            calls["n"] += 1
+            fake.accounts_failures = 1 if calls["n"] == 2 else 0
+        return transport.handle_request(request)
+
+    import httpx2
+
+    plaid.transport_override = httpx2.MockTransport(handle)
+    r = client.post("/api/linking/finish", json={"session_id": session_id})
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert [c["institution_name"] for c in out["connections"]] == ["Bank A"]
+    assert out["failed"] == ["Bank B"]
+    _no_orphaned_token(fake, user_id)
+    assert [c["institution_name"] for c in client.get("/api/linking").json()["connections"]] == [
+        "Bank A"
+    ]
+
+
+def test_an_item_someone_else_holds_is_revoked_even_when_plaid_is_down(fake: FakePlaid) -> None:
+    other, _ = member("lee")
+    theirs = start(other, fake, "First Platypus Bank")
+    [conn] = other.post("/api/linking/finish", json={"session_id": theirs}).json()["connections"]
+    with get_session_factory()() as db:
+        item_id = db.get(BankConnection, uuid.UUID(conn["id"])).item_id
+
+    client, user_id = member("maya")
+    session_id = start(client, fake, "First Platypus Bank")
+    fake.item_id = item_id
+    fake.fail_remove = True
+    r = client.post("/api/linking/finish", json={"session_id": session_id})
+    assert r.status_code == 502, r.text  # never a 500, and nothing of theirs is touched
+    assert _sealed_tokens(user_id) == {}
+    assert len(other.get("/api/linking").json()["connections"]) == 1
 
 
 def test_plaid_errors_log_the_request_id_and_nothing_else(

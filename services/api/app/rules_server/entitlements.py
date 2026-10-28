@@ -96,7 +96,8 @@ def access(db: DbSession, user: User, *, now: datetime | None = None) -> dict[st
     subscribed  a live paid plan (or Founding)
     trial       inside the free trial it picked; `card_from` is when the app starts asking for
                 a card, `trial_ends_at` when it ends
-    choose      a new account that has not picked a trial yet
+    choose      a new account that has not picked a trial yet; `trial_used` says its inbox
+                already had one (someone signing up again), so it can only buy a plan
     lapsed      a trial or paid period ended with no subscription: subscribe or export until
                 `delete_at`, then the account is deleted
     paused      a payment is disputed with the bank (owner decision, October 24, 2026): the
@@ -157,7 +158,10 @@ def access(db: DbSession, user: User, *, now: datetime | None = None) -> dict[st
         return {"state": "ended", "plan": "free", "ended_at": lost}
     ended = _ended_at(db, user, now)
     if ended is None:
-        return {"state": "choose", "plan": "free"}
+        used = db.scalar(
+            select(TrialClaim.id).where(TrialClaim.email_hash.in_(trial_hashes(user.email)))
+        )
+        return {"state": "choose", "plan": "free", "trial_used": used is not None}
     return {
         "state": "lapsed",
         "plan": "free",

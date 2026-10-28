@@ -16,7 +16,7 @@ import { CategorySheet } from "../categories/CategorySheet.tsx";
 import { ReceiptCard } from "../receipts/ReceiptCard.tsx";
 import { likeThis, renameEntry } from "./entryActions.ts";
 import { ENTRIES_PATH } from "./paths.ts";
-import { splitTree } from "./splits.ts";
+import { centsBackToParent, splitTree } from "./splits.ts";
 import { TagField } from "./TagField.tsx";
 import { NOTE_MAX } from "./tags.ts";
 import { findTransferPartner, releasePartners } from "./transfers.ts";
@@ -189,7 +189,28 @@ export function AddEntrySheet() {
         return;
       }
     }
+    // A part's amount comes out of the entry it was split from: a new amount moves the difference
+    // there, so the two still add up to the bank's row (rule 1).
+    const parentId = existing?.split_parent_id ?? null;
+    const back = parentId && existing ? existing.amount_cents - cents : 0;
+    if (parentId && back < 0) {
+      const parent = await db.entries.get(parentId);
+      if (parent && parent.amount_cents + back <= 0) {
+        setError("A part can't be more than what's left on the entry it was split from.");
+        return;
+      }
+    }
     const now = new Date().toISOString();
+    const giveBack = async () => {
+      if (!parentId || back === 0) return;
+      await db.entries
+        .where("id")
+        .equals(parentId)
+        .modify((p) => {
+          p.amount_cents += back;
+          p.updated_at = now;
+        });
+    };
     const name = merchant.trim() || (direction === "in" ? "Money in" : "Money out");
     const entry: Entry = {
       // Keep what this screen doesn't edit (a linked row's provider id and pending flag).
@@ -238,6 +259,7 @@ export function AddEntrySheet() {
       await db.transaction("rw", db.entries, async () => {
         await db.entries.put(entry);
         await db.entries.put(part);
+        await giveBack();
       });
       if (entry.category_id) await applyAlwaysRule(entry.id, entry.category_id);
       await attachReceipt(entry.id);
@@ -250,6 +272,7 @@ export function AddEntrySheet() {
       entry.transfer_pair_id = null;
       await db.transaction("rw", db.entries, async () => {
         await db.entries.put(entry);
+        await giveBack();
         const other = await db.entries.get(pairId);
         if (other?.transfer_pair_id === entry.id)
           await db.entries.put({
@@ -276,8 +299,13 @@ export function AddEntrySheet() {
           });
         }
         await db.entries.put(entry);
+        await giveBack();
       });
-    } else await db.entries.put(entry);
+    } else
+      await db.transaction("rw", db.entries, async () => {
+        await db.entries.put(entry);
+        await giveBack();
+      });
     // A new name for an imported entry can rename every entry like it, now and in future imports.
     if (existing && renamed && renameAll && alike > 0)
       await renameEntry(db, existing, entry.merchant, true);
@@ -317,7 +345,18 @@ export function AddEntrySheet() {
     await db.transaction("rw", [db.entries, db.tombstones, db.receipts, db.files], async () => {
       // Its split parts are pieces of it, so they go with it (a part's parts too)
       const parts = splitTree(await db.entries.filter((e) => !!e.split_parent_id).toArray());
-      const ids = [existing.id, ...parts([existing.id]).map((p) => p.id)];
+      const mine = parts([existing.id]);
+      const ids = [existing.id, ...mine.map((p) => p.id)];
+      // A part is a piece of the entry it was split from: its money (and its parts') goes back
+      // there, so the bank's row is still counted whole.
+      const self = await db.entries.get(existing.id);
+      const parent = self?.split_parent_id ? await db.entries.get(self.split_parent_id) : undefined;
+      if (self && parent)
+        await db.entries.put({
+          ...parent,
+          amount_cents: parent.amount_cents + centsBackToParent(self, mine),
+          updated_at: new Date().toISOString(),
+        });
       await deleteReceiptsOf(db, ids);
       await db.entries.bulkDelete(ids);
       await recordDeletion(db, "entries", ids);

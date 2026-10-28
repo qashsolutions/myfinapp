@@ -140,6 +140,16 @@ def test_deny_expiry_and_unknown_codes() -> None:
     assert new_client().get("/api/auth/link/status").status_code == 404  # no cookie
 
 
+def test_denying_counts_ten_a_day_per_signed_in_device() -> None:
+    """Like approving (rate_limit "device_link_approve"), a deny writes an audit row; a
+    scripted session can't fill the log or walk codes through it (October 28, 2026)."""
+    phone, _auth, _ = _phone()
+    codes = [
+        phone.post("/api/auth/link/deny", json={"code": "ZZZZ-ZZZZ"}).status_code for _ in range(11)
+    ]
+    assert codes == [404] * 10 + [429]
+
+
 def test_three_link_requests_an_hour_per_ip() -> None:
     computer = new_client(MAC_UA)
     for _ in range(3):

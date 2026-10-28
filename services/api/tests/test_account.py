@@ -34,7 +34,7 @@ def test_export_adds_account_and_groups_and_is_alerted() -> None:
     gid = client.post("/api/groups", json={"name": "October", "month": "2026-10"}).json()["id"]
     outbox().clear()
 
-    r = client.get("/api/account/export")
+    r = client.post("/api/account/export")
     assert r.status_code == 200, r.text
     data = r.json()
     assert data["profile"]["email"] == email
@@ -55,9 +55,28 @@ def test_export_is_rate_limited_so_a_stolen_session_cannot_flood_the_inbox() -> 
     email = fresh_email("exporter")
     sign_up(client, email, FakeAuthenticator())
     outbox().clear()
-    codes = [client.get("/api/account/export").status_code for _ in range(6)]
+    codes = [client.post("/api/account/export").status_code for _ in range(6)]
     assert codes == [200] * 5 + [429]
     assert len([m for m in outbox() if m.to == email]) == 5
+
+
+def test_export_is_a_post_so_a_cross_site_link_does_nothing() -> None:
+    """SameSite=Lax cookies ride a top-level cross-site GET, so a GET must change nothing: the
+    export (an audit row and an always-on email) is a POST, which `same_site_only` guards."""
+    client = new_client()
+    email = fresh_email("linked")
+    user_id = sign_up(client, email, FakeAuthenticator())["user"]["id"]
+    outbox().clear()
+    r = client.get("/api/account/export", headers={"Origin": "https://evil.example"})
+    assert r.status_code == 405
+    r = client.post("/api/account/export", headers={"Origin": "https://evil.example"})
+    assert r.status_code == 403 and r.json()["detail"] == "cross_site"
+    assert outbox() == []
+    with get_session_factory()() as db:
+        actions = db.scalars(
+            select(AuditLog.action).where(AuditLog.actor_id == uuid.UUID(user_id))
+        ).all()
+    assert "export" not in actions
 
 
 def test_delete_soft_deletes_now_and_purges_after_the_grace_period() -> None:
