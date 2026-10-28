@@ -5,6 +5,7 @@ import { Card, List, ListRow } from "@stackd/ui";
 import { useNavigate } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
+import { compareText } from "../../lib/order.ts";
 import { useLookups } from "../entries/useEntries.ts";
 import { RangePicker, RangeStepper } from "../ranges/RangePicker.tsx";
 import { RANGE_NAME, useRange } from "../ranges/ranges.ts";
@@ -69,7 +70,7 @@ export function SpendingScreen() {
               {top.merchants.map((m) => {
                 const theirs = [...view.entries.values()]
                   .filter((e) => view.keys.get(e.id) === m.key)
-                  .sort((a, b) => b.date.localeCompare(a.date));
+                  .sort((a, b) => compareText(b.date, a.date));
                 return (
                   <details className="often" key={m.key}>
                     <summary className="often__row">

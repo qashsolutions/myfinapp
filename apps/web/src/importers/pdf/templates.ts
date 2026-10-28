@@ -8,6 +8,7 @@
  * institution here with a fixture under tests/fixtures, never a guess at a layout.
  */
 
+import { daysInMonthOf } from "@stackd/rules/dates";
 import type { MappedRow } from "../csv.ts";
 import { last4, maskNumbers } from "../masking.ts";
 
@@ -51,14 +52,11 @@ function isoDate(
   year: string | null,
   fallbackYear: number | null,
 ): string | null {
-  let y = year ? Number(year.length === 2 ? `20${year}` : year) : fallbackYear;
+  const y = year ? Number(year.length === 2 ? `20${year}` : year) : fallbackYear;
   const m = Number(month);
   const d = Number(day);
-  if (!y || m < 1 || m > 12 || d < 1 || d > 31) return null;
-  const date = new Date(Date.UTC(y, m - 1, d));
-  if (date.getUTCMonth() !== m - 1) return null;
-  y = date.getUTCFullYear();
-  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  if (!y || y > 9999 || m < 1 || m > 12 || d < 1 || d > daysInMonthOf(y, m)) return null;
+  return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 function parseIso(text: string, fallbackYear: number | null): string | null {

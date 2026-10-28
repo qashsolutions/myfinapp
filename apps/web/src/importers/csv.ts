@@ -3,6 +3,7 @@
  * date, description, amount or debit/credit, balance; saved per account).
  */
 
+import { daysInMonthOf } from "@stackd/rules/dates";
 import type { CsvMapping, DateFormat } from "../data/db.ts";
 import { maskNumbers } from "./masking.ts";
 
@@ -168,9 +169,8 @@ export function parseDateCell(cell: string, format: DateFormat): string | null {
   else [m, d, y] = [a, b, c];
   if (y < 100) y += 2000;
   if (m < 1 || m > 12 || d < 1 || d > 31) return null;
-  const dim = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  if (d > dim) return null;
-  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  if (y < 1 || y > 9999 || d > daysInMonthOf(y, m)) return null;
+  return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 export interface ApplyResult {

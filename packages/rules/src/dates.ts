@@ -38,7 +38,7 @@ export function iso(day: Day): string {
 
 /** Milliseconds since 1970 for a calendar day. Never `Date.UTC`, which reads years 0–99 as
  * 1900–1999; `setUTCFullYear` takes the year as given (invariant 10; October 27, 2026). */
-function utcMs(y: number, monthIndex: number, d: number): number {
+export function utcMs(y: number, monthIndex: number, d: number): number {
   const t = new Date(0);
   t.setUTCFullYear(y, monthIndex, d);
   return t.getTime();

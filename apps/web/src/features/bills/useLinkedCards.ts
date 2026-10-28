@@ -10,6 +10,7 @@ import {
   payInFull,
   type Utilization,
 } from "../../engine/bridge.ts";
+import { compareText } from "../../lib/order.ts";
 import { emitMoment } from "../../moments/bus.ts";
 import { payScheduleOf } from "../home/useHome.ts";
 
@@ -51,7 +52,7 @@ export function useLinkedCards(asOf: string): LinkedCardView[] | undefined {
         if (!account) continue; // unlinked since: the facts are stale, so not shown
         const latest = source.anchors
           .filter((a) => a.account_id === account.id)
-          .sort((a, b) => b.as_of.localeCompare(a.as_of))[0];
+          .sort((a, b) => compareText(b.as_of, a.as_of))[0];
         // A card's anchor is negative (what is owed); utilisation wants the amount owed.
         const owed = latest ? -latest.balance_cents : null;
         const utilization = await cardUtilization(

@@ -22,6 +22,7 @@ import { type CsvTable, guessMapping, type MappedRow, parseCsv } from "../../imp
 import { looksLikeOfx, type OfxStatement, parseOfx } from "../../importers/ofx.ts";
 import { type PdfStatement, parsePdf } from "../../importers/pdf/index.ts";
 import { addDaysIso } from "../../lib/dates.ts";
+import { compareText } from "../../lib/order.ts";
 import { savedNames } from "../entries/entryActions.ts";
 
 export function detectFormat(name: string, text: string): ImportFormat | null {
@@ -209,7 +210,7 @@ export async function prepareRows(
   if (!ending) {
     const withBalance = mapped
       .filter((r) => r.balance_cents !== null)
-      .sort((a, b) => b.date.localeCompare(a.date) || a.row - b.row);
+      .sort((a, b) => compareText(b.date, a.date) || a.row - b.row);
     const latest = withBalance[0];
     if (latest && latest.balance_cents !== null)
       ending = { cents: latest.balance_cents, as_of: latest.date };

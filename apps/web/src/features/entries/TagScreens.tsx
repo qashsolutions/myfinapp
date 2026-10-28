@@ -11,6 +11,7 @@ import type { Entry } from "../../data/db.ts";
 import { counted } from "../../data/db.ts";
 import { type MonthTotals, periodTotals } from "../../engine/bridge.ts";
 import { formatCents, formatDay } from "../../lib/format.ts";
+import { byLabel } from "../../lib/order.ts";
 import { CategoryBars } from "../home/HomeVisuals.tsx";
 import { toRuleEntry } from "../money/ruleEntries.ts";
 import { EntryRow } from "./EntryList.tsx";
@@ -51,7 +52,7 @@ export function TagsScreen() {
       .each((e) => {
         for (const t of e.tags ?? []) out.set(t, (out.get(t) ?? 0) + 1);
       });
-    return [...out.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    return [...out.entries()].sort((a, b) => b[1] - a[1] || byLabel(a[0], b[0]));
   }, [db]);
   return (
     <>

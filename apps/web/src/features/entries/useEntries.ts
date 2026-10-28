@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type Account, type Category, type Entry, entriesBetween } from "../../data/db.ts";
 import { monthBounds } from "../../engine/bridge.ts";
+import { compareText } from "../../lib/order.ts";
 
 /** The month that contains `asOf`, from the engine (dates.month_bounds). */
 export function useMonth(asOf: string): { start: string; end: string } | null {
@@ -38,7 +39,7 @@ export function useRecentEntries(limit: number): Entry[] | undefined {
       .toArray();
     return rows
       .sort((a, b) =>
-        a.date === b.date ? b.created_at.localeCompare(a.created_at) : b.date.localeCompare(a.date),
+        a.date === b.date ? compareText(b.created_at, a.created_at) : compareText(b.date, a.date),
       )
       .slice(0, limit);
   }, [db, limit]);

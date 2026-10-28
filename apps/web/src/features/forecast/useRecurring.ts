@@ -12,6 +12,7 @@ import {
   type StackdDb,
 } from "../../data/db.ts";
 import { cleanDescription, type DetectedSeries, detectRecurring } from "../../engine/bridge.ts";
+import { byLabel, compareText } from "../../lib/order.ts";
 
 export const INTERVAL_LABELS: Record<RecurringInterval, string> = {
   weekly: "Weekly",
@@ -79,9 +80,7 @@ export function useRecurringSeries(
     const rows = status
       ? await db.recurring_series.where("status").equals(status).toArray()
       : await db.recurring_series.toArray();
-    return rows.sort(
-      (a, b) => a.next_date.localeCompare(b.next_date) || a.label.localeCompare(b.label),
-    );
+    return rows.sort((a, b) => compareText(a.next_date, b.next_date) || byLabel(a.label, b.label));
   }, [db, status]);
 }
 

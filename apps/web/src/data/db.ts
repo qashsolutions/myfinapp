@@ -10,6 +10,7 @@
  */
 
 import Dexie, { type EntityTable, type Table } from "dexie";
+import { compareText } from "../lib/order.ts";
 import { DEFAULT_ACCOUNT, DEFAULT_CATEGORIES } from "./defaults.ts";
 
 export type AccountType = "checking" | "savings" | "credit_card" | "cash";
@@ -595,6 +596,6 @@ export function counted<T extends { not_counted?: boolean }>(entries: T[]): T[] 
 export async function entriesBetween(db: StackdDb, start: string, end: string): Promise<Entry[]> {
   const rows = await db.entries.where("date").between(start, end, true, true).toArray();
   return rows.sort((a, b) =>
-    a.date === b.date ? b.created_at.localeCompare(a.created_at) : b.date.localeCompare(a.date),
+    a.date === b.date ? compareText(b.created_at, a.created_at) : compareText(b.date, a.date),
   );
 }

@@ -1,4 +1,5 @@
 import type { StackdDb } from "../../data/db.ts";
+import { compareText } from "../../lib/order.ts";
 import { useEntitlements } from "../billing/entitlements.ts";
 import { useGoals } from "./useGoals.ts";
 
@@ -33,7 +34,7 @@ export function useGoalCaps(): GoalCaps {
   const max = entitlements.goals_active_max;
   const active = (goals ?? [])
     .filter((g) => g.status !== "archived")
-    .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
+    .sort((a, b) => compareText(a.created_at, b.created_at) || compareText(a.id, b.id));
   const readOnly = new Set(max === null ? [] : active.slice(max).map((g) => g.id));
   return {
     max,

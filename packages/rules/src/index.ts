@@ -19,4 +19,5 @@ export * as nextMove from "./next_move.ts";
 export * as notify from "./notify.ts";
 export * as recurring from "./recurring.ts";
 export { type JsonObject, RULES, type Rule } from "./registry.ts";
+export * as text from "./text.ts";
 export { RULES_VERSION } from "./version.ts";

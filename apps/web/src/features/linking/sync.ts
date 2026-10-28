@@ -30,6 +30,7 @@ import { engine, matchTransfers, type RuleEntry } from "../../engine/bridge.ts";
 import { maskNumbers } from "../../importers/masking.ts";
 import { addDaysIso } from "../../lib/dates.ts";
 import { todayIso } from "../../lib/format.ts";
+import { compareText } from "../../lib/order.ts";
 import { savedNames } from "../entries/entryActions.ts";
 import { releasePartners } from "../entries/transfers.ts";
 import { loadCategorizer } from "../imports/importFlow.ts";
@@ -492,7 +493,7 @@ async function uploadedTwin(
     .toArray();
   return sameDay
     .filter((e) => free(e) && e.amount_cents === txn.amount_cents && e.direction === txn.direction)
-    .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))[0];
+    .sort((a, b) => compareText(a.created_at, b.created_at) || compareText(a.id, b.id))[0];
 }
 
 /**
