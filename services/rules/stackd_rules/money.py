@@ -15,6 +15,8 @@ from .errors import RuleError
 from .text import trim_spaces
 
 _CENT = Decimal("0.01")
+# The most cents both engines count exactly (2^53 − 1): above it, `too_large`, as in growth.py.
+_MAX_CENTS = 2**53 - 1
 _UNSIGNED_DECIMAL = re.compile(r"[0-9]*\.?[0-9]*")  # ASCII only: \d would admit Unicode digits
 
 
@@ -52,6 +54,8 @@ def parse_amount(text: str) -> int:
     except InvalidOperation as exc:
         raise RuleError("invalid_amount") from exc
     cents = int(value.quantize(_CENT, rounding=ROUND_HALF_EVEN) * 100)
+    if cents > _MAX_CENTS:
+        raise RuleError("too_large")
     return -cents if negative else cents
 
 

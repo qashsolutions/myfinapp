@@ -80,6 +80,8 @@ def decide(
     now = parse_local(now_local)
     if not isinstance(settings, dict) or not isinstance(prefs, dict):
         raise RuleError("invalid_settings")
+    if any(not isinstance(v, bool) for v in prefs.values()):
+        raise RuleError("invalid_settings")
     quiet_start = parse_clock(settings.get("quiet_start"))
     quiet_end = parse_clock(settings.get("quiet_end"))
     daily_max = _int(settings.get("daily_max"))

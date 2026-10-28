@@ -77,12 +77,19 @@ written against both.
    `groups.test.tsx` · `notifications.test.tsx` · `receipts-strip.test.ts`
 10. **The two engines agree.** Python and TypeScript answer every golden case the same way, and
    no rule returns an amount past 2^53 − 1 cents (JavaScript's largest exact integer): the growth
-   rules answer `too_large` there, with goldens on both sides of the line. Text and dates are
-   the known traps (October 27, 2026): strings are ordered by code point (`text.ts`
-   `compareText`, never `localeCompare` or `<`), whitespace is one spelled-out list in both
-   engines, n-grams count characters, and years 1–99 are those years. Each trap has a golden that
+   rules and `money.parse_amount` answer `too_large` there, with goldens on both sides of the
+   line (parse_amount October 28, 2026: TypeScript silently lost precision where Python stayed
+   exact). Text and dates are the known traps (October 27, 2026): strings are ordered by code
+   point (`text.ts` `compareText`, never `localeCompare` or `<` — also inside a running best-pick,
+   not only in sorts: `match_transfers`' tie-break compared UTF-16 units until October 28, 2026,
+   `tie_ids_compare_by_code_point`), whitespace is one spelled-out list in both engines, n-grams
+   count characters, and years 1–99 are those years. Each trap has a golden that
    fails on one side if it comes back (`*_by_character_code`, `*_by_code_point`,
    `whitespace_is_one_list`, `year_*`, `ngrams_count_characters_not_utf16_units`).
+   A boolean the rule reads is validated, never coerced: Python's truthiness and TypeScript's
+   `=== true` disagree on `1`, so `notify.decide` refuses a preference that is not exactly a
+   boolean (`non_boolean_pref_rejected`). A registry default applies only when the key is absent:
+   `null` reaches the rule and fails the same way in both engines (`null_window_rejected`).
    The app follows the same rules (`lib/order.ts`, `@stackd/rules/dates`).
    `services/rules/tests` · `packages/rules` (`text.test.ts`) · `apps/web/tests/engine/golden.test.ts` ·
    `apps/web/tests/unit/text-and-dates.test.ts`

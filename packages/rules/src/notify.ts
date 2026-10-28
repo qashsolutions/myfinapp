@@ -100,6 +100,8 @@ export function decide(
   const due = parseLocal(candidate.due_local);
   const now = parseLocal(nowLocal);
   if (!isRecord(settings) || !isRecord(prefs)) throw new RuleError("invalid_settings");
+  if (Object.values(prefs).some((v) => typeof v !== "boolean"))
+    throw new RuleError("invalid_settings");
   const quietStart = parseClock(settings.quiet_start);
   const quietEnd = parseClock(settings.quiet_end);
   const dailyMax = assertInt(settings.daily_max);

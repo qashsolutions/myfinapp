@@ -280,7 +280,7 @@ export function matchTransfers(rawEntries: unknown, windowDays: unknown = 5): Tr
         bestKey === null ||
         key[0] < bestKey[0] ||
         (key[0] === bestKey[0] &&
-          (key[1] < bestKey[1] || (key[1] === bestKey[1] && key[2] < bestKey[2])))
+          (compareText(key[1], bestKey[1]) || compareText(key[2], bestKey[2])) < 0)
       ) {
         best = i;
         bestKey = key;

@@ -12,6 +12,8 @@ export function assertInt(value: unknown, code = "invalid_integer"): number {
 }
 
 const UNSIGNED_DECIMAL = /^[0-9]*\.?[0-9]*$/;
+// The most cents both engines count exactly (2^53 − 1): above it, `too_large`, as in growth.ts.
+const MAX_CENTS = 9007199254740991n;
 
 /** Statement or form text -> cents. "$1,234.56" -> 123456; "(45.00)" and "99.99-" are negative. */
 export function parseAmount(text: unknown): number {
@@ -45,6 +47,7 @@ export function parseAmount(text: unknown): number {
     if (first > "5" || (first === "5" && tailNonZero)) cents += 1n;
     else if (first === "5" && cents % 2n === 1n) cents += 1n; // exact tie: round to even
   }
+  if (cents > MAX_CENTS) throw new RuleError("too_large");
   const value = Number(cents);
   return negative ? -value : value;
 }

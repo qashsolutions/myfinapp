@@ -116,7 +116,7 @@ function historyAccount(raw: unknown): HistoryAccount & { id: string } {
     return [iso(parseDate(row.as_of)), assertInt(row.balance_cents)];
   });
   // stable: same-day points keep their input order
-  anchors.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  anchors.sort((a, b) => compareText(a[0], b[0]));
   const entries: Array<[string, number]> = r.entries.map((e) => {
     const row = record(e, "invalid_entry");
     const day = iso(parseDate(row.date));

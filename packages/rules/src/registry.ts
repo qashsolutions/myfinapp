@@ -194,7 +194,8 @@ export const RULES: Record<string, Rule> = {
   },
   "cashflow.match_transfers": (input) => {
     const { entries, window_days } = args(input, ["entries"], ["window_days"]);
-    return { pairs: cashflow.matchTransfers(entries, window_days ?? 5) };
+    // Only an absent key takes the default: null must reach the rule and fail, as in Python.
+    return { pairs: cashflow.matchTransfers(entries, window_days === undefined ? 5 : window_days) };
   },
   "budget.targets_50_30_20": (input) => {
     const { take_home_cents } = args(input, ["take_home_cents"]);
