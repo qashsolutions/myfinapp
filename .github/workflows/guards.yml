@@ -5,14 +5,15 @@ name: guards
 # One job (October 19, 2026: each job bills at least a minute). Each guard runs when the files
 # it reads changed; the Monday scheduled run, and any run without a readable base, runs all three.
 
-# A change to Markdown or the mockup pictures alone runs nothing here; security.yml still scans
-# it for secrets.
+# A push to main of Markdown or the mockup pictures alone runs nothing here; security.yml still
+# scans it for secrets.
 on:
   push:
     branches: [main]
     paths-ignore: ["**/*.md", "docs/design-handoff/previews/**", "docs/design-handoff/screens/**"]
+  # Every pull request runs (each guard skips files it does not read), so the required check
+  # always reports.
   pull_request:
-    paths-ignore: ["**/*.md", "docs/design-handoff/previews/**", "docs/design-handoff/screens/**"]
   schedule:
     - cron: "30 6 * * 1"
   workflow_dispatch:

@@ -155,3 +155,19 @@ jobs:
       - name: tests/authz and tests/security
         working-directory: services/api
         run: uv sync --frozen && uv run pytest tests/authz tests/security -v
+
+  # The one check branch protection requires (October 27, 2026): GitHub counts a skipped job as
+  # passing, and a job whose needs failed shows as skipped, so the rule reads every result here.
+  passed:
+    name: every security check passed
+    if: always()
+    needs: [changes, secrets-and-dependencies, trivy, authz-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job passed or was not affected
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$RESULTS" | jq -e '[.[] | select(.result != "success" and .result != "skipped")] | length == 0' >/dev/null

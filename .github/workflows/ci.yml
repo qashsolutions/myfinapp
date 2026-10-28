@@ -1,13 +1,14 @@
 name: ci
 
-# A change to Markdown or the mockup pictures alone runs nothing here (and so deploys nothing);
+# A push to main of Markdown or the mockup pictures alone runs nothing here (and so deploys nothing);
 # security.yml still scans it for secrets. docs/design-handoff/tokens.json is not ignored (test_plans).
 on:
   push:
     branches: [main]
     paths-ignore: ["**/*.md", "docs/design-handoff/previews/**", "docs/design-handoff/screens/**"]
+  # Every pull request runs (the jobs below skip what it cannot affect), so branch protection's
+  # required check always reports; a push to main of docs alone still runs nothing.
   pull_request:
-    paths-ignore: ["**/*.md", "docs/design-handoff/previews/**", "docs/design-handoff/screens/**"]
   workflow_dispatch:
 
 concurrency:
@@ -255,3 +256,19 @@ jobs:
         run: |
           docker compose logs --no-color
           docker compose down --volumes
+
+  # The one check branch protection requires (October 27, 2026): GitHub counts a skipped job as
+  # passing, and a job whose needs failed shows as skipped, so the rule reads every result here.
+  passed:
+    name: every CI check passed
+    if: always()
+    needs: [changes, web, mobile, python, e2e, api-compose]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job passed or was not affected
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$RESULTS" | jq -e '[.[] | select(.result != "success" and .result != "skipped")] | length == 0' >/dev/null
