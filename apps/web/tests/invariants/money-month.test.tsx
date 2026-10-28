@@ -288,6 +288,93 @@ describe("a month through every money path (docs/invariants.md)", () => {
     expect(out).toBe(120000 + 2200 + 15000 + 6000);
   });
 
+  it("a part split again still counts the bank's cents once after the coffee posts", async () => {
+    const db = await theMonth();
+    await splitCoffee();
+    cleanup();
+    // Split $2 off the $5 part in the editor too
+    const part = (await db.entries.toArray()).find((e) => e.split_parent_id === "lnk-p-coffee");
+    const user = userEvent.setup();
+    server();
+    renderApp(`/entries/${(part as Entry).id}`);
+    await screen.findByRole("heading", { level: 1, name: "Edit entry" });
+    await waitFor(() => expect(screen.getByLabelText("Amount")).toHaveValue("5.00"));
+    await user.click(screen.getByRole("button", { name: "Split this entry" }));
+    await user.type(screen.getByLabelText("Split off amount"), "2.00");
+    const chips = screen.getByRole("group", { name: "Category for the split part" });
+    await user.click(within(chips).getByRole("radio", { name: "Groceries" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("heading", { level: 1, name: "Money in & out" });
+    await posted(db);
+    const entries = await db.entries.toArray();
+    const coffee = entries
+      .filter((e) => e.merchant === "BLUE BOTTLE COFFEE")
+      .map((e) => e.amount_cents)
+      .sort((a, b) => a - b);
+    expect(coffee).toEqual([200, 300, 1700]);
+    const out = entries
+      .filter((e) => e.direction === "out" && !e.is_transfer && !e.not_counted)
+      .reduce((s, e) => s + e.amount_cents, 0);
+    expect(out).toBe(120000 + 2200 + 15000 + 6000);
+  });
+
+  it("a split entry after the balance counts the bank's amount once in every balance", async () => {
+    const db = await theMonth();
+    // Checking's balance entered on Oct 17, then $100 at the hardware store on Oct 18, split
+    // $30 off to Groceries in the editor's way: the entry keeps $70, the part holds $30
+    await db.balance_anchors.where("account_id").equals(CHECKING.id).delete();
+    await db.balance_anchors.add({
+      id: "anchor-chk",
+      account_id: CHECKING.id,
+      as_of: "2026-10-17",
+      balance_cents: 500000,
+      source: "user",
+      created_at: "2026-10-17T09:00:00Z",
+    });
+    const base: Entry = {
+      id: "hw",
+      date: "2026-10-18",
+      amount_cents: 7000,
+      direction: "out",
+      merchant: "HARDWARE STORE",
+      clean_description: "HARDWARE STORE",
+      raw_description: null,
+      category_id: "cat-shopping",
+      account_id: CHECKING.id,
+      source: "manual",
+      receipt_id: null,
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      split_parent_id: null,
+      is_recurring: false,
+      created_at: "2026-10-18T10:00:00Z",
+      updated_at: "2026-10-18T10:00:00Z",
+    };
+    await db.entries.bulkAdd([
+      base,
+      {
+        ...base,
+        id: "hw-part",
+        amount_cents: 3000,
+        category_id: "cat-groceries",
+        split_parent_id: "hw",
+      },
+    ]);
+    // By hand: $5,000 − $100 = $4,900 (the coffee posted on Oct 16, before the balance)
+    server();
+    renderApp("/forecast");
+    const how = await screen.findByText(/^Starting balance/);
+    await waitFor(() => expect(how.nextElementSibling).toHaveTextContent("$4,900.00"));
+    cleanup();
+    server();
+    renderApp("/net-worth");
+    const own = await screen.findByRole("heading", { level: 2, name: /What you own/ });
+    await waitFor(() => expect(own).toHaveTextContent("$4,900.00"));
+    const chart = await screen.findByRole("img", { name: /^Net worth:/ });
+    await waitFor(() => expect(chart.getAttribute("aria-label")).toMatch(/\$4,900\.00 today/));
+  });
+
   it("Home: Got · Spent · Kept and Set aside match the hand totals", async () => {
     const db = await theMonth();
     await posted(db);

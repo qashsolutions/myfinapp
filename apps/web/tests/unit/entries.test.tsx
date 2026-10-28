@@ -39,10 +39,13 @@ describe("manual entries live only on the device", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Money in & out" }),
     ).toBeInTheDocument();
-    expect(await screen.findByText("Corner Market")).toBeInTheDocument();
-    expect(screen.getByText("−$1,234.56")).toBeInTheDocument();
-    expect(screen.getByText("Cash · Groceries")).toBeInTheDocument();
-
+    // The month's Out total shows the same amount once the engine answers, so the amount is
+    // looked for in the entry's own row, whichever lands first
+    const row = await screen.findByRole("button", { name: /Corner Market/ });
+    expect(row).toHaveTextContent("−$1,234.56");
+    expect(row).toHaveTextContent("Cash · Groceries");
+    const month = await screen.findByRole("group", { name: "This month" });
+    await waitFor(() => expect(month).toHaveTextContent("Out−$1,234.56"));
     const rows = await openDb("u1").entries.toArray();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
@@ -102,6 +105,27 @@ describe("manual entries live only on the device", () => {
       created_at: "2026-10-09T10:00:00Z",
       updated_at: "2026-10-09T10:00:00Z",
     });
+    // A receipt photo kept for it: deleting the entry deletes the photo too
+    await db.files.add({
+      id: "f-r1",
+      kind: "receipt",
+      import_id: null,
+      name: "receipt.jpg",
+      type: "image/jpeg",
+      size: 3,
+      blob: new Blob([new Uint8Array([1, 2, 3])]),
+      created_at: "2026-10-09T10:00:00Z",
+    });
+    await db.receipts.add({
+      id: "r1",
+      entry_id: "e1",
+      file_id: "f-r1",
+      status: "confirmed",
+      purge_after: null,
+      purged_at: null,
+      created_at: "2026-10-09T10:00:00Z",
+      updated_at: "2026-10-09T10:00:00Z",
+    });
     await renderSignedIn("/");
     const recent = await screen.findByRole("region", { name: "Recent entries" });
     await user.click(await within(recent).findByRole("button", { name: /Corner Market/ }));
@@ -120,6 +144,45 @@ describe("manual entries live only on the device", () => {
     await user.click(screen.getByRole("button", { name: "Really delete this entry" }));
     expect(await screen.findByText("No entries this month. Tap + to add one.")).toBeInTheDocument();
     expect(await db.entries.count()).toBe(0);
+    expect(await db.receipts.count()).toBe(0);
+    expect(await db.files.count()).toBe(0);
+  });
+
+  it("deleting a split entry deletes its parts, a part's parts too", async () => {
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    const base = {
+      date: "2026-10-09",
+      direction: "out" as const,
+      merchant: "Hardware Store",
+      clean_description: "Hardware Store",
+      raw_description: null,
+      category_id: "cat-shopping",
+      account_id: "acct-cash",
+      source: "manual" as const,
+      receipt_id: null,
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      is_recurring: false,
+      created_at: "2026-10-09T10:00:00Z",
+      updated_at: "2026-10-09T10:00:00Z",
+    };
+    await db.entries.bulkAdd([
+      { ...base, id: "hw", amount_cents: 7000, split_parent_id: null },
+      { ...base, id: "hw-a", amount_cents: 2000, split_parent_id: "hw" },
+      { ...base, id: "hw-b", amount_cents: 1000, split_parent_id: "hw-a" },
+      { ...base, id: "other", amount_cents: 500, split_parent_id: null, merchant: "Cafe" },
+    ]);
+    await renderSignedIn("/entries/hw");
+    await waitFor(() => expect(screen.getByLabelText("Merchant")).toHaveValue("Hardware Store"));
+    await user.click(await screen.findByRole("button", { name: "Delete entry" }));
+    await user.click(screen.getByRole("button", { name: "Really delete this entry" }));
+    await waitFor(async () =>
+      expect((await db.entries.toArray()).map((e) => e.id)).toEqual(["other"]),
+    );
+    const tombs = (await db.tombstones.toArray()).map((t) => t.id).sort();
+    expect(tombs).toEqual(["hw", "hw-a", "hw-b"]);
   });
 
   it("the month switcher asks the engine for bounds", async () => {

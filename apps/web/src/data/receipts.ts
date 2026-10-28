@@ -73,7 +73,33 @@ function startsWith(bytes: Uint8Array, prefix: number[]): boolean {
   return prefix.every((b, i) => bytes[i] === b);
 }
 
-/** Drops every APPn segment except APP0 (JFIF) and APP14 (Adobe), and comments. */
+/**
+ * Where a scan's entropy-coded data ends: the next marker that is not byte stuffing (FF00), a
+ * restart marker (FFD0–FFD7) or a fill byte (FFFF). Returns the position of that marker's FF, or
+ * the end of the bytes when the file is cut short.
+ */
+function scanDataEnd(bytes: Uint8Array, from: number): number {
+  let i = from;
+  while (i + 1 < bytes.length) {
+    if (bytes[i] !== 0xff) {
+      i += 1;
+      continue;
+    }
+    const next = bytes[i + 1] as number;
+    if (next === 0x00 || (next >= 0xd0 && next <= 0xd7) || next === 0xff) {
+      i += next === 0xff ? 1 : 2;
+      continue;
+    }
+    return i;
+  }
+  return bytes.length;
+}
+
+/**
+ * Drops every APPn segment except APP0 (JFIF) and APP14 (Adobe), and comments, wherever they sit
+ * (between progressive scans too), and everything after the first end-of-image marker (a phone's
+ * MPF preview with its own EXIF, a motion-photo video, appended XMP).
+ */
 export function stripJpeg(bytes: Uint8Array): Uint8Array {
   if (!startsWith(bytes, JPEG_SOI)) throw new ReceiptError("unreadable");
   const out: Uint8Array[] = [new Uint8Array(JPEG_SOI)];
@@ -85,11 +111,22 @@ export function stripJpeg(bytes: Uint8Array): Uint8Array {
       pos += 1; // fill byte
       continue;
     }
-    if (marker === 0xda) {
-      out.push(bytes.subarray(pos)); // scan data through EOI: nothing after it is metadata
+    if (marker === 0xd9) {
+      out.push(bytes.subarray(pos, pos + 2)); // end of image: nothing after it is kept
       break;
     }
-    if (marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01) {
+    if (marker === 0xda) {
+      // the scan header, then its entropy-coded data up to the next real marker
+      if (pos + 3 >= bytes.length) throw new ReceiptError("unreadable");
+      const length = ((bytes[pos + 2] as number) << 8) | (bytes[pos + 3] as number);
+      const header = pos + 2 + length;
+      if (length < 2 || header > bytes.length) throw new ReceiptError("unreadable");
+      const end = scanDataEnd(bytes, header);
+      out.push(bytes.subarray(pos, end));
+      pos = end;
+      continue;
+    }
+    if ((marker >= 0xd0 && marker <= 0xd7) || marker === 0x01) {
       out.push(bytes.subarray(pos, pos + 2));
       pos += 2;
       continue;
@@ -238,6 +275,28 @@ export async function removeReceiptPhoto(db: StackdDb, receiptId: string): Promi
       updated_at: new Date().toISOString(),
     });
   });
+}
+
+/**
+ * Deleting entries deletes their receipts and photos with them (an account removed, an entry
+ * deleted): nothing on the device is left that no screen can reach. Call it inside a
+ * transaction over `receipts` and `files`.
+ */
+export async function deleteReceiptsOf(db: StackdDb, entryIds: string[]): Promise<void> {
+  if (entryIds.length === 0) return;
+  const receipts = await db.receipts.where("entry_id").anyOf(entryIds).toArray();
+  await deleteReceipts(
+    db,
+    receipts.map((r) => r.id),
+  );
+}
+
+/** Deletes these receipts and their photos (a photo replaced on its entry, say). */
+export async function deleteReceipts(db: StackdDb, receiptIds: string[]): Promise<void> {
+  if (receiptIds.length === 0) return;
+  const receipts = (await db.receipts.bulkGet(receiptIds)).filter((r) => r !== undefined);
+  await db.files.bulkDelete(receipts.map((r) => r.file_id).filter((f): f is string => !!f));
+  await db.receipts.bulkDelete(receipts.map((r) => r.id));
 }
 
 /** Removes photos past their date. The receipt row and the entry's amount stay. */

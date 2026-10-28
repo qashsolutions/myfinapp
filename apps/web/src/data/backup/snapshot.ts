@@ -36,7 +36,7 @@ export const SYNCED_TABLES: Array<{
   { name: "settings", key: "key", updatedAt: "updated_at" },
   { name: "goals", key: "id", updatedAt: "updated_at" },
   { name: "goal_events", key: "id", updatedAt: null },
-  { name: "goal_milestones", key: "id", updatedAt: null },
+  { name: "goal_milestones", key: "id", updatedAt: "updated_at" },
   { name: "goal_templates", key: "id", updatedAt: null },
   { name: "recurring_series", key: "id", updatedAt: "updated_at" },
   { name: "debts", key: "id", updatedAt: "updated_at" },
@@ -96,15 +96,22 @@ export async function buildSnapshot(
   meta: { rulesVersion: string; deviceId: string; now?: Date },
 ): Promise<Snapshot> {
   const tables = {} as Snapshot["tables"];
-  for (const t of SYNCED_TABLES) {
-    const rows = (await db.table(t.name).toArray()) as Row[];
-    tables[t.name] = sortedRows(
-      t.name === "settings" ? rows.filter((r) => !isLocalSetting(r)) : rows,
-      t.key,
-    );
-  }
-  const tombstones = (await db.tombstones.toArray()).sort((a, b) =>
-    compareText(`${a.table}:${a.id}`, `${b.table}:${b.id}`),
+  // One read transaction: a delete and its tombstone (or any write) land wholly in or out.
+  const tombstones = await db.transaction(
+    "r",
+    [...SYNCED_TABLES.map((t) => db.table(t.name)), db.tombstones],
+    async () => {
+      for (const t of SYNCED_TABLES) {
+        const rows = (await db.table(t.name).toArray()) as Row[];
+        tables[t.name] = sortedRows(
+          t.name === "settings" ? rows.filter((r) => !isLocalSetting(r)) : rows,
+          t.key,
+        );
+      }
+      return (await db.tombstones.toArray()).sort((a, b) =>
+        compareText(`${a.table}:${a.id}`, `${b.table}:${b.id}`),
+      );
+    },
   );
   return {
     format: SNAPSHOT_FORMAT,
@@ -156,6 +163,8 @@ export interface MergeReport {
   added: number;
   updated: number;
   removed: number;
+  /** Rows a unique index already holds under another id (the same import row), left out. */
+  skipped: number;
 }
 
 function stamp(row: Row, updatedAt: "updated_at" | null): string {
@@ -164,7 +173,7 @@ function stamp(row: Row, updatedAt: "updated_at" | null): string {
 
 /** Apply another device's snapshot to this one (see the module note for the rules). */
 export async function mergeSnapshot(db: StackdDb, snapshot: Snapshot): Promise<MergeReport> {
-  const report: MergeReport = { added: 0, updated: 0, removed: 0 };
+  const report: MergeReport = { added: 0, updated: 0, removed: 0, skipped: 0 };
   const tables = SYNCED_TABLES.map((t) => db.table(t.name));
   await db.transaction("rw", [...tables, db.tombstones], async () => {
     const local = new Map<string, Tombstone>(
@@ -198,8 +207,11 @@ export async function mergeSnapshot(db: StackdDb, snapshot: Snapshot): Promise<M
           try {
             await table.add(remote);
             report.added += 1;
-          } catch {
-            // a unique index (an import fingerprint) already holds this row under another id
+          } catch (error) {
+            // a unique index (an import fingerprint) already holds this row under another id;
+            // anything else is a real failure and aborts the merge
+            if ((error as { name?: string } | null)?.name !== "ConstraintError") throw error;
+            report.skipped += 1;
           }
         } else if (
           spec.updatedAt &&

@@ -8,6 +8,7 @@ import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { recordDeletion } from "../../data/backup/snapshot.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type Direction, type Entry, newId } from "../../data/db.ts";
+import { deleteReceipts, deleteReceiptsOf } from "../../data/receipts.ts";
 import { cleanDescription, EngineError, parseAmount } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { emitMoment } from "../../moments/bus.ts";
@@ -15,6 +16,7 @@ import { CategorySheet } from "../categories/CategorySheet.tsx";
 import { ReceiptCard } from "../receipts/ReceiptCard.tsx";
 import { likeThis, renameEntry } from "./entryActions.ts";
 import { ENTRIES_PATH } from "./paths.ts";
+import { splitTree } from "./splits.ts";
 import { TagField } from "./TagField.tsx";
 import { NOTE_MAX } from "./tags.ts";
 import { findTransferPartner, releasePartners } from "./transfers.ts";
@@ -286,11 +288,17 @@ export function AddEntrySheet() {
     navigate(ENTRIES_PATH, { replace: true });
   }
 
-  /** The receipt row points at its entry once the entry exists; a replaced one is released. */
+  /**
+   * The receipt row points at its entry once the entry exists. A photo replaced by another goes
+   * with its receipt; a photo removed by the person keeps its receipt row (spec "Receipts").
+   */
   async function attachReceipt(entryId: string) {
     const stamp = new Date().toISOString();
     if (existing?.receipt_id && existing.receipt_id !== receiptId) {
-      await db.receipts.update(existing.receipt_id, { entry_id: null, updated_at: stamp });
+      const old = existing.receipt_id;
+      if (receiptId)
+        await db.transaction("rw", [db.receipts, db.files], () => deleteReceipts(db, [old]));
+      else await db.receipts.update(old, { entry_id: null, updated_at: stamp });
     }
     if (receiptId) {
       await db.receipts.update(receiptId, {
@@ -307,10 +315,14 @@ export function AddEntrySheet() {
       setConfirmDelete(true);
       return;
     }
-    await db.transaction("rw", [db.entries, db.tombstones], async () => {
-      await db.entries.delete(existing.id);
-      await recordDeletion(db, "entries", [existing.id]);
-      await releasePartners(db, [existing.id]);
+    await db.transaction("rw", [db.entries, db.tombstones, db.receipts, db.files], async () => {
+      // Its split parts are pieces of it, so they go with it (a part's parts too)
+      const parts = splitTree(await db.entries.filter((e) => !!e.split_parent_id).toArray());
+      const ids = [existing.id, ...parts([existing.id]).map((p) => p.id)];
+      await deleteReceiptsOf(db, ids);
+      await db.entries.bulkDelete(ids);
+      await recordDeletion(db, "entries", ids);
+      await releasePartners(db, ids);
     });
     navigate(ENTRIES_PATH, { replace: true });
   }
