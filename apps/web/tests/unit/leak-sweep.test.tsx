@@ -73,10 +73,25 @@ function entry(id: string, merchant: string, cents: number): Entry {
 
 const B64URL = /^[A-Za-z0-9_-]+$/;
 
-function sweep(api: FakeApi) {
+/** A URL as written and as decoded (`%20` and `+` both read as a space). */
+function urlText(url: string): string {
+  try {
+    return `${url} ${decodeURIComponent(url.replace(/\+/g, " "))}`;
+  } catch {
+    return url;
+  }
+}
+
+/** Everything a request carried: the whole URL with its query, every header, the raw body. */
+function sweep(api: Pick<FakeApi, "calls">) {
   const leaks: string[] = [];
   for (const call of api.calls) {
-    const text = `${call.path} ${JSON.stringify(call.body ?? {})}`;
+    const text = [
+      urlText(call.url),
+      JSON.stringify(call.headers),
+      call.raw,
+      JSON.stringify(call.body ?? {}),
+    ].join(" ");
     const isBlob =
       call.path === "/api/backup/blob" || call.path.startsWith("/api/household/blobs/");
     if (isBlob) {
@@ -87,13 +102,41 @@ function sweep(api: FakeApi) {
       if (text.includes(s)) leaks.push(`${call.method} ${call.path}: ${s}`);
     if (
       /amount_cents|merchant|raw_description|account_number|balance_cents/i.test(
-        JSON.stringify(call.body ?? {}),
+        `${urlText(call.url)} ${JSON.stringify(call.headers)} ${call.raw}`,
       )
     )
       leaks.push(`${call.method} ${call.path}: a money field name`);
   }
   return leaks;
 }
+
+describe("the sweep itself", () => {
+  it("reports a value in a query string, in a header or in a body that is not JSON", () => {
+    const call = (over: Partial<FakeApi["calls"][number]>): FakeApi["calls"][number] => ({
+      method: "GET",
+      path: "/api/groups",
+      url: "http://localhost/api/groups",
+      headers: {},
+      raw: "",
+      ...over,
+    });
+    const leaks = sweep({
+      calls: [
+        call({ url: `http://localhost/api/groups?q=${encodeURIComponent(MERCHANT)}` }),
+        call({ path: "/api/linking", headers: { "x-note": "Kiwi note 7Z" } }),
+        call({ method: "POST", path: "/api/alerts/schedule", raw: `merchant=${RAW}` }),
+      ],
+    });
+    expect(leaks).toEqual([
+      `GET /api/groups: ${MERCHANT}`,
+      "GET /api/linking: Kiwi note 7Z",
+      `POST /api/alerts/schedule: ${RAW}`,
+      "POST /api/alerts/schedule: 1234567890124821",
+      "POST /api/alerts/schedule: ZEBRA",
+      "POST /api/alerts/schedule: a money field name",
+    ]);
+  });
+});
 
 describe("nothing about money leaves the device unencrypted", () => {
   beforeEach(() => {

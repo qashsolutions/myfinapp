@@ -11,6 +11,7 @@ import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { recordDeletion } from "../../data/backup/snapshot.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type Account, type AccountType, newId } from "../../data/db.ts";
+import { deleteReceiptsOf } from "../../data/receipts.ts";
 import { parseAmount } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
@@ -96,7 +97,10 @@ export function AccountsManager() {
     }
   }
 
-  /** Removing an account removes what came with it: entries, imports, anchors, mapping, kept files. */
+  /**
+   * Removing an account removes what came with it: entries, imports, anchors, mapping, kept
+   * files, the entries' receipts and photos, a card's details and its net worth choice.
+   */
   async function removeAccount(account: Account) {
     await db.transaction(
       "rw",
@@ -107,6 +111,9 @@ export function AccountsManager() {
         db.balance_anchors,
         db.csv_mappings,
         db.files,
+        db.receipts,
+        db.card_details,
+        db.net_worth_items,
         db.tombstones,
       ],
       async () => {
@@ -120,7 +127,14 @@ export function AccountsManager() {
           .where("account_id")
           .equals(account.id)
           .primaryKeys()) as string[];
+        const worthIds = (await db.net_worth_items.where("ref_id").equals(account.id).toArray())
+          .filter((i) => i.source === "account")
+          .map((i) => i.id);
         await db.files.bulkDelete(fileIds);
+        await deleteReceiptsOf(db, entryIds);
+        await db.card_details.delete(account.id);
+        await db.net_worth_items.bulkDelete(worthIds);
+        await recordDeletion(db, "net_worth_items", worthIds);
         await db.entries.where("account_id").equals(account.id).delete();
         await db.statement_imports.where("account_id").equals(account.id).delete();
         await db.balance_anchors.where("account_id").equals(account.id).delete();

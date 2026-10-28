@@ -29,8 +29,11 @@ function json(value: unknown): Uint8Array {
   return encoder.encode(`${JSON.stringify(value, null, 2)}\n`);
 }
 
+/** Integer cents as "12.34", with integer maths only (no float rounding near a cent). */
 function dollars(cents: number): string {
-  return (cents / 100).toFixed(2);
+  const sign = cents < 0 ? "-" : "";
+  const abs = Math.abs(cents);
+  return `${sign}${Math.trunc(abs / 100)}.${String(abs % 100).padStart(2, "0")}`;
 }
 
 /** Everything the user owns, as files: the device tables plus the server's part. */

@@ -125,6 +125,66 @@ describe("receipt photos", () => {
     await waitFor(() => expect(editCard).toHaveTextContent("Receipt photo attached"));
   });
 
+  it("replacing an entry's photo deletes the old receipt and its photo", async () => {
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    await db.files.add({
+      id: "f-old",
+      kind: "receipt",
+      import_id: null,
+      name: "old.jpg",
+      type: "image/jpeg",
+      size: 3,
+      blob: new Blob([new Uint8Array([1, 2, 3])]),
+      created_at: "2026-10-09T10:00:00Z",
+    });
+    await db.receipts.add({
+      id: "r-old",
+      entry_id: "e1",
+      file_id: "f-old",
+      status: "confirmed",
+      purge_after: null,
+      purged_at: null,
+      created_at: "2026-10-09T10:00:00Z",
+      updated_at: "2026-10-09T10:00:00Z",
+    });
+    await db.entries.add({
+      id: "e1",
+      date: "2026-10-09",
+      amount_cents: 1191,
+      direction: "out",
+      merchant: "Corner Market",
+      clean_description: "CORNER MARKET",
+      raw_description: null,
+      category_id: "cat-groceries",
+      account_id: "acct-cash",
+      source: "manual",
+      receipt_id: "r-old",
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      split_parent_id: null,
+      is_recurring: false,
+      created_at: "2026-10-09T10:00:00Z",
+      updated_at: "2026-10-09T10:00:00Z",
+    });
+    renderApp("/entries/e1");
+    await waitFor(() => expect(screen.getByLabelText("Merchant")).toHaveValue("Corner Market"));
+    const card = await screen.findByRole("region", { name: "Receipt photo" });
+    // The card draws its picker again once the stored photo is in; use that one
+    await waitFor(() => expect(card).toHaveTextContent("Receipt photo attached"));
+    await user.upload(within(card).getByLabelText("Replace photo"), PHOTO);
+    await waitFor(async () => expect(await db.receipts.count()).toBe(2));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("heading", { level: 1, name: "Money in & out" });
+    const receipts = await db.receipts.toArray();
+    expect(receipts.map((r) => r.entry_id)).toEqual(["e1"]);
+    expect(receipts[0]?.id).not.toBe("r-old");
+    expect(await db.files.get("f-old")).toBeUndefined();
+    expect(await db.files.count()).toBe(1);
+    expect((await db.entries.get("e1"))?.receipt_id).toBe(receipts[0]?.id);
+  });
+
   it("the retention setting re-dates photos, and expired ones are removed on the next open while the entry stays", async () => {
     const user = userEvent.setup();
     const db = openDb("u1");

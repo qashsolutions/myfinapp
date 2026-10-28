@@ -123,7 +123,8 @@ export function useNetWorth(asOf: string): NetWorthView {
           out.set(account.id, null);
           continue;
         }
-        const since = entries.filter((e) => e.account_id === account.id && !e.split_parent_id);
+        // Every entry and every split part: together they are the bank's rows, counted once
+        const since = entries.filter((e) => e.account_id === account.id);
         const start = await startBalance(
           { as_of: anchor.as_of, balance_cents: anchor.balance_cents },
           since.map((e) => ({
@@ -360,7 +361,7 @@ export function useNetWorthRange(
             .filter((a) => a.account_id === r.refId)
             .map((a) => ({ as_of: a.as_of, balance_cents: a.balance_cents })),
           entries: entries
-            .filter((e) => e.account_id === r.refId && !e.split_parent_id)
+            .filter((e) => e.account_id === r.refId) // split parts included, as above
             .map((e) => ({ date: e.date, amount_cents: e.amount_cents, direction: e.direction })),
         }));
       const fixed = included

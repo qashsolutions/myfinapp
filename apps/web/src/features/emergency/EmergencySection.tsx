@@ -52,8 +52,13 @@ export function EmergencySection({ savedCents }: { savedCents: number }) {
   const labels: Record<string, string> = {
     starter: "Starter fund",
     one_month: "1 month of essentials",
-    target: `${fund.target_months} months`,
+    target: monthsText(fund.target_months),
   };
+  // A 1-month target is the "1 month of essentials" row already: show it once (owner decision,
+  // October 28, 2026; the rule still returns both).
+  const rows = (summary?.milestones ?? []).filter(
+    (m) => !(m.key === "target" && fund.target_months === 1),
+  );
 
   return (
     <>
@@ -95,7 +100,7 @@ export function EmergencySection({ savedCents }: { savedCents: number }) {
         }}
       />
       <Card as="section" aria-label="Milestones">
-        {summary?.milestones.map((m) => (
+        {rows.map((m) => (
           <div key={m.key} style={{ padding: "6px 0" }}>
             <div className="hero-split">
               <span className="receipt-card__title">{labels[m.key]}</span>

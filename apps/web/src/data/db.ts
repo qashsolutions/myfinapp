@@ -267,6 +267,9 @@ export interface GoalMilestone {
   label: string;
   target_cents: number;
   reached_at: string | null;
+  /** Syncs newer-wins, so a checkpoint removed and added back outlives the old removal. Rows
+   * written before October 28, 2026 have none and count as oldest. */
+  updated_at?: string;
 }
 
 /** docs/spec.md data model: goal_templates (private; sharing to a group is fast-follow 4). */

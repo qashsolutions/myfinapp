@@ -4,7 +4,7 @@ import "../ranges/ranges.css";
 
 import { buttonClass, Card, List, ListRow } from "@stackd/ui";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { Arranged } from "../../app/layout/Arranged.tsx";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
@@ -19,6 +19,7 @@ import { RangePicker, RangeStepper } from "../ranges/RangePicker.tsx";
 import { RANGES, type Range, type RangeChoice, useRange } from "../ranges/ranges.ts";
 import "../forecast/forecast.css";
 import { useRangeTotals, useSeries } from "../ranges/useSeries.ts";
+import { needsSorting } from "../review/review.ts";
 import { CategoryBreakdown } from "./CategoryBreakdown.tsx";
 import { MoneySummary } from "./MoneySummary.tsx";
 import { MonthPicker } from "./MonthPicker.tsx";
@@ -55,16 +56,28 @@ export function MoneyScreen() {
   // "Don't count" entries stay listed (faded); this shows just them, to find and undo one.
   const notCounted = (view.entries ?? []).filter((e) => e.not_counted);
   const [onlyNotCounted, setOnlyNotCounted] = useState(false);
-  const unsorted = (view.entries ?? []).filter(
-    (e) => e.category_id === null && !e.is_transfer && !e.not_counted,
-  ).length;
+  const unsorted = (view.entries ?? []).filter(needsSorting).length;
   const lookups = useLookups();
   // Time ranges (October 20, 2026): 1M is the month view below; longer ranges add up months.
   const today = todayIso();
-  const { range, setRange, back, setBack } = useRange<RangeChoice>("money", "Month", [
-    ...RANGES,
-    "Next",
-  ]);
+  const {
+    range: savedRange,
+    setRange: saveRange,
+    back,
+    setBack,
+  } = useRange<RangeChoice>("money", "Month", [...RANGES, "Next"]);
+  // A "your entries" link (ENTRIES_PATH) always lands on the month's list: for this visit the
+  // Month view and the Categories and transactions card are shown whatever was saved, and the
+  // saved range and layout are left alone. Picking a range ends the visit's override.
+  const [entriesVisit, setEntriesVisit] = useState(tab === "transactions");
+  useEffect(() => {
+    if (tab === "transactions") setEntriesVisit(true);
+  }, [tab]);
+  const range: RangeChoice = entriesVisit ? "Month" : savedRange;
+  const setRange = (r: RangeChoice) => {
+    setEntriesVisit(false);
+    saveRange(r);
+  };
   const past: Range = range === "Next" ? "Month" : range;
   const ranged = useRangeTotals(past, today, back);
   const monthEnd = view.bounds ? (view.bounds.end < today ? view.bounds.end : today) : null;
@@ -225,7 +238,13 @@ export function MoneyScreen() {
             onShift={shift}
             atLatest={!!view.bounds && view.bounds.end >= today}
           />
-          <Arranged screen="money" name="Money in & out" cards={MONEY_CARDS} render={card} />
+          <Arranged
+            screen="money"
+            name="Money in & out"
+            cards={MONEY_CARDS}
+            render={card}
+            force={entriesVisit ? ["details"] : []}
+          />
         </>
       ) : null}
       <p className="auth__fineprint">

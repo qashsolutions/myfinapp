@@ -26,12 +26,14 @@ import type {
   Entry,
   StackdDb,
 } from "../../data/db.ts";
+import { deleteReceiptsOf } from "../../data/receipts.ts";
 import { engine, matchTransfers, type RuleEntry } from "../../engine/bridge.ts";
 import { maskNumbers } from "../../importers/masking.ts";
 import { addDaysIso } from "../../lib/dates.ts";
 import { todayIso } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
 import { savedNames } from "../entries/entryActions.ts";
+import { splitTree } from "../entries/splits.ts";
 import { releasePartners } from "../entries/transfers.ts";
 import { loadCategorizer } from "../imports/importFlow.ts";
 import { unlinkAccounts } from "./linking.ts";
@@ -329,11 +331,17 @@ export async function applySync(
 
   await db.transaction(
     "rw",
-    [db.entries, db.balance_anchors, db.settings, db.tombstones, db.receipts],
+    [db.entries, db.balance_anchors, db.settings, db.tombstones, db.receipts, db.files],
     async () => {
       for (const r of plan.receipts)
         await db.receipts.update(r.id, { entry_id: r.entry_id, updated_at: stamp });
       if (plan.remove.length) {
+        // A receipt a posted row did not take over goes with its entry (moved ones point on now)
+        const kept = new Set(plan.put.map((e) => e.id));
+        await deleteReceiptsOf(
+          db,
+          plan.remove.filter((id) => !kept.has(id)),
+        );
         await db.entries.bulkDelete(plan.remove);
         await recordDeletion(db, "entries", plan.remove, now);
         await releasePartners(db, plan.remove, stamp); // before the puts, which relink posted rows
@@ -407,13 +415,13 @@ async function settleSplits(
   const removing = new Set(plan.remove);
   const kept = new Set<string>();
   const parts: Entry[] = [];
+  // A part can be split again, so parts are collected all the way down.
+  const partsOf = splitTree(await db.entries.filter((e) => !!e.split_parent_id).toArray());
   for (const entry of plan.put) {
     const cents = bankCents.get(entry.id);
     if (cents === undefined) continue;
     const parents = new Set([entry.id, replaces.get(entry.id)].filter((x) => x !== undefined));
-    const mine = await db.entries
-      .filter((e) => !!e.split_parent_id && parents.has(e.split_parent_id))
-      .toArray();
+    const mine = partsOf(parents);
     if (mine.length === 0) continue;
     const split = mine.reduce((sum, e) => sum + e.amount_cents, 0);
     if (split >= cents) {
@@ -427,20 +435,17 @@ async function settleSplits(
       removing.delete(p.id);
       parts.push({
         ...rest,
-        split_parent_id: entry.id,
+        // a direct part follows the bank's row (a posted row takes over its pending row's parts);
+        // a part's part keeps pointing at its own part
+        split_parent_id: parents.has(p.split_parent_id as string) ? entry.id : p.split_parent_id,
         date: entry.date,
         direction: entry.direction,
         updated_at: stamp,
       });
     }
   }
-  const orphaned = new Set([...removedParents.values()].map((e) => e.id));
-  if (orphaned.size) {
-    const left = await db.entries
-      .filter((e) => !!e.split_parent_id && orphaned.has(e.split_parent_id) && !kept.has(e.id))
-      .toArray();
-    for (const p of left) removing.add(p.id);
-  }
+  const orphaned = [...removedParents.values()].map((e) => e.id);
+  for (const p of partsOf(orphaned)) if (!kept.has(p.id)) removing.add(p.id);
   plan.remove = [...removing];
   plan.put.push(...parts);
 }
