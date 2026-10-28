@@ -272,6 +272,54 @@ def test_disconnect_revokes_at_the_provider_then_deletes(fake: FakePlaid) -> Non
     assert any(m.subject == "A bank was disconnected" for m in outbox())
 
 
+def test_a_failure_right_after_the_exchange_never_orphans_the_token(fake: FakePlaid) -> None:
+    """The exchanged token is live at Plaid from that moment (Plaid bills the item), so it is
+    sealed into a row before anything else can fail, and a failure hands it to the revoke job
+    (docs/security/linking.md: a live token is never forgotten)."""
+    client, user_id = member("maya")
+    session_id = start(client, fake, "First Platypus Bank")
+    fake.accounts_error = "INTERNAL_SERVER_ERROR"
+    r = client.post("/api/linking/finish", json={"session_id": session_id})
+    assert r.status_code == 502
+    exchanged = fake.access_tokens()[-1]
+    with get_session_factory()() as db:
+        row = db.scalar(select(BankConnection).where(BankConnection.user_id == uuid.UUID(user_id)))
+        assert row is not None and row.status == "revoke_pending"
+        assert token_vault.open_(row.access_token_encrypted) == exchanged
+    # The revoke job finishes the story: revoked at the provider, and the row goes.
+    fake.accounts_error = None
+    from app.jobs.link_revoke import revoke_due
+
+    with get_session_factory()() as db:
+        revoke_due(db)
+    assert exchanged in fake.removed
+
+
+def test_anothers_item_is_skipped_even_when_plaid_wont_remove_the_duplicate(
+    fake: FakePlaid, monkeypatch
+) -> None:
+    """The duplicate's removal failing must not fail the whole finish (and roll back the other
+    banks): the other account's row still tracks the item, so its own revoke covers it."""
+    client_a, user_a = member("maya")
+    s_a = start(client_a, fake, "First Platypus Bank")
+    assert client_a.post("/api/linking/finish", json={"session_id": s_a}).status_code == 200
+    with get_session_factory()() as db:
+        item_id = db.scalar(
+            select(BankConnection.item_id).where(BankConnection.user_id == uuid.UUID(user_a))
+        )
+    client_b, user_b = member("noor")
+    s_b = start(client_b, fake, "Second Echidna Bank")
+    fake.fail_remove = True
+    real_exchange = plaid.exchange
+    monkeypatch.setattr(plaid, "exchange", lambda token: (real_exchange(token)[0], item_id))
+    r = client_b.post("/api/linking/finish", json={"session_id": s_b})
+    assert r.status_code == 200, r.text
+    assert r.json()["connections"] == []
+    with get_session_factory()() as db:
+        mine = db.scalar(select(BankConnection).where(BankConnection.user_id == uuid.UUID(user_b)))
+        assert mine is None  # the duplicate was skipped, not adopted
+
+
 def test_expired_session_is_refused(fake: FakePlaid) -> None:
     client, _ = member("maya")
     session_id = start(client, fake, "First Platypus Bank")

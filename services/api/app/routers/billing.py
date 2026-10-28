@@ -219,7 +219,9 @@ class NativeSyncIn(BaseModel):
 
     platform: Literal["ios", "android"]
     jws: str | None = None  # iOS: the transaction's jwsRepresentation (StoreKit 2)
-    purchase_token: str | None = None  # Android: the Play Billing purchase token
+    # Android: the Play Billing purchase token. Token-shaped only: it is interpolated into the
+    # Play API URL under our service-account credentials (native_billing.TOKEN_SHAPE).
+    purchase_token: str | None = Field(default=None, max_length=512, pattern=r"^[A-Za-z0-9._\-]+$")
 
 
 def _origin(request: Request) -> str:
@@ -405,6 +407,10 @@ def checkout(
     if stripe_billing.is_blocked(db, caller.user):
         # A lost dispute or a fraud-warning refund (owner decision, October 24, 2026).
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="purchase_blocked")
+    if _payment_pending(db, caller.user.id):
+        # A first bank debit still clearing: `effective_plan` answers None for it, so without
+        # this check a second checkout would open a second subscription ("never two", the terms).
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="payment_pending")
     plan, sub = effective_plan(db, caller.user.id, tester=False)
     if plan == "founding":
         raise HTTPException(status.HTTP_409_CONFLICT, detail="already_founding")

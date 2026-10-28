@@ -876,3 +876,48 @@ def test_native_unsubscribe_is_scoped_to_the_owner() -> None:
         == 204
     )
     assert maya.get("/api/notifications/settings").json()["push"]["subscribed"] is False
+
+
+def test_a_push_delivery_failure_reaches_the_admins(monkeypatch) -> None:
+    """Invariant 11: a broken push stack (a bad key raises for every subscription) must email
+    the admins instead of logging forever while every alert silently goes nowhere."""
+    from app.config import get_settings
+
+    client, _user_id = member("maya")
+    browser = FakeBrowser()
+    push.transport_override = browser.transport()
+    assert client.post("/api/notifications/push", json=browser.subscription()).status_code == 201
+    client.put(
+        "/api/notifications/settings",
+        json={
+            "settings": {
+                "quiet_start": "00:00",
+                "quiet_end": "00:00",
+                "daily_max": 0,
+                "timezone": "UTC",
+            }
+        },
+    )
+    now = datetime(2026, 10, 10, 12, 0, tzinfo=UTC)
+    client.put(
+        "/api/alerts/schedule",
+        json={
+            "items": [
+                {
+                    "due_at": (now - timedelta(minutes=5)).isoformat(),
+                    "type": "upcoming_expense",
+                    "dedupe_key": "upcoming:rent:2026-10-25",
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr(get_settings(), "admin_emails", ["ops@example.com"])
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("bad key")
+
+    monkeypatch.setattr(push, "deliver", boom)
+    outbox().clear()
+    with get_session_factory()() as s:
+        dispatch_due(s, now=now)
+    assert any(m.to == "ops@example.com" and "push_failed" in m.subject for m in outbox())

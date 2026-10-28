@@ -550,7 +550,10 @@ def test_a_fraud_refund_lapses_with_honest_notes_that_never_invite_buying_again(
     assert day(1)["reminded"] == 0 and day(2)["reminded"] == 0
     outbox().clear()
     assert day(60)["deleted"] == 1
-    [closed] = outbox()
+    # The fake Stripe here serves only the fraud flow, so soft_delete's billing settling may
+    # also email the admins (ops_alerts dedupes per process hour, so whether it does depends on
+    # which tests ran first). The assertion is about the person's closing email alone.
+    [closed] = [m for m in outbox() if m.subject == "Your Qash account has closed"]
     assert "welcome back" not in closed.text.lower()
 
 
@@ -591,6 +594,23 @@ def test_stripe_calling_a_clearing_bank_subscription_active_grants_nothing_until
     )
     assert _plan(client) == "private"
     assert client.get("/api/billing").json()["payment_pending"] is False
+
+
+def test_a_second_purchase_while_a_bank_payment_clears_is_refused() -> None:
+    """Never two subscriptions (the terms, invariant 14): a clearing first debit makes
+    `effective_plan` answer None, so checkout must refuse on the pending payment itself."""
+    client, user_id = member("achsecond")
+    sub = f"sub_{uuid.uuid4().hex[:10]}"
+    post_event(client, _event("customer.subscription.created", _sub_obj(sub, user_id), T0))
+    post_event(
+        client, _event("checkout.session.completed", _checkout_obj(sub, user_id, "unpaid"), T0 + 1)
+    )
+    assert client.get("/api/billing").json()["payment_pending"] is True
+    r = client.post("/api/billing/checkout", json=buy(client, plan="connected", interval="monthly"))
+    assert (r.status_code, r.json()["detail"]) == (409, "payment_pending")
+    # Founding too: the held place (an incomplete row) must not allow a second payment page
+    r = client.post("/api/billing/checkout", json=buy(client, plan="founding"))
+    assert (r.status_code, r.json()["detail"]) == (409, "payment_pending")
 
 
 def test_a_failed_first_bank_payment_ends_the_subscription_at_stripe() -> None:

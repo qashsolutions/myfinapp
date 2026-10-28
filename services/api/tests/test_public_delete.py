@@ -57,6 +57,33 @@ def test_public_deletion_by_email_code() -> None:
     assert r.status_code == 400
 
 
+def test_the_verify_answer_never_says_whether_an_account_exists() -> None:
+    """The route's promise (module docstring, invariant 16's spirit): unknown addresses get the
+    same answer. The error body must match field for field — a different code or a missing
+    `attempts_left` makes the page a yes/no oracle for any email address."""
+    client = new_client()
+    email = f"maya+{uuid.uuid4().hex[:6]}@example.com"
+    sign_up(client, email, FakeAuthenticator())
+    site = new_client()
+    site.headers["origin"] = SITE
+    ghost = f"ghost+{uuid.uuid4().hex[:6]}@example.com"
+
+    # Before any code was asked for: the same answer for both
+    real = site.post("/api/public/account/delete/verify", json={"email": email, "code": "000000"})
+    fake = site.post("/api/public/account/delete/verify", json={"email": ghost, "code": "000000"})
+    assert (fake.status_code, fake.json()) == (real.status_code, real.json())
+
+    # After asking for a code: still the same answer (the ghost gets a code row, never an email)
+    outbox().clear()
+    site.post("/api/public/account/delete/send", json={"email": email})
+    site.post("/api/public/account/delete/send", json={"email": ghost})
+    assert [m.to for m in outbox()] == [email]
+    real = site.post("/api/public/account/delete/verify", json={"email": email, "code": "000000"})
+    fake = site.post("/api/public/account/delete/verify", json={"email": ghost, "code": "000000"})
+    assert (fake.status_code, fake.json()) == (real.status_code, real.json())
+    assert client.get("/api/auth/session").json()["authenticated"] is True
+
+
 def test_a_sign_in_code_never_deletes_the_account() -> None:
     client = new_client()
     email = f"maya+{uuid.uuid4().hex[:6]}@example.com"

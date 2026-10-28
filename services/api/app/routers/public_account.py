@@ -78,18 +78,19 @@ def delete_send(body: EmailIn, request: Request, db: Annotated[DbSession, Depend
     s = get_settings()
     email = normalize_email(str(body.email))
     user = _live_user(db, email)
-    if user is not None:
-        try:
-            code, _ = request_code(db, email, ip=client_ip(request), purpose=DELETE_ACCOUNT)
-        except OtpError:
-            code = None  # too soon after the last one: the earlier code still works
-        db.commit()
-        if code is not None:
-            # In the fragment, which browsers never send: not in server or CDN logs, history
-            # entries are cleared by the page, and never in a Referer (October 24, 2026).
-            fragment = urlencode({"email": email, "code": code}, quote_via=quote)
-            link = f"{s.site_origin}/delete-account#{fragment}"
-            get_sender().send(deletion_code_message(email, code, s.otp_ttl_seconds // 60, link))
+    # A code is issued for any address — the email goes only to a live account's — so `verify`
+    # answers every address the same way and never says whether an account exists.
+    try:
+        code, _ = request_code(db, email, ip=client_ip(request), purpose=DELETE_ACCOUNT)
+    except OtpError:
+        code = None  # too soon after the last one: the earlier code still works
+    db.commit()
+    if code is not None and user is not None:
+        # In the fragment, which browsers never send: not in server or CDN logs, history
+        # entries are cleared by the page, and never in a Referer (October 24, 2026).
+        fragment = urlencode({"email": email, "code": code}, quote_via=quote)
+        link = f"{s.site_origin}/delete-account#{fragment}"
+        get_sender().send(deletion_code_message(email, code, s.otp_ttl_seconds // 60, link))
     return Sent(sent=True, expires_in_seconds=s.otp_ttl_seconds)
 
 
@@ -103,9 +104,9 @@ def delete_verify(
 ) -> Response:
     email = normalize_email(str(body.email))
     user = _live_user(db, email)
-    if user is None:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail={"code": "wrong_code"})
     try:
+        # Checked for any address (send issues a code for any), so the failure answers — codes,
+        # attempts left, lockout — are the same whether or not an account exists.
         verify_code(db, email, body.code, purpose=DELETE_ACCOUNT)
     except OtpError as exc:
         db.commit()  # the attempt counts
@@ -120,15 +121,18 @@ def delete_verify(
             status.HTTP_400_BAD_REQUEST,
             detail={"code": exc.code, "attempts_left": exc.attempts_left},
         ) from exc
-    now = datetime.now(UTC)
-    send_alert(user.email, SecurityEvent.DELETION_REQUESTED, device_label="the website", at=now)
-    record(
-        db,
-        actor_id=user.id,
-        action=AuditAction.DELETE_REQUESTED,
-        target=f"user:{user.id}",
-        ip=client_ip(request),
-    )
-    soft_delete(db, user, now=now)
-    db.commit()
+    # The right code: a live account is deleted; otherwise there is nothing to do, and the
+    # answer is the same either way.
+    if user is not None:
+        now = datetime.now(UTC)
+        send_alert(user.email, SecurityEvent.DELETION_REQUESTED, device_label="the website", at=now)
+        record(
+            db,
+            actor_id=user.id,
+            action=AuditAction.DELETE_REQUESTED,
+            target=f"user:{user.id}",
+            ip=client_ip(request),
+        )
+        soft_delete(db, user, now=now)
+        db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

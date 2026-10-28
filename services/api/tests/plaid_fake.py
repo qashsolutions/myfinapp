@@ -27,6 +27,7 @@ class FakePlaid:
         self.removed: list[str] = []
         self.fail_remove = False
         self.sync_pages: dict[str, list[dict[str, Any]]] = {}  # access_token -> pages left
+        self.accounts_error: str | None = None  # an error_code to answer /accounts/get with
         self.sync_error: str | None = None  # an error_code to answer /transactions/sync with
         self.error_extra: dict[str, Any] = {}  # more fields for that error body
         self.mutation_once = False  # answer the next sync with a pagination mutation error
@@ -91,6 +92,8 @@ class FakePlaid:
                 self.items[access] = {"item_id": f"item-{n}"}
                 return httpx2.Response(200, json={"access_token": access, "item_id": f"item-{n}"})
             if path == "/accounts/get":
+                if self.accounts_error:
+                    return httpx2.Response(400, json={"error_code": self.accounts_error})
                 return httpx2.Response(
                     200,
                     json={

@@ -158,6 +158,22 @@ def play_transport(state: dict) -> httpx2.MockTransport:
     return httpx2.MockTransport(handle)
 
 
+def test_a_proof_without_an_account_token_never_applies_to_someone_elses_row() -> None:
+    """The module's contract: a proof that belongs to another account is refused — also when
+    the store proof carries no account token and the row is found by the transaction id."""
+    client, _user_id = member("maya")
+    future = datetime.now(UTC) + timedelta(days=30)
+    proof = sign_jws(
+        apple_txn(None, "com.stackd.app.private.monthly", future, original="2000000000000042")
+    )
+    r = client.post("/api/billing/native/sync", json={"platform": "ios", "jws": proof})
+    assert r.status_code == 200, r.text
+    other, _ = member("dev")
+    r = other.post("/api/billing/native/sync", json={"platform": "ios", "jws": proof})
+    assert r.status_code == 409 and r.json()["detail"] == "wrong_account"
+    assert other.get("/api/billing").json()["plan"] == "free"
+
+
 def test_play_sync_rtdn_and_cross_store_precedence() -> None:
     client, user_id = member("maya")
     google_auth.reset_cache()
@@ -226,6 +242,44 @@ def test_play_sync_rtdn_and_cross_store_precedence() -> None:
     rtdn["message"]["messageId"] = "m-2"
     assert client.post("/api/webhooks/google", json=rtdn).json()["outcome"] == "synced"
     assert client.get("/api/billing").json()["plan"] == "connected"
+
+
+def test_a_crafted_purchase_token_never_reaches_the_play_api() -> None:
+    """The token rides inside the Play API URL under our service-account credentials, so only
+    token-shaped strings may travel: anything else could steer the authenticated request."""
+    client, _user_id = member("maya")
+    google_auth.reset_cache()
+    calls: list[str] = []
+
+    def recording(request: httpx2.Request) -> httpx2.Response:
+        calls.append(request.url.path)
+        return httpx2.Response(500)
+
+    native_billing.transport_override = httpx2.MockTransport(recording)
+    crafted = "../../applications/com.else.where/purchases/subscriptionsv2/tokens/x?also=#f"
+    r = client.post(
+        "/api/billing/native/sync", json={"platform": "android", "purchase_token": crafted}
+    )
+    assert r.status_code == 422
+    rtdn = {
+        "message": {
+            "messageId": "m-crafted",
+            "data": base64.b64encode(
+                json.dumps(
+                    {
+                        "packageName": "com.stackd.app",
+                        "subscriptionNotification": {
+                            "notificationType": 3,
+                            "purchaseToken": crafted,
+                        },
+                    }
+                ).encode()
+            ).decode(),
+        }
+    }
+    r = client.post("/api/webhooks/google", json=rtdn)
+    assert r.status_code == 200 and r.json()["outcome"] == "ignored"
+    assert calls == []
 
 
 def test_play_rtdn_needs_no_trust_and_other_packages_are_ignored() -> None:

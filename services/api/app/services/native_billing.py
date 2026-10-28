@@ -22,6 +22,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import re
 import time
 import uuid
 from datetime import UTC, datetime
@@ -175,6 +176,10 @@ def _owner(
         raise BillingError("wrong_account")
     if caller_id is not None and from_token is not None and from_token != caller_id:
         raise BillingError("wrong_account")
+    # A signed-in caller syncing a proof whose row is someone else's is refused too, also when
+    # the proof carries no account token: their sync must never move another account's plan.
+    if caller_id is not None and row is not None and row.user_id != caller_id:
+        raise BillingError("wrong_account")
     return resolved
 
 
@@ -313,8 +318,16 @@ def token_ref(purchase_token: str) -> str:
     return f"google:{hashlib.sha256(purchase_token.encode()).hexdigest()}"
 
 
+# A Play purchase token travels inside the Play API URL under our service-account credentials,
+# so only token-shaped strings may travel: a "/", "?" or "#" could steer the authenticated
+# request somewhere else on the host. The sync route's model enforces the same shape.
+TOKEN_SHAPE = re.compile(r"^[A-Za-z0-9._\-]{1,512}$")
+
+
 def verify_play_subscription(purchase_token: str) -> dict[str, Any]:
     """The subscription behind a purchase token, from the Play Developer API (the truth)."""
+    if not TOKEN_SHAPE.fullmatch(purchase_token):
+        raise BillingError("unknown_purchase")
     account = _play_account()
     package = get_settings().play_package
     try:
@@ -416,7 +429,9 @@ def handle_google_rtdn(db: Any, body: dict[str, Any], *, now: datetime | None = 
         and play_configured()
     ):
         token = str(notification["purchaseToken"])
-        outcome = apply_play_subscription(db, token, verify_play_subscription(token), now=now)
+        # A crafted token in an unauthenticated RTDN is ignored, not verified (TOKEN_SHAPE).
+        if TOKEN_SHAPE.fullmatch(token):
+            outcome = apply_play_subscription(db, token, verify_play_subscription(token), now=now)
     db.add(BillingEvent(event_id=f"google:{event_id}", kind="google:rtdn"))
     db.flush()
     return outcome

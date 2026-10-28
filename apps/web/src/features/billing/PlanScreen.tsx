@@ -274,15 +274,17 @@ export function PlanScreen() {
             ? "You already have a plan. Choose another one above to switch."
             : failure.code === "founding_sold_out"
               ? "All the Founding places are taken. Connected is still here for you."
-              : failure.code === "purchase_blocked"
-                ? "We can't take a new payment on this account. Write to support@qash.solutions and we'll help."
-                : failure.code === "consent_outdated"
-                  ? "The terms changed. Reload the app and review them again."
-                  : failure.code === "consent_mismatch"
-                    ? "The terms changed since you opened them. Choose the plan again to see them."
-                    : failure.status === 0
-                      ? "You're offline. Try again when connected."
-                      : "Couldn't open the payment page. Try again.",
+              : failure.code === "payment_pending"
+                ? "Your bank payment is still on its way. Your plan starts when it clears — no need to buy again."
+                : failure.code === "purchase_blocked"
+                  ? "We can't take a new payment on this account. Write to support@qash.solutions and we'll help."
+                  : failure.code === "consent_outdated"
+                    ? "The terms changed. Reload the app and review them again."
+                    : failure.code === "consent_mismatch"
+                      ? "The terms changed since you opened them. Choose the plan again to see them."
+                      : failure.status === 0
+                        ? "You're offline. Try again when connected."
+                        : "Couldn't open the payment page. Try again.",
     );
   }
 

@@ -246,7 +246,9 @@ def approve(
     return StatusOut(status="approved")
 
 
-@router.post("/deny")
+# The same scope as lookup: deny also resolves a code, so probing one through deny counts
+# against the same window instead of going unmetered.
+@router.post("/deny", dependencies=[Depends(rate_limited("device_link_lookup"))])
 def deny(
     body: CodeIn,
     request: Request,

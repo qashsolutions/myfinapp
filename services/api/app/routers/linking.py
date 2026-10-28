@@ -39,6 +39,7 @@ from app.security.client import client_ip
 from app.security.csrf import same_site_only
 from app.security.principal import Caller, require_step_up, require_unlocked
 from app.security.rate_limit import rate_limited, session_or_ip
+from app.services import ops_alerts
 from app.services.security_alerts import SecurityEvent, send_alert
 
 router = APIRouter(prefix="/api/linking", tags=["linking"], dependencies=[Depends(same_site_only)])
@@ -364,13 +365,17 @@ def finish(
             continue
         try:
             access_token, item_id = plaid.exchange(add.public_token)
-            shared = plaid.accounts(access_token)
         except plaid.LinkError as exc:
             db.commit()
             raise _bad_gateway(exc) from exc
         row = db.scalar(select(BankConnection).where(BankConnection.item_id == item_id))
         if row is not None and row.user_id != caller.user.id:
-            plaid.remove_item(access_token)
+            # Someone else's item: never adopted. Its removal failing must not fail the finish;
+            # that account's row still tracks the item, so its own revoke covers this token too.
+            try:
+                plaid.remove_item(access_token)
+            except plaid.LinkError as exc:
+                ops_alerts.report("plaid_remove_item", "linking.finish", exc)
             continue
         if row is None:
             row = BankConnection(
@@ -384,9 +389,18 @@ def finish(
                 key_id="",
             )
             db.add(row)
+        # Sealed before anything else can fail: the exchanged token is live at Plaid from this
+        # moment, so it is tracked from this moment (linking.md: a live token is never forgotten).
         row.access_token_encrypted = token_vault.seal(access_token)
         row.key_id = token_vault.key_id()
         db.flush()
+        try:
+            shared = plaid.accounts(access_token)
+        except plaid.LinkError as exc:
+            # The row holds the sealed token: hand it to the revoke job instead of losing it.
+            row.status = "revoke_pending"
+            db.commit()
+            raise _bad_gateway(exc) from exc
         if add.institution_id is not None:
             have.add(add.institution_id)
         record(

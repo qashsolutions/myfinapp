@@ -140,6 +140,16 @@ def test_deny_expiry_and_unknown_codes() -> None:
     assert new_client().get("/api/auth/link/status").status_code == 404  # no cookie
 
 
+def test_deny_counts_against_the_lookup_window() -> None:
+    """Deny also resolves a code, so probing codes through deny is metered like lookup."""
+    net = _network()
+    phone, _auth, _ = _phone(net)
+    for _ in range(10):
+        assert phone.post("/api/auth/link/deny", json={"code": "ZZZZ-ZZZZ"}).status_code == 404
+    r = phone.post("/api/auth/link/deny", json={"code": "ZZZZ-ZZZZ"})
+    assert r.status_code == 429 and "retry-after" in r.headers
+
+
 def test_three_link_requests_an_hour_per_ip() -> None:
     computer = new_client(MAC_UA)
     for _ in range(3):

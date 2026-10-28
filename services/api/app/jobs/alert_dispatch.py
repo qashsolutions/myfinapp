@@ -29,7 +29,7 @@ from app.jobs import weekly_recap
 from app.models.notification import AlertSchedule, NotificationLog, PushSubscription
 from app.models.user import User
 from app.rules_server import notify as notify_rules
-from app.services import push
+from app.services import ops_alerts, push
 from app.services.alerts import (
     SUMMARY_LABEL,
     SUMMARY_LABEL_ONE,
@@ -79,8 +79,11 @@ def _deliver(db: DbSession, user_id: uuid.UUID, payload: dict, now: datetime) ->
     ):
         try:
             status = push.deliver(push.decrypt_subscription(sub.payload_encrypted), payload)
-        except Exception:  # noqa: BLE001 - one bad endpoint must not stop the run
+        except Exception as exc:  # noqa: BLE001 - one bad endpoint must not stop the run
+            # A systemic failure (a bad signing key raises for every subscription) must reach
+            # a person: ops_alerts dedupes to one email an hour per kind and place.
             log.exception("push failed")
+            ops_alerts.report("push_failed", "alert_dispatch", exc)
             continue
         if status in (404, 410):
             sub.revoked_at = now
