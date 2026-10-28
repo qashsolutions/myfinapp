@@ -1,7 +1,8 @@
 import type { UpcomingItem } from "../../engine/bridge.ts";
 import { formatCents, formatDay } from "../../lib/format.ts";
+import { useBoxWidth } from "../../lib/useBoxWidth.ts";
 
-const W = 354;
+const DESIGN_W = 354;
 const H = 170;
 const TOP = 22; // room for the "Today" label
 
@@ -27,6 +28,7 @@ export function ForecastChart({
   items?: UpcomingItem[];
   whatIf?: Day[] | null;
 }) {
+  const [box, W] = useBoxWidth(DESIGN_W);
   if (days.length < 2) return null;
   const values = [...days, ...(whatIf ?? [])].map((d) => d.balance_cents);
   const max = Math.max(...values, bufferCents, 0);
@@ -48,83 +50,85 @@ export function ForecastChart({
   const bills = marks.length - pays;
   return (
     <>
-      <svg
-        className="forecast__chart"
-        viewBox={`0 0 ${W} ${H}`}
-        role="img"
-        aria-label={`Estimated balance over the next ${days.length - 1} days. Lowest ${formatCents(lowestCents)} on ${formatDay(lowestDate)}. ${pays} ${pays === 1 ? "payday" : "paydays"} and ${bills} ${bills === 1 ? "bill" : "bills"} marked.`}
-      >
-        <rect
-          x="0"
-          y={floor}
-          width={W}
-          height={Math.max(0, H - floor)}
-          fill="var(--c-pending-bg)"
-        />
-        <line
-          x1="0"
-          y1={floor}
-          x2={W}
-          y2={floor}
-          stroke="var(--c-sub)"
-          strokeDasharray="4 4"
-          strokeWidth="1"
-        />
-        <line x1="1" y1={TOP - 4} x2="1" y2={H} stroke="var(--c-sub)" strokeWidth="1" />
-        <text x="4" y="12" className="forecast__today">
-          Today
-        </text>
-        {whatIf ? (
-          <polyline
-            points={line(whatIf)}
-            fill="none"
-            stroke="var(--c-success)"
-            strokeWidth="2.5"
-            strokeDasharray="6 4"
-            strokeLinejoin="round"
+      <div ref={box} className="chart-box">
+        <svg
+          className="forecast__chart"
+          viewBox={`0 0 ${W} ${H}`}
+          role="img"
+          aria-label={`Estimated balance over the next ${days.length - 1} days. Lowest ${formatCents(lowestCents)} on ${formatDay(lowestDate)}. ${pays} ${pays === 1 ? "payday" : "paydays"} and ${bills} ${bills === 1 ? "bill" : "bills"} marked.`}
+        >
+          <rect
+            x="0"
+            y={floor}
+            width={W}
+            height={Math.max(0, H - floor)}
+            fill="var(--c-pending-bg)"
           />
-        ) : null}
-        <polyline
-          points={line(days)}
-          fill="none"
-          stroke="var(--c-a1)"
-          strokeWidth="3"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-        {marks.map((item) => {
-          const i = index.get(item.date) as number;
-          const cy = y((days[i] as Day).balance_cents);
-          if (item.kind === "bill")
+          <line
+            x1="0"
+            y1={floor}
+            x2={W}
+            y2={floor}
+            stroke="var(--c-sub)"
+            strokeDasharray="4 4"
+            strokeWidth="1"
+          />
+          <line x1="1" y1={TOP - 4} x2="1" y2={H} stroke="var(--c-sub)" strokeWidth="1" />
+          <text x="4" y="12" className="forecast__today">
+            Today
+          </text>
+          {whatIf ? (
+            <polyline
+              points={line(whatIf)}
+              fill="none"
+              stroke="var(--c-success)"
+              strokeWidth="2.5"
+              strokeDasharray="6 4"
+              strokeLinejoin="round"
+            />
+          ) : null}
+          <polyline
+            points={line(days)}
+            fill="none"
+            stroke="var(--c-a1)"
+            strokeWidth="3"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+          {marks.map((item) => {
+            const i = index.get(item.date) as number;
+            const cy = y((days[i] as Day).balance_cents);
+            if (item.kind === "bill")
+              return (
+                <circle
+                  key={`${item.series_id}:${item.date}`}
+                  cx={x(i)}
+                  cy={cy}
+                  r={dense ? 2.5 : 4.5}
+                  fill="var(--c-danger)"
+                />
+              );
             return (
-              <circle
-                key={`${item.series_id}:${item.date}`}
-                cx={x(i)}
-                cy={cy}
-                r={dense ? 2.5 : 4.5}
-                fill="var(--c-danger)"
-              />
+              <g key={`${item.series_id}:${item.date}`}>
+                <circle cx={x(i)} cy={cy} r={dense ? 3.5 : 8} fill="var(--c-success)" />
+                {dense ? null : (
+                  <text x={x(i)} y={cy + 4} className="forecast__pay">
+                    $
+                  </text>
+                )}
+              </g>
             );
-          return (
-            <g key={`${item.series_id}:${item.date}`}>
-              <circle cx={x(i)} cy={cy} r={dense ? 3.5 : 8} fill="var(--c-success)" />
-              {dense ? null : (
-                <text x={x(i)} y={cy + 4} className="forecast__pay">
-                  $
-                </text>
-              )}
-            </g>
-          );
-        })}
-        <circle
-          cx={x(lowIndex)}
-          cy={y(lowestCents)}
-          r="5"
-          fill={lowestCents < bufferCents ? "var(--c-danger)" : "var(--c-a1)"}
-          stroke="var(--c-card)"
-          strokeWidth="2"
-        />
-      </svg>
+          })}
+          <circle
+            cx={x(lowIndex)}
+            cy={y(lowestCents)}
+            r="5"
+            fill={lowestCents < bufferCents ? "var(--c-danger)" : "var(--c-a1)"}
+            stroke="var(--c-card)"
+            strokeWidth="2"
+          />
+        </svg>
+      </div>
       <div className="forecast__axis" aria-hidden="true">
         <span>{formatDay(first.date)}</span>
         <span>{formatDay(mid.date)}</span>

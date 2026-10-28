@@ -5,7 +5,7 @@
   gap: 8px;
 }
 .group-row__meta {
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .hero-split {
@@ -62,7 +62,7 @@
   padding-bottom: 8px;
 }
 .invite-code {
-  font: 700 28px var(--font-display);
+  font: 700 var(--fs-word) var(--font-display);
   letter-spacing: 0.14em;
   text-align: center;
   padding: 12px;
@@ -71,7 +71,7 @@
   font-variant-numeric: var(--numeric-data);
 }
 .code-input {
-  font: 700 24px var(--font-display);
+  font: 700 var(--fs-heading) var(--font-display);
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }

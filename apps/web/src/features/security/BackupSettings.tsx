@@ -315,7 +315,7 @@ export function BackupSettings() {
           Write it down and keep it somewhere safe. It opens your backup on a new device when your{" "}
           {biometricName()} can't. We never see it.
         </p>
-        <p className="invite-code" style={{ fontSize: "1.1rem", wordBreak: "break-all" }}>
+        <p className="invite-code" style={{ fontSize: "var(--fs-title)", wordBreak: "break-all" }}>
           <span className="sr-only">Recovery key: </span>
           {recovery}
         </p>

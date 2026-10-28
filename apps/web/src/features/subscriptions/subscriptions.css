@@ -1,5 +1,5 @@
 .subs__hero {
-  font-size: 1.75rem;
+  font-size: var(--fs-word);
   font-weight: 700;
   margin: 0;
 }

@@ -7,11 +7,11 @@
 }
 .autolock__value {
   margin: 0;
-  font: 700 40px / 1 var(--font-hero, var(--font-display));
+  font: 700 var(--fs-hero) / 1 var(--font-hero, var(--font-display));
   font-variant-numeric: var(--numeric-data);
 }
 .autolock__value span {
-  font: 600 18px / 1 var(--font-body);
+  font: 600 var(--fs-title) / 1 var(--font-body);
   color: var(--c-sub);
 }
 .autolock__controls {
@@ -41,7 +41,7 @@
   border-radius: 12px;
   background: var(--c-card);
   color: var(--c-ink);
-  font: 700 18px / 1 var(--font-body);
+  font: 700 var(--fs-title) / 1 var(--font-body);
   text-align: center;
 }
 .autolock__field input[aria-invalid="true"] {
@@ -50,12 +50,12 @@
 .autolock__help {
   margin: 0;
   color: var(--c-sub);
-  font-size: 14px;
+  font-size: var(--fs-small);
 }
 
 /* Signed-in devices: the "Ended in the last 30 days" sub-heading. */
 .section-subtitle {
   margin: 16px 4px 8px;
-  font: 600 14px / 1.3 var(--font-body);
+  font: 600 var(--fs-small) / 1.3 var(--font-body);
   color: var(--c-sub);
 }

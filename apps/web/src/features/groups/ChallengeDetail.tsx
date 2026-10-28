@@ -103,13 +103,24 @@ export function ChallengeDetail() {
         {goal ? (
           <>
             <p className="sk-card__hero">
-              {p
-                ? goal.kind === "habit"
-                  ? `${p.current} of ${p.target} days`
-                  : goal.kind === "spend_less"
-                    ? `${formatCents(Math.max(0, p.current))} kept back of ${formatCents(p.target)}`
-                    : `${formatCents(p.current)} of ${formatCents(p.target)}`
-                : ""}
+              {p ? (
+                <>
+                  {goal.kind === "habit"
+                    ? p.current
+                    : formatCents(
+                        goal.kind === "spend_less" ? Math.max(0, p.current) : p.current,
+                      )}{" "}
+                  <span className="sk-card__hero-unit">
+                    {goal.kind === "habit"
+                      ? `of ${p.target} days`
+                      : goal.kind === "spend_less"
+                        ? `kept back of ${formatCents(p.target)}`
+                        : `of ${formatCents(p.target)}`}
+                  </span>
+                </>
+              ) : (
+                ""
+              )}
             </p>
             <ProgressBar
               fraction={p ? p.display_bps / 10000 : 0}

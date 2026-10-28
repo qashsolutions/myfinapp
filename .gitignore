@@ -36,6 +36,7 @@ Plaid_Files/
 
 # Playwright e2e (local runs)
 apps/web/e2e/.output/
+apps/web/e2e-audit/.output/
 apps/web/test-results/
 apps/web/playwright-report/
 apps/web/test-results-payments/

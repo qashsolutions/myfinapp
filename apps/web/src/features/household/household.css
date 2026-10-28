@@ -4,7 +4,7 @@
 }
 .household-link {
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 0.85rem;
+  font-size: var(--fs-small);
   word-break: break-all;
   background: var(--c-bg);
   border-radius: 8px;
@@ -17,10 +17,10 @@
   text-align: center;
 }
 .together__label {
-  color: var(--c-ink-2);
-  font-size: 0.85rem;
+  color: var(--c-sub);
+  font-size: var(--fs-small);
 }
 .together__value {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: var(--fs-title);
 }

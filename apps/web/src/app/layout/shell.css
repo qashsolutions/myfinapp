@@ -44,11 +44,11 @@
   min-width: 0;
 }
 .screen-header__eyebrow {
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .screen-header__title {
-  font-size: 24px;
+  font-size: var(--fs-heading);
   line-height: 1.15;
   overflow-wrap: break-word;
 }
@@ -72,7 +72,7 @@
   background: var(--c-a1);
   color: var(--c-on-accent);
   box-shadow: var(--shadow-card);
-  font: 600 15px / 1 var(--font-body);
+  font: 600 var(--fs-body) / 1 var(--font-body);
   text-decoration: none;
 }
 .add-btn__label {
@@ -125,7 +125,7 @@
   justify-content: center;
   min-height: 48px;
   border-radius: 16px;
-  font: 600 12px / 1 var(--font-body);
+  font: 600 var(--fs-caption) / 1 var(--font-body);
   color: var(--c-sub);
   text-decoration: none;
 }
@@ -153,7 +153,7 @@
   align-items: center;
   gap: 10px;
   padding: 4px 8px 8px;
-  font: 700 20px / 1 var(--font-display);
+  font: 700 var(--fs-title) / 1 var(--font-display);
 }
 /* The brand mark (Logo.tsx) draws its own indigo tile, the same in every look and mode. */
 .logo {
@@ -171,7 +171,7 @@
   min-height: 48px;
   padding: 0 14px;
   border-radius: 14px;
-  font: 600 15px / 1 var(--font-body);
+  font: 600 var(--fs-body) / 1 var(--font-body);
   color: var(--c-ink);
   text-decoration: none;
 }
@@ -185,7 +185,7 @@
 
 @media (min-width: 600px) {
   .screen-header__title {
-    font-size: 30px;
+    font-size: var(--fs-word);
   }
   .add-btn {
     min-height: 48px;
@@ -228,8 +228,8 @@
     background: none;
     text-align: left;
     font: inherit;
-    color: var(--c-ink-2);
-    font-size: 14px;
+    color: var(--c-sub);
+    font-size: var(--fs-small);
     cursor: pointer;
     min-width: 0;
   }
@@ -261,7 +261,7 @@
     background: none;
     text-align: left;
     text-decoration: none;
-    font: 600 15px / 1 var(--font-body);
+    font: 600 var(--fs-body) / 1 var(--font-body);
     color: var(--c-ink);
     cursor: pointer;
   }

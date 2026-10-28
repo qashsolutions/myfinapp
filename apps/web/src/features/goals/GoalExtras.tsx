@@ -217,7 +217,10 @@ export function GoalExtras({
       {streak && goal.is_ongoing ? (
         <Card as="section" aria-label="Streak">
           <p className="sk-card__hero">
-            {streak.streak} {streak.streak === 1 ? nouns[0] : nouns[1]} in a row
+            {streak.streak}{" "}
+            <span className="sk-card__hero-unit">
+              {streak.streak === 1 ? nouns[0] : nouns[1]} in a row
+            </span>
           </p>
           <p className="sk-card__eyebrow">
             {formatCents(goal.per_period_cents ?? 0)} {CADENCE_WORDS[goal.cadence ?? "monthly"]} ·{" "}

@@ -53,7 +53,7 @@
   border: 0;
   background: none;
   color: var(--c-a1);
-  font-size: 15px;
+  font-size: var(--fs-body);
   cursor: pointer;
 }
 .customize__move:disabled {

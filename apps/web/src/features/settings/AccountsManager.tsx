@@ -148,7 +148,7 @@ export function AccountsManager() {
         title="Accounts & imports"
         back="/me/data"
         actions={
-          <Link to="/import" className={buttonClass({ size: "sm" })}>
+          <Link to="/import" className={buttonClass({ size: "sm", variant: "secondary" })}>
             Import
           </Link>
         }

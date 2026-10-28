@@ -15,7 +15,7 @@
   justify-content: center;
   padding: 7px 0;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: var(--fs-small);
   font-weight: 700;
   color: var(--c-sub);
   cursor: pointer;
@@ -83,7 +83,7 @@
 }
 .range-bars__label {
   min-height: 14px;
-  font-size: 11px;
+  font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--c-sub);
   white-space: nowrap;
@@ -91,7 +91,7 @@
 .range-key {
   display: flex;
   gap: 12px;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   color: var(--c-sub);
 }
 .range-key span::before {
@@ -107,7 +107,7 @@
   background: var(--c-danger);
 }
 .range-note {
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .range-change--up {
@@ -118,7 +118,7 @@
 }
 .range-h {
   margin: 8px 0 0;
-  font-size: 17px;
+  font-size: var(--fs-body);
   font-weight: 700;
 }
 

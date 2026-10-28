@@ -1,5 +1,17 @@
 /* @stackd/ui. Reads only the custom properties from @stackd/tokens/tokens.css. */
 
+/* Type scale (owner, October 28, 2026: seven sizes, every screen). A size in any stylesheet is
+   one of these; apps/web/tests/unit/design-system.test.ts fails on a raw px or rem font size. */
+:root {
+  --fs-caption: 12px;
+  --fs-small: 14px;
+  --fs-body: 16px;
+  --fs-title: 18px;
+  --fs-heading: 24px;
+  --fs-word: 28px;
+  --fs-hero: clamp(34px, 10vw, 44px);
+}
+
 /* Button ----------------------------------------------------------------- */
 .sk-btn {
   display: inline-flex;
@@ -11,7 +23,7 @@
   padding: 0 18px;
   border: 1px solid transparent;
   border-radius: 999px;
-  font: 600 15px / 1.2 var(--font-body);
+  font: 600 var(--fs-body) / 1.2 var(--font-body);
   color: var(--c-ink);
   background: transparent;
   cursor: pointer;
@@ -49,7 +61,7 @@
 .sk-btn--sm {
   min-height: 44px;
   padding: 0 14px;
-  font-size: 14px;
+  font-size: var(--fs-small);
 }
 .sk-btn--block {
   display: flex;
@@ -80,11 +92,11 @@
   color: var(--c-on-accent);
 }
 .sk-card__title {
-  font: 600 16px / 1.3 var(--font-display);
+  font: 600 var(--fs-body) / 1.3 var(--font-display);
   margin: 0;
 }
 .sk-card__eyebrow {
-  font: 600 12px / 1.3 var(--font-body);
+  font: 600 var(--fs-caption) / 1.3 var(--font-body);
   color: var(--c-sub);
 }
 .sk-card--accent .sk-card__eyebrow {
@@ -92,13 +104,19 @@
   opacity: 0.9;
 }
 .sk-card__hero {
-  font: 700 clamp(40px, 12vw, 56px) / 1 var(--font-hero);
+  font: 700 var(--fs-hero) / 1 var(--font-hero);
   letter-spacing: -0.03em;
   font-variant-numeric: var(--numeric-data);
 }
 .sk-card__hero--empty {
-  font-size: clamp(28px, 8vw, 36px);
+  font-size: var(--fs-word);
   opacity: 0.85;
+}
+/* Big number, small unit (October 28, 2026): "$0.00 of $500.00" stays one line. */
+.sk-card__hero-unit {
+  font-size: var(--fs-title);
+  font-weight: 600;
+  letter-spacing: 0;
 }
 [data-simple="1"] .sk-decor {
   display: none;
@@ -111,7 +129,7 @@
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  font: 600 13px / 1 var(--font-body);
+  font: 600 var(--fs-small) / 1 var(--font-body);
   font-variant-numeric: var(--numeric-data);
   background: var(--c-line);
   color: var(--c-ink);
@@ -186,18 +204,18 @@
 }
 .sk-row__label {
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--fs-body);
   overflow-wrap: anywhere;
 }
 .sk-row--interactive:hover .sk-row__label {
   color: var(--c-a1);
 }
 .sk-row__sublabel {
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .sk-row__value {
-  font-size: 15px;
+  font-size: var(--fs-body);
   font-weight: 600;
   font-variant-numeric: var(--numeric-data);
   text-align: right;
@@ -255,7 +273,7 @@
   background: var(--c-danger);
 }
 .sk-progress__text {
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
   font-variant-numeric: var(--numeric-data);
 }
@@ -305,7 +323,7 @@
 }
 .sk-sheet__title {
   text-align: center;
-  font: 700 20px / 1.2 var(--font-display);
+  font: 700 var(--fs-title) / 1.2 var(--font-display);
   margin: 0;
 }
 @media (min-width: 600px) {
@@ -331,7 +349,7 @@
   box-shadow: var(--shadow-card);
 }
 .sk-sentence__hint {
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--c-sub);
 }
@@ -340,7 +358,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 8px;
-  font: 600 22px / 1.5 var(--font-display);
+  font: 600 var(--fs-heading) / 1.5 var(--font-display);
 }
 .sk-sentence__blank {
   display: inline-flex;
@@ -351,7 +369,7 @@
   border-radius: 12px;
   background: color-mix(in srgb, var(--c-a1) 12%, var(--c-card));
   color: var(--c-a1);
-  font: 700 22px / 1.2 var(--font-display);
+  font: 700 var(--fs-heading) / 1.2 var(--font-display);
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
@@ -383,10 +401,10 @@
 }
 .sk-toggle__label {
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 .sk-toggle__desc {
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .sk-toggle__input {

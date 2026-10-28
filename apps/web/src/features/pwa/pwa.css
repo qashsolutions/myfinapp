@@ -14,7 +14,7 @@
   font-weight: 700;
 }
 .offline-banner__sub {
-  font-size: 13px;
+  font-size: var(--fs-small);
   opacity: 0.9;
 }
 .update-toast {
@@ -65,7 +65,7 @@
   background: var(--c-card);
   color: var(--c-ink);
   box-shadow: var(--shadow-card);
-  font-size: 0.875rem;
+  font-size: var(--fs-small);
   font-weight: 600;
   pointer-events: none;
 }
@@ -131,12 +131,12 @@
 }
 .istep__title {
   display: block;
-  font-size: 1.0625rem;
+  font-size: var(--fs-body);
   color: var(--c-ink);
 }
 .istep__hint {
   display: block;
-  font-size: 0.875rem;
+  font-size: var(--fs-small);
   color: var(--c-sub);
 }
 .install-or {
@@ -153,7 +153,7 @@
   border-radius: 12px;
   background: var(--c-card);
   color: var(--c-ink);
-  font-size: 0.875rem;
+  font-size: var(--fs-small);
 }
 .mock-bar {
   justify-content: space-around;
@@ -166,7 +166,7 @@
   height: 36px;
   border-radius: 10px;
   color: var(--c-a1);
-  font-size: 1.125rem;
+  font-size: var(--fs-title);
 }
 .mock-menu {
   flex-direction: column;
@@ -202,7 +202,7 @@
   display: grid;
   justify-items: center;
   gap: 4px;
-  font-size: 0.75rem;
+  font-size: var(--fs-caption);
   color: var(--c-ink);
 }
 .mock-tile img {
@@ -239,11 +239,11 @@
   background: var(--c-a1);
   color: var(--c-on-accent);
   font-weight: 700;
-  font-size: 0.875rem;
+  font-size: var(--fs-small);
 }
 .install-pointer__arrow {
   color: var(--c-a1);
-  font-size: 2rem;
+  font-size: var(--fs-word);
   line-height: 1;
   animation: install-bounce 1.2s ease-in-out infinite;
 }

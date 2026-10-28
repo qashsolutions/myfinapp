@@ -216,8 +216,8 @@ export function BudgetSetup({
         <Card as="section" aria-label="Your pay a month" className="pay-hero">
           <Word>{monthly !== null && amount.trim() ? "Monthly" : "Start"}</Word>
           {monthly !== null && amount.trim() ? (
-            <p className="sk-card__hero pay-hero__value">
-              {formatCents(monthly)} <span className="pay-hero__unit">a month</span>
+            <p className="sk-card__hero">
+              {formatCents(monthly)} <span className="sk-card__hero-unit">a month</span>
             </p>
           ) : (
             <p className="sk-card__hero sk-card__hero--empty">What you take home</p>
