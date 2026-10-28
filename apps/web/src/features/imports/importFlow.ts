@@ -83,7 +83,7 @@ export interface PreparedRow extends MappedRow {
   fingerprint: string;
   clean_description: string;
   category_id: string | null;
-  matched_by: "user" | "keyword" | "model" | null;
+  matched_by: "user" | "keyword" | null;
   is_transfer_hint: boolean;
   duplicate: boolean;
   /** An existing entry in another account that looks like the other side of this transfer. */
@@ -108,13 +108,14 @@ export interface Prepared {
 
 export interface Categorized {
   category_id: string | null;
-  matched_by: "user" | "keyword" | "model" | null;
+  matched_by: "user" | "keyword" | null;
   is_transfer_hint: boolean;
 }
 
 /**
  * The categoriser every money-in path shares (imports, linked sync): the user's own rules, then
- * the keyword table, then, for money out only, the bundled model above its floors.
+ * the keyword table. Nothing is guessed (owner decision, October 28, 2026: no AI in the code);
+ * a description neither matches stays uncategorized for the person to sort.
  */
 export async function loadCategorizer(
   db: StackdDb,
@@ -123,41 +124,13 @@ export async function loadCategorizer(
     match: r.match,
     category_id: r.category_id,
   }));
-  const knownCategories = new Set((await db.categories.toArray()).map((c) => c.id));
-  // Loaded on first use as its own chunk (about 56 KB gzipped); precached for offline use.
-  const { default: categorizer } = await import("@stackd/rules/categorizer");
-  return async (description, direction) => {
-    const cat = await engine.call<{
-      category_id: string | null;
-      matched_by: "user" | "keyword" | null;
-      is_transfer_hint: boolean;
-    }>("categorize.match", {
+  return async (description, direction) =>
+    engine.call<Categorized>("categorize.match", {
       description,
       direction,
       user_rules: userRules,
       keywords,
     });
-    let categoryId = cat.category_id;
-    let matchedBy: Categorized["matched_by"] = cat.matched_by;
-    if (categoryId === null && !cat.is_transfer_hint && direction === "out") {
-      // Fast-follow 7: the bundled model suggests known merchants the tables missed. It only
-      // ever answers with a default category above its confidence floors, never a guess, and
-      // the preview shows the category for review like any keyword match.
-      const suggested = await engine.call<{ category_id: string | null }>("categorize.suggest", {
-        description,
-        model: categorizer,
-      });
-      if (suggested.category_id !== null && knownCategories.has(suggested.category_id)) {
-        categoryId = suggested.category_id;
-        matchedBy = "model";
-      }
-    }
-    return {
-      category_id: categoryId,
-      matched_by: matchedBy,
-      is_transfer_hint: cat.is_transfer_hint,
-    };
-  };
 }
 
 /** Fingerprint, dedupe and categorise. Identical rows within one file get a numbered suffix. */

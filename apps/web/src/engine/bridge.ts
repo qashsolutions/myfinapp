@@ -236,18 +236,6 @@ export interface MonthTotals {
   by_account: Array<{ account_id: string; in_cents: number; out_cents: number }>;
 }
 
-// categorize (fast-follow 7): the bundled learned model; suggestions only, never a guess.
-export interface CategorySuggestion {
-  category_id: string | null;
-  score: number;
-  margin: number;
-}
-
-export async function suggestCategory(description: string): Promise<CategorySuggestion> {
-  const { default: model } = await import("@stackd/rules/categorizer");
-  return engine.call<CategorySuggestion>("categorize.suggest", { description, model });
-}
-
 export async function monthTotals(asOf: string, entries: RuleEntry[]): Promise<MonthTotals> {
   return engine.call<MonthTotals>("cashflow.month_totals", { as_of: asOf, entries });
 }

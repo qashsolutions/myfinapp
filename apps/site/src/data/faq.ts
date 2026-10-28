@@ -17,7 +17,7 @@ export const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: "Is there AI reading my transactions?",
-    a: 'No AI service ever sees your data. Every number comes from plain, versioned rules that run on your device. Category suggestions come from a small fixed model we built and ship inside the app, and "Read text from photo" on a receipt uses an open-source text reader; both run on your device and send nothing anywhere. There are no AI services in the app or on our servers.',
+    a: 'No AI service ever sees your data. Every number comes from plain, versioned rules that run on your device. Categories come from your own rules and a fixed list of keywords; anything neither matches stays uncategorized for you to sort, never guessed. "Read text from photo" on a receipt uses an open-source text reader that runs on your device and sends nothing anywhere. There are no AI services in the app or on our servers.',
   },
   {
     q: "Do jars move my money?",

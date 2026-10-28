@@ -110,10 +110,6 @@ def _categorize_match(description: str, direction: str, user_rules: list, keywor
     return categorize.match(description, direction, user_rules, keywords)
 
 
-def _categorize_suggest(description: str, model: dict) -> dict:
-    return categorize.suggest(description, model)
-
-
 def _insights_safe_to_spend(days: list, buffer_cents: int, as_of: str, until: str) -> dict:
     return insights.safe_to_spend(days, buffer_cents, as_of, until)
 
@@ -360,7 +356,6 @@ _BARE: dict[str, Rule] = {
     "fingerprint.clean_description": _fingerprint_clean_description,
     "fingerprint.row": _fingerprint_row,
     "categorize.match": _categorize_match,
-    "categorize.suggest": _categorize_suggest,
     "insights.safe_to_spend": _insights_safe_to_spend,
     "insights.vs_usual": _insights_vs_usual,
     "insights.lumpy_bills": _insights_lumpy_bills,

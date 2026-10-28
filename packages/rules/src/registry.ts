@@ -128,10 +128,6 @@ const BARE: Record<string, Rule> = {
     ]);
     return { ...categorize.match(description, direction, user_rules, keywords) };
   },
-  "categorize.suggest": (input) => {
-    const { description, model } = args(input, ["description", "model"]);
-    return { ...categorize.suggest(description, model) };
-  },
   "insights.safe_to_spend": (input) => {
     const { days, buffer_cents, as_of, until } = args(input, [
       "days",
