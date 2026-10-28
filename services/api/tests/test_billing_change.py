@@ -18,12 +18,12 @@ from app.linking import plaid
 from app.models.billing import PurchaseConsent, Subscription
 from app.services import stripe_billing
 from tests.auth_flow import outbox
-from tests.billing_helpers import grant_plan
+from tests.billing_helpers import change_consent, grant_plan
 from tests.conftest import stripe_default_transport
 from tests.plaid_fake import FakePlaid
-from tests.test_billing import CONSENT, buy, member
 from tests.test_billing import FakeStripe as CheckoutStripe
-from tests.test_billing_cancel import CANCEL
+from tests.test_billing import buy, member
+from tests.test_billing_cancel import cancel_body
 from tests.test_linking import start
 
 NOW = int(time.time())
@@ -191,22 +191,29 @@ def subscribed(name: str, plan: str, interval: str, price: str, *, days: int = 4
 def change(client, plan: str, interval: str, **extra):
     return client.post(
         "/api/billing/change",
-        json={"plan": plan, "interval": interval, "consent": CONSENT, **extra},
+        json={
+            "plan": plan,
+            "interval": interval,
+            "consent": change_consent(client, plan, interval),
+            **extra,
+        },
     )
 
 
 def test_checkout_never_opens_a_second_subscription() -> None:
     client, user_id, stripe = subscribed("twice", "private", "yearly", "price_private_y")
-    r = client.post("/api/billing/checkout", json=buy(plan="connected", interval="monthly"))
+    r = client.post("/api/billing/checkout", json=buy(client, plan="connected", interval="monthly"))
     assert (r.status_code, r.json()["detail"]) == (409, "already_subscribed")
-    r = client.post("/api/billing/checkout", json=buy(plan="founding"))
+    r = client.post("/api/billing/checkout", json=buy(client, plan="founding"))
     assert (r.status_code, r.json()["detail"]) == (409, "cancel_first")
     assert not any(p == "/v1/checkout/sessions" for p in stripe.paths())
     # Once the plan is set not to renew, Founding (one payment, no renewal) may be bought.
-    assert client.post("/api/billing/cancel", json=CANCEL).status_code == 200
+    assert client.post("/api/billing/cancel", json=cancel_body(client)).status_code == 200
     stripe_billing.transport_override = CheckoutStripe().transport()
-    assert client.post("/api/billing/checkout", json=buy(plan="founding")).status_code == 200
-    r = client.post("/api/billing/checkout", json=buy(plan="private", interval="monthly"))
+    assert (
+        client.post("/api/billing/checkout", json=buy(client, plan="founding")).status_code == 200
+    )
+    r = client.post("/api/billing/checkout", json=buy(client, plan="private", interval="monthly"))
     assert r.json()["detail"] == "already_subscribed"  # still a live subscription until it ends
 
 

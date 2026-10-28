@@ -29,6 +29,7 @@ from app.security.client import client_ip, device_label
 from app.security.csrf import same_site_only
 from app.security.hashing import pseudonym
 from app.security.principal import Caller, require_session, require_step_up, require_unlocked
+from app.security.rate_limit import rate_limited, session_or_ip
 from app.services import sessions as sessions_svc
 from app.services import webauthn as webauthn_svc
 from app.services.security_alerts import SecurityEvent, send_alert
@@ -118,7 +119,10 @@ def register_options(
     return OptionsOut(options=webauthn_svc.options_payload(options))
 
 
-@router.post("/passkeys/register/verify")
+@router.post(
+    "/passkeys/register/verify",
+    dependencies=[Depends(rate_limited("passkey_add", key=session_or_ip))],
+)
 def register_verify(
     body: RegisterVerifyRequest,
     caller: Annotated[Caller, Depends(require_session)],
@@ -210,7 +214,11 @@ def list_passkeys(
     return [_passkey_out(r) for r in rows]
 
 
-@router.delete("/passkeys/{passkey_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/passkeys/{passkey_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(rate_limited("passkey_remove", key=session_or_ip))],
+)
 def remove_passkey(
     passkey_id: uuid.UUID,
     caller: Annotated[Caller, Depends(require_step_up)],
@@ -354,7 +362,11 @@ def activity(
     return out
 
 
-@router.delete("/devices/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/devices/{session_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(rate_limited("device_sign_out", key=session_or_ip))],
+)
 def sign_out_device(
     session_id: uuid.UUID,
     caller: Annotated[Caller, Depends(require_step_up)],

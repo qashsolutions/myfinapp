@@ -33,7 +33,7 @@ def _set(env: str, mode: str | None) -> FakeStripe:
 
 def _try(client) -> int:
     return client.post(
-        "/api/billing/checkout", json=buy(plan="private", interval="monthly")
+        "/api/billing/checkout", json=buy(client, plan="private", interval="monthly")
     ).status_code
 
 
@@ -43,7 +43,9 @@ def test_production_with_every_stripe_setting_still_sells_nothing_until_opened()
     assert stripe_billing.configured()  # all seven Stripe settings present
     assert client.get("/api/billing").json()["available"] is False
     assert _try(client) == 503
-    assert client.post("/api/billing/checkout", json=buy(plan="founding")).status_code == 503
+    assert (
+        client.post("/api/billing/checkout", json=buy(client, plan="founding")).status_code == 503
+    )
     _set("prod", "off")
     assert _try(client) == 503
     assert stripe.requests == []  # Stripe never asked

@@ -22,7 +22,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session as DbSession
@@ -53,7 +53,8 @@ from app.security.csrf import same_site_only
 from app.security.hashing import pseudonym
 from app.security.principal import Caller, require_step_up, require_unlocked
 from app.security.rate_limit import rate_limited, session_or_ip
-from app.services import deletion, native_billing, plan_history, stripe_billing
+from app.services import consent_text, deletion, native_billing, plan_history, stripe_billing
+from app.services.consent_text import CONSENT_VERSION
 from app.services.security_alerts import SecurityEvent, send_alert
 
 router = APIRouter(prefix="/api/billing", tags=["billing"], dependencies=[Depends(same_site_only)])
@@ -108,18 +109,48 @@ class BillingOut(BaseModel):
     payment_pending: bool = False
 
 
-# The "Before you subscribe" wording the app shows (apps/web PlanScreen consentPoints). Bump it
-# whenever that wording changes; a stale app gets 409 consent_outdated and reloads the terms.
-CONSENT_VERSION = "2026-10-24"
-
-
 class ConsentIn(BaseModel):
-    """What the person read and ticked, as the app showed it (recorded verbatim)."""
+    """What the person read and ticked: the lines the server built for this offer (GET
+    /api/billing/consent/*, or the change preview's `consent`), sent back unchanged. The route
+    builds them again from the same facts and refuses any difference (409 consent_mismatch,
+    October 28, 2026), so what is kept is always the server's own text."""
 
     version: str = Field(max_length=16)
     lines: list[str] = Field(min_length=1, max_length=10)
     agreement: str = Field(min_length=1, max_length=300)
     accepted: Literal[True]
+    # The device's time zone, which the dates in the lines were written in.
+    tz: str | None = Field(default=None, max_length=64)
+
+
+ConsentIcon = Literal["price", "renew", "cancel", "card", "term", "refund", "unlink"]
+
+
+class ConsentPointOut(BaseModel):
+    text: str
+    icon: ConsentIcon | None = None
+    head: str | None = None
+
+
+class ConsentTextOut(BaseModel):
+    """What to show above the box, and exactly what to send back when it is ticked."""
+
+    version: str
+    points: list[ConsentPointOut]
+    lines: list[str]
+    agreement: str
+
+
+def _consent_out(text: consent_text.ConsentText) -> ConsentTextOut:
+    return ConsentTextOut(
+        version=CONSENT_VERSION,
+        points=[
+            ConsentPointOut(text=p.text, icon=p.icon, head=p.head)  # type: ignore[arg-type]
+            for p in text.points
+        ],
+        lines=text.lines,
+        agreement=text.agreement,
+    )
 
 
 class CheckoutIn(BaseModel):
@@ -140,6 +171,10 @@ class ChangeIn(ChangeTarget):
     consent: ConsentIn | None = None
 
 
+class ChangePreviewIn(ChangeTarget):
+    tz: str | None = Field(default=None, max_length=64)  # the device's, for the consent's dates
+
+
 class ChangePreviewOut(BaseModel):
     kind: Literal["same", "up", "down"]
     due_now_cents: int  # charged to the card today
@@ -147,6 +182,7 @@ class ChangePreviewOut(BaseModel):
     price_cents: int
     proration_date: int
     disconnects_banks: bool  # the new plan doesn't link, so linked banks are disconnected
+    consent: ConsentTextOut  # the "Change your plan" lines, sent back with the switch
 
 
 class CreditOut(BaseModel):
@@ -272,14 +308,17 @@ def _record_consent(
     consent: ConsentIn,
     request: Request,
     *,
+    canonical: consent_text.ConsentText,
     kind: str = "purchase",
 ) -> None:
     """Keep what was agreed before the payment page opens (October 14, 2026), or before a
-    plan change (October 17, 2026), or before a cancellation (October 18, 2026)."""
+    plan change (October 17, 2026), or before a cancellation (October 18, 2026). `canonical`
+    is the text this server builds for the offer; anything else is refused, so a modified app
+    cannot keep its own words under a valid version (October 28, 2026)."""
     if consent.version != CONSENT_VERSION:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="consent_outdated")
-    if any(len(line) > 300 for line in consent.lines):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="consent_too_long")
+    if consent.lines != canonical.lines or consent.agreement != canonical.agreement:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="consent_mismatch")
     plans = load_plans()
     if plan == "founding":
         price = int(plans["founding"]["one_time_cents"])
@@ -295,8 +334,8 @@ def _record_consent(
             plan=plan,
             interval=None if plan == "founding" else interval,
             price_cents=price,
-            terms_version=consent.version,
-            terms_text="\n".join([*consent.lines, f"[x] {consent.agreement}"]),
+            terms_version=CONSENT_VERSION,
+            terms_text="\n".join([*canonical.lines, f"[x] {canonical.agreement}"]),
             ip_hash=pseudonym(ip) if ip else None,
             device_label=caller.session.device_label,
             agreed_at=datetime.now(UTC),
@@ -379,18 +418,32 @@ def checkout(
             raise HTTPException(status.HTTP_409_CONFLICT, detail="cancel_first")
     if body.plan == "founding" and founding_left(db)[1] <= 0:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="founding_sold_out")
-    _record_consent(db, caller, body.plan, body.interval, body.consent, request)
+    now_access = access(db, caller.user)
+    trial_ends_at = now_access.get("trial_ends_at") if now_access["state"] == "trial" else None
+    _record_consent(
+        db,
+        caller,
+        body.plan,
+        body.interval,
+        body.consent,
+        request,
+        canonical=consent_text.purchase(
+            load_plans(),
+            body.plan,
+            body.interval,
+            trial_ends_at=trial_ends_at,
+            now=datetime.now(UTC),
+            tz=consent_text.zone(body.consent.tz),
+        ),
+    )
     try:
-        now_access = access(db, caller.user)
         session = stripe_billing.checkout_session(
             caller.user,
             body.plan,
             None if body.plan == "founding" else body.interval,
             _origin(request),
             sub.customer_id if sub else None,
-            trial_ends_at=now_access.get("trial_ends_at")
-            if now_access["state"] == "trial"
-            else None,
+            trial_ends_at=trial_ends_at,
         )
     except stripe_billing.BillingError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=exc.code) from exc
@@ -453,7 +506,7 @@ def _disconnects_banks(db: DbSession, caller: Caller, plan: str) -> bool:
 
 @router.post("/change/preview", dependencies=[STRIPE_LIMIT])
 def change_preview(
-    body: ChangeTarget,
+    body: ChangePreviewIn,
     caller: Annotated[Caller, Depends(require_unlocked)],
     db: Annotated[DbSession, Depends(get_db)],
 ) -> ChangePreviewOut:
@@ -472,13 +525,30 @@ def change_preview(
             )
         except stripe_billing.BillingError as exc:
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=exc.code) from exc
+    disconnects = kind == "down" and _disconnects_banks(db, caller, body.plan)
     return ChangePreviewOut(
         kind=kind,  # type: ignore[arg-type]
         due_now_cents=due,
         credit_after_cents=credit,
         price_cents=_price_cents(body.plan, body.interval),
         proration_date=proration_date,
-        disconnects_banks=kind == "down" and _disconnects_banks(db, caller, body.plan),
+        disconnects_banks=disconnects,
+        consent=_consent_out(_change_text(sub, body, kind, due, credit, disconnects)),
+    )
+
+
+def _change_text(
+    sub: Subscription, target: ChangeTarget, kind: str, due: int, credit: int, disconnects: bool
+) -> consent_text.ConsentText:
+    return consent_text.change(
+        load_plans(),
+        target.plan,
+        target.interval,
+        kind=kind,
+        due_now_cents=due,
+        credit_after_cents=credit,
+        disconnects_banks=disconnects,
+        current_plan=sub.plan,
     )
 
 
@@ -500,12 +570,32 @@ def change(
         return _out(db, caller)
     if body.consent is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="consent_required")
-    _record_consent(db, caller, body.plan, body.interval, body.consent, request, kind="change")
     proration = body.proration_date
     if proration is not None and abs(time.time() - proration) > CHANGE_PREVIEW_MAX_AGE:
         proration = None
     try:
         live = stripe_billing.get_subscription(sub.external_id)
+        # The lines are built again from what this switch charges at this proration moment,
+        # so the kept text always names the amounts actually billed.
+        due, credit = stripe_billing.preview_change(
+            live,
+            stripe_billing.price_for(body.plan, body.interval),
+            proration if proration is not None else int(time.time()),
+        )
+    except stripe_billing.BillingError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=exc.code) from exc
+    disconnects = kind == "down" and _disconnects_banks(db, caller, body.plan)
+    _record_consent(
+        db,
+        caller,
+        body.plan,
+        body.interval,
+        body.consent,
+        request,
+        canonical=_change_text(sub, body, kind, due, credit, disconnects),
+        kind="change",
+    )
+    try:
         obj = stripe_billing.switch_price(live, body.plan, body.interval, proration_date=proration)
     except stripe_billing.BillingError as exc:
         code = (
@@ -601,20 +691,8 @@ def credit(
     """Credit waiting on the account, and what deleting the account now would refund: the
     months after the current one, at the price paid, plus the credit (shown before anyone
     deletes)."""
-    customers = set(
-        db.scalars(
-            select(Subscription.customer_id).where(
-                Subscription.user_id == caller.user.id,
-                Subscription.source == "stripe",
-                Subscription.customer_id.is_not(None),
-            )
-        )
-    )
-    founding = any(
-        s.source == "stripe" and s.interval is None
-        for s in db.scalars(select(Subscription).where(Subscription.user_id == caller.user.id))
-    )
-    if not stripe_billing.configured() or not (customers or founding):
+    customers = _customers(db, caller)
+    if not _may_refund(db, caller, customers):
         return CreditOut(credit_cents=0, refund_if_deleted_cents=0, **_fee_rule())
     try:
         held = sum(stripe_billing.customer_credit(c) for c in sorted(customers))
@@ -636,6 +714,88 @@ def credit(
     )
 
 
+def _customers(db: DbSession, caller: Caller) -> set[str]:
+    return {
+        c
+        for c in db.scalars(
+            select(Subscription.customer_id).where(
+                Subscription.user_id == caller.user.id,
+                Subscription.source == "stripe",
+                Subscription.customer_id.is_not(None),
+            )
+        )
+        if c
+    }
+
+
+def _may_refund(db: DbSession, caller: Caller, customers: set[str]) -> bool:
+    """Deleting could pay something back only through Stripe: a customer, or a Founding row."""
+    founding = any(
+        s.source == "stripe" and s.interval is None
+        for s in db.scalars(select(Subscription).where(Subscription.user_id == caller.user.id))
+    )
+    return stripe_billing.configured() and bool(customers or founding)
+
+
+def _cancel_text(
+    db: DbSession, caller: Caller, sub: Subscription, tz: str | None
+) -> consent_text.ConsentText:
+    """ "If you cancel", with what deleting instead would pay back (as GET /credit says it).
+    Stripe out of reach leaves that one line out, as the app did when the credit didn't load."""
+    refund = 0
+    if _may_refund(db, caller, _customers(db, caller)):
+        try:
+            refund = deletion.refund_preview(db, caller.user.id)[0]
+        except stripe_billing.BillingError:
+            refund = 0
+    return consent_text.cancel(
+        load_plans(),
+        sub.plan,
+        renews_at=sub.renews_at,
+        refund_if_deleted_cents=refund,
+        tz=consent_text.zone(tz),
+    )
+
+
+@router.get("/consent/purchase")
+def purchase_consent(
+    plan: Literal["private", "connected", "founding"],
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    db: Annotated[DbSession, Depends(get_db)],
+    interval: Literal["monthly", "yearly"] | None = None,
+    tz: Annotated[str | None, Query(max_length=64)] = None,
+) -> ConsentTextOut:
+    """The "Before you subscribe" lines for one offer, as the checkout will check them."""
+    if plan != "founding" and interval is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="interval_required")
+    now_access = access(db, caller.user)
+    return _consent_out(
+        consent_text.purchase(
+            load_plans(),
+            plan,
+            None if plan == "founding" else interval,
+            trial_ends_at=now_access.get("trial_ends_at")
+            if now_access["state"] == "trial"
+            else None,
+            now=datetime.now(UTC),
+            tz=consent_text.zone(tz),
+        )
+    )
+
+
+@router.get("/consent/cancel", dependencies=[STRIPE_LIMIT])
+def cancel_consent(
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    db: Annotated[DbSession, Depends(get_db)],
+    tz: Annotated[str | None, Query(max_length=64)] = None,
+) -> ConsentTextOut:
+    """The "If you cancel" lines for the plan that renews now, as /cancel will check them."""
+    plan, sub = effective_plan(db, caller.user.id, tester=False)
+    if sub is None or plan in ("free", "founding") or sub.interval is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="no_subscription")
+    return _consent_out(_cancel_text(db, caller, sub, tz))
+
+
 def _fee_rule() -> dict[str, int]:
     rule = load_plans()["refunds"]
     return {
@@ -646,7 +806,7 @@ def _fee_rule() -> dict[str, int]:
     }
 
 
-@router.post("/tester")
+@router.post("/tester", dependencies=[Depends(rate_limited("tester_plan", key=session_or_ip))])
 def set_tester_plan(
     body: TesterIn,
     caller: Annotated[Caller, Depends(require_step_up)],
@@ -774,7 +934,16 @@ def _change_renewal(
     if consent is not None:
         # Ticked "I have read and understood" (owner decision, October 18, 2026): kept like a
         # purchase, before Stripe is asked.
-        _record_consent(db, caller, plan, sub.interval, consent, request, kind="cancel")
+        _record_consent(
+            db,
+            caller,
+            plan,
+            sub.interval,
+            consent,
+            request,
+            canonical=_cancel_text(db, caller, sub, consent.tz),
+            kind="cancel",
+        )
     try:
         obj = stripe_billing.set_cancel_at_period_end(sub.external_id, cancel)
     except stripe_billing.BillingError as exc:

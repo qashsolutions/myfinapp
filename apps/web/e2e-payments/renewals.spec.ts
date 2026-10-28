@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { appFetch, CONSENT, lapsedAccount } from "./pay.ts";
+import { appFetch, cancelConsent, lapsedAccount } from "./pay.ts";
 import {
   advanceClock,
   billing,
@@ -112,7 +112,7 @@ test("C18 cancel: runs to the end of the paid month, then ends; nothing refunded
     clock,
   });
   await waitForPlan(page, (b) => b.plan === "private", "Private");
-  const r = await appFetch(page, "/api/billing/cancel", { consent: CONSENT });
+  const r = await appFetch(page, "/api/billing/cancel", { consent: await cancelConsent(page) });
   expect(r.status).toBe(200);
   const sub = await stripe("GET", `/subscriptions/${subscription}`);
   expect(sub.cancel_at_period_end).toBe(true);
@@ -136,7 +136,9 @@ test("C18 cancel then resume before the end: it renews as usual", async ({ page 
     clock,
   });
   await waitForPlan(page, (b) => b.plan === "private", "Private");
-  expect((await appFetch(page, "/api/billing/cancel", { consent: CONSENT })).status).toBe(200);
+  expect(
+    (await appFetch(page, "/api/billing/cancel", { consent: await cancelConsent(page) })).status,
+  ).toBe(200);
   expect((await appFetch(page, "/api/billing/resume", {})).status).toBe(200);
   expect((await stripe("GET", `/subscriptions/${subscription}`)).cancel_at_period_end).toBe(false);
   await advanceClock(clock, (await clockNow(clock)) + 32 * DAY);

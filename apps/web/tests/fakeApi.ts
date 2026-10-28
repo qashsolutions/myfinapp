@@ -11,6 +11,7 @@ import type {
   PasskeyOut,
   SessionInfo,
 } from "../src/data/api.ts";
+import { cancelConsent, changeConsent, purchaseConsent, sameConsent } from "./fakeConsent.ts";
 
 export const VALID_CODE = "482913";
 
@@ -1196,20 +1197,50 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
         refund_bank_fee_cap_cents: 500,
       });
     }
+    // What a switch charges, and the server's "Change your plan" lines for it.
+    const switchFor = (plan: "private" | "connected", interval: "monthly" | "yearly") => {
+      const kind = changeKind(plan, interval);
+      const amounts = {
+        kind,
+        due_now_cents: kind === "up" ? 512 : 0,
+        credit_after_cents: kind === "down" ? 7199 : 0,
+      };
+      const disconnects = kind === "down" && !!state.billing.disconnects_banks;
+      return {
+        ...amounts,
+        price_cents: prices[plan][interval],
+        proration_date: 1_792_000_000,
+        disconnects_banks: disconnects,
+        consent: changeConsent(plan, interval, amounts, disconnects, billingOut().label),
+      };
+    };
+    const trialEnd = () =>
+      state.access?.state === "trial" ? String(state.access.trial_ends_at ?? "") || null : null;
+    const cancelText = () =>
+      cancelConsent(
+        billingOut().label,
+        state.billing.renews_at ?? null,
+        state.billing.refund_cents ?? 0,
+      );
+    if (method === "GET" && path === "/api/billing/consent/purchase") {
+      const q = new URL(request.url).searchParams;
+      const plan = q.get("plan") as "private" | "connected" | "founding";
+      const interval = q.get("interval") as "monthly" | "yearly" | null;
+      if (plan !== "founding" && !interval) return json({ detail: "interval_required" }, 422);
+      return json(purchaseConsent(plan, interval, trialEnd()));
+    }
+    if (method === "GET" && path === "/api/billing/consent/cancel") {
+      if (state.billing.plan === "free" || state.billing.plan === "founding")
+        return json({ detail: "no_subscription" }, 404);
+      return json(cancelText());
+    }
     if (method === "POST" && path === "/api/billing/change/preview") {
       if (!renewing()) return json({ detail: "no_subscription" }, 404);
       const plan = b.plan as "private" | "connected";
       const interval = b.interval as "monthly" | "yearly";
       const kind = changeKind(plan, interval);
       if (kind === "down" && tooSoon()) return json({ detail: "downgrade_too_soon" }, 409);
-      return json({
-        kind,
-        due_now_cents: kind === "up" ? 512 : 0,
-        credit_after_cents: kind === "down" ? 7199 : 0,
-        price_cents: prices[plan][interval],
-        proration_date: 1_792_000_000,
-        disconnects_banks: kind === "down" && !!state.billing.disconnects_banks,
-      });
+      return json(switchFor(plan, interval));
     }
     if (method === "POST" && path === "/api/billing/change") {
       if (state.stepUpStale) return json({ detail: "step_up_required" }, 403);
@@ -1220,6 +1251,8 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       if (kind === "same") return json(billingOut());
       if (kind === "down" && tooSoon()) return json({ detail: "downgrade_too_soon" }, 409);
       if (!b.consent) return json({ detail: "consent_required" }, 422);
+      if (!sameConsent(b.consent, switchFor(plan, interval).consent))
+        return json({ detail: "consent_mismatch" }, 409);
       state.billing = {
         ...state.billing,
         plan,
@@ -1239,6 +1272,12 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       if (renewing() && !state.billing.cancel_at_period_end)
         return json({ detail: "cancel_first" }, 409);
       if (b.plan !== "founding" && !b.interval) return json({ detail: "interval_required" }, 422);
+      const offer = purchaseConsent(
+        b.plan as "private" | "connected" | "founding",
+        (b.interval ?? null) as "monthly" | "yearly" | null,
+        trialEnd(),
+      );
+      if (!sameConsent(b.consent, offer)) return json({ detail: "consent_mismatch" }, 409);
       return json({ url: `https://checkout.stripe.com/c/pay/cs_test_${b.plan}` });
     }
     if (method === "POST" && (path === "/api/billing/cancel" || path === "/api/billing/resume")) {
@@ -1250,6 +1289,8 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
         !(body as { consent?: { accepted?: boolean } })?.consent?.accepted
       )
         return json({ detail: "consent_required" }, 422);
+      if (path.endsWith("/cancel") && !sameConsent(b.consent, cancelText()))
+        return json({ detail: "consent_mismatch" }, 409);
       const cancelling = path.endsWith("/cancel");
       state.billing = {
         ...state.billing,
