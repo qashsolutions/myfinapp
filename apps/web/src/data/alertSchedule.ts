@@ -12,6 +12,7 @@ import {
   payInFull,
   type Upcoming,
 } from "../engine/bridge.ts";
+import { compareText } from "../lib/order.ts";
 import { api, failureOf, type NotificationSettingsOut } from "./api.ts";
 import type { Goal, StackdDb } from "./db.ts";
 
@@ -79,7 +80,7 @@ export async function buildInputs(db: StackdDb, sources: ScheduleSources): Promi
   for (const g of sources.goals) {
     if (g.kind !== "save" || g.status !== "active" || !g.end_date || !g.target_cents) continue;
     const events = (await db.goal_events.where("goal_id").equals(g.id).toArray())
-      .sort((a, b) => a.date.localeCompare(b.date) || a.created_at.localeCompare(b.created_at))
+      .sort((a, b) => compareText(a.date, b.date) || compareText(a.created_at, b.created_at))
       .map((e) => ({ type: e.type, date: e.date, amount_cents: e.amount_cents }));
     const p = await goalProgress(
       {

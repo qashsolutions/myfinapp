@@ -27,7 +27,7 @@ const listing = JSON.parse(
 for (const [license, packages] of Object.entries(listing))
   for (const p of packages)
     if (!p.name.startsWith("@stackd/")) js.push({ name: p.name, license, homepage: p.homepage });
-js.sort((a, b) => a.name.localeCompare(b.name));
+js.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)); // npm names are ASCII: code-point order, the same on every machine
 
 const python = JSON.parse(
   execFileSync(

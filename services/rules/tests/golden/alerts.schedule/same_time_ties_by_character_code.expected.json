@@ -1,0 +1,14 @@
+{
+  "alerts": [
+    {
+      "type": "upcoming_expense",
+      "due_local": "2026-10-22T09:00",
+      "dedupe_key": "upcoming:Zoo:2026-10-25"
+    },
+    {
+      "type": "upcoming_expense",
+      "due_local": "2026-10-22T09:00",
+      "dedupe_key": "upcoming:_fees:2026-10-25"
+    }
+  ]
+}

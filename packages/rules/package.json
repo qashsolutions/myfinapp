@@ -7,11 +7,13 @@
   "exports": {
     ".": "./src/index.ts",
     "./categorizer": "./src/categorizer.json",
+    "./dates": "./src/dates.ts",
     "./engine": "./src/engine.ts",
     "./insights": "./src/insights.json",
     "./keywords": "./src/keywords.json",
     "./moments": "./src/moments.json",
     "./next_move": "./src/next_move.json",
+    "./text": "./src/text.ts",
     "./worker": "./src/worker.ts"
   },
   "scripts": {

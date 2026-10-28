@@ -1,4 +1,5 @@
 /** Short, human dates for lists: "today", "yesterday", "Oct 9". Display only. */
+import { utcMs } from "@stackd/rules/dates";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -31,6 +32,6 @@ export function mmss(totalSeconds: number): string {
 /** ISO date ± days, for widening a query window. Rules do their own date maths. */
 export function addDaysIso(iso: string, days: number): string {
   const [y, m, d] = iso.split("-").map(Number) as [number, number, number];
-  const t = new Date(Date.UTC(y, m - 1, d + days));
-  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}-${String(t.getUTCDate()).padStart(2, "0")}`;
+  const t = new Date(utcMs(y, m - 1, d + days));
+  return `${String(t.getUTCFullYear()).padStart(4, "0")}-${String(t.getUTCMonth() + 1).padStart(2, "0")}-${String(t.getUTCDate()).padStart(2, "0")}`;
 }

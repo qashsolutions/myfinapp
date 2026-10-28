@@ -64,8 +64,15 @@ written against both.
    `notifications.test.tsx`
 10. **The two engines agree.** Python and TypeScript answer every golden case the same way, and
    no rule returns an amount past 2^53 − 1 cents (JavaScript's largest exact integer): the growth
-   rules answer `too_large` there, with goldens on both sides of the line.
-   `services/rules/tests` · `packages/rules` · `apps/web/tests/engine/golden.test.ts`
+   rules answer `too_large` there, with goldens on both sides of the line. Text and dates are
+   the known traps (October 27, 2026): strings are ordered by code point (`text.ts`
+   `compareText`, never `localeCompare` or `<`), whitespace is one spelled-out list in both
+   engines, n-grams count characters, and years 1–99 are those years. Each trap has a golden that
+   fails on one side if it comes back (`*_by_character_code`, `*_by_code_point`,
+   `whitespace_is_one_list`, `year_*`, `ngrams_count_characters_not_utf16_units`).
+   The app follows the same rules (`lib/order.ts`, `@stackd/rules/dates`).
+   `services/rules/tests` · `packages/rules` (`text.test.ts`) · `apps/web/tests/engine/golden.test.ts` ·
+   `apps/web/tests/unit/text-and-dates.test.ts`
 
 11. **An error never fails silently.** On the server it emails the admins (type and place only,
     throttled, never raising itself); in the app a broken screen shows a way out and sends nothing.

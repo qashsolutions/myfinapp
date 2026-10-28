@@ -10,6 +10,7 @@
  * photos) and derived tables (computed results, forecasts, the server queue) never travel.
  */
 
+import { compareText } from "../../lib/order.ts";
 import type { StackdDb, Tombstone } from "../db.ts";
 import { sha256Hex } from "./crypto.ts";
 
@@ -87,7 +88,7 @@ function isLocalSetting(row: Row): boolean {
 }
 
 function sortedRows(rows: Row[], key: string): Row[] {
-  return [...rows].sort((a, b) => String(a[key]).localeCompare(String(b[key])));
+  return [...rows].sort((a, b) => compareText(String(a[key]), String(b[key])));
 }
 
 export async function buildSnapshot(
@@ -103,7 +104,7 @@ export async function buildSnapshot(
     );
   }
   const tombstones = (await db.tombstones.toArray()).sort((a, b) =>
-    `${a.table}:${a.id}`.localeCompare(`${b.table}:${b.id}`),
+    compareText(`${a.table}:${a.id}`, `${b.table}:${b.id}`),
   );
   return {
     format: SNAPSHOT_FORMAT,
@@ -122,7 +123,7 @@ export async function snapshotHash(snapshot: Snapshot): Promise<string> {
     { tables: snapshot.tables, tombstones: snapshot.tombstones },
     (_, value) =>
       value && typeof value === "object" && !Array.isArray(value)
-        ? Object.fromEntries(Object.entries(value as Row).sort(([a], [b]) => a.localeCompare(b)))
+        ? Object.fromEntries(Object.entries(value as Row).sort(([a], [b]) => compareText(a, b)))
         : value,
   );
   return sha256Hex(canonical);

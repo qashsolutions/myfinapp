@@ -3,6 +3,7 @@
 import { type Day, iso, monthBounds, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { allocate, assertInt, roundDiv } from "./money.ts";
+import { compareText } from "./text.ts";
 
 export type Bucket = "need" | "want" | "save";
 const BUCKETS: Bucket[] = ["need", "want", "save"];
@@ -204,7 +205,7 @@ export function summary(
       const sa = spentByCategory.get(a) ?? 0;
       const sb = spentByCategory.get(b) ?? 0;
       if (sa !== sb) return sb - sa;
-      return a < b ? -1 : a > b ? 1 : 0;
+      return compareText(a, b);
     },
   );
   let totalSpent = uncategorized;

@@ -12,6 +12,7 @@ from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from fractions import Fraction
 
 from .errors import RuleError
+from .text import trim_spaces
 
 _CENT = Decimal("0.01")
 _UNSIGNED_DECIMAL = re.compile(r"[0-9]*\.?[0-9]*")  # ASCII only: \d would admit Unicode digits
@@ -31,19 +32,19 @@ def parse_amount(text: str) -> int:
     """
     if not isinstance(text, str):
         raise RuleError("invalid_amount")
-    s = text.strip().replace(",", "").replace("$", "")
+    s = trim_spaces(text).replace(",", "").replace("$", "")
     negative = False
     if s.startswith("(") and s.endswith(")"):
         negative = True
-        s = s[1:-1].strip()
+        s = trim_spaces(s[1:-1])
     if s.endswith("-"):
         negative = not negative
-        s = s[:-1].strip()
+        s = trim_spaces(s[:-1])
     if s.startswith("-"):
         negative = not negative
-        s = s[1:].strip()
+        s = trim_spaces(s[1:])
     elif s.startswith("+"):
-        s = s[1:].strip()
+        s = trim_spaces(s[1:])
     if not s or s == "." or not _UNSIGNED_DECIMAL.fullmatch(s):
         raise RuleError("invalid_amount")
     try:

@@ -7,6 +7,7 @@
 import { iso, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { assertInt } from "./money.ts";
+import { collapseSpaces, trimSpaces } from "./text.ts";
 
 const FNV64_OFFSET = 0xcbf29ce484222325n;
 const FNV64_PRIME = 0x100000001b3n;
@@ -15,10 +16,9 @@ const encoder = new TextEncoder();
 
 export function cleanDescription(text: unknown): string {
   if (typeof text !== "string") throw new RuleError("invalid_description");
-  return text
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/[a-z]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 32));
+  return trimSpaces(collapseSpaces(text)).replace(/[a-z]/g, (c) =>
+    String.fromCharCode(c.charCodeAt(0) - 32),
+  );
 }
 
 export function fnv1a64(data: Uint8Array): bigint {

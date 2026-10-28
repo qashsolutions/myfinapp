@@ -36,8 +36,16 @@ export function iso(day: Day): string {
   return `${p(day.y, 4)}-${p(day.m, 2)}-${p(day.d, 2)}`;
 }
 
+/** Milliseconds since 1970 for a calendar day. Never `Date.UTC`, which reads years 0–99 as
+ * 1900–1999; `setUTCFullYear` takes the year as given (invariant 10; October 27, 2026). */
+export function utcMs(y: number, monthIndex: number, d: number): number {
+  const t = new Date(0);
+  t.setUTCFullYear(y, monthIndex, d);
+  return t.getTime();
+}
+
 export function daysInMonthOf(y: number, m: number): number {
-  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return new Date(utcMs(y, m, 0)).getUTCDate();
 }
 
 export function daysInMonth(day: Day): number {
@@ -45,7 +53,7 @@ export function daysInMonth(day: Day): number {
 }
 
 function toNumber(day: Day): number {
-  return Date.UTC(day.y, day.m - 1, day.d) / MS_PER_DAY;
+  return utcMs(day.y, day.m - 1, day.d) / MS_PER_DAY;
 }
 
 function fromNumber(n: number): Day {
@@ -63,7 +71,7 @@ function compare(a: Day, b: Day): number {
 
 /** Python weekday(): Monday = 0 ... Sunday = 6. */
 export function weekday(day: Day): number {
-  return (new Date(Date.UTC(day.y, day.m - 1, day.d)).getUTCDay() + 6) % 7;
+  return (new Date(utcMs(day.y, day.m - 1, day.d)).getUTCDay() + 6) % 7;
 }
 
 export function monthBounds(asOf: Day): [Day, Day] {

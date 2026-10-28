@@ -1,0 +1,23 @@
+{
+  "order": [
+    {
+      "id": "b",
+      "label": "\uffee Card",
+      "balance_cents": 30000,
+      "apr_bps": 2000,
+      "min_payment_cents": 1000,
+      "rank": 1
+    },
+    {
+      "id": "a",
+      "label": "\ud83d\ude00 Card",
+      "balance_cents": 30000,
+      "apr_bps": 2000,
+      "min_payment_cents": 1000,
+      "rank": 2
+    }
+  ],
+  "total_balance_cents": 60000,
+  "total_min_payment_cents": 2000,
+  "max_apr_bps": 2000
+}

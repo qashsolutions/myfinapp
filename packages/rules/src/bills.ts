@@ -3,6 +3,7 @@
 import { addMonths, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { assertInt, roundDiv } from "./money.ts";
+import { compareText } from "./text.ts";
 
 export interface Debt {
   id: string;
@@ -45,8 +46,8 @@ export function avalancheOrder(debts: unknown): AvalancheOrder {
     (a, b) =>
       b.apr_bps - a.apr_bps ||
       a.balance_cents - b.balance_cents ||
-      (a.label < b.label ? -1 : a.label > b.label ? 1 : 0) ||
-      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+      compareText(a.label, b.label) ||
+      compareText(a.id, b.id),
   );
   return {
     order: rows.map((d, i) => ({ ...d, rank: i + 1 })),

@@ -7,13 +7,14 @@
 import { recordDeletion } from "../../data/backup/snapshot.ts";
 import { type Entry, newId, type StackdDb } from "../../data/db.ts";
 import { cleanDescription } from "../../engine/bridge.ts";
+import { compareText } from "../../lib/order.ts";
 
 /** Entries waiting for a category: not a transfer, counted, not a split part. Newest first. */
 export async function toReview(db: StackdDb): Promise<Entry[]> {
   const rows = await db.entries
     .filter((e) => e.category_id === null && !e.is_transfer && !e.not_counted)
     .toArray();
-  return rows.sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
+  return rows.sort((a, b) => compareText(b.date, a.date) || compareText(a.id, b.id));
 }
 
 /** The text a rule matches on: the bank's text when there is one, else the name. */

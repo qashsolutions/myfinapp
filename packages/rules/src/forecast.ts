@@ -11,6 +11,7 @@ import {
   step,
   withinTenPercent,
 } from "./recurring.ts";
+import { compareText } from "./text.ts";
 
 const MAX_DAYS = 366;
 
@@ -192,9 +193,9 @@ export function upcoming(
   }
   items.sort(
     (a, b) =>
-      a.date.localeCompare(b.date) ||
-      a.payee.localeCompare(b.payee) ||
-      a.series_id.localeCompare(b.series_id),
+      compareText(a.date, b.date) ||
+      compareText(a.payee, b.payee) ||
+      compareText(a.series_id, b.series_id),
   );
   const used = new Set<number>();
   for (const item of items) {

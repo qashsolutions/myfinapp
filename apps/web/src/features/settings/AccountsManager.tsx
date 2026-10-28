@@ -13,6 +13,7 @@ import { useDb } from "../../data/DbProvider.tsx";
 import { type Account, type AccountType, newId } from "../../data/db.ts";
 import { parseAmount } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
+import { compareText } from "../../lib/order.ts";
 
 const TYPE_LABELS: Record<AccountType, string> = {
   checking: "Checking",
@@ -156,11 +157,11 @@ export function AccountsManager() {
         const latest = [...(anchors ?? [])]
           .filter((x) => x.account_id === a.id)
           .sort(
-            (x, y) => y.as_of.localeCompare(x.as_of) || y.created_at.localeCompare(x.created_at),
+            (x, y) => compareText(y.as_of, x.as_of) || compareText(y.created_at, x.created_at),
           )[0];
         const lastImport = [...(imports ?? [])]
           .filter((i) => i.account_id === a.id)
-          .sort((x, y) => y.created_at.localeCompare(x.created_at))[0];
+          .sort((x, y) => compareText(y.created_at, x.created_at))[0];
         const mapping = mappings?.find((m) => m.account_id === a.id);
         return (
           <Card as="section" key={a.id} aria-label={a.label}>

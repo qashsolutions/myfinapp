@@ -25,6 +25,7 @@ import {
   setAside,
 } from "../../engine/bridge.ts";
 import { formatCents } from "../../lib/format.ts";
+import { compareText } from "../../lib/order.ts";
 import { emitMoment } from "../../moments/bus.ts";
 import { type BudgetView, useBudget } from "../budget/useBudget.ts";
 import { type ForecastView, useForecast } from "../forecast/useForecast.ts";
@@ -96,7 +97,7 @@ export function useHome(asOf: string): HomeView & { logSetAside: () => Promise<b
         await db.goal_events
           .filter((e) => e.type === "deposit" || e.type === "withdrawal")
           .toArray()
-      ).sort((a, b) => a.date.localeCompare(b.date)),
+      ).sort((a, b) => compareText(a.date, b.date)),
     [db],
   );
   const [computed, setComputed] = useState<{

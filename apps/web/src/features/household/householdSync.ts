@@ -24,6 +24,7 @@ import {
   type StackdDb,
 } from "../../data/db.ts";
 import { monthBounds, monthTotals } from "../../engine/bridge.ts";
+import { compareText } from "../../lib/order.ts";
 import { toRuleEntry } from "../money/ruleEntries.ts";
 
 export const HOUSEHOLD_KEY = "household.key";
@@ -170,8 +171,8 @@ export async function publishHousehold(
   );
   const jars: JarsBlob = {
     version: 1,
-    goals: goals.sort((a, b) => a.id.localeCompare(b.id)),
-    events: events.sort((a, b) => a.id.localeCompare(b.id)),
+    goals: goals.sort((a, b) => compareText(a.id, b.id)),
+    events: events.sort((a, b) => compareText(a.id, b.id)),
   };
   let jarsSent = false;
   const jarsHash = await sha256Hex(JSON.stringify(jars));

@@ -23,6 +23,7 @@ import {
   type Upcoming,
   upcomingItems,
 } from "../../engine/bridge.ts";
+import { compareText } from "../../lib/order.ts";
 import { useBudget } from "../budget/useBudget.ts";
 import { toRecurringEntry } from "./useRecurring.ts";
 
@@ -87,8 +88,8 @@ export function pickAccount(
     .sort(
       (a, b) =>
         rank(a.account) - rank(b.account) ||
-        b.anchor.as_of.localeCompare(a.anchor.as_of) ||
-        b.anchor.created_at.localeCompare(a.anchor.created_at),
+        compareText(b.anchor.as_of, a.anchor.as_of) ||
+        compareText(b.anchor.created_at, a.anchor.created_at),
     )[0];
   if (anchored) return anchored.account;
   return accounts.find((a) => a.type === "checking") ?? accounts[0] ?? null;
@@ -141,7 +142,7 @@ export function useForecast(asOf: string, days = FORECAST_DAYS): ForecastView {
         ? ([...anchors]
             .filter((a) => a.account_id === account.id)
             .sort(
-              (a, b) => b.as_of.localeCompare(a.as_of) || b.created_at.localeCompare(a.created_at),
+              (a, b) => compareText(b.as_of, a.as_of) || compareText(b.created_at, a.created_at),
             )[0] ?? null)
         : null;
       const since = account

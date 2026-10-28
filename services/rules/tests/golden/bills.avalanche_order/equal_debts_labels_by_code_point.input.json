@@ -1,0 +1,18 @@
+{
+  "debts": [
+    {
+      "id": "a",
+      "label": "\ud83d\ude00 Card",
+      "balance_cents": 30000,
+      "apr_bps": 2000,
+      "min_payment_cents": 1000
+    },
+    {
+      "id": "b",
+      "label": "\uffee Card",
+      "balance_cents": 30000,
+      "apr_bps": 2000,
+      "min_payment_cents": 1000
+    }
+  ]
+}

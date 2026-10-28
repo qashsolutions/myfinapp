@@ -2,6 +2,7 @@
 
 import { RuleError } from "./errors.ts";
 import { assertInt } from "./money.ts";
+import { compareText } from "./text.ts";
 
 const TIME = /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$/;
 
@@ -51,7 +52,7 @@ export function rank(members: unknown): Ranking {
       if (a.progress !== b.progress) return b.progress - a.progress;
       if ((a.reached === null) !== (b.reached === null)) return a.reached === null ? 1 : -1;
       if (a.reached !== null && b.reached !== null && a.reached !== b.reached)
-        return a.reached < b.reached ? -1 : 1;
+        return compareText(a.reached, b.reached);
       return a.order - b.order;
     });
   return {

@@ -12,6 +12,7 @@ import {
 } from "../../data/db.ts";
 import { enqueueGroupProgress, flushServerQueue } from "../../data/serverQueue.ts";
 import { engine, type GoalProgress, goalProgress, monthBounds } from "../../engine/bridge.ts";
+import { compareText } from "../../lib/order.ts";
 
 export async function createGoal(
   db: StackdDb,
@@ -101,7 +102,7 @@ export function useGoalProgress(
           period_spend_cents: spend,
         },
         [...events]
-          .sort((a, b) => a.date.localeCompare(b.date) || a.created_at.localeCompare(b.created_at))
+          .sort((a, b) => compareText(a.date, b.date) || compareText(a.created_at, b.created_at))
           .map((e) =>
             e.type === "checkin"
               ? { type: e.type, date: e.date }
@@ -141,7 +142,7 @@ export function useGoalProgress(
   return {
     goal,
     events: [...events].sort(
-      (a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at),
+      (a, b) => compareText(b.date, a.date) || compareText(b.created_at, a.created_at),
     ),
     progress,
   };
@@ -166,8 +167,8 @@ export function useGoals(): Goal[] | undefined {
         .sort(
           (a, b) =>
             (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER) ||
-            a.created_at.localeCompare(b.created_at) ||
-            a.id.localeCompare(b.id),
+            compareText(a.created_at, b.created_at) ||
+            compareText(a.id, b.id),
         ),
     [db],
   );

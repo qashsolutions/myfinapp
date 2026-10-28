@@ -1,3 +1,4 @@
+import { utcMs } from "@stackd/rules/dates";
 import { useMemo, useState } from "react";
 import type { UpcomingItem } from "../../engine/bridge.ts";
 import { formatCents, formatDay } from "../../lib/format.ts";
@@ -8,13 +9,13 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 /** Calendar layout only (which column a date falls in); no money maths here. */
 function weekdayOf(iso: string): number {
   const [y, m, d] = iso.split("-").map(Number) as [number, number, number];
-  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return new Date(utcMs(y, m - 1, d)).getUTCDay();
 }
 
 function datesBetween(start: string, end: string): string[] {
   const out: string[] = [];
   const [y, m, d] = start.split("-").map(Number) as [number, number, number];
-  const at = new Date(Date.UTC(y, m - 1, d));
+  const at = new Date(utcMs(y, m - 1, d));
   for (let iso = start; iso <= end; ) {
     out.push(iso);
     at.setUTCDate(at.getUTCDate() + 1);

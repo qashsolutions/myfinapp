@@ -19,6 +19,7 @@ import {
   ratioBps,
   startBalance,
 } from "../../engine/bridge.ts";
+import { compareText } from "../../lib/order.ts";
 import { netWorthDates, type Range, type RangeBounds, rangeBounds } from "../ranges/ranges.ts";
 
 export const ASSET_GROUPS = [
@@ -116,7 +117,7 @@ export function useNetWorth(asOf: string): NetWorthView {
           [...anchors]
             .filter((a) => a.account_id === account.id)
             .sort(
-              (a, b) => b.as_of.localeCompare(a.as_of) || b.created_at.localeCompare(a.created_at),
+              (a, b) => compareText(b.as_of, a.as_of) || compareText(b.created_at, a.created_at),
             )[0] ?? null;
         if (!anchor) {
           out.set(account.id, null);
@@ -195,7 +196,7 @@ export function useNetWorth(asOf: string): NetWorthView {
 
   const month = asOf.slice(0, 7);
   const sorted = useMemo(
-    () => [...(snapshots ?? [])].sort((a, b) => a.month.localeCompare(b.month)),
+    () => [...(snapshots ?? [])].sort((a, b) => compareText(a.month, b.month)),
     [snapshots],
   );
   const previous = [...sorted].reverse().find((s) => s.month < month) ?? null;
