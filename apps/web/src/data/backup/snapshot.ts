@@ -8,6 +8,13 @@
  * the newer `updated_at`, or the local one when the table has none; a remote tombstone removes
  * the local row when it is not newer than the deletion. Files (statement copies, receipt
  * photos) and derived tables (computed results, forecasts, the server queue) never travel.
+ *
+ * Old removals are pruned (invariant 24): after a recent pull, tombstones older than
+ * TOMBSTONE_HORIZON_DAYS go, and the newest pruned `deleted_at` is kept in
+ * PRUNED_BEFORE_SETTING and carried as the snapshot's `tombstones_pruned_before`. From then on a
+ * merge does not add another device's row that this device lacks when that row's own time is at
+ * or before the record: it may be one removed here whose tombstone is gone. Absence never
+ * deletes; only tombstones do.
  */
 
 import { compareText } from "../../lib/order.ts";
@@ -67,6 +74,22 @@ export type SyncedTable =
   | "net_worth_items"
   | "net_worth_snapshots";
 
+/** How long a removal is remembered before it may be pruned (docs/spec.md chunk 1.16). */
+export const TOMBSTONE_HORIZON_DAYS = 180;
+/** The newest `deleted_at` this device pruned (device-only: "backup." never syncs as a setting). */
+export const PRUNED_BEFORE_SETTING = "backup.tombstones_pruned_before";
+
+/**
+ * Tables whose rows may carry no time of their own (budget lines have none; built-in categories
+ * and milestones written before October 28, 2026 lack `updated_at`). A merge cannot tell an old
+ * row from a new one there, so their tombstones are never pruned and the tombstone alone decides.
+ */
+export const UNSTAMPED_TABLES: ReadonlySet<string> = new Set([
+  "categories",
+  "budget_lines",
+  "goal_milestones",
+]);
+
 /** Settings rows that describe this device or its sync state, never another device's. */
 const LOCAL_SETTING_PREFIXES = ["backup.", "household.", "alerts.last_hash", "forecast.account_id"];
 
@@ -78,6 +101,8 @@ export interface Snapshot {
   created_at: string;
   tables: Record<SyncedTable, Record<string, unknown>[]>;
   tombstones: Tombstone[];
+  /** The newest removal the sending device pruned; absent or null when it pruned none. */
+  tombstones_pruned_before?: string | null;
 }
 
 type Row = Record<string, unknown>;
@@ -96,6 +121,7 @@ export async function buildSnapshot(
   meta: { rulesVersion: string; deviceId: string; now?: Date },
 ): Promise<Snapshot> {
   const tables = {} as Snapshot["tables"];
+  let prunedBefore: string | null = null;
   // One read transaction: a delete and its tombstone (or any write) land wholly in or out.
   const tombstones = await db.transaction(
     "r",
@@ -108,6 +134,7 @@ export async function buildSnapshot(
           t.key,
         );
       }
+      prunedBefore = await prunedBeforeOf(db);
       return (await db.tombstones.toArray()).sort((a, b) =>
         compareText(`${a.table}:${a.id}`, `${b.table}:${b.id}`),
       );
@@ -121,13 +148,25 @@ export async function buildSnapshot(
     created_at: (meta.now ?? new Date()).toISOString(),
     tables,
     tombstones,
+    tombstones_pruned_before: prunedBefore,
   };
+}
+
+async function prunedBeforeOf(db: StackdDb): Promise<string | null> {
+  const value = (await db.settings.get(PRUNED_BEFORE_SETTING))?.value;
+  return typeof value === "string" && value ? value : null;
 }
 
 /** Same data → same hash, whatever device built it: rows sorted by key, keys sorted inside. */
 export async function snapshotHash(snapshot: Snapshot): Promise<string> {
+  const pruned = snapshot.tombstones_pruned_before;
   const canonical = JSON.stringify(
-    { tables: snapshot.tables, tombstones: snapshot.tombstones },
+    {
+      tables: snapshot.tables,
+      tombstones: snapshot.tombstones,
+      // only when set, so a device that never pruned keeps the hash it had
+      ...(pruned ? { tombstones_pruned_before: pruned } : {}),
+    },
     (_, value) =>
       value && typeof value === "object" && !Array.isArray(value)
         ? Object.fromEntries(Object.entries(value as Row).sort(([a], [b]) => compareText(a, b)))
@@ -165,6 +204,8 @@ export interface MergeReport {
   removed: number;
   /** Rows a unique index already holds under another id (the same import row), left out. */
   skipped: number;
+  /** Rows at or before this device's pruned removals, left out (they may be removed here). */
+  stale: number;
 }
 
 function stamp(row: Row, updatedAt: "updated_at" | null): string {
@@ -173,9 +214,11 @@ function stamp(row: Row, updatedAt: "updated_at" | null): string {
 
 /** Apply another device's snapshot to this one (see the module note for the rules). */
 export async function mergeSnapshot(db: StackdDb, snapshot: Snapshot): Promise<MergeReport> {
-  const report: MergeReport = { added: 0, updated: 0, removed: 0, skipped: 0 };
+  const report: MergeReport = { added: 0, updated: 0, removed: 0, skipped: 0, stale: 0 };
   const tables = SYNCED_TABLES.map((t) => db.table(t.name));
   await db.transaction("rw", [...tables, db.tombstones], async () => {
+    // As it was before this merge: how far back this device can no longer vouch for a removal.
+    const prunedBefore = (await prunedBeforeOf(db)) ?? "";
     const local = new Map<string, Tombstone>(
       (await db.tombstones.toArray()).map((t) => [`${t.table}:${t.id}`, t]),
     );
@@ -204,6 +247,16 @@ export async function mergeSnapshot(db: StackdDb, snapshot: Snapshot): Promise<M
         if (tomb && stamp(remote, spec.updatedAt) <= tomb.deleted_at) continue;
         const existing = (await table.get(id)) as Row | undefined;
         if (!existing) {
+          // Maybe removed here before its tombstone was pruned: leave it out. A row with no
+          // time at all in a stamped table counts as oldest (UNSTAMPED_TABLES keep tombstones).
+          if (
+            prunedBefore &&
+            !UNSTAMPED_TABLES.has(spec.name) &&
+            stamp(remote, spec.updatedAt) <= prunedBefore
+          ) {
+            report.stale += 1;
+            continue;
+          }
           try {
             await table.add(remote);
             report.added += 1;
@@ -222,6 +275,29 @@ export async function mergeSnapshot(db: StackdDb, snapshot: Snapshot): Promise<M
         }
       }
     }
+    // The other device's pruning is ours to respect from now on (a restored device included).
+    const theirs = snapshot.tombstones_pruned_before ?? "";
+    if (typeof theirs === "string" && theirs > prunedBefore)
+      await db.settings.put({ key: PRUNED_BEFORE_SETTING, value: theirs, updated_at: theirs });
   });
   return report;
+}
+
+/**
+ * Drops removals made before `cutoff`, except in UNSTAMPED_TABLES, and raises the record to the
+ * newest one dropped. Only `sync.pruneOldTombstones` calls it, after a recent pull; never during
+ * a merge.
+ */
+export async function pruneTombstonesBefore(db: StackdDb, cutoff: string): Promise<number> {
+  return db.transaction("rw", db.tombstones, db.settings, async () => {
+    const old = (await db.tombstones.where("deleted_at").below(cutoff).toArray()).filter(
+      (t) => !UNSTAMPED_TABLES.has(t.table),
+    );
+    if (old.length === 0) return 0;
+    await db.tombstones.bulkDelete(old.map((t): [string, string] => [t.table, t.id]));
+    const newest = old.reduce((m, t) => (t.deleted_at > m ? t.deleted_at : m), "");
+    if (newest > ((await prunedBeforeOf(db)) ?? ""))
+      await db.settings.put({ key: PRUNED_BEFORE_SETTING, value: newest, updated_at: newest });
+    return old.length;
+  });
 }

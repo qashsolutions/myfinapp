@@ -264,6 +264,50 @@ export async function storeReceiptPhoto(
   return receipt;
 }
 
+/**
+ * The person removed the photo (Remove photo on the receipt card): the receipt record goes with
+ * it, and the entry that pointed at it stays without one (owner decision, October 28, 2026).
+ * Retention keeps the record instead (`removeReceiptPhoto`).
+ */
+export async function removeReceipt(db: StackdDb, receiptId: string): Promise<void> {
+  await db.transaction("rw", [db.receipts, db.files, db.entries], async () => {
+    const receipt = await db.receipts.get(receiptId);
+    if (!receipt) return;
+    await deleteReceipts(db, [receiptId]);
+    const entry = receipt.entry_id ? await db.entries.get(receipt.entry_id) : undefined;
+    if (entry?.receipt_id === receiptId)
+      await db.entries.update(entry.id, {
+        receipt_id: null,
+        updated_at: new Date().toISOString(),
+      });
+  });
+}
+
+/** Every receipt photo still on this device, and how many a person removing them all removes. */
+export async function deleteAllReceiptPhotos(db: StackdDb): Promise<number> {
+  const withPhoto = await db.receipts.filter((r) => r.file_id !== null).primaryKeys();
+  for (const id of withPhoto) await removeReceipt(db, id);
+  return withPhoto.length;
+}
+
+/** How many photos still here a change to `retention` would remove today. */
+export async function photosRemovedBy(
+  db: StackdDb,
+  retention: ReceiptRetention,
+  today: string,
+): Promise<number> {
+  let n = 0;
+  for (const r of await db.receipts.filter((r) => r.file_id !== null).toArray()) {
+    const due = await purgeDateFor(retention, r.created_at.slice(0, 10));
+    if (due !== null && due <= today) n += 1;
+  }
+  return n;
+}
+
+/**
+ * Retention: the photo goes, and with it the text read from it; the receipt record and the
+ * entry stay, so nothing derived from a deleted photo is left (October 28, 2026).
+ */
 export async function removeReceiptPhoto(db: StackdDb, receiptId: string): Promise<void> {
   const receipt = await db.receipts.get(receiptId);
   if (!receipt) return;
@@ -271,6 +315,8 @@ export async function removeReceiptPhoto(db: StackdDb, receiptId: string): Promi
     if (receipt.file_id) await db.files.delete(receipt.file_id);
     await db.receipts.update(receiptId, {
       file_id: null,
+      ocr_text: null,
+      ocr_engine_version: null,
       purged_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });

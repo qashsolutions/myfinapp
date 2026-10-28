@@ -1,7 +1,7 @@
 export const FAQ: Array<{ q: string; a: string }> = [
   {
     q: "Is there a free plan?",
-    a: "There's a free trial instead: Private or Connected free for 3 days, no card needed to start. Near the end we ask if you'd like to keep Qash and email you the day before. If you don't choose a plan, the app locks for 7 days so you can subscribe or download your data, with a short note each day; then the account closes and what we kept is deleted. What's on your phone stays there until you download or erase it.",
+    a: "There's a free trial instead: Private or Connected free for 3 days, no card needed to start. Near the end we ask if you'd like to keep Qash and email you the day before. If you don't choose a plan, the app locks for 7 days so you can subscribe or download your data, with a short note each day; then the account closes and what we kept is deleted. What's on your device stays there until you download or erase it.",
   },
   {
     q: "Do you connect to my bank?",
@@ -29,7 +29,7 @@ export const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: "How do I cancel my plan?",
-    a: "In the app: Me → Plan → Cancel plan, then confirm. Your plan stays on until the end of the period you paid for. Then you have 7 days to subscribe again or download your data; after that, the account closes and what we kept is deleted. What's on your phone stays there until you download or erase it.",
+    a: "In the app: Me → Plan → Cancel plan, then confirm. Your plan stays on until the end of the period you paid for. Then you have 7 days to subscribe again or download your data; after that, the account closes and what we kept is deleted. What's on your device stays there until you download or erase it.",
   },
   {
     q: "Which cards do you accept?",

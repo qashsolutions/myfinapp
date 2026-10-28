@@ -11,7 +11,7 @@ import { formatDate, todayIso } from "../../lib/format.ts";
 import { currentHashFor, forgetKept, keptAccount } from "../../lib/keptAccount.ts";
 import { useSession } from "../auth/useSession.tsx";
 
-/** Download everything a kept account left on this phone, built here with no server. */
+/** Download everything a kept account left on this device, built here with no server. */
 async function downloadKept(db: StackdDb): Promise<boolean> {
   const at = new Date();
   const files = await collectExport(db, null, at.toISOString());
@@ -28,7 +28,7 @@ async function eraseKept(userId: string): Promise<void> {
 }
 
 /**
- * /kept: the account closed because its plan ended, and this phone still holds everything
+ * /kept: the account closed because its plan ended, and this device still holds everything
  * (owner, October 20, 2026: kept until the person decides; a friendly note, not a warning).
  */
 export function KeptOnPhone() {
@@ -56,7 +56,7 @@ export function KeptOnPhone() {
       <Card>
         <p>
           Your Qash account closed on {formatDate(kept.closed_at)}, when your plan wrapped up.
-          Everything you added is still on this phone
+          Everything you added is still on this device
           {entries ? `, including ${entries} ${entries === 1 ? "entry" : "entries"}` : ""}, and it
           stays here until you decide.
         </p>
@@ -68,7 +68,7 @@ export function KeptOnPhone() {
           setNote(
             saved
               ? "Downloaded. Keep the file somewhere safe; it holds your money data."
-              : "This browser didn't offer a download. Try another browser on this phone.",
+              : "This browser didn't offer a download. Try another browser on this device.",
           );
         }}
       >
@@ -78,7 +78,7 @@ export function KeptOnPhone() {
         Start again with Qash
       </Button>
       <p className="auth__hint">
-        Sign up again with the same email on this phone, and Qash offers to bring this data in.
+        Sign up again with the same email on this device, and Qash offers to bring this data in.
       </p>
       {note ? (
         <p className="auth__hint" role="status">
@@ -86,15 +86,15 @@ export function KeptOnPhone() {
         </p>
       ) : null}
       <Button variant="ghost" block onClick={() => setConfirmErase(true)}>
-        Erase it from this phone
+        Erase it from this device
       </Button>
       <Sheet
         open={confirmErase}
         onClose={() => setConfirmErase(false)}
-        title="Erase from this phone?"
+        title="Erase from this device?"
       >
         <p className="auth__lead">
-          This removes your Qash data from this phone for good. Download it first if you want a
+          This removes your Qash data from this device for good. Download it first if you want a
           copy.
         </p>
         <Button
@@ -151,8 +151,8 @@ export function BringBackOffer() {
       ) : (
         <>
           <p className="auth__lead">
-            This phone still has your data from before ({formatDate(kept.closed_at)}). Bring it into
-            your new account?
+            This device still has your data from before ({formatDate(kept.closed_at)}). Bring it
+            into your new account?
           </p>
           <Button
             block

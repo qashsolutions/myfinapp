@@ -42,7 +42,7 @@ export const PLANS: Plan[] = [
       { icon: "jar", t: "4 jars & goals" },
       { icon: "trophy", t: "Start your own challenges" },
       { icon: "cloud", t: "Encrypted backup & sync" },
-      { icon: "check", t: "Statements read on your phone" },
+      { icon: "check", t: "Statements read on your device" },
     ],
     cta: "Start 3 days free",
   },

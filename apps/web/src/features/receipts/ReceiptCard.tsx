@@ -5,7 +5,7 @@ import { type ChangeEvent, useId, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
 import {
   ReceiptError,
-  removeReceiptPhoto,
+  removeReceipt,
   retentionLabel,
   storeReceiptPhoto,
 } from "../../data/receipts.ts";
@@ -76,7 +76,7 @@ export function ReceiptCard({
 
   async function remove() {
     if (!receiptId) return;
-    await removeReceiptPhoto(db, receiptId);
+    await removeReceipt(db, receiptId);
     setSuggestion(null);
     onChange(null);
   }
