@@ -1,3 +1,4 @@
+import { Word } from "../../app/layout/Word.tsx";
 import "../goals/goals.css";
 
 import { Button, Card } from "@stackd/ui";
@@ -44,10 +45,8 @@ export function EmergencyScreen() {
       <ScreenHeader title="Emergency fund" actions={null} back="/" />
       {goals && !jar ? (
         <Card as="section" aria-label="Start the fund">
-          <p>
-            Your emergency fund is a jar named "Emergency fund". Start it with the $1,000 starter
-            target; the runway and milestones below follow what you set aside.
-          </p>
+          <Word>Start</Word>
+          <p>Begin with $1,000. Your runway grows with every deposit.</p>
           <Button block onClick={createJar}>
             Create the Emergency fund jar
           </Button>

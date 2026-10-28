@@ -16,8 +16,8 @@ describe("Later: savings by the age you choose", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Later" })).toBeInTheDocument();
     // $200 a month from 35 to 67: $128,685.56 / $188,956.58 / $285,682.20 at 3% / 5% / 7%.
     const growing = await screen.findByRole("region", { name: "Growing" });
-    expect(growing).toHaveTextContent("About $188,956.58 at 67 at 5%");
-    expect(growing).toHaveTextContent("$128,685.56 to $285,682.20 across your rates");
+    expect(growing).toHaveTextContent("About $189k at 67");
+    expect(growing).toHaveTextContent("$129k to $286k across your rates");
     expect(screen.getByRole("img", { name: /Savings from age 35 to 67/ })).toBeInTheDocument();
     expect(screen.getByText(/not a prediction or advice/)).toBeInTheDocument();
 
@@ -30,9 +30,7 @@ describe("Later: savings by the age you choose", () => {
     // Retiring at 62 instead: five fewer years, $136,637.84 at 5%.
     fireEvent.change(within(yours).getByRole("slider"), { target: { value: "62" } });
     await waitFor(() =>
-      expect(screen.getByRole("region", { name: "Behind" })).toHaveTextContent(
-        "About $136,637.84 at 62 at 5%",
-      ),
+      expect(screen.getByRole("region", { name: "Behind" })).toHaveTextContent("About $137k at 62"),
     );
     const saved = (await openDb("u1").settings.get("later.plan"))?.value;
     expect(saved).toMatchObject({ retire_age: 62, target_cents: 50000000 });

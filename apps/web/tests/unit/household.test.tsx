@@ -40,7 +40,7 @@ describe("Couples & household", () => {
     installFakeApi({ session: maya(), billing: freeBilling() });
     renderApp("/me/household");
     expect(await screen.findByRole("status", { name: "Plan limit" })).toHaveTextContent(
-      "part of Connected",
+      "Part of Connected",
     );
   });
 

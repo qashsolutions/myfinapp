@@ -209,8 +209,7 @@ export function WeeklyRecap() {
         </p>
       </Card>
       <p className="auth__fineprint">
-        Counts the entries dated in these 7 days. Transfers between your accounts are left out, and
-        a refund counts against its category. Nothing here leaves this device.
+        Transfers are left out; refunds count against their category. Stays on this phone.
       </p>
     </>
   );

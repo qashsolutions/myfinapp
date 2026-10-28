@@ -76,7 +76,12 @@ async function measure(page: Page) {
     const paragraphs = [...main.querySelectorAll("p")]
       .filter(visible)
       .map((p) => (p.textContent ?? "").trim().split(/\s+/).filter(Boolean).length);
+    const longText = [...main.querySelectorAll("p, li, label span, .auth__hint")]
+      .filter(visible)
+      .map((p) => (p.textContent ?? "").trim())
+      .filter((t) => t.split(/\s+/).length > 20);
     return {
+      longText: [...new Set(longText)],
       overflowPx: doc.scrollWidth - doc.clientWidth,
       title: document.title,
       hasWord: Boolean(main.querySelector(".word, .insight-card__headline")),

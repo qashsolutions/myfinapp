@@ -80,7 +80,7 @@ describe("Sign-in & security: devices, status and recent activity (October 13, 2
     expect(within(list).getByText("Check")).toBeTruthy();
     expect(within(list).getByText(/Chrome on Mac · /)).toBeTruthy();
     expect(within(list).getByText("Passkey added")).toBeTruthy();
-    expect(screen.getByText(/IP addresses are never stored in a readable form/)).toBeTruthy();
+    expect(screen.getByText(/IP addresses are never\s+stored readably/)).toBeTruthy();
   });
 
   it("with one passkey, suggests adding a second", async () => {

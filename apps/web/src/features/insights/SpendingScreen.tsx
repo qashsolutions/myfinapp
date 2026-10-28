@@ -95,10 +95,7 @@ export function SpendingScreen() {
               })}
             </Card>
           </section>
-          <p className="auth__fineprint">
-            Money out only. Refunds and the transfers you've marked are left out; mark a card
-            payment as a transfer and it leaves this list.
-          </p>
+          <p className="auth__fineprint">Money out only. Refunds and transfers are left out.</p>
         </>
       )}
     </>

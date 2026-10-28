@@ -111,7 +111,7 @@ describe("insights (fast-follow 8)", () => {
         /Safe to spend until payday \(Oct 16\): \$[\d,]+\.\d\d, about \$[\d,]+\.\d\d a day/,
       ),
     );
-    expect(chart).toHaveTextContent("beyond your usual spending, keeping your cushion");
+    expect(chart).toHaveTextContent("after your usual spending. An estimate.");
 
     const bigger = await screen.findByRole("region", { name: "Bigger months ahead" });
     // Oct and Nov inclusive: round_div(78000, 2) = 39000

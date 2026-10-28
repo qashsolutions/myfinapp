@@ -18,10 +18,7 @@ export function SafeToSpendLine({
   return (
     <p className="insight__safe" role="status">
       {safeToSpendText(value)}
-      <span className="insight__fine">
-        {" "}
-        · beyond your usual spending, keeping your cushion, an estimate from your own history
-      </span>
+      <span className="insight__fine"> · after your usual spending. An estimate.</span>
     </p>
   );
 }
