@@ -6,7 +6,6 @@
   "description": "TypeScript port of stackd_rules for the on-device engine. Must pass the identical golden tests.",
   "exports": {
     ".": "./src/index.ts",
-    "./categorizer": "./src/categorizer.json",
     "./dates": "./src/dates.ts",
     "./engine": "./src/engine.ts",
     "./insights": "./src/insights.json",

@@ -1,7 +1,8 @@
 /**
- * Fast-follow 7: the bundled category model fills in what the user rules and keyword table
- * missed (marked "model", never a guess for an unseen brand), and a corrected category can
- * become a rule that also moves past uncategorized entries.
+ * Categories come from the person's own rules, then the keyword table, and nothing else (owner
+ * decision, October 28, 2026: no AI in the code, the bundled model is gone): what neither
+ * matches stays uncategorized. A corrected category can become a rule that also moves past
+ * uncategorized entries.
  */
 
 import { screen, waitFor, within } from "@testing-library/react";
@@ -38,8 +39,8 @@ function entry(id: string, merchant: string, category: string | null): Entry {
   };
 }
 
-describe("learned categories (fast-follow 7)", () => {
-  it("the model fills gaps after rules and keywords, and abstains on unseen brands", async () => {
+describe("categories from rules only", () => {
+  it("rules first, then keywords; anything else stays uncategorized, never guessed", async () => {
     const db = openDb("u1");
     await seedDefaults(db);
     await db.merchant_rules.put({
@@ -49,18 +50,19 @@ describe("learned categories (fast-follow 7)", () => {
       created_at: "2026-10-01T00:00:00Z",
     });
     const prepared = await prepareRows(db, "acct-cash", [
-      row(1, "TST* PANDA EXPRESS 2203 DALLAS TX", -1462), // model: dining
-      row(2, "POS DEBIT WINCO FOODS #44", -8417), // the user's rule wins over the model
-      row(3, "TRADER JOES #512", -2210), // the keyword table wins
-      row(4, "MUBI", -1199), // a brand the model never saw: stays uncategorized
-      row(5, "ACME PAYROLL", 240000), // money in is never model-categorized
+      row(1, "TST* PANDA EXPRESS 2203 DALLAS TX", -1462), // in no table: left for the person
+      row(2, "POS DEBIT WINCO FOODS #44", -8417), // the user's rule
+      row(3, "TRADER JOES #512", -2210), // the keyword table
+      row(4, "MUBI", -1199), // in no table: left for the person
+      row(5, "ACME PAYROLL", 240000), // the keyword table, money in
     ]);
     const by = (n: number) => prepared.rows.find((r) => r.row === n);
-    expect(by(1)).toMatchObject({ category_id: "cat-dining", matched_by: "model" });
+    expect(by(1)).toMatchObject({ category_id: null, matched_by: null });
     expect(by(2)).toMatchObject({ category_id: "cat-shopping", matched_by: "user" });
     expect(by(3)).toMatchObject({ category_id: "cat-groceries", matched_by: "keyword" });
     expect(by(4)).toMatchObject({ category_id: null, matched_by: null });
-    expect(by(5)?.matched_by).not.toBe("model");
+    expect(by(5)).toMatchObject({ category_id: "cat-paycheck", matched_by: "keyword" });
+    expect(prepared.uncategorized).toBe(2);
   });
 
   it("a corrected category can become a rule that also moves past uncategorized entries", async () => {

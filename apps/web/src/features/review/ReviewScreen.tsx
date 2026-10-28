@@ -2,7 +2,7 @@ import "../entries/entries.css";
 import "../auth/auth.css";
 import "./review.css";
 
-import { Button, Card, Chip, Illustration, ProgressBar, Toggle } from "@stackd/ui";
+import { Button, Card, Illustration, ProgressBar, Toggle } from "@stackd/ui";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
@@ -10,7 +10,7 @@ import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { Entry } from "../../data/db.ts";
-import { cleanDescription, suggestCategory } from "../../engine/bridge.ts";
+import { cleanDescription } from "../../engine/bridge.ts";
 import { formatCents, formatDay } from "../../lib/format.ts";
 import { CategorySheet } from "../categories/CategorySheet.tsx";
 import { markTransfers } from "../entries/transfers.ts";
@@ -20,9 +20,9 @@ import { alikeIds, markAll, ruleText, sortEntry, toReview, unsort } from "./revi
 
 /**
  * Sort what isn't sorted (owner sign-off October 19, 2026, item 9; built October 20, 2026): one
- * entry at a time, newest first. Pick a category (the bundled model's suggestion comes first
- * when it has one), and optionally sort every entry like it and remember it for future imports.
- * Also: it's a transfer, don't count it, or skip for now.
+ * entry at a time, newest first. Pick a category (nothing is pre-picked: no AI in the code,
+ * owner decision October 28, 2026), and optionally sort every entry like it and remember it as
+ * a rule for future imports. Also: it's a transfer, don't count it, or skip for now.
  */
 export function ReviewScreen() {
   const { db } = useDb();
@@ -32,7 +32,6 @@ export function ReviewScreen() {
   const [skipped, setSkipped] = useState<string[]>([]);
   const [sortedCount, setSortedCount] = useState(0);
   const [startCount, setStartCount] = useState<number | null>(null);
-  const [suggested, setSuggested] = useState<string | null>(null);
   const [alike, setAlike] = useState(0);
   const [remember, setRemember] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -43,10 +42,9 @@ export function ReviewScreen() {
     if (queue && startCount === null) setStartCount(queue.length);
   }, [queue, startCount]);
 
-  // For the entry on screen: the model's suggestion and how many others look the same.
+  // For the entry on screen: how many others look the same.
   // biome-ignore lint/correctness/useExhaustiveDependencies: recompute only when the entry changes
   useEffect(() => {
-    setSuggested(null);
     setAlike(0);
     if (!current) return;
     let alive = true;
@@ -58,11 +56,9 @@ export function ReviewScreen() {
         if (e.id === current.id || e.direction !== current.direction) continue;
         if ((await cleanDescription(ruleText(e))).includes(mine)) same += 1;
       }
-      const s = current.direction === "out" ? await suggestCategory(text) : null;
       if (!alive) return;
       setAlike(same);
       setRemember(same > 0);
-      setSuggested(s?.category_id ?? null);
     })();
     return () => {
       alive = false;
@@ -70,11 +66,10 @@ export function ReviewScreen() {
   }, [current?.id]);
 
   const kind = current?.direction === "in" ? "income" : "expense";
-  const choices = useMemo(() => {
-    const list = (categories ?? []).filter((c) => c.kind === kind && !c.hidden);
-    const first = list.find((c) => c.id === suggested);
-    return first ? [first, ...list.filter((c) => c !== first)] : list;
-  }, [categories, kind, suggested]);
+  const choices = useMemo(
+    () => (categories ?? []).filter((c) => c.kind === kind && !c.hidden),
+    [categories, kind],
+  );
 
   async function choose(categoryId: string) {
     if (!current) return;
@@ -158,22 +153,16 @@ export function ReviewScreen() {
                 <button
                   type="button"
                   key={c.id}
-                  className={`chip-option${c.id === suggested ? " review__suggested" : ""}`}
+                  className="chip-option"
                   onClick={() => void choose(c.id)}
                 >
                   {c.name}
-                  {c.id === suggested ? <span className="sr-only"> (suggested)</span> : null}
                 </button>
               ))}
               <button type="button" className="chip-option" onClick={() => setAdding(true)}>
                 + New
               </button>
             </fieldset>
-            {suggested ? (
-              <p className="auth__fineprint">
-                <Chip tone="accent">Suggested</Chip> from the name, on this device. You decide.
-              </p>
-            ) : null}
             <Toggle
               label={
                 alike > 0

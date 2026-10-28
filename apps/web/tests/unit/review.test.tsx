@@ -58,6 +58,10 @@ describe("Sort your spending (item 9, October 20, 2026)", () => {
       name: "Do the same for all 3 like this",
     });
     expect(all).toBeChecked();
+    // Nothing is picked or suggested for the person (no AI in the code, October 28, 2026).
+    expect(within(card).queryByText(/suggested/i)).toBeNull();
+    const chips = within(card).getByRole("group", { name: "Which category?" });
+    expect(within(chips).getAllByRole("button")[0]).toHaveAccessibleName("Rent");
     await user.click(within(card).getByRole("button", { name: /^Dining/ }));
 
     await waitFor(async () =>
