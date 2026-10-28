@@ -407,13 +407,35 @@ async function settleSplits(
   const removing = new Set(plan.remove);
   const kept = new Set<string>();
   const parts: Entry[] = [];
+  // Every part, by its parent: a part can be split again, so parts are collected all the way down.
+  const children = new Map<string, Entry[]>();
+  await db.entries
+    .filter((e) => !!e.split_parent_id)
+    .each((e) => {
+      const list = children.get(e.split_parent_id as string) ?? [];
+      list.push(e);
+      children.set(e.split_parent_id as string, list);
+    });
+  const partsOf = (roots: Iterable<string>): Entry[] => {
+    const found: Entry[] = [];
+    const seen = new Set<string>();
+    const queue = [...roots];
+    while (queue.length) {
+      const id = queue.shift() as string;
+      for (const child of children.get(id) ?? []) {
+        if (seen.has(child.id)) continue;
+        seen.add(child.id);
+        found.push(child);
+        queue.push(child.id);
+      }
+    }
+    return found;
+  };
   for (const entry of plan.put) {
     const cents = bankCents.get(entry.id);
     if (cents === undefined) continue;
     const parents = new Set([entry.id, replaces.get(entry.id)].filter((x) => x !== undefined));
-    const mine = await db.entries
-      .filter((e) => !!e.split_parent_id && parents.has(e.split_parent_id))
-      .toArray();
+    const mine = partsOf(parents);
     if (mine.length === 0) continue;
     const split = mine.reduce((sum, e) => sum + e.amount_cents, 0);
     if (split >= cents) {
@@ -427,20 +449,17 @@ async function settleSplits(
       removing.delete(p.id);
       parts.push({
         ...rest,
-        split_parent_id: entry.id,
+        // a direct part follows the bank's row (a posted row takes over its pending row's parts);
+        // a part's part keeps pointing at its own part
+        split_parent_id: parents.has(p.split_parent_id as string) ? entry.id : p.split_parent_id,
         date: entry.date,
         direction: entry.direction,
         updated_at: stamp,
       });
     }
   }
-  const orphaned = new Set([...removedParents.values()].map((e) => e.id));
-  if (orphaned.size) {
-    const left = await db.entries
-      .filter((e) => !!e.split_parent_id && orphaned.has(e.split_parent_id) && !kept.has(e.id))
-      .toArray();
-    for (const p of left) removing.add(p.id);
-  }
+  const orphaned = [...removedParents.values()].map((e) => e.id);
+  for (const p of partsOf(orphaned)) if (!kept.has(p.id)) removing.add(p.id);
   plan.remove = [...removing];
   plan.put.push(...parts);
 }

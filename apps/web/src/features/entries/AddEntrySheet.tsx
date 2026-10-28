@@ -8,6 +8,7 @@ import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { recordDeletion } from "../../data/backup/snapshot.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type Direction, type Entry, newId } from "../../data/db.ts";
+import { deleteReceiptsOf } from "../../data/receipts.ts";
 import { cleanDescription, EngineError, parseAmount } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { emitMoment } from "../../moments/bus.ts";
@@ -307,7 +308,8 @@ export function AddEntrySheet() {
       setConfirmDelete(true);
       return;
     }
-    await db.transaction("rw", [db.entries, db.tombstones], async () => {
+    await db.transaction("rw", [db.entries, db.tombstones, db.receipts, db.files], async () => {
+      await deleteReceiptsOf(db, [existing.id]);
       await db.entries.delete(existing.id);
       await recordDeletion(db, "entries", [existing.id]);
       await releasePartners(db, [existing.id]);

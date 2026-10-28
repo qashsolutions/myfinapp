@@ -288,6 +288,36 @@ describe("a month through every money path (docs/invariants.md)", () => {
     expect(out).toBe(120000 + 2200 + 15000 + 6000);
   });
 
+  it("a part split again still counts the bank's cents once after the coffee posts", async () => {
+    const db = await theMonth();
+    await splitCoffee();
+    cleanup();
+    // Split $2 off the $5 part in the editor too
+    const part = (await db.entries.toArray()).find((e) => e.split_parent_id === "lnk-p-coffee");
+    const user = userEvent.setup();
+    server();
+    renderApp(`/entries/${(part as Entry).id}`);
+    await screen.findByRole("heading", { level: 1, name: "Edit entry" });
+    await waitFor(() => expect(screen.getByLabelText("Amount")).toHaveValue("5.00"));
+    await user.click(screen.getByRole("button", { name: "Split this entry" }));
+    await user.type(screen.getByLabelText("Split off amount"), "2.00");
+    const chips = screen.getByRole("group", { name: "Category for the split part" });
+    await user.click(within(chips).getByRole("radio", { name: "Groceries" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("heading", { level: 1, name: "Money in & out" });
+    await posted(db);
+    const entries = await db.entries.toArray();
+    const coffee = entries
+      .filter((e) => e.merchant === "BLUE BOTTLE COFFEE")
+      .map((e) => e.amount_cents)
+      .sort((a, b) => a - b);
+    expect(coffee).toEqual([200, 300, 1700]);
+    const out = entries
+      .filter((e) => e.direction === "out" && !e.is_transfer && !e.not_counted)
+      .reduce((s, e) => s + e.amount_cents, 0);
+    expect(out).toBe(120000 + 2200 + 15000 + 6000);
+  });
+
   it("Home: Got · Spent · Kept and Set aside match the hand totals", async () => {
     const db = await theMonth();
     await posted(db);

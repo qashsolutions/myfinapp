@@ -16,6 +16,11 @@ import {
   snapshotHash,
 } from "../../src/data/backup/snapshot.ts";
 import { openDb, seedDefaults } from "../../src/data/db.ts";
+import {
+  changeMilestones,
+  ensureMilestones,
+  stampMilestones,
+} from "../../src/features/goals/useGoals.ts";
 
 const T0 = "2026-10-01T10:00:00.000Z";
 const T1 = "2026-10-02T10:00:00.000Z";
@@ -138,6 +143,94 @@ describe("snapshots and merging", () => {
     expect(again.added).toBe(0);
     expect(await a.entries.get("e1")).toBeUndefined();
     await b.delete();
+  });
+
+  it("a milestone removed and added back survives a merge carrying the old removal, and is not stamped again", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date(T0));
+      const a = openDb("u1");
+      const goal = {
+        id: "g1",
+        kind: "save" as const,
+        title: "Travel",
+        target_cents: 50000,
+        target_days: null,
+        label: null,
+        category_id: null,
+        start_date: "2026-10-01",
+        end_date: null,
+        baseline_cents: null,
+        group_id: null,
+        status: "active" as const,
+        milestones_bps: [5000],
+        created_at: T0,
+        updated_at: T0,
+      };
+      await a.goals.add(goal);
+      await ensureMilestones(a, goal, [{ bps: 5000, target_cents: 25000 }]);
+      // Removed on the goal screen; another device's snapshot carries that removal
+      vi.setSystemTime(new Date(T1));
+      await changeMilestones(a, goal, [], 30000, "2026-10-02");
+      const withRemoval = await buildSnapshot(a, { rulesVersion: "t", deviceId: "B" });
+      expect(withRemoval.tombstones).toEqual([
+        { table: "goal_milestones", id: "g1:5000", deleted_at: T1 },
+      ]);
+      // Added back: already passed, so recorded as reached today without a cheer
+      vi.setSystemTime(new Date(T2));
+      const now = { ...goal, milestones_bps: [] };
+      await changeMilestones(a, now, [5000], 30000, "2026-10-03");
+      expect(await a.tombstones.get(["goal_milestones", "g1:5000"])).toBeUndefined();
+      await mergeSnapshot(a, withRemoval);
+      expect(await a.goal_milestones.get("g1:5000")).toMatchObject({
+        reached_at: "2026-10-03",
+        updated_at: T2,
+      });
+      // The goal screen's stamp finds it reached already: no second milestone_reached
+      const stamped = await stampMilestones(
+        a,
+        { ...goal, milestones_bps: [5000] },
+        [{ bps: 5000, target_cents: 25000, reached: true }],
+        "2026-10-03",
+      );
+      expect(stamped).toEqual([]);
+      // And the row travels to a device that still holds the removal
+      const b = openDb("u1b");
+      await b.delete();
+      await b.open();
+      await mergeSnapshot(b, withRemoval);
+      await mergeSnapshot(b, await buildSnapshot(a, { rulesVersion: "t", deviceId: "A" }));
+      expect(await b.goal_milestones.get("g1:5000")).toMatchObject({ reached_at: "2026-10-03" });
+      await b.delete();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a row a unique index already holds is skipped and counted; any other failure stops the merge", async () => {
+    const a = openDb("u1");
+    await a.entries.add({ ...entry("e1", T0), fingerprint: "fp-1" });
+    const snap = await buildSnapshot(a, { rulesVersion: "t", deviceId: "A" });
+    // The same import row under another id: the fingerprint index refuses it
+    snap.tables.entries = [{ ...entry("e2", T0), fingerprint: "fp-1" }];
+    const report = await mergeSnapshot(a, snap);
+    expect(report).toMatchObject({ added: 0, skipped: 1 });
+    expect(await a.entries.get("e2")).toBeUndefined();
+    // A row the database cannot store at all is an error, not a silent skip
+    const { id: _id, ...keyless } = entry("e3", T0, "No key");
+    snap.tables.entries = [keyless];
+    await expect(mergeSnapshot(a, snap)).rejects.toMatchObject({ name: "DataError" });
+    expect(await a.entries.count()).toBe(1);
+  });
+
+  it("builds the snapshot in one read transaction, so a write cannot land halfway", async () => {
+    const a = openDb("u1");
+    await a.entries.add(entry("e1", T0));
+    const spy = vi.spyOn(a, "transaction");
+    await buildSnapshot(a, { rulesVersion: "t", deviceId: "A" });
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.calls[0]?.[0]).toBe("r");
+    spy.mockRestore();
   });
 
   it("leaves device-only settings out of the snapshot", async () => {

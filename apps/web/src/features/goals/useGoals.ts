@@ -257,9 +257,10 @@ export async function ensureMilestones(
   goal: Goal,
   targets: Array<{ bps: number; target_cents: number }>,
 ): Promise<void> {
-  for (const t of targets) {
-    const id = `${goal.id}:${t.bps}`;
-    if (!(await db.goal_milestones.get(id)))
+  await db.transaction("rw", [db.goal_milestones, db.tombstones], async () => {
+    for (const t of targets) {
+      const id = `${goal.id}:${t.bps}`;
+      if (await db.goal_milestones.get(id)) continue;
       await db.goal_milestones.add({
         id,
         goal_id: goal.id,
@@ -267,8 +268,12 @@ export async function ensureMilestones(
         label: `${t.bps / 100}%`,
         target_cents: t.target_cents,
         reached_at: null,
+        updated_at: new Date().toISOString(),
       });
-  }
+      // Added back after a removal: the old removal must not travel and delete it elsewhere
+      await db.tombstones.delete(["goal_milestones", id]);
+    }
+  });
 }
 
 /**
@@ -296,7 +301,10 @@ export async function changeMilestones(
     await ensureMilestones(db, goal, results);
     for (const r of results) {
       if (!r.reached || old.includes(r.bps)) continue;
-      await db.goal_milestones.update(`${goal.id}:${r.bps}`, { reached_at: today });
+      await db.goal_milestones.update(`${goal.id}:${r.bps}`, {
+        reached_at: today,
+        updated_at: new Date().toISOString(),
+      });
     }
   });
 }
@@ -314,7 +322,10 @@ export async function stampMilestones(
     if (!r.reached) continue;
     const row = await db.goal_milestones.get(`${goal.id}:${r.bps}`);
     if (row && !row.reached_at) {
-      await db.goal_milestones.update(row.id, { reached_at: today });
+      await db.goal_milestones.update(row.id, {
+        reached_at: today,
+        updated_at: new Date().toISOString(),
+      });
       stamped.push(row.id);
     }
   }

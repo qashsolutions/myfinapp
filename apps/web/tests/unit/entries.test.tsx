@@ -102,6 +102,27 @@ describe("manual entries live only on the device", () => {
       created_at: "2026-10-09T10:00:00Z",
       updated_at: "2026-10-09T10:00:00Z",
     });
+    // A receipt photo kept for it: deleting the entry deletes the photo too
+    await db.files.add({
+      id: "f-r1",
+      kind: "receipt",
+      import_id: null,
+      name: "receipt.jpg",
+      type: "image/jpeg",
+      size: 3,
+      blob: new Blob([new Uint8Array([1, 2, 3])]),
+      created_at: "2026-10-09T10:00:00Z",
+    });
+    await db.receipts.add({
+      id: "r1",
+      entry_id: "e1",
+      file_id: "f-r1",
+      status: "confirmed",
+      purge_after: null,
+      purged_at: null,
+      created_at: "2026-10-09T10:00:00Z",
+      updated_at: "2026-10-09T10:00:00Z",
+    });
     await renderSignedIn("/");
     const recent = await screen.findByRole("region", { name: "Recent entries" });
     await user.click(await within(recent).findByRole("button", { name: /Corner Market/ }));
@@ -120,6 +141,8 @@ describe("manual entries live only on the device", () => {
     await user.click(screen.getByRole("button", { name: "Really delete this entry" }));
     expect(await screen.findByText("No entries this month. Tap + to add one.")).toBeInTheDocument();
     expect(await db.entries.count()).toBe(0);
+    expect(await db.receipts.count()).toBe(0);
+    expect(await db.files.count()).toBe(0);
   });
 
   it("the month switcher asks the engine for bounds", async () => {

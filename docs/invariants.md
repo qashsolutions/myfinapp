@@ -12,8 +12,10 @@ written against both.
 
 1. **Every bank cent counts once.** An imported, linked, split, renamed or posted entry, plus its
    split parts, adds up to the bank's row. Split parts never carry `provider_txn_id`; sync sets
-   the entry to the bank's amount minus its parts.
-   `apps/web/tests/invariants/money-month.test.tsx` · `linked-sync.test.tsx` "a split linked entry"
+   the entry to the bank's amount minus all its parts, a part split again included (parts are
+   collected all the way down, for the sum and for removal; October 28, 2026).
+   `apps/web/tests/invariants/money-month.test.tsx` "a part split again…" ·
+   `linked-sync.test.tsx` "a split linked entry"
    · `money.test.tsx` "splits an entry into two parts that still add up"
 2. **A transfer is both sides or neither.** Marking, matching or unmarking one side does the same
    to the other, linked by `transfer_pair_id`.
@@ -63,9 +65,12 @@ written against both.
    `engine.test.ts` · `money.test.tsx` "never steps past this month…" · `forecast.test.tsx`
    "drops the what-if line when the Try card is hidden…"
 9. **Money data never leaves the device** (statements, entries, receipts, amounts, merchants);
-   only ciphertext, group percentages and dates / types / keys for alerts do.
-   `leak-sweep.test.tsx` · `import-flow.test.tsx` `onlySessionReads` · `groups.test.tsx` ·
-   `notifications.test.tsx`
+   only ciphertext, group percentages and dates / types / keys for alerts do. The sweep reads
+   every request whole: the URL with its query string, every header and the raw body (October
+   28, 2026). A receipt photo keeps no metadata wherever it hides: between scans, or after the
+   end of the image (a phone's second JPEG with its own EXIF, a motion-photo video).
+   `leak-sweep.test.tsx` (with "the sweep itself") · `import-flow.test.tsx` `onlySessionReads` ·
+   `groups.test.tsx` · `notifications.test.tsx` · `receipts-strip.test.ts`
 10. **The two engines agree.** Python and TypeScript answer every golden case the same way, and
    no rule returns an amount past 2^53 − 1 cents (JavaScript's largest exact integer): the growth
    rules answer `too_large` there, with goldens on both sides of the line. Text and dates are
@@ -91,6 +96,20 @@ written against both.
     and the device starts again from the newest, skipping copies it already could not open.
     `test_backup.py::test_stepping_back_from_a_pruned_copy_says_so_instead_of_no_backup` ·
     `backup-walk.test.ts`
+21. **A backup is one moment, and a merge keeps what is newest** (October 28, 2026). A snapshot
+    is read in one transaction, so a delete and its tombstone are both in it or both out. A row
+    whose id can come back (a milestone is `<goal>:<bps>`) syncs newer-wins by `updated_at`, and
+    adding it back clears its own tombstone, so an old removal from another device never
+    deletes it again (and its cheer never plays twice). A merge skips only a row a unique index
+    already holds, and counts it; any other failure stops the merge.
+    `backup.test.ts` "a milestone removed and added back…", "a row a unique index already
+    holds…", "builds the snapshot in one read transaction…"
+22. **Removing something removes what hangs off it** (October 28, 2026). An account takes its
+    entries, imports, anchors, mapping and kept files, its entries' receipts and photos, its
+    card details and its net worth choice (with a tombstone where the table syncs); an entry
+    takes its receipt and photo. Nothing is left on the device that no screen can reach.
+    `settings-data.test.tsx` "manages accounts…" · `entries.test.tsx` "edits and deletes an
+    entry…"
 
 ## Accounts and money on the server
 

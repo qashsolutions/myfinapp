@@ -254,7 +254,16 @@ export interface FakeApi {
   deviceLinkStarts: number;
   /** What the phone's lookup says about the computer's network. */
   deviceLinkSameNetwork: boolean;
-  calls: Array<{ method: string; path: string; body?: unknown }>;
+  /** Every request: `path` and the parsed JSON `body` for the routes below; `url` (query string
+   * included), `headers` and the raw body text so the leak sweep sees all of it. */
+  calls: Array<{
+    method: string;
+    path: string;
+    body?: unknown;
+    url: string;
+    headers: Record<string, string>;
+    raw: string;
+  }>;
   sentTo: string[];
   /** Groups on the "server"; `members` lists everyone, `is_me` is recomputed per response. */
   groups: FakeGroup[];
@@ -488,11 +497,17 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     const request = input instanceof Request ? input : new Request(input, init);
     const path = new URL(request.url).pathname;
     const method = request.method;
-    const body =
-      method === "GET" || method === "DELETE"
-        ? undefined
-        : await request.json().catch(() => undefined);
-    state.calls.push({ method, path, body });
+    const raw = method === "GET" || method === "HEAD" ? "" : await request.text().catch(() => "");
+    let body: unknown;
+    if (method !== "GET" && method !== "DELETE" && raw) {
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        body = undefined;
+      }
+    }
+    const headers = Object.fromEntries(request.headers.entries());
+    state.calls.push({ method, path, body, url: request.url, headers, raw });
     const b = (body ?? {}) as Record<string, string>;
     const now = new Date().toISOString();
 

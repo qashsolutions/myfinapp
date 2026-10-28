@@ -40,6 +40,40 @@ describe("receipt photos lose their metadata before they are stored", () => {
     expect(Array.from(stripJpeg(input))).not.toContain(0x47); // the "G" of GPS is gone
   });
 
+  it("stops at the end of the image: a second JPEG with EXIF and anything appended are dropped", () => {
+    // Phones append an MPF preview (a whole JPEG with its own EXIF) or a motion-photo video
+    const trailer = [
+      ...jpeg([seg(0xe1, EXIF_WITH_GPS), DQT, SOF, DHT, SOS_AND_DATA]),
+      ...[0x66, 0x74, 0x79, 0x70, 0x47, 0x50, 0x53], // "ftypGPS"
+    ];
+    // Scan data with a restart marker and a fill byte before the end
+    const scan = [...seg(0xda, [1, 1, 0, 0, 63, 0]), 0x12, 0xff, 0xd0, 0x34, 0xff, 0xff, 0xd9];
+    const input = new Uint8Array([...jpeg([seg(0xe0, JFIF), DQT, SOF, DHT, scan]), ...trailer]);
+    const out = Array.from(stripJpeg(input));
+    expect(out.slice(-2)).toEqual([0xff, 0xd9]);
+    expect(out).toEqual(Array.from(jpeg([seg(0xe0, JFIF), DQT, SOF, DHT, scan])));
+    expect(String.fromCharCode(...out)).not.toContain("Exif");
+    expect(out).not.toContain(0x47);
+  });
+
+  it("drops an APPn segment between two progressive scans and keeps both scans", () => {
+    const scan1 = [...seg(0xda, [1, 1, 0, 0, 0, 0]), 0x12, 0xff, 0x00, 0x34];
+    const scan2 = [...seg(0xda, [1, 1, 0, 1, 63, 0]), 0x56, 0x78, 0xff, 0xd9];
+    const input = jpeg([
+      seg(0xe0, JFIF),
+      DQT,
+      SOF,
+      DHT,
+      scan1,
+      seg(0xe1, EXIF_WITH_GPS),
+      DHT,
+      scan2,
+    ]);
+    const out = Array.from(stripJpeg(input));
+    expect(out).toEqual(Array.from(jpeg([seg(0xe0, JFIF), DQT, SOF, DHT, scan1, DHT, scan2])));
+    expect(String.fromCharCode(...out)).not.toContain("Exif");
+  });
+
   it("keeps APP14 (Adobe) so colours stay right, and a JPEG without metadata is unchanged", () => {
     const adobe = seg(0xee, [0x41, 0x64, 0x6f, 0x62, 0x65, 0, 100, 0, 0, 0, 0, 1]);
     const input = jpeg([adobe, DQT, SOF, DHT, SOS_AND_DATA]);

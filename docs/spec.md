@@ -597,7 +597,7 @@ export_jobs is no longer needed: exports are built on the device.
 | Table | Key fields |
 |---|---|
 | goals (new fields) | icon, color, why_text, cadence (`weekly` \| `biweekly` \| `monthly` \| `payday`), per_period_cents, is_ongoing, paused_at, priority |
-| goal_milestones | goal_id, label, target_cents or target_date, reached_at |
+| goal_milestones | goal_id, label, target_cents or target_date, reached_at, updated_at |
 | goal_templates | owner_id, name, payload (JSON), shared_group_id |
 | notification_prefs | user_id, type, enabled, time_of_day, days, lead_days, threshold |
 | notification_settings | user_id, quiet_start, quiet_end, daily_max, paused_until, timezone |

@@ -216,12 +216,59 @@ describe("Settings + data rights", () => {
       category_id: null,
       account_id: account?.id ?? "",
       source: "import",
-      receipt_id: null,
+      receipt_id: "r1",
       import_id: null,
       is_transfer: false,
       transfer_pair_id: null,
       split_parent_id: null,
       is_recurring: false,
+      created_at: "2026-10-03T00:00:00Z",
+      updated_at: "2026-10-03T00:00:00Z",
+    });
+    // What else hangs off the account: a receipt photo, a card's details, a net worth choice
+    const accountId = account?.id ?? "";
+    await db.files.add({
+      id: "f-r1",
+      kind: "receipt",
+      import_id: null,
+      name: "receipt.jpg",
+      type: "image/jpeg",
+      size: 3,
+      blob: new Blob([new Uint8Array([1, 2, 3])]),
+      created_at: "2026-10-03T00:00:00Z",
+    });
+    await db.receipts.add({
+      id: "r1",
+      entry_id: "e1",
+      file_id: "f-r1",
+      status: "confirmed",
+      purge_after: null,
+      purged_at: null,
+      created_at: "2026-10-03T00:00:00Z",
+      updated_at: "2026-10-03T00:00:00Z",
+    });
+    await db.card_details.add({
+      account_id: accountId,
+      statement_balance_cents: 1000,
+      statement_date: null,
+      due_date: null,
+      minimum_cents: null,
+      last_payment_cents: null,
+      last_payment_date: null,
+      limit_cents: null,
+      apr_bps: null,
+      is_overdue: false,
+      updated_at: "2026-10-03T00:00:00Z",
+    });
+    await db.net_worth_items.add({
+      id: "nw-acct",
+      kind: "asset",
+      group: "Cash",
+      label: "Everyday checking",
+      value_cents: null,
+      source: "account",
+      ref_id: accountId,
+      included: false,
       created_at: "2026-10-03T00:00:00Z",
       updated_at: "2026-10-03T00:00:00Z",
     });
@@ -236,5 +283,12 @@ describe("Settings + data rights", () => {
     );
     expect(await db.entries.count()).toBe(0);
     expect(await db.balance_anchors.count()).toBe(0);
+    expect(await db.receipts.count()).toBe(0);
+    expect(await db.files.get("f-r1")).toBeUndefined();
+    expect(await db.card_details.get(accountId)).toBeUndefined();
+    expect(await db.net_worth_items.get("nw-acct")).toBeUndefined();
+    expect(await db.tombstones.get(["net_worth_items", "nw-acct"])).toMatchObject({
+      id: "nw-acct",
+    });
   });
 });
