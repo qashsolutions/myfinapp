@@ -241,6 +241,11 @@ describe("trials", () => {
     expect(screen.queryByRole("button", { name: /free trial/ })).toBeNull();
     await user.click(screen.getByRole("link", { name: "See plans" }));
     const priv = await screen.findByRole("article", { name: "Private" });
+    // No lasting Free plan: the current plan card says what is true, never "Free".
+    const current = screen.getByRole("region", { name: "Current plan" });
+    expect(current).toHaveTextContent("No plan yet");
+    expect(current).toHaveTextContent("Your free trial was already used on this email.");
+    expect(current).not.toHaveTextContent(/Free/);
     await user.click(within(priv).getByRole("button", { name: "Choose Private" }));
     const sheet = await screen.findByRole("dialog", { name: "Before you subscribe" });
     await user.click(within(sheet).getByRole("checkbox"));
