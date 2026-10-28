@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { isoInDays, readyAccount, statementThisMonth } from "./helpers.ts";
+import { readyAccount, statementThisMonth } from "./helpers.ts";
 
 test("@phone zero-based: every dollar gets a job, money moves between lines, Home says what's left", async ({
   page,
@@ -15,15 +15,14 @@ test("@phone zero-based: every dollar gets a job, money moves between lines, Hom
   await page.getByRole("button", { name: "Import 4 transactions" }).click();
   await expect(page.getByText("ACME PAYROLL")).toBeVisible(); // saved before moving on
 
-  // Take-home $2,000 a month, zero-based; the payday is three days from today.
-  const payday = isoInDays(3);
+  // Take-home $2,000 a month, zero-based; paid on the suggested 1st.
   await page.goto("/budget");
   await page
     .getByLabel(/paycheck/i)
     .first()
     .fill("2000");
   await page.getByRole("radio", { name: "Monthly" }).check();
-  await page.getByLabel("Next payday").fill(payday);
+  await expect(page.getByRole("radio", { name: "1st" })).toBeChecked();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByText("Zero-based", { exact: true }).click();
   await page.getByRole("button", { name: "Continue" }).click();

@@ -115,14 +115,30 @@ def _series(raw: object) -> dict:
     cents = _int(raw.get("expected_cents"))
     if cents < 0:
         raise RuleError("invalid_amount")
+    # The day of the month a monthly, quarterly or yearly series keeps (31 = the last day), so
+    # stepping from a short month never drifts it earlier (October 28, 2026).
+    keep = raw.get("day")
+    if keep is not None:
+        keep = _int(keep, "invalid_series")
+        if not 1 <= keep <= 31 or raw["interval"] in ("weekly", "biweekly"):
+            raise RuleError("invalid_series")
     return {
         "id": series_id,
+        "day": keep,
         "payee": recurring.clean_description(raw.get("payee")),
         "kind": raw["kind"],
         "interval": raw["interval"],
         "cents": cents,
         "next": dates.parse_date(raw.get("next_date")),
     }
+
+
+def _next(day: date, s: dict) -> date:
+    """One step on, back on the series' own day of the month when it has one (clamped)."""
+    day = recurring.step(day, s["interval"])
+    if s["day"] is not None:
+        day = day.replace(day=min(s["day"], dates.days_in_month(day)))
+    return day
 
 
 def upcoming(series: list, entries: list, as_of: str, days: int) -> dict:
@@ -137,7 +153,7 @@ def upcoming(series: list, entries: list, as_of: str, days: int) -> dict:
     for s in [_series(r) for r in series]:
         day = s["next"]
         while day < today:
-            day = recurring.step(day, s["interval"])
+            day = _next(day, s)
         while day <= end:
             items.append(
                 {
@@ -150,7 +166,7 @@ def upcoming(series: list, entries: list, as_of: str, days: int) -> dict:
                     "entry_id": None,
                 }
             )
-            day = recurring.step(day, s["interval"])
+            day = _next(day, s)
     items.sort(key=lambda i: (i["date"], i["payee"], i["series_id"]))
     used: set[int] = set()
     for item in items:

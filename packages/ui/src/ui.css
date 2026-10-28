@@ -55,6 +55,13 @@
   display: flex;
   width: 100%;
 }
+/* On a computer a full-width button stretched across the content looked oversized (owner,
+   October 28, 2026): it keeps the 48px touch height and stops at a comfortable width. */
+@media (min-width: 900px) {
+  .sk-btn--block {
+    max-width: 420px;
+  }
+}
 
 /* Card ------------------------------------------------------------------- */
 .sk-card {

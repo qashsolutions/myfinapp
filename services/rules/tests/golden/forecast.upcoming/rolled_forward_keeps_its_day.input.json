@@ -1,0 +1,16 @@
+{
+  "series": [
+    {
+      "id": "pay",
+      "payee": "Paycheck",
+      "kind": "income",
+      "expected_cents": 260000,
+      "interval": "monthly",
+      "next_date": "2026-08-31",
+      "day": 31
+    }
+  ],
+  "entries": [],
+  "as_of": "2026-10-20",
+  "days": 20
+}

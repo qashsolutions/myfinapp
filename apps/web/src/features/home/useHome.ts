@@ -16,7 +16,6 @@ import {
   type NextMoveFacts,
   nextMove,
   nextPaydays,
-  type PaySchedule,
   paydayNudge,
   pctOf,
   periodsUntil,
@@ -27,6 +26,7 @@ import {
 import { formatCents } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
 import { emitMoment } from "../../moments/bus.ts";
+import { payScheduleOf } from "../budget/payDays.ts";
 import { type BudgetView, useBudget } from "../budget/useBudget.ts";
 import { type ForecastView, useForecast } from "../forecast/useForecast.ts";
 import { addGoalEvent, newMoneyIn, useGoals } from "../goals/useGoals.ts";
@@ -52,21 +52,8 @@ export interface HomeView {
   ready: boolean;
 }
 
-/** Budget's pay settings as a payday schedule (weekly / every 2 weeks / twice a month / monthly). */
-export function payScheduleOf(pay: PaySettings | undefined): PaySchedule | null {
-  if (!pay?.next_payday) return null;
-  const day = Number(pay.next_payday.slice(8, 10));
-  switch (pay.frequency) {
-    case "weekly":
-      return { kind: "every_n_days", anchor: pay.next_payday, n: 7 };
-    case "biweekly":
-      return { kind: "every_n_days", anchor: pay.next_payday, n: 14 };
-    case "semimonthly":
-      return { kind: "monthly_days", days: day <= 15 ? [day, day + 15] : [day - 15, day] };
-    case "monthly":
-      return { kind: "monthly_days", days: [day] };
-  }
-}
+/** Budget's pay settings as a payday schedule; one reading in `budget/payDays.ts`. */
+export { payScheduleOf };
 
 export function isEmergencyJar(goal: Goal): boolean {
   return goal.kind === "save" && goal.title.trim().toLowerCase() === "emergency fund";

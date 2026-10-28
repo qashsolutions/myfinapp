@@ -1,0 +1,15 @@
+{
+  "start": "2026-10-20",
+  "end": "2026-11-09",
+  "items": [
+    {
+      "date": "2026-10-31",
+      "series_id": "pay",
+      "payee": "PAYCHECK",
+      "kind": "income",
+      "amount_cents": 260000,
+      "matched": false,
+      "entry_id": null
+    }
+  ]
+}
