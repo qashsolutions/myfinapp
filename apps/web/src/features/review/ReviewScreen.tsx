@@ -92,9 +92,11 @@ export function ReviewScreen() {
     // Both sides: the other side of each is marked and paired too (October 27, 2026).
     const ids = [current.id, ...(remember && alike > 0 ? await alikeIds(db, current) : [])];
     const done = await markTransfers(db, ids);
-    setSortedCount((c) => c + ids.length);
+    // Count what was marked: each entry's other side too, and none already a transfer.
+    const marked = done.ids.length;
+    setSortedCount((c) => c + marked);
     showUndo(
-      ids.length > 1 ? `${ids.length} marked as transfers` : "Marked as a transfer",
+      marked > 1 ? `${marked} marked as transfers` : "Marked as a transfer",
       () => void done.undo(),
     );
   }

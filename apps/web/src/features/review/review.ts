@@ -9,11 +9,17 @@ import { type Entry, newId, type StackdDb } from "../../data/db.ts";
 import { cleanDescription } from "../../engine/bridge.ts";
 import { compareText } from "../../lib/order.ts";
 
-/** Entries waiting for a category: not a transfer, counted, not a split part. Newest first. */
+/**
+ * Whether an entry waits for a category: none yet, not a transfer, counted, not a split part.
+ * Every "N to sort" count uses this, so it always matches the queue it opens.
+ */
+export function needsSorting(e: Entry): boolean {
+  return e.category_id === null && !e.is_transfer && !e.not_counted && !e.split_parent_id;
+}
+
+/** Entries waiting for a category (`needsSorting`). Newest first. */
 export async function toReview(db: StackdDb): Promise<Entry[]> {
-  const rows = await db.entries
-    .filter((e) => e.category_id === null && !e.is_transfer && !e.not_counted)
-    .toArray();
+  const rows = await db.entries.filter(needsSorting).toArray();
   return rows.sort((a, b) => compareText(b.date, a.date) || compareText(a.id, b.id));
 }
 
