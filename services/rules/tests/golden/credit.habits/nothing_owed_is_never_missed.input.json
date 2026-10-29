@@ -1,0 +1,17 @@
+{
+  "due_dates": [],
+  "due_day": 10,
+  "payments": [],
+  "balance_history": {
+    "anchors": [
+      {
+        "as_of": "2026-09-01",
+        "balance_cents": 0
+      }
+    ],
+    "entries": []
+  },
+  "as_of": "2026-10-20",
+  "months": 2,
+  "guide_bps": 3000
+}

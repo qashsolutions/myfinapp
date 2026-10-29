@@ -1,0 +1,47 @@
+{
+  "due_dates": [],
+  "due_day": 15,
+  "payments": [
+    {
+      "date": "2026-08-14",
+      "cents": 25000
+    },
+    {
+      "date": "2026-10-01",
+      "cents": 3000
+    }
+  ],
+  "balance_history": {
+    "anchors": [
+      {
+        "as_of": "2026-08-01",
+        "balance_cents": -20000
+      }
+    ],
+    "entries": [
+      {
+        "date": "2026-08-05",
+        "direction": "out",
+        "amount_cents": 5000
+      },
+      {
+        "date": "2026-08-14",
+        "direction": "in",
+        "amount_cents": 25000
+      },
+      {
+        "date": "2026-09-02",
+        "direction": "out",
+        "amount_cents": 3000
+      },
+      {
+        "date": "2026-10-01",
+        "direction": "in",
+        "amount_cents": 3000
+      }
+    ]
+  },
+  "as_of": "2026-10-20",
+  "months": 12,
+  "guide_bps": 3000
+}

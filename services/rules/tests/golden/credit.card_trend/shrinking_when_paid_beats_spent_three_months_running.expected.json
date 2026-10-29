@@ -1,0 +1,29 @@
+{
+  "months": [
+    {
+      "month": "2026-07",
+      "spent_cents": 5000,
+      "paid_cents": 20000,
+      "net_cents": -15000
+    },
+    {
+      "month": "2026-08",
+      "spent_cents": 0,
+      "paid_cents": 20000,
+      "net_cents": -20000
+    },
+    {
+      "month": "2026-09",
+      "spent_cents": 9999,
+      "paid_cents": 10000,
+      "net_cents": -1
+    }
+  ],
+  "last_month": {
+    "month": "2026-09",
+    "spent_cents": 9999,
+    "paid_cents": 10000,
+    "net_cents": -1
+  },
+  "trend": "shrinking"
+}

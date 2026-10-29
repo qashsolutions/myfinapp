@@ -49,12 +49,16 @@ describe("Debt payoff planner", () => {
     await screen.findByRole("heading", { level: 1, name: "Bills & debt" });
     await user.click(screen.getByRole("radio", { name: "Debt payoff" }));
     const plan = await screen.findByRole("region", { name: "Payoff plan" });
-    await waitFor(() => expect(within(plan).getByRole("status")).toHaveTextContent(/Debt-free by/));
+    await waitFor(() => expect(within(plan).getByRole("status")).toHaveTextContent(/^by /));
+    expect(plan).toHaveTextContent("Debt-free");
     expect(within(plan).getByRole("radio", { name: "Minimums only" })).toBeChecked();
+    expect(within(plan).getByRole("radio", { name: "Highest rate first" })).toBeChecked();
     expect(plan).toHaveTextContent("at $40.00 a month");
 
     await user.click(within(plan).getByRole("radio", { name: "+$50.00" }));
-    await waitFor(() => expect(plan).toHaveTextContent("Debt-free by March 2027"));
+    await waitFor(() =>
+      expect(within(plan).getByRole("status")).toHaveTextContent("by March 2027"),
+    );
     expect(plan).toHaveTextContent("5 months at $90.00 a month · $15.45 in interest");
     expect(plan).toHaveTextContent(
       /With \$50\.00 extra: \d+ months sooner and \$[\d,.]+ less interest/,
@@ -67,7 +71,12 @@ describe("Debt payoff planner", () => {
     expect(await db.settings.get("debt.extra_cents")).toMatchObject({ value: 5000 });
     expect(await db.computed_results.get("payoff_plan:2026-10-10")).toMatchObject({
       kind: "payoff_plan",
-      payload: { extra_cents: 5000, months: 5, debt_free_month: "2027-03" },
+      payload: {
+        extra_cents: 5000,
+        months: 5,
+        debt_free_month: "2027-03",
+        payoff_order: "avalanche",
+      },
     });
 
     await user.type(within(plan).getByLabelText("Other extra amount each month"), "150");
@@ -90,7 +99,61 @@ describe("Debt payoff planner", () => {
         /balances grow instead of shrinking/,
       ),
     );
+    expect(plan).toHaveTextContent("Stalled");
     await user.click(within(plan).getByRole("radio", { name: "+$100.00" }));
-    await waitFor(() => expect(within(plan).getByRole("status")).toHaveTextContent(/Debt-free by/));
+    await waitFor(() => expect(within(plan).getByRole("status")).toHaveTextContent(/^by /));
+  });
+
+  it("switches to smallest balance first and shows both orders side by side from the golden numbers", async () => {
+    // The golden case bills.payoff_plan/snowball_pays_the_smallest_balance_first and its avalanche twin.
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await db.debts.bulkAdd([
+      {
+        id: "a",
+        label: "Card",
+        balance_cents: 20000,
+        apr_bps: 2400,
+        min_payment_cents: 2000,
+        created_at: "2026-10-01T00:00:00Z",
+        updated_at: "2026-10-01T00:00:00Z",
+      },
+      {
+        id: "b",
+        label: "Loan",
+        balance_cents: 10000,
+        apr_bps: 1200,
+        min_payment_cents: 2000,
+        created_at: "2026-10-01T00:00:00Z",
+        updated_at: "2026-10-01T00:00:00Z",
+      },
+    ]);
+    await db.settings.put({
+      key: "debt.extra_cents",
+      value: 5000,
+      updated_at: "2026-10-01T00:00:00Z",
+    });
+    installFakeApi({ session: readySession() });
+    renderApp("/bills?tab=debt");
+    const plan = await screen.findByRole("region", { name: "Payoff plan" });
+    const both = await within(plan).findByRole("list", { name: "Both orders side by side" });
+    await waitFor(() => expect(both).toHaveTextContent("$10.84 interest"));
+    expect(both).toHaveTextContent("Highest rate first");
+    expect(both).toHaveTextContent("$12.40 interest");
+    expect(both).toHaveTextContent("Saves the most interest.");
+    expect(both).toHaveTextContent("Clears a debt sooner.");
+    expect(plan).toHaveTextContent("Card: paid off January 2027 · $8.01 interest");
+
+    await user.click(within(plan).getByRole("radio", { name: "Smallest balance first" }));
+    await waitFor(() =>
+      expect(plan).toHaveTextContent("Loan: paid off December 2026 · $1.31 interest"),
+    );
+    expect(plan).toHaveTextContent("Card: paid off February 2027 · $11.09 interest");
+    expect(within(plan).getByRole("status")).toHaveTextContent("by February 2027");
+    expect(await db.settings.get("debt.order")).toMatchObject({ value: "snowball" });
+    // The list follows the chosen order: the smallest balance is where the extra goes.
+    const list = await screen.findByRole("list", { name: "Debts, smallest balance first" });
+    expect(within(list).getAllByRole("button")[0]).toHaveAccessibleName(/^Loan, .*rank 1$/);
   });
 });

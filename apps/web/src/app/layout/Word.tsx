@@ -10,6 +10,7 @@ export const BAD_WORDS: ReadonlySet<string> = new Set([
   "Short",
   "Review",
   "Stalled",
+  "Missed",
 ]);
 export const GOOD_WORDS: ReadonlySet<string> = new Set([
   "Kept",
@@ -25,6 +26,9 @@ export const GOOD_WORDS: ReadonlySet<string> = new Set([
   "Found",
   "Done",
   "Clear",
+  "Debt-free",
+  "Shrinking",
+  "Building",
   "All good",
   "On track",
   "Sooner",

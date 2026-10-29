@@ -22,6 +22,7 @@ import type {
   Account,
   BalanceAnchor,
   CardDetail,
+  CardDueDate,
   Direction,
   Entry,
   StackdDb,
@@ -144,6 +145,25 @@ export async function pullCards(
     rows.push({ ...facts, account_id: accountId, updated_at: stamp });
   }
   if (rows.length) await db.card_details.bulkPut(rows);
+  const dues = rows.flatMap((row) => {
+    const due = cardDueDateOf(row);
+    return due ? [due] : [];
+  });
+  if (dues.length) await db.card_due_dates.bulkPut(dues);
+}
+
+/** Credit habits (October 28, 2026): a card's current due date as a row to keep, with what the
+ * statement asked for; the same due date seen again keeps the latest facts. */
+export function cardDueDateOf(detail: CardDetail): CardDueDate | null {
+  if (!detail.due_date) return null;
+  return {
+    id: `${detail.account_id}:${detail.due_date}`,
+    account_id: detail.account_id,
+    due_date: detail.due_date,
+    statement_balance_cents: detail.statement_balance_cents,
+    minimum_cents: detail.minimum_cents,
+    updated_at: detail.updated_at,
+  };
 }
 
 interface Planned {

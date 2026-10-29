@@ -280,12 +280,48 @@ def _credit_pay_in_full(
     )
 
 
+def _credit_card_trend(entries: list, as_of: str, months: int) -> dict:
+    return credit.card_trend(entries, as_of, months)
+
+
+def _credit_habits(
+    due_dates: list,
+    payments: list,
+    as_of: str,
+    months: int,
+    guide_bps: int,
+    due_day: int | None = None,
+    minimum_cents: int | None = None,
+    statements: list | None = None,
+    statement_balance_cents: int | None = None,
+    current_balance_cents: int | None = None,
+    limit_cents: int | None = None,
+    since: str | None = None,
+    balance_history: dict | None = None,
+) -> dict:
+    return credit.habits(
+        due_dates,
+        due_day,
+        payments,
+        minimum_cents,
+        statements,
+        statement_balance_cents,
+        current_balance_cents,
+        limit_cents,
+        as_of,
+        months,
+        guide_bps,
+        since,
+        balance_history,
+    )
+
+
 def _bills_avalanche_order(debts: list) -> dict:
     return bills.avalanche_order(debts)
 
 
-def _bills_payoff_plan(debts: list, extra_cents: int, as_of: str) -> dict:
-    return bills.payoff_plan(debts, extra_cents, as_of)
+def _bills_payoff_plan(debts: list, extra_cents: int, as_of: str, order: str | None = None) -> dict:
+    return bills.payoff_plan(debts, extra_cents, as_of, order)
 
 
 def _growth_projection(
@@ -431,6 +467,8 @@ _BARE: dict[str, Rule] = {
     "bills.payoff_plan": _bills_payoff_plan,
     "credit.utilization_bps": _credit_utilization_bps,
     "credit.pay_in_full": _credit_pay_in_full,
+    "credit.card_trend": _credit_card_trend,
+    "credit.habits": _credit_habits,
     "growth.projection": _growth_projection,
     "growth.goal_plan": _growth_goal_plan,
     "growth.goal_pace": _growth_goal_pace,
