@@ -50,29 +50,38 @@ test("credit habits: a card with its own due day and a payment before it shows a
   page,
 }) => {
   await readyAccount(page, "credit");
-  // Due five days ago; paid the day before: one due date checked, on time.
+  // Bought 20 days ago, paid back 6 days ago to a $0 balance; due 5 days ago. One due date is
+  // checked and nothing was owed on it after the payment: on time.
   const due = isoInDays(-5);
-  const paid = isoInDays(-6);
   const dueDay = String(Number(due.slice(8, 10)));
+  const csv = [
+    "Posting Date,Description,Amount,Balance",
+    `${isoInDays(-20)},CORNER MKT,-50.00,-50.00`,
+    `${isoInDays(-6)},REFUND CORNER MKT,50.00,0.00`,
+    "",
+  ].join("\n");
+  await page.goto("/import");
+  await page
+    .getByLabel(/Choose a statement file/)
+    .setInputFiles({ name: "card.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+  await page.getByRole("button", { name: "+ New account" }).click();
+  await page.getByLabel("Account name").fill("Visa");
+  await page.getByLabel("Type", { exact: true }).selectOption("credit_card");
+  await page.getByRole("button", { name: "Add account" }).click();
+  await page.getByRole("button", { name: "Read file" }).click();
+  await page.getByRole("button", { name: "Looks right" }).click();
+  await page.getByRole("button", { name: "Import 2 transactions" }).click();
+  await expect(page.getByText("CORNER MKT").first()).toBeVisible();
 
+  // Its own due day, typed in: any day 1 to 31.
   await page.goto("/me/accounts");
-  await page.getByRole("button", { name: "+ Add an account" }).click();
-  const sheet = page.getByRole("dialog", { name: "Add an account" });
-  await sheet.getByRole("textbox", { name: "Name" }).fill("Visa");
-  await sheet.getByRole("combobox", { name: "Type" }).selectOption("credit_card");
+  const visa = page.getByRole("region", { name: "Visa" });
+  await visa.getByRole("button", { name: "Edit or remove" }).click();
+  const sheet = page.getByRole("dialog", { name: "Edit account" });
   await sheet.getByLabel("Own due day, 1 to 31").fill(dueDay);
   await sheet.getByRole("button", { name: "Use" }).click();
-  await sheet.getByRole("button", { name: "Add" }).click();
+  await sheet.getByRole("button", { name: "Save" }).click();
   await expect(sheet).toBeHidden();
-
-  await page.goto("/add");
-  await page.getByText("Money in", { exact: true }).click();
-  await page.getByLabel("Amount").fill("50");
-  await page.getByLabel("Merchant").fill("Card payment");
-  await page.getByLabel("Date").fill(paid);
-  await page.getByLabel("Account", { exact: true }).selectOption({ label: "Visa" });
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).not.toHaveText("Add entry");
 
   await page.goto("/bills?tab=debt");
   const habits = page.getByRole("region", { name: /Credit habits/ });

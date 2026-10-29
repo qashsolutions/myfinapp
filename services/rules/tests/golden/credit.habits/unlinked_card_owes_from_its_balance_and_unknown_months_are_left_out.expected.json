@@ -1,0 +1,15 @@
+{
+  "status": "building",
+  "checked": 3,
+  "unknown": 9,
+  "on_time": 2,
+  "on_time_streak": 1,
+  "missed": [
+    "2026-09-15"
+  ],
+  "latest_due_date": "2026-10-15",
+  "next_due_date": "2026-11-15",
+  "paid_in_full_streak": 1,
+  "utilization_bps": null,
+  "under_guide": null
+}

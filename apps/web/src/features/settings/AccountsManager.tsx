@@ -150,7 +150,12 @@ export function AccountsManager() {
         await db.files.bulkDelete(fileIds);
         await deleteReceiptsOf(db, entryIds);
         await db.card_details.delete(account.id);
-        await db.card_due_dates.where("account_id").equals(account.id).delete();
+        const dueIds = (await db.card_due_dates
+          .where("account_id")
+          .equals(account.id)
+          .primaryKeys()) as string[];
+        await db.card_due_dates.bulkDelete(dueIds);
+        await recordDeletion(db, "card_due_dates", dueIds);
         await db.net_worth_items.bulkDelete(worthIds);
         await recordDeletion(db, "net_worth_items", worthIds);
         await db.entries.where("account_id").equals(account.id).delete();

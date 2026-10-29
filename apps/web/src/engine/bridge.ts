@@ -1335,6 +1335,7 @@ export async function cardTrend(
 export interface CreditHabits {
   status: "steady" | "building" | "missed" | null;
   checked: number;
+  unknown: number;
   on_time: number;
   on_time_streak: number;
   missed: string[];
@@ -1363,6 +1364,11 @@ export async function creditHabits(input: {
   guideBps: number;
   /** The card's first entry: due dates before it are not checked. */
   since: string | null;
+  /** The card's balances and entries: what was owed on each due date (unknown: not checked). */
+  balanceHistory: {
+    anchors: Array<{ as_of: string; balance_cents: number }>;
+    entries: Array<{ date: string; direction: "in" | "out"; amount_cents: number }>;
+  } | null;
 }): Promise<CreditHabits> {
   return engine.call<CreditHabits>("credit.habits", {
     due_dates: input.dueDates,
@@ -1377,5 +1383,6 @@ export async function creditHabits(input: {
     months: input.months,
     guide_bps: input.guideBps,
     since: input.since,
+    balance_history: input.balanceHistory,
   });
 }

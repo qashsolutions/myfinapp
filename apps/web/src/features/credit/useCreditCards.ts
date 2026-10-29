@@ -81,6 +81,22 @@ export function useCreditCards(asOf: string): CreditCardView[] | undefined {
             asOf,
             months: HABIT_MONTHS,
             guideBps: CREDIT_GUIDE_BPS,
+            // What was owed on each due date comes from the card's balances and entries, so a
+            // month with nothing owed is never missed and one with no balance yet is unknown.
+            balanceHistory: {
+              anchors: source.anchors
+                .filter((a) => a.account_id === account.id)
+                .sort(
+                  (a, b) =>
+                    compareText(a.as_of, b.as_of) || compareText(a.created_at, b.created_at),
+                )
+                .map((a) => ({ as_of: a.as_of, balance_cents: a.balance_cents })),
+              entries: mine.map((e) => ({
+                date: e.date,
+                direction: e.direction,
+                amount_cents: e.amount_cents,
+              })),
+            },
             since: mine.reduce<string | null>(
               (min, e) => (min === null || compareText(e.date, min) < 0 ? e.date : min),
               null,
@@ -103,7 +119,7 @@ const RANK = { missed: 0, building: 1, steady: 2 } as const;
 /** The card that most needs a look leads a summary: missed, then building, then steady. */
 export function leadCard(views: CreditCardView[]): CreditCardView | null {
   const checked = views.filter((v) => v.habits?.status);
-  if (checked.length === 0) return null;
+  if (checked.length === 0) return views.find((v) => v.habits) ?? null;
   return (
     [...checked].sort(
       (a, b) =>

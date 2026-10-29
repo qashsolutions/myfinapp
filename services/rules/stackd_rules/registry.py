@@ -286,6 +286,7 @@ def _credit_habits(
     current_balance_cents: int | None = None,
     limit_cents: int | None = None,
     since: str | None = None,
+    balance_history: dict | None = None,
 ) -> dict:
     return credit.habits(
         due_dates,
@@ -300,6 +301,7 @@ def _credit_habits(
         months,
         guide_bps,
         since,
+        balance_history,
     )
 
 

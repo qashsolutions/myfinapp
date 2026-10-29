@@ -10,6 +10,7 @@ pay_in_full       what is left of the statement balance after a payment made sin
 
 from __future__ import annotations
 
+from . import forecast
 from .dates import add_months, days_in_month, days_until, parse_date
 from .errors import RuleError
 from .money import _int, ratio_bps
@@ -191,6 +192,7 @@ def habits(
     months: object,
     guide_bps: object,
     since: object = None,
+    balance_history: object = None,
 ) -> dict:
     """On-time payments, the share of the limit used and paying in full, for one card.
 
@@ -205,6 +207,15 @@ def habits(
     else `minimum_cents`) when known and above 0, else to more than 0; or when its statement
     balance is known and nothing was owed. It is paid in full when that sum reaches its known
     statement balance.
+
+    With `balance_history` ({anchors: [{as_of, balance_cents}], entries: [{date, direction,
+    amount_cents}]}, a card that isn't linked; balances as the device keeps them, below zero is
+    owed) a due date with no statement balance takes what was owed on it: the latest anchor on
+    or before it plus the entries after the anchor through the due date (forecast.start_balance),
+    owed = max(0, -balance). Nothing owed is on time and paid in full; something owed needs a
+    payment as above, and paid in full stays unknown. A due date with no anchor on or before
+    it is unknown: left out of `checked` and counted in `unknown`, never missed. We say only
+    what the person's own data shows.
     """
     today = parse_date(as_of)
     span = _window_months(months)
@@ -250,9 +261,21 @@ def habits(
                     raise RuleError("invalid_amount")
                 minimum_by_due[due] = own_min
     paid = [_payment(p) for p in payments]
+    history = _balance_history(balance_history)
 
     ordered = sorted(dues)
-    checked = [d for d in ordered if start <= d < today and (first is None or d >= first)]
+    window = [d for d in ordered if start <= d < today and (first is None or d >= first)]
+    checked = []
+    unknown = 0
+    for d in window:
+        if history is not None and d not in owed_by_due:
+            owed_then = _owed_on(history, d)
+            if owed_then is None:
+                unknown += 1
+                continue
+            if owed_then == 0:
+                owed_by_due[d] = 0
+        checked.append(d)
     results = []
     for d in checked:
         earlier = [x for x in ordered if x < d]
@@ -296,6 +319,7 @@ def habits(
     return {
         "status": status,
         "checked": len(results),
+        "unknown": unknown,
         "on_time": sum(1 for r in results if r["on_time"]),
         "on_time_streak": streak,
         "missed": missed,
@@ -305,3 +329,33 @@ def habits(
         "utilization_bps": util,
         "under_guide": None if util is None else util <= guide,
     }
+
+
+def _balance_history(raw: object) -> dict | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise RuleError("invalid_history")
+    anchors = raw.get("anchors")
+    entries = raw.get("entries")
+    if not isinstance(anchors, list) or not isinstance(entries, list):
+        raise RuleError("invalid_history")
+    parsed = []
+    for i, a in enumerate(anchors):
+        if not isinstance(a, dict):
+            raise RuleError("invalid_anchor")
+        parsed.append((parse_date(a.get("as_of")), i, a))
+    rows = [_card_entry(e) for e in entries]
+    return {"anchors": parsed, "entries": entries, "rows": rows}
+
+
+def _owed_on(history: dict, day) -> int | None:
+    """What was owed at the end of `day`, or None with no anchor on or before it. The latest
+    anchor wins; two on the same day, the later one given."""
+    before = [a for a in history["anchors"] if a[0] <= day]
+    if not before:
+        return None
+    anchor = max(before, key=lambda a: (a[0], a[1]))[2]
+    upto = [e for e, r in zip(history["entries"], history["rows"], strict=True) if r["date"] <= day]
+    balance = forecast.start_balance(anchor, upto)["balance_cents"]
+    return max(0, -balance)

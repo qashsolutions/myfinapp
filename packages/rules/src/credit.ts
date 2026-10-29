@@ -2,6 +2,7 @@
 
 import { addMonths, type Day, daysInMonth, daysUntil, iso, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
+import { startBalance } from "./forecast.ts";
 import { assertInt, ratioBps } from "./money.ts";
 
 function optInt(value: unknown): number | null {
@@ -168,6 +169,7 @@ export function cardTrend(entries: unknown, asOf: unknown, months: unknown): Car
 export interface CreditHabits {
   status: "steady" | "building" | "missed" | null;
   checked: number;
+  unknown: number;
   on_time: number;
   on_time_streak: number;
   missed: string[];
@@ -198,6 +200,7 @@ export function habits(
   months: unknown,
   guideBps: unknown,
   since: unknown = null,
+  balanceHistory: unknown = null,
 ): CreditHabits {
   const today = parseDate(asOf);
   const span = windowMonths(months);
@@ -247,12 +250,26 @@ export function habits(
   });
 
   const ordered = [...dues.values()].sort((a, b) => daysUntil(b, a));
-  const checked = ordered.filter(
+  const history = parseHistory(balanceHistory);
+  const window = ordered.filter(
     (d) =>
       daysUntil(start, d) >= 0 &&
       daysUntil(d, today) > 0 &&
       (first === null || daysUntil(first, d) >= 0),
   );
+  const checked: Day[] = [];
+  let unknown = 0;
+  for (const d of window) {
+    if (history !== null && !owedByDue.has(iso(d))) {
+      const owedThen = owedOn(history, d);
+      if (owedThen === null) {
+        unknown += 1;
+        continue;
+      }
+      if (owedThen === 0) owedByDue.set(iso(d), 0);
+    }
+    checked.push(d);
+  }
   const results: DueResult[] = checked.map((d) => {
     const after = ordered.filter((x) => daysUntil(x, d) > 0).at(-1) ?? addMonths(d, -1);
     let total = 0;
@@ -299,6 +316,7 @@ export function habits(
   return {
     status,
     checked: results.length,
+    unknown,
     on_time: results.filter((r) => r.onTime).length,
     on_time_streak: streak,
     missed: results.filter((r) => !r.onTime).map((r) => r.due),
@@ -308,4 +326,38 @@ export function habits(
     utilization_bps: util,
     under_guide: util === null ? null : util <= guide,
   };
+}
+
+interface History {
+  anchors: Array<{ day: Day; index: number; raw: unknown }>;
+  entries: unknown[];
+  rows: CardRow[];
+}
+
+function parseHistory(raw: unknown): History | null {
+  if (raw === null || raw === undefined) return null;
+  if (!isRecord(raw)) throw new RuleError("invalid_history");
+  const { anchors, entries } = raw;
+  if (!Array.isArray(anchors) || !Array.isArray(entries)) throw new RuleError("invalid_history");
+  const parsed = anchors.map((a, index) => {
+    if (!isRecord(a)) throw new RuleError("invalid_anchor");
+    return { day: parseDate(a.as_of), index, raw: a as unknown };
+  });
+  return { anchors: parsed, entries, rows: entries.map(cardEntry) };
+}
+
+/** Port of credit._owed_on: what was owed at the end of `day`, or null with no anchor before. */
+function owedOn(history: History, day: Day): number | null {
+  let anchor: History["anchors"][number] | null = null;
+  for (const a of history.anchors) {
+    if (daysUntil(a.day, day) < 0) continue;
+    if (anchor === null || daysUntil(anchor.day, a.day) >= 0) anchor = a;
+  }
+  if (anchor === null) return null;
+  const upto = history.entries.filter((_, i) => {
+    const row = history.rows[i];
+    return row !== undefined && daysUntil(row.date, day) >= 0;
+  });
+  const balance = startBalance(anchor.raw, upto).balance_cents ?? 0;
+  return Math.max(0, -balance);
 }

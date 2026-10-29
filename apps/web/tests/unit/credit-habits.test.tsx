@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildSnapshot, mergeSnapshot } from "../../src/data/backup/snapshot.ts";
 import {
   type Account,
   type CardDetail,
@@ -63,6 +64,15 @@ async function seedCard() {
     entry("p3", "2026-09-15", "in", 5000),
     entry("p4", "2026-10-12", "in", 5000),
   ]);
+  // The card's balance was $0 on July 1, so what was owed on each 15th is known.
+  await db.balance_anchors.add({
+    id: "anc-visa",
+    account_id: VISA.id,
+    as_of: "2026-07-01",
+    balance_cents: 0,
+    source: "user",
+    created_at: "2026-07-01T00:00:00Z",
+  });
   return db;
 }
 
@@ -106,6 +116,29 @@ describe("credit habits and card spending (October 28, 2026)", () => {
     const card = await screen.findByRole("link", { name: "Credit habits" });
     await waitFor(() => expect(card).toHaveTextContent("4 payments on time in a row"));
     expect(card).toHaveTextContent("Steady");
+  });
+
+  it("never says Missed when nothing was owed, and checks nothing until a balance is known", async () => {
+    const db = await seedCard();
+    // A quiet card: $0 on July 1, a $30 charge on Aug 3 paid on Aug 10, then nothing at all.
+    await db.entries.clear();
+    await db.entries.bulkAdd([
+      entry("q1", "2026-08-03", "out", 3000),
+      entry("q2", "2026-08-10", "in", 3000),
+    ]);
+    installFakeApi({ session: readySession() });
+    renderApp("/credit-habits");
+    const card = await screen.findByRole("article", { name: "Visa ••4242" });
+    // Aug 15, Sep 15 and Oct 15 checked: Aug paid, Sep and Oct owed nothing.
+    await waitFor(() => expect(card).toHaveTextContent("3 payments on time in a row"));
+    expect(card).toHaveTextContent("Steady");
+    expect(card).not.toHaveTextContent("Missed");
+
+    await db.balance_anchors.clear();
+    await waitFor(() => expect(card).toHaveTextContent("Set the card's balance to start checking"));
+    expect(card).toHaveTextContent("Start");
+    expect(card).not.toHaveTextContent("Missed");
+    expect(within(card).getByRole("link", { name: "Set the balance in Accounts" })).toBeVisible();
   });
 
   it("a card without a due day asks for one, and the due day is the person's own value", async () => {
@@ -185,11 +218,20 @@ describe("credit habits and card spending (October 28, 2026)", () => {
     expect(shown).toHaveTextContent("Paid in full 1 month");
     // 15000 of a 100000 limit: 15% · under 30%.
     expect(shown).toHaveTextContent("15% of your limit used · under 30%");
-    // Kept on this device and in the export (never in backups, like card_details).
+    // In the export, and in the encrypted backup so the history follows to a new device.
     const files = await collectExport(db, null, NOW.toISOString());
     const settings = JSON.parse(
       new TextDecoder().decode(files.find((f) => f.name === "settings.json")?.data),
     );
     expect(settings.card_due_dates).toHaveLength(2);
+    const snapshot = await buildSnapshot(db, { rulesVersion: "test", deviceId: "d1" });
+    expect(snapshot.tables.card_due_dates).toHaveLength(2);
+    const other = openDb("u2");
+    await mergeSnapshot(other, snapshot);
+    expect((await other.card_due_dates.toArray()).map((d) => d.due_date).sort()).toEqual([
+      "2026-09-25",
+      "2026-10-25",
+    ]);
+    other.close();
   });
 });

@@ -420,7 +420,8 @@ export interface CardDetail {
 /**
  * Every distinct due date seen on a linked card's facts, with what that statement asked for
  * (October 28, 2026; Dexie v17), so Credit habits can look back after `card_details` moves on.
- * Device only like `card_details` (never in backups), in the export.
+ * In the encrypted backup (newer `updated_at` wins) so the history follows to a new device,
+ * and in the export.
  */
 export interface CardDueDate {
   id: string; // `${account_id}:${due_date}`

@@ -1,6 +1,7 @@
 {
   "status": "steady",
   "checked": 1,
+  "unknown": 0,
   "on_time": 1,
   "on_time_streak": 1,
   "missed": [],

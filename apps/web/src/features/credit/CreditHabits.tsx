@@ -33,9 +33,18 @@ export function habitsWord(h: CreditHabits | null): string {
 }
 
 /** The short lines under the word, each straight from the rule's numbers. */
+export const NEEDS_BALANCE = "Set the card's balance to start checking";
+
+/** Nothing could be checked because no balance is known on or before any due date. */
+export function needsBalance(h: CreditHabits): boolean {
+  return h.checked === 0 && h.unknown > 0;
+}
+
 export function habitLines(h: CreditHabits): string[] {
   const lines: string[] = [];
-  if (h.on_time_streak > 0) {
+  if (needsBalance(h)) {
+    lines.push(NEEDS_BALANCE);
+  } else if (h.on_time_streak > 0) {
     lines.push(`${plural(h.on_time_streak, "payment", "payments")} on time in a row`);
   } else if (h.latest_due_date) {
     lines.push(`Missed the ${formatDay(h.latest_due_date)} due date`);
@@ -157,6 +166,13 @@ export function CreditHabitsScreen() {
               ) : null}
               {c.habits.next_due_date ? (
                 <li>Next due {formatDay(c.habits.next_due_date)}</li>
+              ) : null}
+              {needsBalance(c.habits) ? (
+                <li>
+                  <Link to="/me/accounts" className="auth__link">
+                    Set the balance in Accounts
+                  </Link>
+                </li>
               ) : null}
             </ul>
           ) : (

@@ -1,6 +1,7 @@
 {
   "status": "building",
   "checked": 12,
+  "unknown": 0,
   "on_time": 4,
   "on_time_streak": 4,
   "missed": [
