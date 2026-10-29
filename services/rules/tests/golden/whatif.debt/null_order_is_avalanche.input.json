@@ -1,0 +1,22 @@
+{
+  "debts": [
+    {
+      "id": "a",
+      "label": "Card A",
+      "balance_cents": 10000,
+      "apr_bps": 2400,
+      "min_payment_cents": 1000
+    },
+    {
+      "id": "b",
+      "label": "Loan B",
+      "balance_cents": 3000,
+      "apr_bps": 0,
+      "min_payment_cents": 1000
+    }
+  ],
+  "extra_cents": 0,
+  "add_cents": 3000,
+  "as_of": "2026-10-10",
+  "order": null
+}

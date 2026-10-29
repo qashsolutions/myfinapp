@@ -131,6 +131,10 @@ def _insights_seasonal(as_of: str, entries: list, thresholds: dict) -> dict:
     return insights.seasonal(as_of, entries, thresholds)
 
 
+def _insights_one_change(candidates: list, order: list) -> dict:
+    return insights.one_change(candidates, order)
+
+
 def _bills_consolidation(debts: list, offer: dict, payment_cents: int, as_of: str) -> dict:
     return bills.consolidation(debts, offer, payment_cents, as_of)
 
@@ -361,8 +365,10 @@ def _growth_goal_pace(
     return growth.goal_pace(plan_monthly_cents, deposited_cents, start_date, as_of)
 
 
-def _whatif_debt(debts: list, extra_cents: int, add_cents: int, as_of: str) -> dict:
-    return whatif.debt(debts, extra_cents, add_cents, as_of)
+def _whatif_debt(
+    debts: list, extra_cents: int, add_cents: int, as_of: str, order: str | None = None
+) -> dict:
+    return whatif.debt(debts, extra_cents, add_cents, as_of, order)
 
 
 def _whatif_goal(remaining_cents: int, per_month_cents: int, add_cents: int, as_of: str) -> dict:
@@ -444,6 +450,7 @@ _BARE: dict[str, Rule] = {
     "insights.lumpy_bills": _insights_lumpy_bills,
     "insights.seasonal": _insights_seasonal,
     "insights.top_spending": _insights_top_spending,
+    "insights.one_change": _insights_one_change,
     "bills.consolidation": _bills_consolidation,
     "cashflow.month_totals": _cashflow_month_totals,
     "cashflow.period_totals": _cashflow_period_totals,

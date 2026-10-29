@@ -18,6 +18,7 @@ import { LaterChart, shortMoney } from "../later/LaterChart.tsx";
 import { laterStatus, useLaterProjection } from "../later/LaterScreen.tsx";
 import { useLaterPlan } from "../later/useLaterPlan.ts";
 import { useMonthTotals } from "../money/useMonthTotals.ts";
+import { MonthReviewInsight } from "../monthreview/MonthReviewCards.tsx";
 import { WorthBars } from "../networth/NetWorthScreen.tsx";
 import { useNetWorth } from "../networth/useNetWorth.ts";
 import { RangeBars } from "../ranges/RangeBars.tsx";
@@ -46,6 +47,7 @@ export const INSIGHT_CARDS = [
   ["later", "Later", "Savings by the age you choose"],
   ["credit", "Credit habits", "On-time payments and limit used"],
   ["whatif", "What if", "Move one thing, see what changes"],
+  ["month_review", "Your month", "Last month, and one change to try"],
 ] as const;
 type InsightId = (typeof INSIGHT_CARDS)[number][0];
 
@@ -351,6 +353,8 @@ export function InsightsHub() {
             ) : null}
           </InsightCard>
         );
+      case "month_review":
+        return <MonthReviewInsight today={asOf} />;
       case "whatif":
         return (
           <InsightCard

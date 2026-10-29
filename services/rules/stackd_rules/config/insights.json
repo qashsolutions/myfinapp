@@ -19,5 +19,14 @@
       9000,
       10000
     ]
+  },
+  "month_review": {
+    "show_days": 7,
+    "debt_add_cents": 5000,
+    "one_change_order": [
+      "over_plan",
+      "subscription_check",
+      "debt_interest"
+    ]
   }
 }

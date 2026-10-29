@@ -1275,12 +1275,14 @@ export async function whatIfDebt(
   extraCents: number,
   addCents: number,
   asOf: string,
+  order: PayoffOrder | null = null,
 ): Promise<WhatIfDebt> {
   return engine.call<WhatIfDebt>("whatif.debt", {
     debts,
     extra_cents: extraCents,
     add_cents: addCents,
     as_of: asOf,
+    ...(order ? { order } : {}),
   });
 }
 
@@ -1306,6 +1308,27 @@ export async function whatIfGoal(
     add_cents: addCents,
     as_of: asOf,
   });
+}
+
+/** A one-change candidate (the month review): amounts over `months` months, scaled to a year. */
+export interface OneChangeCandidate {
+  kind: "over_plan" | "subscription_check" | "debt_interest";
+  amounts_cents: number[];
+  months: number;
+}
+
+export interface OneChangePick {
+  index: number;
+  kind: OneChangeCandidate["kind"];
+  yearly_cents: number;
+}
+
+/** insights.one_change (October 28, 2026): the candidate worth the most a year, or null. */
+export async function oneChange(
+  candidates: OneChangeCandidate[],
+  order: string[],
+): Promise<{ pick: OneChangePick | null }> {
+  return engine.call<{ pick: OneChangePick | null }>("insights.one_change", { candidates, order });
 }
 
 export interface AlertInputs {

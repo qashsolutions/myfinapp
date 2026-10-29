@@ -1,0 +1,14 @@
+{
+  "order": [
+    "over_plan",
+    "subscription_check",
+    "debt_interest"
+  ],
+  "candidates": [
+    {
+      "kind": "over_plan",
+      "amounts_cents": [],
+      "months": 1
+    }
+  ]
+}

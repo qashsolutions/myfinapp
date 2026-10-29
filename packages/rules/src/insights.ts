@@ -406,3 +406,60 @@ export function topSpending(
   );
   return { largest, merchants: merchants.slice(0, n), count: rows.length };
 }
+
+// --- one change (the month review, October 28, 2026) -------------------------------------
+
+export interface OneChangePick {
+  index: number;
+  kind: string;
+  yearly_cents: number;
+}
+
+function changeOrder(order: unknown): string[] {
+  if (
+    !Array.isArray(order) ||
+    order.length === 0 ||
+    !order.every((k) => typeof k === "string") ||
+    new Set(order).size !== order.length
+  )
+    throw new RuleError("invalid_order");
+  return order as string[];
+}
+
+/**
+ * The month review's one change: the candidate worth the most a year. Each candidate is
+ * {kind, amounts_cents, months}: yearly = roundDiv(Σ amounts × 12, months). Yearly ≤ 0 is
+ * skipped; the largest wins, ties by the kind's place in `order`, then the earlier candidate.
+ */
+export function oneChange(candidates: unknown, order: unknown): { pick: OneChangePick | null } {
+  const kinds = changeOrder(order);
+  if (!Array.isArray(candidates)) throw new RuleError("invalid_candidates");
+  let best: [number, number, number] | null = null; // yearly, rank, index
+  let pick: OneChangePick | null = null;
+  for (const [index, raw] of candidates.entries()) {
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+      throw new RuleError("invalid_candidates");
+    const row = raw as Record<string, unknown>;
+    const kind = row.kind;
+    if (typeof kind !== "string" || !kinds.includes(kind)) throw new RuleError("invalid_kind");
+    const amounts = row.amounts_cents;
+    if (!Array.isArray(amounts) || amounts.length === 0) throw new RuleError("invalid_amount");
+    let total = 0n;
+    for (const a of amounts) total += BigInt(assertInt(a, "invalid_amount"));
+    const months = row.months;
+    if (typeof months !== "number" || !Number.isInteger(months) || months < 1)
+      throw new RuleError("invalid_months");
+    const yearly = roundDiv(total * 12n, assertInt(months, "invalid_months"));
+    if (yearly <= 0) continue;
+    const rank = kinds.indexOf(kind);
+    if (
+      best === null ||
+      yearly > best[0] ||
+      (yearly === best[0] && (rank < best[1] || (rank === best[1] && index < best[2])))
+    ) {
+      best = [yearly, rank, index];
+      pick = { index, kind, yearly_cents: yearly };
+    }
+  }
+  return { pick };
+}

@@ -38,11 +38,12 @@ export function debt(
   extraCents: unknown,
   addCents: unknown,
   asOf: unknown,
+  order: unknown = null,
 ): WhatIfDebt {
   const add = assertInt(addCents, "invalid_amount");
   if (add < 0) throw new RuleError("invalid_amount");
-  const before = payoffPlan(debts, extraCents, asOf);
-  const after = payoffPlan(debts, assertInt(extraCents, "invalid_amount") + add, asOf);
+  const before = payoffPlan(debts, extraCents, asOf, order);
+  const after = payoffPlan(debts, assertInt(extraCents, "invalid_amount") + add, asOf, order);
   const both = !before.stalled && !after.stalled;
   let status: WhatIfDebt["status"] = "same";
   if (after.stalled) status = "stalled";
