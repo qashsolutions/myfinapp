@@ -5,27 +5,19 @@ import "../auth/auth.css";
 import "./budget.css";
 
 import { buttonClass, Card } from "@stackd/ui";
-import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
-import { useDb } from "../../data/DbProvider.tsx";
 import { addMonths, ratioBps } from "../../engine/bridge.ts";
 import { formatCents, formatMonth, todayIso } from "../../lib/format.ts";
 import { cardText } from "../../moments/catalog.ts";
 import { useLookups } from "../entries/useEntries.ts";
 import { MonthPicker } from "../money/MonthPicker.tsx";
-import { useNotificationSettings } from "../notifications/useNotifications.ts";
 import { AdjustBudgetAlerts } from "./BudgetAlertOptions.tsx";
 import { BudgetSetup } from "./BudgetSetup.tsx";
-import {
-  ALERT_OFF_SETTING,
-  closeLevelBps,
-  paceLines,
-  readAlertOff,
-  useBudgetPace,
-} from "./pace.ts";
+import { paceLines, useBudgetPace } from "./pace.ts";
 import { BUCKET_LABELS, RuleView } from "./RuleView.tsx";
+import { useAlertMarks } from "./useAlertMarks.ts";
 import { monthKey, useBudget } from "./useBudget.ts";
 import { ZeroBasedView } from "./ZeroBasedView.tsx";
 
@@ -34,23 +26,15 @@ export function BudgetScreen() {
   const [asOf, setAsOf] = useState(todayIso());
   const isCurrentMonth = monthKey(asOf) === monthKey(todayIso());
   const view = useBudget(asOf, isCurrentMonth);
-  // "Close" at the person's own "Tell me at" when they set one, the level their alert uses.
-  const alerts = useNotificationSettings({ background: true });
+  // The one reading of the alert marks, shared with Your month (invariant 30).
+  const marks = useAlertMarks();
+  const alerts = marks.settings;
   const alertPrefs = alerts.data?.prefs;
-  const threshold = alertPrefs?.budget_pace?.threshold ?? null;
+  const threshold = marks.threshold;
   const pace = useBudgetPace(view.summary, asOf, threshold);
-  // The lines the person turned the alert off for (October 29, 2026).
-  const { db } = useDb();
-  const alertOff = useLiveQuery(
-    async () => readAlertOff((await db.settings.get(ALERT_OFF_SETTING))?.value),
-    [db],
-  );
+  const alertOff = marks.off;
+  const alerting = marks.alerting;
   const [adjusting, setAdjusting] = useState(false);
-  const alertOn = alertPrefs?.budget_pace?.enabled ?? false;
-  const alerting = useMemo(() => {
-    const off = new Set(alertOff ?? []);
-    return (id: string) => alertOn && !off.has(id);
-  }, [alertOff, alertOn]);
   // Last month's totals, for zero-based's "Start from last month" (October 23, 2026).
   const lastMonth = useMonthTotals(asOf).previous;
   const lookups = useLookups();
@@ -168,7 +152,7 @@ export function BudgetScreen() {
             categories={lookups.categories}
             split={budget.split_bps ?? null}
             pace={pace}
-            levelBps={closeLevelBps(threshold)}
+            levelBps={marks.levelBps}
             alerting={alerting}
           />
         ) : (
@@ -178,7 +162,7 @@ export function BudgetScreen() {
             categories={lookups.categories}
             lastMonth={lastMonth}
             pace={pace}
-            levelBps={closeLevelBps(threshold)}
+            levelBps={marks.levelBps}
             alerting={alerting}
           />
         )
