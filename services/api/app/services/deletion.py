@@ -151,6 +151,11 @@ def cancel_billing(
                 ended = False
                 continue
         try:
+            if owed and stripe_billing.charges_clearing(customer_id):
+                # A bank payment is still on its way (October 29, 2026, invariant 43): what it
+                # pays can't be refunded yet, so the refund stays due (never marked paid) and
+                # the hourly settle pays it once the payment arrives. The purge waits for it.
+                continue
             stripe_billing.refund_credit(
                 customer_id,
                 key=f"closeout:{user_id}",
@@ -395,6 +400,13 @@ def _purge_one(db: DbSession, user: User, now: datetime) -> int:
         return 0
     # Never drop an account Stripe may still charge: retry, and wait if it still fails.
     if not cancel_billing(db, user.id, now=now, as_of=user.deleted_at):
+        return 0
+    # Nor one still owed a refund (a bank payment clearing): the row holds what is due.
+    if db.scalar(
+        select(Subscription.id).where(
+            Subscription.user_id == user.id, Subscription.refund_due_cents > 0
+        )
+    ):
         return 0
     user_id = user.id
     db.delete(user)

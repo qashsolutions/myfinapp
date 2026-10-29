@@ -142,15 +142,16 @@ def test_subscribing_late_in_a_trial_still_charges_nothing_until_it_ends() -> No
     assert "subscription_data%5Btrial_end%5D" not in form
     assert abs(int(form["subscription_data%5Bbilling_cycle_anchor%5D"]) - ends.timestamp()) < 2
     assert form["subscription_data%5Bproration_behavior%5D"] == "none"
-    # Stripe's payment page lasts 24 hours unless told otherwise: it closes before the anchor.
-    assert "expires_at" not in form
+    # Every payment page closes after 31 minutes (October 29, 2026), well before the anchor.
+    left = int(form["expires_at"]) - datetime.now(UTC).timestamp()
+    assert 30 * 60 < left <= 31 * 60 + 2
     assert lines[0].startswith("Free until ") and "today" not in lines[0]
-    # Closer still, the page is told to close by the trial end, so it is never paid after it.
-    ends = datetime.now(UTC) + timedelta(hours=5)
+    # Closer still, the page closes by the trial end, so it is never paid after it.
+    ends = datetime.now(UTC) + timedelta(minutes=40)
     set_user(user_id, trial_ends_at=ends)
     form, lines = _checkout_form(client)
     assert abs(int(form["subscription_data%5Bbilling_cycle_anchor%5D"]) - ends.timestamp()) < 2
-    assert int(form["expires_at"]) == int(ends.timestamp())
+    assert int(form["expires_at"]) <= int(ends.timestamp())
     assert lines[0].startswith("Free until ")
 
 
