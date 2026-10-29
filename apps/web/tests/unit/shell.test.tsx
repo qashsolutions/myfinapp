@@ -1,5 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { activeTab } from "../../src/app/tabs.ts";
 import { installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 import { setViewportWidth, setWideViewport } from "../setup.ts";
@@ -24,6 +25,36 @@ describe("App shell on a phone", () => {
     expect(links.map((l) => l.textContent)).toEqual(["Home", "Budget", "Goals", "Insights", "Me"]);
     expect(within(nav).getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
     expect(within(nav).getByRole("link", { name: "Budget" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("lights the tab a screen is reached from: Insights for What if and its siblings", async () => {
+    expect(activeTab("/what-if")).toBe("/insights");
+    expect(activeTab("/month-review")).toBe("/insights");
+    expect(activeTab("/credit-habits")).toBe("/insights");
+    expect(activeTab("/insights/fixed-flexible")).toBe("/insights");
+    expect(activeTab("/goals/g1")).toBe("/goals");
+    expect(activeTab("/")).toBe("/");
+    // Subscriptions (from Bills) lights no tab, as before; nor does a look-alike prefix.
+    expect(activeTab("/subscriptions")).toBeNull();
+    expect(activeTab("/what-iffy")).toBeNull();
+    for (const path of ["/what-if", "/month-review", "/credit-habits"]) {
+      const view = await renderAt(path);
+      const nav = screen.getByRole("navigation", { name: "Primary" });
+      expect(within(nav).getByRole("link", { name: "Insights" })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      expect(within(nav).getByRole("link", { name: "Budget" })).not.toHaveAttribute("aria-current");
+      view.unmount();
+    }
+    setWideViewport(true);
+    await renderAt("/what-if");
+    const rail = screen.getByRole("navigation", { name: "Primary" });
+    expect(rail.className).toContain("rail");
+    expect(within(rail).getByRole("link", { name: "Insights" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 
   it("moves between tabs, updates the title, and focuses main", async () => {

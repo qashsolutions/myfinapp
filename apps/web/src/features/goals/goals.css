@@ -167,26 +167,32 @@
   background: var(--c-warning);
 }
 
-/* Goals that grow: today's cost against the cost by the date (October 28, 2026). */
-/* GrowCard's two ends (today's cost → the cost then) above the bar, so it never reads as progress. */
-.grow-ends {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 8px 0 0;
-  font-size: var(--fs-small);
-  font-weight: 600;
+/* GrowChart (October 29, 2026): the cost rising (dashed) and the savings at the chosen amount. */
+.grow__chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 4px 0;
 }
-.grow-bars {
-  position: relative;
-  height: 12px;
-  margin: 8px 0;
-  border-radius: 6px;
-  background: var(--c-line);
-  overflow: hidden;
+.grow__label {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  fill: var(--c-ink);
 }
-.grow-bars__now {
-  position: absolute;
-  inset: 0 auto 0 0;
+.grow__label--end {
+  text-anchor: end;
+}
+.grow__key--cost {
+  border-radius: 0;
+  height: 0;
+  width: 14px;
+  border-top: 2px dashed var(--c-ink);
+  vertical-align: 3px;
+}
+.grow__key--saved {
   background: var(--c-a1);
+}
+.grow__result {
+  margin: 4px 0 0;
+  font-weight: 600;
 }

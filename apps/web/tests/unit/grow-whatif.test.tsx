@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildInputs } from "../../src/data/alertSchedule.ts";
 import { buildSnapshot, mergeSnapshot } from "../../src/data/backup/snapshot.ts";
@@ -179,8 +179,11 @@ describe("Goals that grow and What if (October 28, 2026)", () => {
     expect(screen.queryByText(/a week to finish/)).toBeNull();
     // The quick chip is GrowCard's month, never the weekly figure.
     expect(await screen.findByRole("button", { name: "+$500.00" })).toBeInTheDocument();
-    // The bar is two labelled ends, not a progress bar.
-    expect(grows).toHaveTextContent("$2,000.00 today → $2,000.00 by February 2027");
+    // The chart's two labelled ends say today's cost and the cost then; no line repeats them.
+    expect(await within(grows).findByRole("img", { name: /^Cost rising/ })).toHaveAccessibleName(
+      /from \$2,000\.00 today to \$2,000\.00 by February 2027/,
+    );
+    expect(grows).not.toHaveTextContent("today →");
     // What if's jar maths has no growth in it: a grows jar doesn't link there.
     expect(within(grows).queryByRole("link", { name: /What if/ })).toBeNull();
   });
@@ -291,5 +294,132 @@ describe("Goals that grow and What if (October 28, 2026)", () => {
     await mergeSnapshot(a, await buildSnapshot(b, { rulesVersion: "t", deviceId: "B" }));
     expect((await a.goals.get("g-kid"))?.grow?.return_bps).toBe(300);
     b.close();
+  });
+});
+
+describe("the visual pass: grows chart and slider, What if timelines (October 29, 2026)", () => {
+  beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(TODAY);
+    await seedDefaults(openDb("u1"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const HOME = {
+    id: "g-home",
+    title: "A home",
+    target_cents: 200000,
+    start_date: "2026-08-28",
+    end_date: "2027-02-28",
+    grow: { today_cents: 200000, cost_rise_bps: 0, return_bps: 0, priced_on: "2026-08-28" },
+  };
+
+  it("a grows jar leads with the cost and savings chart, and the slider redraws it", async () => {
+    const user = userEvent.setup();
+    await openDb("u1").goals.add(jar(HOME));
+    installFakeApi({ session: readySession() });
+    renderApp("/goals/g-home");
+    const grows = await screen.findByRole("region", { name: "Grows over time" });
+    // At the plan's $500 a month (4 months left, no rates): $2,000 by February 2027.
+    const chart = await within(grows).findByRole("img", { name: /^Cost rising/ });
+    expect(chart).toHaveAccessibleName(
+      "Cost rising from $2,000.00 today to $2,000.00 by February 2027. Saving $500.00 a month comes to $2,000.00 by then.",
+    );
+    expect(grows).toHaveTextContent("Reaches the cost by February 2027");
+    // One word first: the word and its line come before the chart.
+    const word = within(grows).getByText("Behind");
+    expect(word.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // $250 a month: $1,000 by then, so $1,000 short; 200000 ÷ k <= 25000 first at 8 months.
+    const slider = within(grows).getByRole("slider", { name: /If I put in/ });
+    fireEvent.change(slider, { target: { value: "25000" } });
+    await waitFor(() =>
+      expect(grows).toHaveTextContent(
+        "Short by $1,000.00 by February 2027 · reaches it by June 2027",
+      ),
+    );
+    expect(slider).toHaveAttribute("aria-valuetext", "$250.00 a month");
+    // Your own amount: $1,000 a month reaches it in 2 months.
+    await user.type(within(grows).getByLabelText("Your own amount a month"), "1000{Enter}");
+    await waitFor(() => expect(grows).toHaveTextContent("Reaches the cost by December 2026"));
+  });
+
+  it("the builder shows the same chart and refuses a date past 65 years", async () => {
+    const user = userEvent.setup();
+    installFakeApi({ session: readySession() });
+    renderApp("/goals/new");
+    await user.click(await screen.findByRole("button", { name: /Change what it's for/ }));
+    await user.click(await screen.findByRole("radio", { name: "Kids' education" }));
+    await user.keyboard("{Escape}");
+    const options = screen.getByRole("region", { name: "Jar options" });
+    expect(await within(options).findByRole("img", { name: /^Cost rising/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Change deadline/ }));
+    const date = await screen.findByLabelText("Or pick a date, within 65 years");
+    // 65 years on, to that month's end.
+    expect(date).toHaveAttribute("max", "2091-10-31");
+    fireEvent.change(date, { target: { value: "2091-11-01" } });
+    await user.click(screen.getByRole("button", { name: "Use this" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Pick a date within 65 years.");
+    fireEvent.change(date, { target: { value: "2091-10-31" } });
+    await user.click(screen.getByRole("button", { name: "Use this" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Pace" })).toHaveTextContent("by October 2091"),
+    );
+  });
+
+  it("What if draws now and with the change as two bars, levers as one choice", async () => {
+    await openDb("u1").debts.add(CARD);
+    installFakeApi({ session: readySession() });
+    renderApp("/what-if");
+    const levers = await screen.findByRole("group", { name: "What to change" });
+    expect(
+      within(levers)
+        .getAllByRole("radio")
+        .map((r) => r.closest("label")?.textContent),
+    ).toEqual(["One loan", "All debts", "Spend less", "Payday"]);
+    const result = await screen.findByRole("region", { name: "What changes for Card" });
+    // 4 months at the minimum (paid off February 2027, $6.14), 2 with $100 more (December).
+    const picture = await within(result).findByRole("img");
+    expect(picture).toHaveAccessibleName(
+      "Now: Card paid off by Feb 2027, $6.14 interest. With $100.00 more a month: Card paid off by Dec 2026, $4.03 interest.",
+    );
+    expect(within(result).getByText("Months saved")).toBeInTheDocument();
+    // The slider moves the same amount: $200 more pays it in 2 months still.
+    const slider = screen.getByRole("slider", { name: /Put in/ });
+    fireEvent.change(slider, { target: { value: "20000" } });
+    await waitFor(() =>
+      expect(within(result).getByRole("img")).toHaveAccessibleName(/With \$200\.00 more a month/),
+    );
+  });
+
+  it("What if remembers the last lever and amounts, and a link still wins", async () => {
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    await db.debts.add(CARD);
+    installFakeApi({ session: readySession() });
+    const view = renderApp("/what-if");
+    await screen.findByRole("region", { name: "What changes for Card" });
+    await user.click(screen.getByRole("radio", { name: "All debts" }));
+    fireEvent.change(await screen.findByRole("slider", { name: /Put in/ }), {
+      target: { value: "15000" },
+    });
+    // Leaving at once still keeps the last try (it is written as it changes).
+    view.unmount();
+    await waitFor(async () =>
+      expect((await db.settings.get("whatif.last"))?.value).toMatchObject({
+        lever: "debts",
+        debts: 15000,
+      }),
+    );
+    const again = renderApp("/what-if");
+    await waitFor(() => expect(screen.getByRole("radio", { name: "All debts" })).toBeChecked());
+    expect(await screen.findByRole("slider", { name: /Put in/ })).toHaveValue("15000");
+    again.unmount();
+    // The month review's link asks for the loan lever with $75: that wins over the memory.
+    renderApp("/what-if?lever=loan&amount=7500");
+    await waitFor(() => expect(screen.getByRole("radio", { name: "One loan" })).toBeChecked());
+    expect(await screen.findByRole("slider", { name: /Put in/ })).toHaveValue("7500");
   });
 });

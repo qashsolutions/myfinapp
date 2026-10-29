@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from fractions import Fraction
 
-from .dates import parse_date
+from .dates import add_months, parse_date
 from .errors import RuleError
 from .money import _int
 
@@ -112,9 +112,11 @@ def projection(
     }
 
 
-# Goals that grow (October 28, 2026; proposed, awaiting owner sign-off): a save jar whose cost
-# rises each year while the money put aside grows at the person's own rate.
-MAX_GOAL_MONTHS = 1200  # a hundred years: past this a date is a typo, not a plan
+# Goals that grow (October 28, 2026; values signed off by the owner, October 29, 2026): a save jar
+# whose cost rises each year while the money put aside grows at the person's own rate.
+MAX_GOAL_MONTHS = (
+    780  # 65 years (owner sign-off, October 29, 2026): the furthest a grows goal can be
+)
 
 
 def months_between(start: str, end: str) -> int:
@@ -173,6 +175,102 @@ def goal_plan(
         "already_enough": saved_grows >= future,
     }
     _fits(out["future_cost_cents"], out["saved_grows_to_cents"], out["monthly_needed_cents"])
+    return out
+
+
+def _needed(t: int, s: int, p_rate: int, cost_up: int, cost_base: int, up: int, base: int, k: int):
+    """goal_plan's monthly amount for a date k months on, as an exact Fraction (>= 0), from
+    T (M + c)^q ÷ M^q and (M + r)^k ÷ M^k kept as integers; k >= 1."""
+    if p_rate == 0:
+        num, den = t * cost_up - s * cost_base, k * cost_base
+    else:
+        num = (t * cost_up * base - s * up * cost_base) * p_rate
+        den = cost_base * MONTHS_BPS * (up - base)
+    return Fraction(max(0, num), den)
+
+
+def goal_reach(
+    today_cost_cents: int,
+    cost_rise_bps: int,
+    return_bps: int,
+    saved_cents: int,
+    monthly_cents: int,
+    as_of: str,
+    target_date: str,
+    priced_on: str | None = None,
+) -> dict:
+    """What a chosen monthly amount does for a goal that grows (docs/spec.md "Calculation rules",
+    growth.goal_reach; October 29, 2026). Same inputs and limits as goal_plan plus P, the amount
+    put in at each month's end. Month k (k = 0 is as_of's month) counts as reached when
+    goal_plan's monthly amount for a date k months on, rounded half-even, is at most P (k = 0:
+    S ≥ the cost now), so the plan's own amount always reaches at the target. The first such k
+    within 65 years of `priced_on` is the reach month. At the target: whether it is reached
+    there, the savings S × g + P × (g − 1) ÷ i, and how far short of the cost then (0 when
+    reached). Yearly points (k = 0, 12, 24, …, then the target)
+    give the cost and the savings, for the chart. An illustration, not a prediction or advice."""
+    plan = goal_plan(
+        today_cost_cents, cost_rise_bps, return_bps, saved_cents, as_of, target_date, priced_on
+    )
+    monthly = _int(monthly_cents)
+    if monthly < 0:
+        raise RuleError("invalid_amount")
+    _fits(monthly)
+    t, s, c, r = _int(today_cost_cents), _int(saved_cents), _int(cost_rise_bps), _int(return_bps)
+    priced = as_of if priced_on is None else priced_on
+    offset = months_between(priced, as_of)
+    n = plan["months"]
+    m_ = MONTHS_BPS
+    cost_up, cost_base = (m_ + c) ** offset, m_**offset
+    up, base = 1, 1
+    first = parse_date(as_of).replace(day=1)
+    reach = None
+    by_target = False
+    points = []
+    at_target = cost_at_target = Fraction(0)
+    for k in range(MAX_GOAL_MONTHS - offset + 1):
+        if k:
+            cost_up, cost_base = cost_up * (m_ + c), cost_base * m_
+            up, base = up * (m_ + r), base * m_
+        if reach is None or k == n:
+            if k == 0:
+                hit = s * cost_base >= t * cost_up
+            else:
+                hit = round(_needed(t, s, r, cost_up, cost_base, up, base, k)) <= monthly
+            if hit and reach is None:
+                reach = k
+            if k == n:
+                by_target = hit
+        if k <= n and (k % 12 == 0 or k == n):
+            cost = Fraction(t * cost_up, cost_base)
+            if r == 0:
+                saved = Fraction(s + monthly * k)
+            else:
+                saved = Fraction(s * up * r + monthly * m_ * (up - base), r * base)
+            points.append(
+                {
+                    "month": add_months(first, k).isoformat()[:7],
+                    "months": k,
+                    "cost_cents": round(cost),
+                    "saved_cents": round(saved),
+                }
+            )
+            if k == n:
+                at_target, cost_at_target = saved, cost
+        if k >= n and reach is not None:
+            break
+    out = {
+        "months": n,
+        "target_cost_cents": plan["future_cost_cents"],
+        "at_target_cents": round(at_target),
+        "short_by_cents": 0 if by_target else max(0, round(cost_at_target - at_target)),
+        "reaches_by_target": by_target,
+        "reach_months": reach,
+        "reach_month": None if reach is None else add_months(first, reach).isoformat()[:7],
+        "points": points,
+    }
+    _fits(out["at_target_cents"], out["short_by_cents"])
+    for point in points:
+        _fits(point["cost_cents"], point["saved_cents"])
     return out
 
 

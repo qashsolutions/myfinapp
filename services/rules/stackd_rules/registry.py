@@ -361,6 +361,28 @@ def _growth_goal_plan(
     )
 
 
+def _growth_goal_reach(
+    today_cost_cents: int,
+    cost_rise_bps: int,
+    return_bps: int,
+    saved_cents: int,
+    monthly_cents: int,
+    as_of: str,
+    target_date: str,
+    priced_on: str | None = None,
+) -> dict:
+    return growth.goal_reach(
+        today_cost_cents,
+        cost_rise_bps,
+        return_bps,
+        saved_cents,
+        monthly_cents,
+        as_of,
+        target_date,
+        priced_on,
+    )
+
+
 def _growth_goal_pace(
     plan_monthly_cents: int, deposited_cents: int, start_date: str, as_of: str
 ) -> dict:
@@ -489,6 +511,7 @@ _BARE: dict[str, Rule] = {
     "credit.habits": _credit_habits,
     "growth.projection": _growth_projection,
     "growth.goal_plan": _growth_goal_plan,
+    "growth.goal_reach": _growth_goal_reach,
     "growth.goal_pace": _growth_goal_pace,
     "whatif.debt": _whatif_debt,
     "whatif.goal": _whatif_goal,

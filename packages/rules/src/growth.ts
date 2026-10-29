@@ -3,7 +3,7 @@
  * of BigInts, rounded half-even once at the end. (growth.compound was removed October 27, 2026.)
  */
 
-import { daysUntil, parseDate } from "./dates.ts";
+import { addMonths, daysUntil, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { assertInt } from "./money.ts";
 
@@ -138,8 +138,8 @@ export function projection(
   };
 }
 
-// Goals that grow (October 28, 2026; proposed, awaiting owner sign-off).
-const MAX_GOAL_MONTHS = 1200;
+// Goals that grow (October 28, 2026): 65 years at most (owner sign-off, October 29, 2026).
+const MAX_GOAL_MONTHS = 780;
 
 /** Calendar months from start's month to end's month (days ignored), as in Python. */
 export function monthsBetween(start: unknown, end: unknown): number {
@@ -219,6 +219,135 @@ export function goalPlan(
     saved_grows_to_cents: fit(grows),
     monthly_needed_cents: fit(needed),
     already_enough: S * up * costBase >= T * costUp * base,
+  };
+}
+
+export interface GoalReachPoint {
+  month: string; // YYYY-MM
+  months: number;
+  cost_cents: number;
+  saved_cents: number;
+}
+
+export interface GoalReach {
+  months: number;
+  target_cost_cents: number;
+  at_target_cents: number;
+  short_by_cents: number;
+  reaches_by_target: boolean;
+  reach_months: number | null;
+  reach_month: string | null;
+  points: GoalReachPoint[];
+}
+
+function monthOf(first: { y: number; m: number; d: number }, k: number): string {
+  const day = addMonths(first, k);
+  return `${String(day.y).padStart(4, "0")}-${String(day.m).padStart(2, "0")}`;
+}
+
+/**
+ * Port of growth.goal_reach: with V = (M + c)^q, W = M^q (the cost), U = (M + r)^k, B = M^k
+ * (the savings), month k counts as reached when goal_plan's amount for k months, rounded half
+ * to even, is at most P (k = 0: S W >= T V); the first such k within 65 years of priced_on is
+ * the reach month. Points each 12 months and at the target: cost T V / W and savings
+ * (S U r + P M (U - B)) / (r B), or S + P k with r = 0.
+ */
+export function goalReach(
+  todayCostCents: unknown,
+  costRiseBps: unknown,
+  returnBps: unknown,
+  savedCents: unknown,
+  monthlyCents: unknown,
+  asOf: unknown,
+  targetDate: unknown,
+  pricedOn: unknown = null,
+): GoalReach {
+  const plan = goalPlan(
+    todayCostCents,
+    costRiseBps,
+    returnBps,
+    savedCents,
+    asOf,
+    targetDate,
+    pricedOn,
+  );
+  const monthly = assertInt(monthlyCents);
+  if (monthly < 0) throw new RuleError("invalid_amount");
+  fit(BigInt(monthly));
+  const T = BigInt(assertInt(todayCostCents));
+  const S = BigInt(assertInt(savedCents));
+  const c = BigInt(assertInt(costRiseBps));
+  const r = BigInt(assertInt(returnBps));
+  const P = BigInt(monthly);
+  const priced = pricedOn === null || pricedOn === undefined ? asOf : pricedOn;
+  const offset = monthsBetween(priced, asOf);
+  const n = plan.months;
+  const M = MONTHS_BPS;
+  let V = (M + c) ** BigInt(offset);
+  let W = M ** BigInt(offset);
+  let U = 1n;
+  let B = 1n;
+  const first = { ...parseDate(asOf), d: 1 };
+  let reach: number | null = null;
+  let byTarget = false;
+  const points: GoalReachPoint[] = [];
+  let atTarget = 0n;
+  let short = 0n;
+  for (let k = 0; k <= MAX_GOAL_MONTHS - offset; k += 1) {
+    if (k > 0) {
+      V *= M + c;
+      W *= M;
+      U *= M + r;
+      B *= M;
+    }
+    if (reach === null || k === n) {
+      let hit: boolean;
+      if (k === 0) {
+        hit = S * W >= T * V;
+      } else {
+        let num: bigint;
+        let den: bigint;
+        if (r === 0n) {
+          num = T * V - S * W;
+          den = BigInt(k) * W;
+        } else {
+          num = (T * V * B - S * U * W) * r;
+          den = W * M * (U - B);
+        }
+        hit = (num <= 0n ? 0n : roundHalfEven(num, den)) <= P;
+      }
+      if (hit && reach === null) reach = k;
+      if (k === n) byTarget = hit;
+    }
+    if (k <= n && (k % 12 === 0 || k === n)) {
+      // The cost and the savings as exact fractions, each rounded once.
+      const costN = T * V;
+      const costD = W;
+      const savedN = r === 0n ? S + P * BigInt(k) : S * U * r + P * M * (U - B);
+      const savedD = r === 0n ? 1n : r * B;
+      points.push({
+        month: monthOf(first, k),
+        months: k,
+        cost_cents: fit(roundHalfEven(costN, costD)),
+        saved_cents: fit(roundHalfEven(savedN, savedD)),
+      });
+      if (k === n) {
+        atTarget = roundHalfEven(savedN, savedD);
+        const gapN = costN * savedD - savedN * costD;
+        short = gapN <= 0n ? 0n : roundHalfEven(gapN, costD * savedD);
+      }
+    }
+    if (k >= n && reach !== null) break;
+  }
+  return {
+    months: n,
+    target_cost_cents: plan.future_cost_cents,
+    at_target_cents: fit(atTarget),
+    short_by_cents: byTarget ? 0 : fit(short),
+    reaches_by_target: byTarget,
+    reach_months: reach,
+    reach_month: reach === null ? null : monthOf(first, reach),
+    points,
   };
 }
 
