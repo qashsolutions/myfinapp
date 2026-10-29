@@ -1,0 +1,12 @@
+{
+  "due_dates": [],
+  "payments": [
+    {
+      "date": "2026-09-01",
+      "cents": 100
+    }
+  ],
+  "as_of": "2026-10-01",
+  "months": 12,
+  "guide_bps": 3000
+}

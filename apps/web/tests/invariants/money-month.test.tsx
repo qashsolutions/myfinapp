@@ -457,6 +457,23 @@ describe("a month through every money path (docs/invariants.md)", () => {
     await waitFor(() => expect(money).toHaveTextContent("$1,568.00 kept"));
   });
 
+  it("Fixed vs flexible splits the same Out and keeps the same Kept", async () => {
+    const db = await theMonth();
+    await posted(db);
+    server();
+    renderApp("/insights/fixed-flexible");
+    const card = await screen.findByRole("region", { name: /fixed vs flexible/ });
+    const cents = (label: string) => {
+      const dd =
+        within(card).getByText(label, { selector: "dt" }).nextElementSibling?.textContent ?? "";
+      return Math.round(Number(dd.replace(/[^0-9.-]/g, "")) * 100);
+    };
+    await waitFor(() => expect(cents("Kept")).toBe(156800));
+    expect(cents("Fixed") + cents("Flexible")).toBe(143200);
+    // 1,568 ÷ 3,000 = 5226.67 bps → 52%
+    expect(card).toHaveTextContent("52% kept of what came in");
+  });
+
   it("the jars hold what the goal screens say: $200 and $100", async () => {
     await theMonth();
     server();

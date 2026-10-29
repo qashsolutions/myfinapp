@@ -8,11 +8,12 @@ import "../auth/auth.css";
 
 import { Button, Card, Illustration, List, ListRow } from "@stackd/ui";
 import { useEffect, useId, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { Debt, RecurringSeries } from "../../data/db.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
+import { CardSpending, CreditHabitsCard } from "../credit/CreditHabits.tsx";
 import {
   confirmSuggestion,
   dismissSuggestion,
@@ -37,7 +38,9 @@ export function BillsScreen() {
   const { db } = useDb();
   const ids = useId();
   const today = todayIso();
-  const [tab, setTab] = useState<"bills" | "debt">("bills");
+  // Home's Debt-free card opens the Debt payoff tab (`/bills?tab=debt`).
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState<"bills" | "debt">(params.get("tab") === "debt" ? "debt" : "bills");
   const suggestions = useRecurringSuggestions(today);
   const series = useRecurringSeries("confirmed");
   // At a glance (October 23, 2026): the next 30 days from the forecast, and each bill's countdown.
@@ -96,8 +99,13 @@ export function BillsScreen() {
       </fieldset>
       {tab === "debt" ? (
         <>
+          <CreditHabitsCard />
           <LinkedCards />
+          <CardSpending />
           <PayoffPlan />
+          <p className="sk-card__eyebrow">
+            <Link to="/what-if?lever=loan">What if I put more on one loan?</Link>
+          </p>
           <ConsolidationCalc />
           <DebtList onEdit={(d) => setEditingDebt(d)} />
         </>

@@ -148,7 +148,15 @@ written against both.
     included, and entries carry what rebuilds their splits and pairs. A new table joins the
     export or that list.
     `settings-data.test.tsx` "the export holds everything the person made…"
-28. **An alert key never names a category or an amount** (October 28, 2026). A budget alert
+28. **Qash says only what the person's own data shows** (October 28, 2026). It cannot see
+    whether a service is used, so the subscription check asks ("Still using …?") and states
+    facts from the charges (a price rise, a trial that became a charge, a renewal, services of
+    one kind); it never says "unused", never pushes or emails about it, and nothing about it
+    leaves the device. Fixed vs flexible splits the same Month Out (fixed + flexible = Out) and
+    keeps the same Kept as Money in & out.
+    `subscription-check.test.tsx` · `fixed-flexible.test.tsx` · `money-month.test.tsx` "Fixed vs
+    flexible splits the same Out…"
+29. **An alert key never names a category or an amount** (October 28, 2026). A budget alert
     leaves the device as a date, the type `budget_pace` and `budget:<YYYY-MM>:<tag>:<level>`,
     where the tag is 16 letters a–p (`alerts.tag`: FNV-1a over a random value kept on the device
     and the category's id, so the server cannot work back from it). `alerts.schedule` refuses any

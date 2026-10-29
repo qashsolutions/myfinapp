@@ -1,6 +1,6 @@
 """A budget alert in the moment (budget_pace): the key names a month, a tag and a level only;
 the label is generic (and says "reached" at the whole plan); a level fires once a month; the
-"Tell me at" percent takes 50-150. Invariant 28 in docs/invariants.md."""
+"Tell me at" percent takes 50-150. Invariant 29 in docs/invariants.md."""
 
 import json
 from datetime import UTC, datetime, timedelta

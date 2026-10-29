@@ -1,0 +1,10 @@
+{
+  "debts": [
+    {
+      "id": "c"
+    }
+  ],
+  "extra_cents": 0,
+  "add_cents": 100,
+  "as_of": "2026-10-10"
+}

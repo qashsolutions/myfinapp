@@ -96,7 +96,7 @@ async function tagSalt(db: StackdDb): Promise<string> {
 /**
  * The budget alert's items: each line past a level of its plan this month (`budget.pace`, the
  * same reading as Budget's "Close" / "Over"), as a tag and a level only. The category, its
- * name and every amount stay here (invariant 28).
+ * name and every amount stay here (invariant 29).
  */
 async function budgetItems(db: StackdDb, sources: ScheduleSources): Promise<AlertInputs["budget"]> {
   const summary = sources.budget;

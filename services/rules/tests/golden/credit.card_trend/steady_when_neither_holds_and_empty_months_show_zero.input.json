@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "date": "2026-06-15",
+      "direction": "out",
+      "amount_cents": 1000
+    },
+    {
+      "date": "2026-08-10",
+      "direction": "out",
+      "amount_cents": 1000
+    },
+    {
+      "date": "2026-08-11",
+      "direction": "in",
+      "amount_cents": 1000
+    },
+    {
+      "date": "2026-09-01",
+      "direction": "in",
+      "amount_cents": 3000
+    },
+    {
+      "date": "2026-09-02",
+      "direction": "out",
+      "amount_cents": 500
+    }
+  ],
+  "as_of": "2026-10-20",
+  "months": 4
+}

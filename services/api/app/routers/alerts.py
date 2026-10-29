@@ -41,7 +41,7 @@ class ScheduleItem(BaseModel):
     @model_validator(mode="after")
     def _budget_key_names_nothing(self) -> ScheduleItem:
         # A budget alert's key carries a month, a tag and a level only: a category id, a name or
-        # an amount in its place is refused (docs/invariants.md, invariant 28).
+        # an amount in its place is refused (docs/invariants.md, invariant 29).
         if self.type == "budget_pace" and not BUDGET_KEY.fullmatch(self.dedupe_key):
             raise ValueError("budget_key_shape")
         return self

@@ -1,0 +1,32 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-31",
+  "in_cents": 20000,
+  "out_cents": 19999,
+  "fixed_cents": 0,
+  "flexible_cents": 19999,
+  "fixed_by_bucket": {
+    "need": 0,
+    "want": 0,
+    "save": 0,
+    "none": 0
+  },
+  "flexible_by_bucket": {
+    "need": 0,
+    "want": 0,
+    "save": 0,
+    "none": 19999
+  },
+  "kept_cents": 1,
+  "kept_rate_bps": 0,
+  "by_category": [
+    {
+      "category_id": null,
+      "bucket": null,
+      "fixed_cents": 0,
+      "flexible_cents": 19999,
+      "out_cents": 19999
+    }
+  ],
+  "room": []
+}

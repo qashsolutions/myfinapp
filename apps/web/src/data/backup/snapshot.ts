@@ -50,6 +50,9 @@ export const SYNCED_TABLES: Array<{
   { name: "emergency_fund", key: "id", updatedAt: "updated_at" },
   { name: "net_worth_items", key: "id", updatedAt: "updated_at" },
   { name: "net_worth_snapshots", key: "month", updatedAt: "updated_at" },
+  // Credit habits (October 28, 2026): a linked card's due dates as each sync saw them, so the
+  // on-time history follows to a new device; the latest facts for a due date win.
+  { name: "card_due_dates", key: "id", updatedAt: "updated_at" },
 ];
 
 export type SyncedTable =
@@ -72,7 +75,8 @@ export type SyncedTable =
   | "debts"
   | "emergency_fund"
   | "net_worth_items"
-  | "net_worth_snapshots";
+  | "net_worth_snapshots"
+  | "card_due_dates";
 
 /** How long a removal is remembered before it may be pruned (docs/spec.md chunk 1.16). */
 export const TOMBSTONE_HORIZON_DAYS = 180;

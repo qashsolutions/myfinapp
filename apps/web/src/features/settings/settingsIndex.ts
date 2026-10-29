@@ -127,6 +127,12 @@ export const ENTRIES: SettingEntry[] = [
     words: "accounts balances statements import upload csv ofx pdf",
   },
   {
+    label: "Card payment due day",
+    group: "data",
+    path: "/me/accounts",
+    words: "credit card due day due date payment on time habits",
+  },
+  {
     label: "Categories",
     group: "data",
     path: "/me/categories",

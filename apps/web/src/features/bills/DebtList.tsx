@@ -1,32 +1,43 @@
 import "../groups/groups.css";
 
 import { Card, Illustration } from "@stackd/ui";
-import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
-import { useDb } from "../../data/DbProvider.tsx";
 import type { Debt } from "../../data/db.ts";
-import { type AvalancheOrder, avalancheOrder } from "../../engine/bridge.ts";
-import { formatCents } from "../../lib/format.ts";
+import { type AvalancheOrder, avalancheOrder, payoffPlan } from "../../engine/bridge.ts";
+import { formatCents, todayIso } from "../../lib/format.ts";
+import { debtInputs, useDebtSettings } from "./debtPlan.ts";
 
 export function aprText(bps: number): string {
   return `${(bps / 100).toFixed(2)}% APR`;
 }
 
-/** Cards and loans in avalanche order (mockup F5Bills): the top one is where extra payments go. */
+/** Cards and loans in the order the person picked (mockup F5Bills; highest rate first unless
+ * they chose smallest balance first): the top one is where extra payments go. */
 export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
-  const { db } = useDb();
-  const debts = useLiveQuery(() => db.debts.toArray(), [db]);
+  const settings = useDebtSettings();
+  const debts = settings?.debts;
+  const kind = settings?.order ?? "avalanche";
   const [order, setOrder] = useState<AvalancheOrder | null>(null);
   useEffect(() => {
     if (!debts) return;
     let alive = true;
-    void avalancheOrder(debts).then((o) => {
-      if (alive) setOrder(o);
-    });
+    void (async () => {
+      const totals = await avalancheOrder(debts);
+      if (kind === "snowball" && debts.length > 0) {
+        // The same rule's own order, so the list and the plan never disagree.
+        const plan = await payoffPlan(debtInputs(debts), 0, todayIso(), "snowball");
+        const byId = new Map(totals.order.map((d) => [d.id, d]));
+        totals.order = plan.order.flatMap((p) => {
+          const d = byId.get(p.id);
+          return d ? [{ ...d, rank: p.rank }] : [];
+        });
+      }
+      if (alive) setOrder(totals);
+    })();
     return () => {
       alive = false;
     };
-  }, [debts]);
+  }, [debts, kind]);
   const byId = new Map((debts ?? []).map((d) => [d.id, d]));
   return (
     <>
@@ -46,7 +57,12 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
           {formatCents(order.total_min_payment_cents)} a month
         </p>
       ) : null}
-      <ol className="lb" aria-label="Debts, highest APR first">
+      <ol
+        className="lb"
+        aria-label={
+          kind === "snowball" ? "Debts, smallest balance first" : "Debts, highest APR first"
+        }
+      >
         {order?.order.map((d) => (
           <li key={d.id}>
             <button
@@ -86,7 +102,9 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
       </ol>
       {order && order.order.length > 0 ? (
         <p className="auth__fineprint">
-          Avalanche order: highest APR first, so interest costs the least. Education, not advice.
+          {kind === "snowball"
+            ? "Smallest balance first, so a debt is cleared sooner. Education, not advice."
+            : "Avalanche order: highest APR first, so interest costs the least. Education, not advice."}
         </p>
       ) : null}
     </>

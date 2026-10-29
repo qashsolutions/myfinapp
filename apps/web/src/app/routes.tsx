@@ -8,9 +8,11 @@ import { PlanScreen } from "../features/billing/PlanScreen.tsx";
 import { BillsScreen } from "../features/bills/BillsScreen.tsx";
 import { BudgetScreen } from "../features/budget/BudgetScreen.tsx";
 import { CategoriesScreen } from "../features/categories/CategoriesScreen.tsx";
+import { CreditHabitsScreen } from "../features/credit/CreditHabits.tsx";
 import { EmergencyScreen } from "../features/emergency/EmergencyScreen.tsx";
 import { AddEntrySheet } from "../features/entries/AddEntrySheet.tsx";
 import { TagDetail, TagsScreen } from "../features/entries/TagScreens.tsx";
+import { FixedFlexibleScreen } from "../features/fixed/FixedFlexibleScreen.tsx";
 import { ForecastScreen } from "../features/forecast/ForecastScreen.tsx";
 import { GoalBuilder } from "../features/goals/GoalBuilder.tsx";
 import { GoalDetail } from "../features/goals/GoalDetail.tsx";
@@ -50,6 +52,7 @@ import { LookSettings } from "../features/settings/LookSettings.tsx";
 import { MeLayout } from "../features/settings/MeLayout.tsx";
 import { SettingsScreen } from "../features/settings/SettingsScreen.tsx";
 import { SubscriptionsScreen } from "../features/subscriptions/SubscriptionsScreen.tsx";
+import { WhatIfScreen } from "../features/whatif/WhatIfScreen.tsx";
 import { AppShell } from "./layout/AppShell.tsx";
 import { NotFound } from "./NotYet.tsx";
 import { PublicOnly, RequireAuth } from "./RequireAuth.tsx";
@@ -89,8 +92,11 @@ export function AppRoutes() {
           <Route path="groups/:id" element={<ChallengeDetail />} />
           <Route path="insights" element={<InsightsHub />} />
           <Route path="insights/spending" element={<SpendingScreen />} />
+          <Route path="insights/fixed-flexible" element={<FixedFlexibleScreen />} />
           <Route path="subscriptions" element={<SubscriptionsScreen />} />
+          <Route path="credit-habits" element={<CreditHabitsScreen />} />
           <Route path="insights/later" element={<LaterScreen />} />
+          <Route path="what-if" element={<WhatIfScreen />} />
           <Route path="review" element={<ReviewScreen />} />
           <Route path="net-worth" element={<NetWorthScreen />} />
           <Route path="setup" element={<SetupHub />} />

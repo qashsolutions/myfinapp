@@ -25,7 +25,9 @@ import { BalanceRunway } from "../insights/InsightCard.tsx";
 import { useSafeToSpend } from "../insights/useSafeToSpend.ts";
 import { useSetup } from "../onboarding/useSetup.ts";
 import { RestoreOffer } from "../security/RestoreOffer.tsx";
+import { SubCheckHomeCard } from "../subscriptions/SubscriptionCheckCard.tsx";
 import { CustomizeHome } from "./CustomizeHome.tsx";
+import { DebtFreeCard } from "./DebtFreeCard.tsx";
 import { FoundCard } from "./FoundCard.tsx";
 import { BucketKey, CategoryBars, HeroBars } from "./HomeVisuals.tsx";
 import { type HomeCardId, TILE_CARDS, useHomeLayout } from "./homeLayout.ts";
@@ -148,6 +150,7 @@ export function HomeScreen() {
       </Link>
     ),
     found: <FoundCard asOf={today} />,
+    sub_check: <SubCheckHomeCard today={today} />,
     where:
       hasMoney && totals?.by_category.some((c) => c.out_cents > 0) ? (
         <Link to="/money" className="card-link" aria-label="Where it went, open Money in & out">
@@ -315,6 +318,7 @@ export function HomeScreen() {
           </Link>
         </Card>
       ) : null,
+    debt_free: <DebtFreeCard today={today} />,
     budget: home.budget.budget ? (
       <Link to="/budget" className="card-link" aria-label="Open Budget">
         <Card as="section" aria-labelledby="home-budget">

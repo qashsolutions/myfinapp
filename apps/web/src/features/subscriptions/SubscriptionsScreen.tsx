@@ -14,7 +14,8 @@ import { useDb } from "../../data/DbProvider.tsx";
 import type { RecurringSeries } from "../../data/db.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { INTERVAL_LABELS, removeSeries } from "../forecast/useRecurring.ts";
-import { setSubscription, useSubscriptions } from "./useSubscriptions.ts";
+import { SubscriptionCheckCard } from "./SubscriptionCheckCard.tsx";
+import { keepSubscription, setSubscription, useSubscriptions } from "./useSubscriptions.ts";
 
 function renewsText(days: number, date: string): string {
   if (days <= 0) return `Renews today, ${formatDay(date)}`;
@@ -39,6 +40,20 @@ export function SubscriptionsScreen() {
   return (
     <>
       <ScreenHeader title="Subscriptions" back="/bills" actions={null} />
+      {view && view.subscriptions.length > 0 ? (
+        <SubscriptionCheckCard
+          view={view}
+          onKeep={async (series) => {
+            await keepSubscription(db, series.id, today);
+            setDone(`Kept ${series.label}. Qash will ask again in a while.`);
+          }}
+          onCancelled={async (series) => {
+            await removeSeries(db, series.id);
+            setDone(`${series.label} is off your bills. Your past entries stay.`);
+          }}
+          onHowTo={setCancelling}
+        />
+      ) : null}
       {!view ? (
         <p className="auth__hint">Adding it up…</p>
       ) : view.subscriptions.length === 0 ? (

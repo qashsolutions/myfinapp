@@ -213,3 +213,181 @@ export function yearlyCost(raw: unknown): {
   if (!Number.isSafeInteger(total)) throw new RuleError("invalid_amount");
   return { items, yearly_cents: total, monthly_cents: roundDiv(total, 12) };
 }
+
+const CHECK_THRESHOLDS = [
+  "subscription_ask_days",
+  "subscription_renewal_days",
+  "trial_max_cents",
+  "trial_window_days",
+] as const;
+type CheckThresholds = Record<(typeof CHECK_THRESHOLDS)[number], number>;
+
+function checkThresholds(raw: unknown): CheckThresholds {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+    throw new RuleError("invalid_thresholds");
+  const out = {} as CheckThresholds;
+  for (const key of CHECK_THRESHOLDS) {
+    const value = (raw as Record<string, unknown>)[key];
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 0)
+      throw new RuleError("invalid_thresholds");
+    out[key] = value;
+  }
+  return out;
+}
+
+function kindTable(raw: unknown): Array<[string, string]> {
+  if (!Array.isArray(raw)) throw new RuleError("invalid_kinds");
+  return raw.map((row) => {
+    if (typeof row !== "object" || row === null || Array.isArray(row))
+      throw new RuleError("invalid_kinds");
+    const { match, kind } = row as Record<string, unknown>;
+    if (typeof match !== "string" || typeof kind !== "string" || kind === "")
+      throw new RuleError("invalid_kinds");
+    const cleaned = cleanDescription(match);
+    if (cleaned === "") throw new RuleError("invalid_kinds");
+    return [cleaned, kind] as [string, string];
+  });
+}
+
+function charges(raw: unknown): Array<[Day, number]> {
+  if (!Array.isArray(raw)) throw new RuleError("invalid_charges");
+  return raw.map((c) => {
+    if (typeof c !== "object" || c === null || Array.isArray(c))
+      throw new RuleError("invalid_charges");
+    const r = c as Record<string, unknown>;
+    const cents = assertInt(r.cents, "invalid_amount");
+    if (cents < 0) throw new RuleError("invalid_amount");
+    return [parseDate(r.date), cents] as [Day, number];
+  });
+}
+
+function answeredSince(checked: Day | null, day: Day): boolean {
+  return checked !== null && daysUntil(day, checked) >= 0;
+}
+
+export interface SubscriptionCheckItem {
+  id: string;
+  label: string;
+  kind: string | null;
+  ask: boolean;
+  price_rise: { from_cents: number; to_cents: number; date: string } | null;
+  renewal: { date: string; cents: number } | null;
+  trial_turned_charge: { trial_cents: number; cents: number; date: string } | null;
+  yearly_cents: number;
+  monthly_cents: number;
+}
+
+export interface SubscriptionCheck {
+  items: SubscriptionCheckItem[];
+  duplicates: Array<{ kind: string; count: number; monthly_total_cents: number; ids: string[] }>;
+}
+
+/** Port of recurring.subscription_check: facts from the person's own charges, and when to ask. */
+export function subscriptionCheck(
+  asOf: unknown,
+  subscriptions: unknown,
+  kinds: unknown,
+  thresholds: unknown,
+): SubscriptionCheck {
+  const today = parseDate(asOf);
+  const limits = checkThresholds(thresholds);
+  const table = kindTable(kinds);
+  if (!Array.isArray(subscriptions)) throw new RuleError("invalid_series");
+  const items: SubscriptionCheckItem[] = [];
+  for (const raw of subscriptions) {
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+      throw new RuleError("invalid_series");
+    const r = raw as Record<string, unknown>;
+    if (typeof r.id !== "string" || typeof r.label !== "string" || typeof r.payee !== "string")
+      throw new RuleError("invalid_series");
+    if (typeof r.interval !== "string" || !Object.hasOwn(PER_YEAR, r.interval))
+      throw new RuleError("invalid_interval");
+    const interval = r.interval as Interval;
+    const expected = assertInt(r.expected_cents, "invalid_amount");
+    if (expected < 0) throw new RuleError("invalid_amount");
+    const yearly = expected * PER_YEAR[interval];
+    if (!Number.isSafeInteger(yearly)) throw new RuleError("invalid_amount");
+    const nextDate = parseDate(r.next_date);
+    const checked =
+      r.checked_at === null || r.checked_at === undefined ? null : parseDate(r.checked_at);
+    // Python sorts the (date, cents) tuples.
+    const list = charges(r.charges)
+      .filter(([d]) => daysUntil(d, today) >= 0)
+      .sort((a, b) => compareText(iso(a[0]), iso(b[0])) || a[1] - b[1]);
+
+    // A trial: the first charge is at most trial_max_cents and the next one, larger, follows
+    // within trial_window_days. That step up is the trial ending, never a price rise.
+    const [c0, c1] = list;
+    const trialPair =
+      c0 !== undefined &&
+      c1 !== undefined &&
+      c0[1] <= limits.trial_max_cents &&
+      c1[1] > c0[1] &&
+      daysUntil(c0[0], c1[0]) <= limits.trial_window_days;
+    const trial =
+      trialPair && c0 && c1 && !answeredSince(checked, c1[0])
+        ? { trial_cents: c0[1], cents: c1[1], date: iso(c1[0]) }
+        : null;
+    let rise: SubscriptionCheckItem["price_rise"] = null;
+    if (list.length >= 2 && !(trialPair && list.length === 2)) {
+      const previous = list[list.length - 2] as [Day, number];
+      const latest = list[list.length - 1] as [Day, number];
+      if (latest[1] > previous[1] && !answeredSince(checked, latest[0]))
+        rise = { from_cents: previous[1], to_cents: latest[1], date: iso(latest[0]) };
+    }
+    let renewal: SubscriptionCheckItem["renewal"] = null;
+    if (interval === "quarterly" || interval === "yearly") {
+      let due = nextDate;
+      while (daysUntil(due, today) > 0) due = step(due, interval);
+      if (daysUntil(today, due) <= limits.subscription_renewal_days)
+        renewal = { date: iso(due), cents: expected };
+    }
+    const lastCharge = list.length ? (list[list.length - 1] as [Day, number])[0] : null;
+    const ask =
+      checked === null ||
+      daysUntil(checked, today) >= limits.subscription_ask_days ||
+      (renewal !== null && lastCharge !== null && !answeredSince(checked, lastCharge)) ||
+      rise !== null ||
+      trial !== null;
+    const clean = cleanDescription(r.payee);
+    const kind = table.find(([word]) => clean.includes(word))?.[1] ?? null;
+    items.push({
+      id: r.id,
+      label: r.label,
+      kind,
+      ask,
+      price_rise: rise,
+      renewal,
+      trial_turned_charge: trial,
+      yearly_cents: yearly,
+      monthly_cents: roundDiv(yearly, 12),
+    });
+  }
+  items.sort(
+    (a, b) =>
+      b.yearly_cents - a.yearly_cents || compareText(a.label, b.label) || compareText(a.id, b.id),
+  );
+  const groups = new Map<string, SubscriptionCheckItem[]>();
+  for (const i of items) {
+    if (i.kind === null) continue;
+    const g = groups.get(i.kind);
+    if (g) g.push(i);
+    else groups.set(i.kind, [i]);
+  }
+  const duplicates: SubscriptionCheck["duplicates"] = [];
+  for (const [kind, members] of groups) {
+    if (members.length < 2) continue;
+    const total = members.reduce((s, m) => s + m.yearly_cents, 0);
+    if (!Number.isSafeInteger(total)) throw new RuleError("invalid_amount");
+    duplicates.push({
+      kind,
+      count: members.length,
+      monthly_total_cents: roundDiv(total, 12),
+      ids: members.map((m) => m.id),
+    });
+  }
+  duplicates.sort(
+    (a, b) => b.monthly_total_cents - a.monthly_total_cents || compareText(a.kind, b.kind),
+  );
+  return { items, duplicates };
+}

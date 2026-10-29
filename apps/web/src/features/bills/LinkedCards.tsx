@@ -1,8 +1,11 @@
 import "./cards.css";
 
 import { Card, Chip, ProgressBar } from "@stackd/ui";
+import type { CardTrend } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { cardText, type MomentType } from "../../moments/catalog.ts";
+import { CardTrendLine } from "../credit/CreditHabits.tsx";
+import { useCreditCards } from "../credit/useCreditCards.ts";
 import { aprText } from "./DebtList.tsx";
 import { type LinkedCardView, useLinkedCards } from "./useLinkedCards.ts";
 
@@ -12,15 +15,18 @@ import { type LinkedCardView, useLinkedCards } from "./useLinkedCards.ts";
  * the statement in full split across paydays. Read-only: nothing here moves money.
  */
 export function LinkedCards() {
-  const cards = useLinkedCards(todayIso());
+  const today = todayIso();
+  const cards = useLinkedCards(today);
+  const credit = useCreditCards(today);
   if (!cards || cards.length === 0) return null;
+  const trends = new Map((credit ?? []).map((c) => [c.account.id, c.trend]));
   return (
     <section aria-labelledby="linked-cards-h" className="linked-cards">
       <h2 className="section-title" id="linked-cards-h">
         Your cards
       </h2>
       {cards.map((c) => (
-        <CardFacts key={c.account.id} view={c} />
+        <CardFacts key={c.account.id} view={c} trend={trends.get(c.account.id)} />
       ))}
       <p className="auth__fineprint">
         From your card issuer through your bank link, read-only. Qash never pays or moves money.
@@ -53,7 +59,7 @@ function planLine(view: LinkedCardView): string | null {
   return t ? cardText(t, { amount, date, card: view.account.label }, view.account.id) : null;
 }
 
-function CardFacts({ view }: { view: LinkedCardView }) {
+function CardFacts({ view, trend }: { view: LinkedCardView; trend?: CardTrend }) {
   const { account, detail, utilization, plan } = view;
   const name = `${account.label}${account.last4 ? ` ••${account.last4}` : ""}`;
   const pct = utilization.utilization_bps;
@@ -102,6 +108,7 @@ function CardFacts({ view }: { view: LinkedCardView }) {
         </div>
       </dl>
 
+      {trend ? <CardTrendLine trend={trend} /> : null}
       {line ? <p className="insight__kind">{line}</p> : null}
       {plan && plan.status === "plan" && plan.payments.length > 1 ? (
         <ul className="card-facts__split" aria-label="Split across your paydays">

@@ -10,6 +10,23 @@
   padding: 6px 0;
   gap: 8px;
 }
+.subs__question {
+  margin: 0 0 8px;
+  font-size: var(--fs-title);
+  font-weight: 600;
+}
+.subs__facts {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: var(--fs-small);
+}
+.subs__facts li {
+  padding-top: 6px;
+  border-top: 1px solid var(--c-line);
+}
 .subs__steps {
   margin: 0 0 12px;
   padding-left: 1.25rem;

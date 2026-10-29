@@ -230,7 +230,7 @@ describe("Notifications", () => {
     expect(JSON.stringify(body)).not.toMatch(/3456|1356/);
   });
 
-  it("a budget alert carries a month, a tag and a level: never the category or an amount (invariant 28)", async () => {
+  it("a budget alert carries a month, a tag and a level: never the category or an amount (invariant 29)", async () => {
     const db = openDb("u1");
     await seedDefaults(db);
     const row = (id: string, date: string, cents: number, category: string) => ({
@@ -292,7 +292,7 @@ describe("Notifications", () => {
 });
 
 /** Outside its ISO dates, no key carries a run of 3 or more digits (an amount, an account). A
- * budget alert's key is its own fixed shape: a month, a 16-letter tag and a level (invariant 28). */
+ * budget alert's key is its own fixed shape: a month, a 16-letter tag and a level (invariant 29). */
 function expectNoAmountInKeys(items: Array<Record<string, unknown>>): void {
   for (const item of items) {
     if (item.type === "budget_pace") {
