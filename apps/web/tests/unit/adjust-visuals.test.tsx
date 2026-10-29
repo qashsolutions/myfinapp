@@ -234,4 +234,45 @@ describe("visual and adjustable debt, credit and budget (October 29, 2026)", () 
     const card = await screen.findByRole("link", { name: "Open Debt payoff" });
     await waitFor(() => expect(card.querySelector(".payoff-spark polyline")).not.toBeNull());
   });
+
+  it("the debt list, its extra-payments mark and its footer follow the person's order", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    const debt = (id: string, label: string, balance: number, apr: number, min: number) => ({
+      id,
+      label,
+      balance_cents: balance,
+      apr_bps: apr,
+      min_payment_cents: min,
+      created_at: "2026-10-01T00:00:00Z",
+      updated_at: "2026-10-01T00:00:00Z",
+    });
+    await db.debts.bulkAdd([
+      debt("a", "Card", 240000, 2799, 7200),
+      debt("b", "Store card", 60000, 2490, 2500),
+    ]);
+    installFakeApi({ session: readySession() });
+    renderApp("/bills?tab=debt");
+    let list = await screen.findByRole("list", { name: "Debts, highest rate first" });
+    await waitFor(() => expect(within(list).getAllByRole("listitem")).toHaveLength(2));
+    expect(within(list).getAllByRole("listitem")[0]).toHaveTextContent(
+      /Card.*extra payments go here/,
+    );
+    expect(
+      screen.getByText("Highest rate first: interest costs the least. Education, not advice."),
+    ).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/avalanche/i);
+
+    await db.settings.put({ key: "debt.order", value: "snowball", updated_at: "x" });
+    list = await screen.findByRole("list", { name: "Debts, smallest balance first" });
+    await waitFor(() =>
+      expect(within(list).getAllByRole("listitem")[0]).toHaveTextContent(
+        /Store card.*extra payments go here/,
+      ),
+    );
+    expect(within(list).getAllByRole("listitem")[1]).not.toHaveTextContent(/extra payments/);
+    expect(
+      screen.getByText("Smallest balance first: a debt clears sooner. Education, not advice."),
+    ).toBeInTheDocument();
+  });
 });
