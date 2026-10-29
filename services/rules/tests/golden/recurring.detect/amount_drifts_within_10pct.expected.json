@@ -6,6 +6,8 @@
       "direction": "out",
       "expected_cents": 16000,
       "interval": "monthly",
+      "day": 22,
+      "days": null,
       "last_date": "2026-09-22",
       "next_date": "2026-10-22",
       "occurrences": 3,

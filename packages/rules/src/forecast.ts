@@ -2,7 +2,7 @@
 
 import { addDays, type Day, daysInMonth, daysUntil, iso, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
-import { cleanDescription } from "./fingerprint.ts";
+import { merchantKey } from "./fingerprint.ts";
 import { assertInt, mul, roundDiv, safeNumber } from "./money.ts";
 import {
   INTERVALS,
@@ -151,7 +151,7 @@ function series(raw: unknown): SeriesIn {
   return {
     day: keep,
     id: r.id,
-    payee: cleanDescription(r.payee),
+    payee: merchantKey(r.payee),
     kind: r.kind,
     interval: r.interval as Interval,
     cents,

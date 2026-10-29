@@ -100,10 +100,16 @@ def _fingerprint_clean_description(text: str) -> dict:
     return {"text": fingerprint.clean_description(text)}
 
 
+def _fingerprint_merchant_key(text: str) -> dict:
+    return {"key": fingerprint.merchant_key(text)}
+
+
 def _fingerprint_row(account_id: str, date: str, amount_cents: int, description: str) -> dict:
     return {
         "fingerprint": fingerprint.fingerprint(account_id, date, amount_cents, description),
         "clean_description": fingerprint.clean_description(description),
+        # A separate output (October 29, 2026): the fingerprint itself never changes.
+        "merchant_key": fingerprint.merchant_key(description),
     }
 
 
@@ -475,6 +481,7 @@ _BARE: dict[str, Rule] = {
     "dates.periods_until": _dates_periods_until,
     "fingerprint.clean_description": _fingerprint_clean_description,
     "fingerprint.row": _fingerprint_row,
+    "fingerprint.merchant_key": _fingerprint_merchant_key,
     "categorize.match": _categorize_match,
     "insights.safe_to_spend": _insights_safe_to_spend,
     "insights.vs_usual": _insights_vs_usual,

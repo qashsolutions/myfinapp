@@ -100,6 +100,8 @@ export interface PreparedRow extends MappedRow {
   abs_cents: number;
   fingerprint: string;
   clean_description: string;
+  /** One merchant, one key (`fingerprint.row`): saved names are found by it. */
+  merchant_key?: string;
   category_id: string | null;
   matched_by: "user" | "keyword" | null;
   is_transfer_hint: boolean;
@@ -200,25 +202,44 @@ export async function prepareRows(
   const categorize = await loadCategorizer(db);
   const seen = new Map<string, number>();
   const rows: PreparedRow[] = [];
+  // Rows the bank sync already wrote into this account (invariant 48): a linked row's fingerprint
+  // comes from the bank's own name, so the file's row is matched by day, amount and direction,
+  // one file row to one synced row, as a sync adopts an earlier upload.
+  const linked = (await db.entries.where("account_id").equals(accountId).toArray()).filter(
+    (e) => Boolean(e.provider_txn_id) && !e.split_parent_id,
+  );
+  const taken = new Set<string>();
   for (const row of mapped) {
     const direction: Direction = row.amount_cents < 0 ? "out" : "in";
-    const fp = await engine.call<{ fingerprint: string; clean_description: string }>(
-      "fingerprint.row",
-      {
-        account_id: accountId,
-        date: row.date,
-        amount_cents: row.amount_cents,
-        description: row.description,
-      },
-    );
+    const fp = await engine.call<{
+      fingerprint: string;
+      clean_description: string;
+      merchant_key: string;
+    }>("fingerprint.row", {
+      account_id: accountId,
+      date: row.date,
+      amount_cents: row.amount_cents,
+      description: row.description,
+    });
     const n = (seen.get(fp.fingerprint) ?? 0) + 1;
     seen.set(fp.fingerprint, n);
     const fingerprint = n === 1 ? fp.fingerprint : `${fp.fingerprint}-${n}`;
-    const duplicate =
-      (await db.entries
-        .where("[account_id+fingerprint]")
-        .equals([accountId, fingerprint])
-        .count()) > 0;
+    const same = await db.entries
+      .where("[account_id+fingerprint]")
+      .equals([accountId, fingerprint])
+      .first();
+    if (same) taken.add(same.id);
+    const synced = same
+      ? undefined
+      : linked.find(
+          (e) =>
+            !taken.has(e.id) &&
+            e.date === row.date &&
+            e.amount_cents === Math.abs(row.amount_cents) &&
+            e.direction === direction,
+        );
+    if (synced) taken.add(synced.id);
+    const duplicate = Boolean(same || synced);
     const cat = await categorize(row.description, direction);
     rows.push({
       ...row,
@@ -226,6 +247,7 @@ export async function prepareRows(
       abs_cents: Math.abs(row.amount_cents),
       fingerprint,
       clean_description: fp.clean_description,
+      merchant_key: fp.merchant_key,
       category_id: cat.category_id,
       matched_by: cat.matched_by,
       is_transfer_hint: cat.is_transfer_hint,
@@ -331,7 +353,7 @@ export async function commitImport(db: StackdDb, input: CommitInput): Promise<St
     amount_cents: r.abs_cents,
     direction: r.direction,
     merchant:
-      names.get(r.clean_description) ??
+      names.get(r.merchant_key ?? r.clean_description) ??
       (r.description || (r.direction === "in" ? "Money in" : "Money out")),
     clean_description: r.clean_description,
     raw_description: r.description,

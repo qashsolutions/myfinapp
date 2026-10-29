@@ -1,11 +1,13 @@
 {
   "series": [
     {
-      "payee": "NETFLIX.COM",
+      "payee": "NETFLIX",
       "kind": "bill",
       "direction": "out",
       "expected_cents": 1549,
       "interval": "monthly",
+      "day": 14,
+      "days": null,
       "last_date": "2026-09-14",
       "next_date": "2026-10-14",
       "occurrences": 3,

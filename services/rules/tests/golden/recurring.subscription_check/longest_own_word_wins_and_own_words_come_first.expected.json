@@ -1,0 +1,27 @@
+{
+  "items": [
+    {
+      "id": "s1",
+      "label": "Uber Eats Pass",
+      "kind": "food",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 11988,
+      "monthly_cents": 999
+    }
+  ],
+  "duplicates": [],
+  "by_kind": [
+    {
+      "kind": "food",
+      "count": 1,
+      "yearly_cents": 11988,
+      "monthly_cents": 999,
+      "ids": [
+        "s1"
+      ]
+    }
+  ]
+}

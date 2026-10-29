@@ -6,7 +6,7 @@
 
 import { recordDeletion } from "../../data/backup/snapshot.ts";
 import { type Entry, newId, type StackdDb } from "../../data/db.ts";
-import { cleanDescription } from "../../engine/bridge.ts";
+import { cleanDescription, matchesRule } from "../../engine/bridge.ts";
 import { compareText } from "../../lib/order.ts";
 
 /**
@@ -28,14 +28,15 @@ export function ruleText(entry: Entry): string {
   return (entry.clean_description || entry.merchant).trim();
 }
 
-/** The other unsorted entries with the same bank text (by the rule's substring match), same direction. */
+/** The other unsorted entries the rule made from this one matches (as the categorizer reads
+ * it: a whole word, in the cleaned text or its merchant key; invariant 50), same direction. */
 export async function alikeIds(db: StackdDb, entry: Entry): Promise<string[]> {
-  const cleaned = await cleanDescription(ruleText(entry));
-  if (!cleaned) return [];
+  const match = ruleText(entry);
+  if (!(await cleanDescription(match))) return [];
   const out: string[] = [];
   for (const row of await toReview(db)) {
     if (row.id === entry.id || row.direction !== entry.direction) continue;
-    if ((await cleanDescription(ruleText(row))).includes(cleaned)) out.push(row.id);
+    if (await matchesRule(ruleText(row), match)) out.push(row.id);
   }
   return out;
 }

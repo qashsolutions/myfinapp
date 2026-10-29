@@ -128,7 +128,7 @@ def _series(raw: object) -> dict:
     return {
         "id": series_id,
         "day": keep,
-        "payee": recurring.clean_description(raw.get("payee")),
+        "payee": recurring.merchant_key(raw.get("payee")),
         "kind": raw["kind"],
         "interval": raw["interval"],
         "cents": cents,

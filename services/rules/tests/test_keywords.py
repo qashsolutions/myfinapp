@@ -13,8 +13,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from build_keywords import TARGETS, render  # noqa: E402
 
-from stackd_rules.fingerprint import clean_description  # noqa: E402
-from stackd_rules.recurring import OTHER_KIND, contains_word  # noqa: E402
+from stackd_rules import categorize  # noqa: E402
+from stackd_rules.fingerprint import clean_description, merchant_key  # noqa: E402
+from stackd_rules.recurring import OTHER_KIND, contains_word, longest_word  # noqa: E402
 
 VALID_CATEGORIES = {
     "cat-rent",
@@ -96,20 +97,16 @@ def test_subscription_kinds_are_well_formed() -> None:
     assert {e["kind"] for e in kinds} == set(SUBSCRIPTION_KINDS)
 
 
-def test_no_word_is_hidden_by_an_earlier_one() -> None:
-    """A word that an earlier word of another kind already matches (as a whole word) could
-    never be reached: first match wins."""
-    kinds = json.loads(render())["subscription_kinds"]
-    for i, later in enumerate(kinds):
-        for earlier in kinds[:i]:
-            if earlier["kind"] != later["kind"]:
-                assert not contains_word(later["match"], earlier["match"]), (earlier, later)
+def test_every_kind_word_reaches_its_own_kind() -> None:
+    """The sweep (invariant 50: the longest word found decides, ties by order): each word, as a
+    payee of its own, lands in its own kind, so no word is hidden by another."""
+    for entry in json.loads(render())["subscription_kinds"]:
+        assert _kind_of(entry["match"]) == entry["kind"], entry
 
 
 def _kind_of(payee: str) -> str | None:
     table = [(e["match"], e["kind"]) for e in json.loads(render())["subscription_kinds"]]
-    clean = clean_description(payee)
-    return next((k for word, k in table if contains_word(clean, word)), None)
+    return longest_word(clean_description(payee), merchant_key(payee), table)
 
 
 def test_common_payees_get_their_kind() -> None:
@@ -175,3 +172,65 @@ def test_contains_word() -> None:
     assert contains_word("ESPN+ 800", "ESPN+")
     assert not contains_word("BIGYM", "GYM")
     assert not contains_word("", "GYM")
+    assert not contains_word("GYM", "")  # an empty word is never in anything
+
+
+def _category_of(description: str, direction: str = "out") -> str | None:
+    return categorize.match(description, direction, [], json.loads(render()))["category_id"]
+
+
+def test_every_keyword_reaches_its_own_category() -> None:
+    """The sweep (October 29, 2026, invariant 50): each keyword, as a description of its own,
+    lands in its own category, so no keyword is hidden by another, shorter or earlier one."""
+    for entry in json.loads(render())["keywords"]:
+        direction = "in" if entry["direction"] == "in" else "out"
+        assert _category_of(entry["match"], direction) == entry["category_id"], entry
+
+
+def test_no_keyword_hits_inside_another_word() -> None:
+    """Every keyword that sits inside a longer word of another keyword (RENT in PARENT, MKT in
+    MKTP) is a whole word only: that longer text never takes the short keyword's category."""
+    table = json.loads(render())["keywords"]
+    for short in table:
+        for other in table:
+            text = other["match"]
+            word = short["match"]
+            if word in text and not contains_word(text, word):
+                assert _category_of(text, other["direction"]) == other["category_id"], (
+                    short,
+                    other,
+                )
+
+
+def test_common_payees_get_their_category() -> None:
+    cases = {
+        ("UBER EATS PENDING", "out"): "cat-dining",
+        ("UBER *EATS", "out"): "cat-dining",
+        ("UBER *TRIP", "out"): "cat-transport",
+        ("ENTERPRISE RENT-A-CAR #1234", "out"): "cat-transport",
+        ("SHELLS SEAFOOD RESTAURANT", "out"): "cat-dining",
+        ("SHELL OIL 57444", "out"): "cat-transport",
+        ("AMZN MKTP US*2K3L45", "out"): "cat-shopping",
+        ("Netflix.com", "out"): "cat-subscriptions",
+        ("www.netflix.com", "out"): "cat-subscriptions",
+        ("SUPERMARKET 21", "out"): "cat-groceries",
+        ("CITY GROCERY", "out"): "cat-groceries",
+        ("ACME DIRECT DEPOSIT", "in"): "cat-paycheck",
+        ("TRADER JOES #552", "out"): "cat-groceries",
+        ("MCDONALDS F1234", "out"): "cat-dining",
+        ("JUNE RENT", "out"): "cat-rent",
+    }
+    for (payee, direction), category in cases.items():
+        assert _category_of(payee, direction) == category, payee
+
+
+def test_short_keywords_never_hit_inside_other_words() -> None:
+    for payee in (
+        "SHELLS SEAFOOD",  # SHELL
+        "PARENT TEACHER ASSOC",  # RENT
+        "ENTERPRISE RENTALS",  # RENT
+        "METROPCS WIRELESS",  # METRO
+        "CAFETERIA",  # CAFE
+        "TARGETED ADS LLC",  # TARGET
+    ):
+        assert _category_of(payee) is None, payee

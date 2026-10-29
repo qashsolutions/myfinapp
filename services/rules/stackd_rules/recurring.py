@@ -5,9 +5,12 @@ Recurring series   same payee, amount within ±10% of the series median, at leas
                    interval, or at least 2 at a quarterly (80–100 days) or yearly (350–380)
                    one (fast-follow 8). Suggested only; the user confirms, edits or dismisses.
 
-The payee is the entry's merchant text cleaned like a fingerprint (trimmed, single spaces,
-ASCII upper-case), so "Netflix.com" and "NETFLIX.COM " are one payee. Only the most recent run
-of evenly spaced occurrences counts: a payee whose spacing changed is judged on the new pattern.
+The payee is the entry's bank text as its merchant key (`fingerprint.merchant_key`: cleaned like
+a fingerprint, then web endings, processor prefixes and store numbers dropped), so "Netflix.com",
+"NETFLIX.COM 866-579-7172" and "netflix" are one payee (owner, October 29, 2026). The device
+passes the bank's text, never a name the person gave the entry (invariant 47). Only the most
+recent run of evenly spaced occurrences counts: a payee whose spacing changed is judged on the
+new pattern.
 Transfers are never bills.
 """
 
@@ -17,7 +20,7 @@ from datetime import date, timedelta
 
 from . import dates, money
 from .errors import RuleError
-from .fingerprint import clean_description
+from .fingerprint import clean_description, merchant_key
 from .money import _int
 
 INTERVALS = ("weekly", "biweekly", "monthly", "quarterly", "yearly")
@@ -46,7 +49,7 @@ def _entry(raw: object) -> dict:
     entry_id = raw.get("id")
     if entry_id is not None and not isinstance(entry_id, str):
         raise RuleError("invalid_entry")
-    payee = clean_description(raw.get("payee"))
+    payee = merchant_key(raw.get("payee"))
     return {
         "id": entry_id,
         "date": day,
@@ -107,6 +110,109 @@ def within_ten_percent(cents: int, reference: int) -> bool:
     return 9 * reference <= 10 * cents <= 11 * reference
 
 
+LAST_DAY = 31  # a day of the month that means the month's last day
+
+# Twice a month (October 29, 2026, invariant 49): pay on two fixed days of the month (the 1st
+# and 15th, the 15th and the last day), moved a few days by weekends and holidays.
+SEMIMONTHLY = "semimonthly"
+SEMIMONTHLY_GAPS = (10, 20)  # days between paydays once weekends and holidays move them
+SEMIMONTHLY_MIN_RUN = 4  # 4+ paydays 10-20 days apart: signed off by the owner, October 29, 2026
+
+
+def day_of_month(day: date) -> int:
+    """The day of the month a date stands for: its own, or 31 when it is the month's last day."""
+    return LAST_DAY if day.day == dates.days_in_month(day) else day.day
+
+
+def usual_day(run: list[dict]) -> int:
+    """The run's most common day of the month (the last day counted as 31); a tie goes to the
+    one the latest occurrence had."""
+    counts: dict[int, int] = {}
+    last_seen: dict[int, int] = {}
+    for index, e in enumerate(run):
+        d = day_of_month(e["date"])
+        counts[d] = counts.get(d, 0) + 1
+        last_seen[d] = index
+    return max(counts, key=lambda d: (counts[d], last_seen[d]))
+
+
+def _target(year: int, month: int, keep: int) -> date:
+    first = date(year, month, 1)
+    return first.replace(day=min(keep, dates.days_in_month(first)))
+
+
+def _off_by(day: date, target: date) -> int:
+    """Days between a payday and the day it was due; 0 when a weekend moved it to the Friday
+    before or the Monday after."""
+    gap = (day - target).days
+    weekday = target.weekday()  # Monday 0 ... Sunday 6
+    if weekday == 5 and gap in (-1, 2):
+        return 0
+    if weekday == 6 and gap in (-2, 1):
+        return 0
+    return abs(gap)
+
+
+def _months_around(day: date) -> list[tuple[int, int]]:
+    before = dates.add_months(day, -1)
+    after = dates.add_months(day, 1)
+    return [(before.year, before.month), (day.year, day.month), (after.year, after.month)]
+
+
+def _nearest(day: date, keep: int) -> tuple[int, date]:
+    """How far a payday is from `keep` in its month or the months either side, and that due
+    date (the earliest of equals)."""
+    options = [_target(y, m, keep) for y, m in _months_around(day)]
+    return min(((_off_by(day, t), t) for t in options), key=lambda o: (o[0], o[1]))
+
+
+def _best_day(half: list[date]) -> tuple[int, int]:
+    """(off-by total, day 1-31) for one half of a twice-a-month run: the day with the smallest
+    total; a tie goes to the later day, since weekends move pay earlier."""
+    return min(
+        ((sum(_nearest(d, keep)[0] for d in half), keep) for keep in range(1, LAST_DAY + 1)),
+        key=lambda o: (o[0], -o[1]),
+    )
+
+
+def _every_two_weeks_off_by(run: list[date]) -> int:
+    """How far a run is from one payday every 14 days, from its best start (lower median)."""
+    offsets = sorted((d - run[0]).days - 14 * i for i, d in enumerate(run))
+    middle = offsets[(len(offsets) - 1) // 2]
+    return sum(abs((d - run[0]).days - 14 * i - middle) for i, d in enumerate(run))
+
+
+def _semimonthly(items: list[dict]) -> dict | None:
+    """The most recent twice-a-month run, or None: at least 4 paydays with 10-20 days between
+    them, alternating between two days of the month, that fit those two days better than they
+    fit one payday every 14 days."""
+    lo, hi = SEMIMONTHLY_GAPS
+    start = len(items) - 1
+    while start > 0 and lo <= (items[start]["date"] - items[start - 1]["date"]).days <= hi:
+        start -= 1
+    run = items[start:]
+    if len(run) < SEMIMONTHLY_MIN_RUN:
+        return None
+    days = [e["date"] for e in run]
+    off_a, day_a = _best_day(days[0::2])
+    off_b, day_b = _best_day(days[1::2])
+    if day_a == day_b or off_a + off_b >= _every_two_weeks_off_by(days):
+        return None
+    keeps = sorted((day_a, day_b))
+    last_keep = day_a if (len(run) - 1) % 2 == 0 else day_b
+    due = _nearest(days[-1], last_keep)[1]
+    later = [
+        _target(y, m, keep)
+        for y, m in (
+            (due.year, due.month),
+            (dates.add_months(due, 1).year, dates.add_months(due, 1).month),
+        )
+        for keep in keeps
+    ]
+    next_due = min(t for t in later if t > due)
+    return {"run": run, "days": keeps, "next": next_due}
+
+
 def detect(entries_in: list, as_of: str) -> dict:
     today = dates.parse_date(as_of)
     rows = [e for e in entries(entries_in) if not e["is_transfer"] and e["date"] <= today]
@@ -118,6 +224,27 @@ def detect(entries_in: list, as_of: str) -> dict:
         items.sort(key=lambda e: (e["date"], e["cents"], e["id"] or ""))
         if len(items) < 2:
             continue
+        twice = _semimonthly(items)
+        if twice is not None:
+            run = twice["run"]
+            expected = median_cents([e["cents"] for e in run])
+            if all(within_ten_percent(e["cents"], expected) for e in run):
+                series.append(
+                    {
+                        "payee": payee,
+                        "kind": "income" if direction == "in" else "bill",
+                        "direction": direction,
+                        "expected_cents": expected,
+                        "interval": SEMIMONTHLY,
+                        "day": None,
+                        "days": twice["days"],
+                        "last_date": run[-1]["date"].isoformat(),
+                        "next_date": twice["next"].isoformat(),
+                        "occurrences": len(run),
+                        "entry_ids": [e["id"] for e in run if e["id"] is not None],
+                    }
+                )
+                continue
         last_gap = (items[-1]["date"] - items[-2]["date"]).days
         interval = interval_of(last_gap)
         if interval is None:
@@ -133,6 +260,9 @@ def detect(entries_in: list, as_of: str) -> dict:
         if not all(within_ten_percent(e["cents"], expected) for e in run):
             continue
         last = run[-1]["date"]
+        # A month-based bill keeps its usual day (October 29, 2026, invariant 49): rent on the
+        # 30th, 31st and 31st is due on the last day, so February's 28th never drifts it.
+        keep = usual_day(run) if interval in ("monthly", "quarterly", "yearly") else None
         series.append(
             {
                 "payee": payee,
@@ -140,8 +270,10 @@ def detect(entries_in: list, as_of: str) -> dict:
                 "direction": direction,
                 "expected_cents": expected,
                 "interval": interval,
+                "day": keep,
+                "days": None,
                 "last_date": last.isoformat(),
-                "next_date": step(last, interval).isoformat(),
+                "next_date": step_keeping_day(last, interval, keep).isoformat(),
                 "occurrences": len(run),
                 "entry_ids": [e["id"] for e in run if e["id"] is not None],
             }
@@ -242,7 +374,10 @@ def _is_word_char(ch: str) -> bool:
 def contains_word(text: str, word: str) -> bool:
     """`word` inside `text` as a whole word: the characters just before and after it, when there
     are any, are not A-Z or 0-9 (the cleaned payee is upper-case ASCII), so GYM is in "GOLDS GYM"
-    and "GYM-24" but never in "GYMBOREE". Every place the word appears is tried."""
+    and "GYM-24" but never in "GYMBOREE". Every place the word appears is tried. An empty
+    word is never in anything."""
+    if not word:
+        return False
     start = text.find(word)
     while start != -1:
         end = start + len(word)
@@ -252,6 +387,19 @@ def contains_word(text: str, word: str) -> bool:
             return True
         start = text.find(word, start + 1)
     return False
+
+
+def longest_word(clean: str, key: str, words: list[tuple[str, str]]) -> str | None:
+    """Which word decides (invariant 50, October 29, 2026; the same rule as categorize): of the
+    words found as a whole word in the cleaned text or its merchant key, the longest (in code
+    points); a tie goes to the earlier one. Returns its value, or None."""
+    best: tuple[int, str] | None = None
+    for word, value in words:
+        if (contains_word(clean, word) or contains_word(key, word)) and (
+            best is None or len(word) > best[0]
+        ):
+            best = (len(word), value)
+    return best[1] if best is not None else None
 
 
 OTHER_KIND = "other"  # the person's "Other": no kind, whatever the table says
@@ -341,8 +489,8 @@ def subscription_check(
     builtin = {k for _, k in table}
     known = builtin | _own_kinds(own_kinds, builtin)
     # The person's words first, so their call wins over the table; a kind set by hand wins over
-    # both.
-    words = _own_words(own_words, known) + table
+    # both. Within each, the longest word found wins, ties by order (invariant 50).
+    mine = _own_words(own_words, known)
     if not isinstance(subscriptions, list):
         raise RuleError("invalid_series")
     items = []
@@ -423,8 +571,12 @@ def subscription_check(
         if own is not None:
             kind = None if own == OTHER_KIND else own
         else:
+            # The cleaned payee or its merchant key ("UBER *EATS" reads as UBER EATS).
             clean = clean_description(payee)
-            kind = next((k for word, k in words if contains_word(clean, word)), None)
+            key = merchant_key(payee)
+            kind = longest_word(clean, key, mine)
+            if kind is None:
+                kind = longest_word(clean, key, table)
         items.append(
             {
                 "id": sid,

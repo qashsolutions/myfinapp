@@ -28,7 +28,7 @@ import { compareText } from "../../lib/order.ts";
 import { payDaysOf } from "../budget/payDays.ts";
 import { useBudget } from "../budget/useBudget.ts";
 import { bankRows } from "../entries/splits.ts";
-import { toRecurringEntry } from "./useRecurring.ts";
+import { backfillSeriesDays, seriesInput, toRecurringEntry } from "./useRecurring.ts";
 
 export const FORECAST_DAYS = 30;
 export const BUFFER_KEY = "forecast.buffer_cents";
@@ -192,14 +192,10 @@ export function useForecast(asOf: string, days = FORECAST_DAYS): ForecastView {
       );
       const pay = await payAsSeries(settings.pay, asOf);
       const inputs: SeriesInput[] = [
-        ...confirmed.map((s: RecurringSeries) => ({
-          id: s.id,
-          payee: s.payee,
-          kind: s.kind,
-          expected_cents: s.expected_cents,
-          interval: s.interval,
-          next_date: s.next_date,
-        })),
+        // Each with its due day, so the 31st never drifts to the 28th (invariant 49).
+        ...(await backfillSeriesDays(db, confirmed, entries, asOf)).map((s: RecurringSeries) =>
+          seriesInput(s),
+        ),
         ...pay,
       ];
       const upcoming = await upcomingItems(

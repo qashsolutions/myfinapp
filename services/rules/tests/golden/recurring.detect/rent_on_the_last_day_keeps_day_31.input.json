@@ -1,0 +1,29 @@
+{
+  "as_of": "2027-02-10",
+  "entries": [
+    {
+      "id": "t1",
+      "date": "2026-11-30",
+      "amount_cents": 150000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "RENT CO"
+    },
+    {
+      "id": "t2",
+      "date": "2026-12-31",
+      "amount_cents": 150000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "RENT CO"
+    },
+    {
+      "id": "t3",
+      "date": "2027-01-31",
+      "amount_cents": 150000,
+      "direction": "out",
+      "is_transfer": false,
+      "payee": "RENT CO"
+    }
+  ]
+}

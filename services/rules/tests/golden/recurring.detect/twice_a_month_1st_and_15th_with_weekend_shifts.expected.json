@@ -1,0 +1,27 @@
+{
+  "series": [
+    {
+      "payee": "CITY PAYROLL",
+      "kind": "income",
+      "direction": "in",
+      "expected_cents": 200000,
+      "interval": "semimonthly",
+      "day": null,
+      "days": [
+        1,
+        15
+      ],
+      "last_date": "2026-09-15",
+      "next_date": "2026-10-01",
+      "occurrences": 6,
+      "entry_ids": [
+        "q1",
+        "q2",
+        "q3",
+        "q4",
+        "q5",
+        "q6"
+      ]
+    }
+  ]
+}

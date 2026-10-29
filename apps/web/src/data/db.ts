@@ -363,6 +363,13 @@ export interface RecurringSeries {
    * name. Synced with the row (newer `updated_at` wins), no index, so no new Dexie version.
    */
   subscription_kind?: string | null;
+  /**
+   * The day of the month a monthly, quarterly or yearly series is due (1–31, 31 = the last day;
+   * October 29, 2026, invariant 49), passed to forecast.upcoming so the 31st never drifts to the
+   * 28th. No index, so no new Dexie version; unset on series made before, which read their next
+   * date's day.
+   */
+  day?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -671,6 +678,15 @@ export function newId(): string {
  */
 export function counted<T extends { not_counted?: boolean }>(entries: T[]): T[] {
   return entries.filter((e) => !e.not_counted);
+}
+
+/**
+ * The text a merchant is matched on (invariant 47, October 29, 2026): the bank's own cleaned
+ * text, never a name the person gave the entry, so renaming "NETFLIX.COM" to "Netflix" keeps it
+ * on its bill, its subscription and its saved name. An entry typed by hand has only its name.
+ */
+export function bankText(e: Pick<Entry, "clean_description" | "merchant">): string {
+  return e.clean_description || e.merchant;
 }
 
 /** Entries dated inside [start, end], newest first then newest-created first. */

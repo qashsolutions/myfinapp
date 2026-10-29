@@ -1,0 +1,58 @@
+{
+  "description": "ENTERPRISE RENTALS PARENT CO",
+  "direction": "out",
+  "user_rules": [],
+  "keywords": {
+    "transfer": [
+      "PAYMENT TO CARD",
+      "ONLINE TRANSFER"
+    ],
+    "keywords": [
+      {
+        "match": "RENT",
+        "category_id": "cat-rent",
+        "direction": "out"
+      },
+      {
+        "match": "MKT",
+        "category_id": "cat-groceries",
+        "direction": "out"
+      },
+      {
+        "match": "TRANSIT",
+        "category_id": "cat-transport",
+        "direction": "out"
+      },
+      {
+        "match": "UBER",
+        "category_id": "cat-transport",
+        "direction": "out"
+      },
+      {
+        "match": "SHELL",
+        "category_id": "cat-transport",
+        "direction": "out"
+      },
+      {
+        "match": "UBER EATS",
+        "category_id": "cat-dining",
+        "direction": "out"
+      },
+      {
+        "match": "RENT-A-CAR",
+        "category_id": "cat-transport",
+        "direction": "out"
+      },
+      {
+        "match": "CAFE",
+        "category_id": "cat-dining",
+        "direction": "out"
+      },
+      {
+        "match": "BOOK",
+        "category_id": "cat-fun",
+        "direction": "out"
+      }
+    ]
+  }
+}

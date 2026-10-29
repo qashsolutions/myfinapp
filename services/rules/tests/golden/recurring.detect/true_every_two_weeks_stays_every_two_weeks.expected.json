@@ -1,0 +1,24 @@
+{
+  "series": [
+    {
+      "payee": "ACME PAYROLL",
+      "kind": "income",
+      "direction": "in",
+      "expected_cents": 180000,
+      "interval": "biweekly",
+      "day": null,
+      "days": null,
+      "last_date": "2026-11-13",
+      "next_date": "2026-11-27",
+      "occurrences": 6,
+      "entry_ids": [
+        "r1",
+        "r2",
+        "r3",
+        "r4",
+        "r5",
+        "r6"
+      ]
+    }
+  ]
+}

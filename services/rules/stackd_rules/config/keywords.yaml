@@ -1,6 +1,11 @@
 # Default merchant keyword -> category table (docs/spec.md "Statement import": categories come
-# from a keyword table; no machine learning). Matched case-insensitively as a substring of the
-# cleaned description, top to bottom, first match wins. `direction` limits a keyword to money
+# from a keyword table; no machine learning). Matched case-insensitively as a whole word in the
+# cleaned description or its merchant key (the characters on either side are not A-Z or 0-9, so
+# RENT never hits PARENT and SHELL never hits SHELLS); the longest match wins, then the earlier
+# line (October 29, 2026), so UBER EATS beats UBER wherever each is listed. A stem no longer
+# reaches inside a longer word, so each spelling that matters has its own line (GROCER and
+# GROCERY, DIRECT DEP and DIRECT DEPOSIT; those lines signed off by the owner, October 29,
+# 2026). `direction` limits a keyword to money
 # in or out. `transfer` words flag a likely transfer between the user's own accounts, which the
 # import review asks about. Category ids are the defaults in apps/web/src/data/defaults.ts.
 #
@@ -23,6 +28,7 @@ keywords:
   # money in
   - { match: PAYROLL, category_id: cat-paycheck, direction: in }
   - { match: DIRECT DEP, category_id: cat-paycheck, direction: in }
+  - { match: DIRECT DEPOSIT, category_id: cat-paycheck, direction: in }
   - { match: SALARY, category_id: cat-paycheck, direction: in }
   - { match: REFUND, category_id: cat-refund, direction: in }
   - { match: REVERSAL, category_id: cat-refund, direction: in }
@@ -32,14 +38,19 @@ keywords:
   # rent and home
   - { match: RENT, category_id: cat-rent, direction: out }
   - { match: APARTMENT, category_id: cat-rent, direction: out }
+  - { match: APARTMENTS, category_id: cat-rent, direction: out }
   - { match: PROPERTY MGMT, category_id: cat-rent, direction: out }
   - { match: MORTGAGE, category_id: cat-rent, direction: out }
   # groceries
   - { match: GROCER, category_id: cat-groceries, direction: out }
+  - { match: GROCERY, category_id: cat-groceries, direction: out }
+  - { match: GROCERIES, category_id: cat-groceries, direction: out }
+  - { match: SUPERMARKET, category_id: cat-groceries, direction: out }
   - { match: MARKET, category_id: cat-groceries, direction: out }
   - { match: MKT, category_id: cat-groceries, direction: out }
   - { match: WHOLE FOODS, category_id: cat-groceries, direction: out }
   - { match: TRADER JOE, category_id: cat-groceries, direction: out }
+  - { match: TRADER JOES, category_id: cat-groceries, direction: out }
   - { match: KROGER, category_id: cat-groceries, direction: out }
   - { match: SAFEWAY, category_id: cat-groceries, direction: out }
   - { match: ALDI, category_id: cat-groceries, direction: out }
@@ -69,6 +80,7 @@ keywords:
   - { match: EXXON, category_id: cat-transport, direction: out }
   - { match: PARKING, category_id: cat-transport, direction: out }
   - { match: TOLL, category_id: cat-transport, direction: out }
+  - { match: RENT-A-CAR, category_id: cat-transport, direction: out }
   # insurance
   - { match: INSURANCE, category_id: cat-insurance, direction: out }
   - { match: GEICO, category_id: cat-insurance, direction: out }
@@ -81,6 +93,7 @@ keywords:
   - { match: COFFEE, category_id: cat-dining, direction: out }
   - { match: STARBUCKS, category_id: cat-dining, direction: out }
   - { match: MCDONALD, category_id: cat-dining, direction: out }
+  - { match: MCDONALDS, category_id: cat-dining, direction: out }
   - { match: CHIPOTLE, category_id: cat-dining, direction: out }
   - { match: DOORDASH, category_id: cat-dining, direction: out }
   - { match: GRUBHUB, category_id: cat-dining, direction: out }
@@ -123,7 +136,8 @@ keywords:
 # is). `subscription_kind_names` is the fixed list the person can pick from on any subscription
 # (plus Other, no kind, and kinds of their own, which live on their device); `label` names the kind,
 # `many` reads in "3 video services · $47 a month together". `subscription_kinds` is matched on the
-# cleaned payee, top to bottom, first match wins, as a whole word: the characters on either side of
+# cleaned payee or its merchant key as a whole word, the longest word found wins, then the earlier
+# line (October 29, 2026, the same rule as the keywords above): the characters on either side of
 # the word must not be A-Z or 0-9, so GYM never hits GYMBOREE and RING never hits SPRINGFIELD. The
 # person cannot edit this table; their own words (kept on their device) are tried before it, and a
 # kind they set on the subscription wins over both. Two or more subscriptions of one
@@ -162,6 +176,7 @@ subscription_kinds:
   - { match: YOUTUBE TV, kind: video }
   - { match: SLING TV, kind: video }
   - { match: PRIME VIDEO, kind: video }
+  - { match: AMAZON PRIME VIDEO, kind: video }
   - { match: APPLE TV, kind: video }
   - { match: STARZ, kind: video }
   - { match: SHOWTIME, kind: video }

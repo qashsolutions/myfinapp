@@ -23,6 +23,11 @@
       "direction": "in"
     },
     {
+      "match": "DIRECT DEPOSIT",
+      "category_id": "cat-paycheck",
+      "direction": "in"
+    },
+    {
       "match": "SALARY",
       "category_id": "cat-paycheck",
       "direction": "in"
@@ -63,6 +68,11 @@
       "direction": "out"
     },
     {
+      "match": "APARTMENTS",
+      "category_id": "cat-rent",
+      "direction": "out"
+    },
+    {
       "match": "PROPERTY MGMT",
       "category_id": "cat-rent",
       "direction": "out"
@@ -74,6 +84,21 @@
     },
     {
       "match": "GROCER",
+      "category_id": "cat-groceries",
+      "direction": "out"
+    },
+    {
+      "match": "GROCERY",
+      "category_id": "cat-groceries",
+      "direction": "out"
+    },
+    {
+      "match": "GROCERIES",
+      "category_id": "cat-groceries",
+      "direction": "out"
+    },
+    {
+      "match": "SUPERMARKET",
       "category_id": "cat-groceries",
       "direction": "out"
     },
@@ -94,6 +119,11 @@
     },
     {
       "match": "TRADER JOE",
+      "category_id": "cat-groceries",
+      "direction": "out"
+    },
+    {
+      "match": "TRADER JOES",
       "category_id": "cat-groceries",
       "direction": "out"
     },
@@ -233,6 +263,11 @@
       "direction": "out"
     },
     {
+      "match": "RENT-A-CAR",
+      "category_id": "cat-transport",
+      "direction": "out"
+    },
+    {
       "match": "INSURANCE",
       "category_id": "cat-insurance",
       "direction": "out"
@@ -279,6 +314,11 @@
     },
     {
       "match": "MCDONALD",
+      "category_id": "cat-dining",
+      "direction": "out"
+    },
+    {
+      "match": "MCDONALDS",
       "category_id": "cat-dining",
       "direction": "out"
     },
@@ -579,6 +619,10 @@
     },
     {
       "match": "PRIME VIDEO",
+      "kind": "video"
+    },
+    {
+      "match": "AMAZON PRIME VIDEO",
       "kind": "video"
     },
     {

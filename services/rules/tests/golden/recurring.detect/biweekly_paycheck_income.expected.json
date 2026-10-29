@@ -6,6 +6,8 @@
       "direction": "in",
       "expected_cents": 240000,
       "interval": "biweekly",
+      "day": null,
+      "days": null,
       "last_date": "2026-10-02",
       "next_date": "2026-10-16",
       "occurrences": 3,

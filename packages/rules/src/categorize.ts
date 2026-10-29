@@ -1,12 +1,15 @@
 /**
- * Port of stackd_rules/categorize.py: user rules first, then the keyword table; substring
- * match on the cleaned description, first match wins. Nothing is guessed (owner decision,
- * October 28, 2026: no AI in the code, so the bundled learned model is gone): a description
- * neither table matches stays uncategorized for the person to sort.
+ * Port of stackd_rules/categorize.py: user rules first, then the keyword table. A rule or
+ * keyword matches as a whole word (`containsWord`) in the cleaned description or in its
+ * merchant key; the longest match wins, ties by order (October 29, 2026, invariant 50).
+ * Transfer words stay a plain substring. Nothing is guessed (owner decision, October 28, 2026:
+ * no AI in the code, so the bundled learned model is gone): a description neither table
+ * matches stays uncategorized for the person to sort.
  */
 
 import { RuleError } from "./errors.ts";
-import { cleanDescription } from "./fingerprint.ts";
+import { cleanDescription, merchantKey } from "./fingerprint.ts";
+import { containsWord } from "./recurring.ts";
 
 export interface MatchResult {
   category_id: string | null;
@@ -36,6 +39,18 @@ function rules(value: unknown, code: string): RuleLike[] {
   return value as RuleLike[];
 }
 
+/** The category of the longest pattern found as a whole word; ties go to the earlier one. */
+function longest(clean: string, key: string, patterns: Array<[string, string]>): string | null {
+  let best: [number, string] | null = null;
+  for (const [pattern, category] of patterns) {
+    const pClean = cleanDescription(pattern);
+    const hit = containsWord(clean, pClean) || containsWord(key, merchantKey(pattern));
+    const length = Array.from(pClean).length; // code points, as Python's len
+    if (hit && (best === null || length > best[0])) best = [length, category];
+  }
+  return best === null ? null : best[1];
+}
+
 export function match(
   description: unknown,
   direction: unknown,
@@ -44,6 +59,7 @@ export function match(
 ): MatchResult {
   if (direction !== "in" && direction !== "out") throw new RuleError("invalid_direction");
   const clean = cleanDescription(description);
+  const key = merchantKey(description);
   const user = rules(userRules, "invalid_rules");
   if (typeof keywords !== "object" || keywords === null || Array.isArray(keywords)) {
     throw new RuleError("invalid_keywords");
@@ -55,31 +71,29 @@ export function match(
   if (!Array.isArray(transferWords) || !transferWords.every((w) => typeof w === "string")) {
     throw new RuleError("invalid_keywords");
   }
-  const isTransferHint = transferWords.some((w) => clean.includes(cleanDescription(w)));
-
   for (const rule of user) {
     if (typeof rule.category_id !== "string") throw new RuleError("invalid_rules");
-    if (clean.includes(cleanDescription(rule.match))) {
-      return {
-        category_id: rule.category_id,
-        matched_by: "user",
-        is_transfer_hint: isTransferHint,
-      };
-    }
   }
+  const wantedTable: Array<[string, string]> = [];
   for (const entry of table) {
     const wanted = entry.direction === undefined ? "any" : entry.direction;
     if (wanted !== "in" && wanted !== "out" && wanted !== "any")
       throw new RuleError("invalid_keywords");
-    if (wanted !== "any" && wanted !== direction) continue;
-    if (clean.includes(cleanDescription(entry.match))) {
-      if (typeof entry.category_id !== "string") throw new RuleError("invalid_keywords");
-      return {
-        category_id: entry.category_id,
-        matched_by: "keyword",
-        is_transfer_hint: isTransferHint,
-      };
-    }
+    if (typeof entry.category_id !== "string") throw new RuleError("invalid_keywords");
+    if (wanted === "any" || wanted === direction)
+      wantedTable.push([entry.match, entry.category_id]);
   }
+  const isTransferHint = transferWords.some((w) => clean.includes(cleanDescription(w)));
+
+  const own = longest(
+    clean,
+    key,
+    user.map((r) => [r.match, r.category_id as string]),
+  );
+  if (own !== null)
+    return { category_id: own, matched_by: "user", is_transfer_hint: isTransferHint };
+  const found = longest(clean, key, wantedTable);
+  if (found !== null)
+    return { category_id: found, matched_by: "keyword", is_transfer_hint: isTransferHint };
   return { category_id: null, matched_by: null, is_transfer_hint: isTransferHint };
 }

@@ -1,0 +1,41 @@
+{
+  "as_of": "2026-10-29",
+  "subscriptions": [
+    {
+      "id": "s1",
+      "label": "Uber Eats Pass",
+      "payee": "UBER EATS PASS",
+      "interval": "monthly",
+      "expected_cents": 999,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": []
+    }
+  ],
+  "kinds": [
+    {
+      "match": "UBER EATS PASS",
+      "kind": "shopping"
+    },
+    {
+      "match": "DOORDASH",
+      "kind": "food"
+    }
+  ],
+  "thresholds": {
+    "subscription_ask_days": 90,
+    "subscription_renewal_days": 15,
+    "trial_max_cents": 100,
+    "trial_window_days": 45
+  },
+  "own_words": [
+    {
+      "match": "UBER",
+      "kind": "shopping"
+    },
+    {
+      "match": "UBER EATS",
+      "kind": "food"
+    }
+  ]
+}

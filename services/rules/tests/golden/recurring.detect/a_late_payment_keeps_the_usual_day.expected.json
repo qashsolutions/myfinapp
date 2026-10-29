@@ -1,0 +1,21 @@
+{
+  "series": [
+    {
+      "payee": "CITY WATER",
+      "kind": "bill",
+      "direction": "out",
+      "expected_cents": 9000,
+      "interval": "monthly",
+      "day": 1,
+      "days": null,
+      "last_date": "2026-10-03",
+      "next_date": "2026-11-01",
+      "occurrences": 3,
+      "entry_ids": [
+        "u1",
+        "u2",
+        "u3"
+      ]
+    }
+  ]
+}
