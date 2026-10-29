@@ -25,6 +25,7 @@ import { BalanceRunway } from "../insights/InsightCard.tsx";
 import { useSafeToSpend } from "../insights/useSafeToSpend.ts";
 import { MonthReviewHomeCard } from "../monthreview/MonthReviewCards.tsx";
 import { useSetup } from "../onboarding/useSetup.ts";
+import { StorageCard } from "../pwa/StorageCard.tsx";
 import { RestoreOffer } from "../security/RestoreOffer.tsx";
 import { SubCheckHomeCard } from "../subscriptions/SubscriptionCheckCard.tsx";
 import { CustomizeHome } from "./CustomizeHome.tsx";
@@ -427,6 +428,7 @@ export function HomeScreen() {
         <div className="pane pane--main">
           <TrialCard />
           <RestoreOffer />
+          <StorageCard />
           {homeCards}
           <Button
             variant="ghost"
