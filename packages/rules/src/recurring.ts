@@ -263,6 +263,36 @@ function kindTable(raw: unknown): Array<[string, string]> {
   });
 }
 
+function isWordChar(ch: string): boolean {
+  return (ch >= "A" && ch <= "Z") || (ch >= "0" && ch <= "9");
+}
+
+/**
+ * Port of recurring.contains_word: `word` inside `text` as a whole word (the characters just
+ * before and after it, when there are any, are not A-Z or 0-9). Only ASCII is ever compared, so
+ * UTF-16 positions give the same answer as Python's code points.
+ */
+export function containsWord(text: string, word: string): boolean {
+  let start = text.indexOf(word);
+  while (start !== -1) {
+    const end = start + word.length;
+    const beforeOk = start === 0 || !isWordChar(text.charAt(start - 1));
+    const afterOk = end === text.length || !isWordChar(text.charAt(end));
+    if (beforeOk && afterOk) return true;
+    start = text.indexOf(word, start + 1);
+  }
+  return false;
+}
+
+/** The person's "Other": no kind, whatever the table says. */
+export const OTHER_KIND = "other";
+
+function ownKind(raw: unknown): string | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== "string" || raw === "") throw new RuleError("invalid_kind");
+  return raw;
+}
+
 function charges(raw: unknown): Array<[Day, number]> {
   if (!Array.isArray(raw)) throw new RuleError("invalid_charges");
   return raw.map((c) => {
@@ -294,6 +324,13 @@ export interface SubscriptionCheckItem {
 export interface SubscriptionCheck {
   items: SubscriptionCheckItem[];
   duplicates: Array<{ kind: string; count: number; monthly_total_cents: number; ids: string[] }>;
+  by_kind: Array<{
+    kind: string | null;
+    count: number;
+    yearly_cents: number;
+    monthly_cents: number;
+    ids: string[];
+  }>;
 }
 
 /** Port of recurring.subscription_check: facts from the person's own charges, and when to ask. */
@@ -373,8 +410,13 @@ export function subscriptionCheck(
       (renewal !== null && lastCharge !== null && !answeredSince(checked, lastCharge)) ||
       rise !== null ||
       trial !== null;
-    const clean = cleanDescription(r.payee);
-    const kind = table.find(([word]) => clean.includes(word))?.[1] ?? null;
+    const own = ownKind(r.own_kind);
+    let kind: string | null;
+    if (own !== null) kind = own === OTHER_KIND ? null : own;
+    else {
+      const clean = cleanDescription(r.payee);
+      kind = table.find(([word]) => containsWord(clean, word))?.[1] ?? null;
+    }
     items.push({
       id: r.id,
       label: r.label,
@@ -413,5 +455,30 @@ export function subscriptionCheck(
   duplicates.sort(
     (a, b) => b.monthly_total_cents - a.monthly_total_cents || compareText(a.kind, b.kind),
   );
-  return { items, duplicates };
+  // Where the money goes, by kind (see Python): the no-kind row is kind null, last on a tie.
+  const held = new Map<string | null, SubscriptionCheckItem[]>();
+  for (const i of items) {
+    const g = held.get(i.kind);
+    if (g) g.push(i);
+    else held.set(i.kind, [i]);
+  }
+  const byKind: SubscriptionCheck["by_kind"] = [];
+  for (const [kind, members] of held) {
+    const total = members.reduce((s, m) => s + m.yearly_cents, 0);
+    if (!Number.isSafeInteger(total)) throw new RuleError("invalid_amount");
+    byKind.push({
+      kind,
+      count: members.length,
+      yearly_cents: total,
+      monthly_cents: roundDiv(total, 12),
+      ids: members.map((m) => m.id),
+    });
+  }
+  byKind.sort(
+    (a, b) =>
+      b.yearly_cents - a.yearly_cents ||
+      Number(a.kind === null) - Number(b.kind === null) ||
+      compareText(a.kind ?? "", b.kind ?? ""),
+  );
+  return { items, duplicates, by_kind: byKind };
 }

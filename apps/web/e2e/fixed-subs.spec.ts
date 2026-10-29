@@ -29,6 +29,28 @@ function statementWithSubscriptions() {
   return { name: "subs.csv", mimeType: "text/csv", buffer: Buffer.from(rows.join("\n")) };
 }
 
+/** Where the owner's screenshots of each changed screen go (kept; the owner looks at them). */
+const SHOTS = process.env.E2E_SHOTS_DIR;
+
+/** The same screen at phone and computer width, light and dark, into SHOTS (desktop run only). */
+async function shoot(page: import("@playwright/test").Page, name: string): Promise<void> {
+  if (!SHOTS || test.info().project.name !== "desktop") return;
+  const before = page.viewportSize();
+  for (const [size, width, height] of [
+    ["phone", 412, 915],
+    ["desktop", 1280, 900],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    for (const scheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: `${SHOTS}/${name}-${size}-${scheme}.png`, fullPage: true });
+    }
+  }
+  await page.emulateMedia({ colorScheme: "light" });
+  if (before) await page.setViewportSize(before);
+}
+
 test("@phone the subscription check asks, shows the price rise and two video services, and Fixed vs flexible splits the month", async ({
   page,
 }) => {
@@ -63,9 +85,53 @@ test("@phone the subscription check asks, shows the price rise and two video ser
   await expect(facts).toContainText("2 video services · $33.48 a month together");
   await expect(check).not.toContainText(/unused/i);
 
+  // The picture first: where the money goes by kind, then the yearly total
+  const hero = page.getByRole("region", { name: "A year of subscriptions" });
+  await expect(
+    hero.getByRole("img", {
+      name: "Where it goes each month: Video streaming $33.48 a month, Music $11.99 a month",
+    }),
+  ).toBeVisible();
+  await expect(check.getByRole("img", { name: "Hulu: $215.88 of $545.64 a year" })).toBeVisible();
+  await shoot(page, "H-subscriptions");
+
   await check.getByRole("button", { name: "Keep it" }).click();
-  await expect(page.getByRole("status")).toContainText("Kept Hulu");
+  await expect(page.getByRole("status")).toContainText(
+    "Kept Hulu. Qash will ask again in 90 days.",
+  );
   await expect(check).toContainText("Still using Netflix? $185.88 a year");
+
+  // Adjust: the person's own interval, and an own value out of range says so
+  await page.getByRole("button", { name: "Adjust" }).click();
+  const sheet = page.getByRole("dialog", { name: "Adjust subscription check" });
+  await sheet.getByRole("group", { name: "Ask again" }).getByText("30 days").click();
+  const own = sheet.getByRole("textbox", { name: "Your own number of days before a renewal" });
+  await own.fill("200");
+  await sheet.getByRole("button", { name: "Use" }).nth(1).click();
+  await expect(sheet.getByRole("alert")).toContainText("from 1 to 90");
+  await own.fill("21");
+  await sheet.getByRole("button", { name: "Use" }).nth(1).click();
+  await shoot(page, "H-subscriptions-adjust");
+  await sheet.getByRole("button", { name: "Done" }).click();
+
+  // The person's own kind wins: Spotify counted with the video services
+  await page
+    .getByRole("region", { name: "Spotify" })
+    .getByRole("button", { name: /Change the kind of Spotify/ })
+    .click();
+  const kinds = page.getByRole("dialog", { name: "What kind is Spotify?" });
+  await shoot(page, "H-subscriptions-kind");
+  await kinds.getByText("Video streaming", { exact: true }).click();
+  // (215.88 + 185.88 + 143.88) ÷ 12 = 45.47
+  await expect(facts).toContainText("3 video services · $45.47 a month together");
+  await page.goto("/");
+  await expect(
+    page
+      .getByRole("link", { name: /Subscription check/ })
+      .getByRole("img", { name: /Where it goes/ }),
+  ).toBeVisible();
+  await shoot(page, "H-home");
+  await page.goto("/subscriptions");
 
   // Fixed vs flexible on Insights: bills and subscriptions are fixed, groceries and cafe flexible.
   await page.goto("/insights");

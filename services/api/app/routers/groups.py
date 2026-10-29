@@ -56,7 +56,8 @@ DEFAULT_NAMES = {
 }
 MAX_START_AHEAD_DAYS = 31  # a challenge starts today or within a month (signed off Oct 27, 2026)
 
-# "What helped" (October 28, 2026; proposed): the one fixed list, shared with the app.
+# "What helped" (October 28, 2026; signed off October 29, 2026): the one fixed list, shared with
+# the app.
 _HELPED = json.loads(
     resources.files("stackd_rules").joinpath("config/helped.json").read_text(encoding="utf-8")
 )
@@ -463,7 +464,7 @@ def update_helped(
     caller: Annotated[Caller, Depends(require_unlocked)],
     db: Annotated[DbSession, Depends(get_db)],
 ) -> GroupDetail:
-    """The member's own "What helped": up to 3 ids from the fixed list; [] clears it. Open once
+    """The member's own "What helped": up to 5 ids from the fixed list; [] clears it. Open once
     they reached their target or the challenge ended (409 not_yet before)."""
     group, me = _active_member(db, group_id, caller)
     choices = list(dict.fromkeys(body.choices))

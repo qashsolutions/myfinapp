@@ -5,7 +5,7 @@ import "../pwa/pwa.css";
 import "../receipts/receipts.css";
 import "./subscriptions.css";
 
-import { Button, Card, Illustration, ProgressBar, Sheet } from "@stackd/ui";
+import { Button, Card, Chip, Illustration, ProgressBar, Sheet } from "@stackd/ui";
 import { useState } from "react";
 import { Link } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
@@ -14,13 +14,16 @@ import { useDb } from "../../data/DbProvider.tsx";
 import type { RecurringSeries } from "../../data/db.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { INTERVAL_LABELS, removeSeries } from "../forecast/useRecurring.ts";
+import { KindBar, KindLegend } from "./KindBar.tsx";
+import { kindLabel, useCheckIntervals } from "./kinds.ts";
 import { SubscriptionCheckCard } from "./SubscriptionCheckCard.tsx";
+import { AdjustCheckSheet, KindSheet } from "./SubscriptionSheets.tsx";
 import { keepSubscription, setSubscription, useSubscriptions } from "./useSubscriptions.ts";
 
-function renewsText(days: number, date: string): string {
-  if (days <= 0) return `Renews today, ${formatDay(date)}`;
-  if (days === 1) return `Renews tomorrow, ${formatDay(date)}`;
-  return `Renews in ${days} days, ${formatDay(date)}`;
+function countdown(days: number): string {
+  if (days <= 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  return `In ${days} days`;
 }
 
 /**
@@ -35,25 +38,24 @@ export function SubscriptionsScreen() {
   const view = useSubscriptions(today);
   const [cancelling, setCancelling] = useState<RecurringSeries | null>(null);
   const [done, setDone] = useState<string | null>(null);
-  const top = view?.subscriptions[0]?.yearly_cents ?? 0;
+  const [adjusting, setAdjusting] = useState(false);
+  const [kindFor, setKindFor] = useState<{ series: RecurringSeries; kind: string | null } | null>(
+    null,
+  );
+  const intervals = useCheckIntervals();
+  const top = Math.max(0, ...(view?.subscriptions.map((s) => s.monthly_cents) ?? [0]));
 
   return (
     <>
-      <ScreenHeader title="Subscriptions" back="/bills" actions={null} />
-      {view && view.subscriptions.length > 0 ? (
-        <SubscriptionCheckCard
-          view={view}
-          onKeep={async (series) => {
-            await keepSubscription(db, series.id, today);
-            setDone(`Kept ${series.label}. Qash will ask again in a while.`);
-          }}
-          onCancelled={async (series) => {
-            await removeSeries(db, series.id);
-            setDone(`${series.label} is off your bills. Your past entries stay.`);
-          }}
-          onHowTo={setCancelling}
-        />
-      ) : null}
+      <ScreenHeader
+        title="Subscriptions"
+        back="/bills"
+        actions={
+          <Button size="sm" variant="secondary" onClick={() => setAdjusting(true)}>
+            Adjust
+          </Button>
+        }
+      />
       {!view ? (
         <p className="auth__hint">Adding it up…</p>
       ) : view.subscriptions.length === 0 ? (
@@ -67,14 +69,35 @@ export function SubscriptionsScreen() {
         </Card>
       ) : (
         <Card as="section" aria-label="A year of subscriptions">
-          <Word>Yearly</Word>
-          <p className="subs__hero">{formatCents(view.totals.yearly_cents)} a year</p>
-          <p className="sk-card__eyebrow">
-            {formatCents(view.totals.monthly_cents)} a month across {view.subscriptions.length}{" "}
-            {view.subscriptions.length === 1 ? "subscription" : "subscriptions"}
+          <p className="sk-card__hero">
+            {formatCents(view.totals.yearly_cents)}
+            <span className="sk-card__hero-unit"> a year</span>
           </p>
+          <p className="sk-card__eyebrow">
+            {view.subscriptions.length}{" "}
+            {view.subscriptions.length === 1 ? "subscription" : "subscriptions"} ·{" "}
+            {formatCents(view.totals.monthly_cents)} a month
+          </p>
+          <KindBar rows={view.check.by_kind} />
+          <KindLegend rows={view.check.by_kind} />
         </Card>
       )}
+      {view && view.subscriptions.length > 0 ? (
+        <SubscriptionCheckCard
+          view={view}
+          onKeep={async (series) => {
+            await keepSubscription(db, series.id, today);
+            setDone(
+              `Kept ${series.label}. Qash will ask again in ${intervals?.askDays ?? "a few"} days.`,
+            );
+          }}
+          onCancelled={async (series) => {
+            await removeSeries(db, series.id);
+            setDone(`${series.label} is off your bills. Your past entries stay.`);
+          }}
+          onHowTo={setCancelling}
+        />
+      ) : null}
       {done ? (
         <p className="auth__hint" role="status">
           {done}
@@ -83,24 +106,34 @@ export function SubscriptionsScreen() {
       {view?.subscriptions.length ? (
         <section aria-labelledby="subs-list">
           <h2 className="section-title" id="subs-list">
-            Each one, by what it costs a year
+            Each one, by what it costs
           </h2>
-          {view.subscriptions.map(({ series, yearly_cents, monthly_cents, days }) => (
+          {view.subscriptions.map(({ series, yearly_cents, monthly_cents, days, kind }) => (
             <Card as="section" aria-label={series.label} key={series.id} className="subs__item">
               <div className="hero-split">
                 <span className="receipt-card__title">{series.label}</span>
-                <span className="lb__pct">{formatCents(yearly_cents)} a year</span>
+                <Chip tone={days <= 7 ? "accent" : "neutral"}>{countdown(days)}</Chip>
               </div>
+              <button
+                type="button"
+                className="subs__kind"
+                aria-label={`Kind: ${kindLabel(kind)}. Change the kind of ${series.label}`}
+                onClick={() => setKindFor({ series, kind })}
+              >
+                {kindLabel(kind)}
+                {series.subscription_kind ? " · yours" : ""} ▾
+              </button>
               <ProgressBar
-                fraction={top > 0 ? yearly_cents / top : 0}
-                label={`${series.label}, a year`}
-                valueText={`${formatCents(yearly_cents)} a year`}
+                fraction={top > 0 ? monthly_cents / top : 0}
+                tone="accent"
+                label={`${series.label}, a month`}
+                valueText={`${formatCents(monthly_cents)} a month`}
               />
-              <p className="sk-card__eyebrow">
-                {formatCents(series.expected_cents)}{" "}
-                {INTERVAL_LABELS[series.interval].toLowerCase()} · {formatCents(monthly_cents)} a
-                month · {renewsText(days, series.next_date)}
+              <p className="subs__amounts">
+                <strong>{formatCents(monthly_cents)}</strong> a month · {formatCents(yearly_cents)}{" "}
+                a year
               </p>
+              <p className="sk-card__eyebrow">Renews {formatDay(series.next_date)}</p>
               <div className="install-actions">
                 <Button size="sm" variant="secondary" onClick={() => setCancelling(series)}>
                   How to cancel
@@ -153,6 +186,18 @@ export function SubscriptionsScreen() {
         Yearly costs are each charge times how often it comes. Qash never cancels anything for you.
       </p>
 
+      {intervals ? (
+        <AdjustCheckSheet
+          open={adjusting}
+          onClose={() => setAdjusting(false)}
+          intervals={intervals}
+        />
+      ) : null}
+      <KindSheet
+        series={kindFor?.series ?? null}
+        kind={kindFor?.kind ?? null}
+        onClose={() => setKindFor(null)}
+      />
       <Sheet
         open={cancelling !== null}
         onClose={() => setCancelling(null)}

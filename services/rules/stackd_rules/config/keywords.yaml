@@ -117,55 +117,381 @@ keywords:
   - { match: NAVIENT, category_id: cat-debt-payoff, direction: out }
   - { match: NELNET, category_id: cat-debt-payoff, direction: out }
 
-# Subscription kinds (docs/spec.md "Subscriptions", Subscription check; October 28, 2026, the
-# kinds and words are proposed, awaiting owner sign-off). Matched like the table above on the
-# cleaned payee, top to bottom, first match wins. Two or more subscriptions of one kind are shown
-# together ("3 video services · $47 a month together"); nothing else is read from the kind.
+# Subscription kinds (docs/spec.md "Subscriptions", Subscription check). The kinds and their
+# names, and the merchant words below, were expanded on October 29, 2026 (owner: "make this more
+# robust"; the words are proposed, awaiting owner sign-off). `subscription_kind_names` is the fixed
+# list the person can pick from on any subscription (plus Other, no kind); `label` names the kind,
+# `many` reads in "3 video services · $47 a month together". `subscription_kinds` is matched on the
+# cleaned payee, top to bottom, first match wins, as a whole word: the characters on either side of
+# the word must not be A-Z or 0-9, so GYM never hits GYMBOREE and RING never hits SPRINGFIELD. A
+# kind the person set on the subscription wins over this table. Two or more subscriptions of one
+# kind are shown together; nothing else is read from the kind.
+subscription_kind_names:
+  - { kind: video, label: "Video streaming", many: "video services" }
+  - { kind: music, label: "Music", many: "music services" }
+  - { kind: audio, label: "Books, audiobooks & podcasts", many: "book and audio services" }
+  - { kind: cloud, label: "Cloud storage", many: "cloud storage services" }
+  - { kind: news, label: "News, magazines & writers", many: "news and reading services" }
+  - { kind: fitness, label: "Fitness & wellness", many: "fitness and wellness services" }
+  - { kind: food, label: "Food delivery & meal kits", many: "food and meal services" }
+  - { kind: software, label: "Software & apps", many: "software services" }
+  - { kind: gaming, label: "Gaming", many: "gaming services" }
+  - { kind: dating, label: "Dating", many: "dating apps" }
+  - { kind: learning, label: "Learning", many: "learning services" }
+  - { kind: security, label: "VPN, passwords & security", many: "security services" }
+  - { kind: phone, label: "Phone & internet add-ons", many: "phone and internet add-ons" }
+  - { kind: shopping, label: "Shopping memberships", many: "shopping memberships" }
+  - { kind: boxes, label: "Subscription boxes", many: "subscription boxes" }
+  - { kind: home, label: "Home & security devices", many: "home and security services" }
 subscription_kinds:
+  # Video streaming
   - { match: NETFLIX, kind: video }
   - { match: HULU, kind: video }
   - { match: DISNEY PLUS, kind: video }
   - { match: DISNEYPLUS, kind: video }
+  - { match: "DISNEY+", kind: video }
   - { match: HBO MAX, kind: video }
+  - { match: HBOMAX, kind: video }
   - { match: PEACOCK, kind: video }
-  - { match: PARAMOUNT, kind: video }
+  - { match: PARAMOUNT PLUS, kind: video }
+  - { match: "PARAMOUNT+", kind: video }
   - { match: YOUTUBE PREMIUM, kind: video }
+  - { match: YOUTUBEPREMIUM, kind: video }
   - { match: YOUTUBE TV, kind: video }
-  - { match: SLING, kind: video }
+  - { match: SLING TV, kind: video }
   - { match: PRIME VIDEO, kind: video }
   - { match: APPLE TV, kind: video }
+  - { match: STARZ, kind: video }
+  - { match: SHOWTIME, kind: video }
+  - { match: CRUNCHYROLL, kind: video }
+  - { match: FUBO, kind: video }
+  - { match: PHILO, kind: video }
+  - { match: MUBI, kind: video }
+  - { match: BRITBOX, kind: video }
+  - { match: ACORN TV, kind: video }
+  - { match: AMC PLUS, kind: video }
+  - { match: "AMC+", kind: video }
+  - { match: DISCOVERY PLUS, kind: video }
+  - { match: "DISCOVERY+", kind: video }
+  - { match: ESPN PLUS, kind: video }
+  - { match: "ESPN+", kind: video }
+  - { match: CURIOSITYSTREAM, kind: video }
+  - { match: SHUDDER, kind: video }
+  - { match: FRNDLY, kind: video }
+  - { match: CRITERION CHANNEL, kind: video }
+  - { match: DIRECTV STREAM, kind: video }
+  - { match: MGM PLUS, kind: video }
+  - { match: "MGM+", kind: video }
+  # Music
   - { match: SPOTIFY, kind: music }
   - { match: APPLE MUSIC, kind: music }
   - { match: PANDORA, kind: music }
   - { match: TIDAL, kind: music }
   - { match: SIRIUSXM, kind: music }
-  - { match: AUDIBLE, kind: music }
-  - { match: ICLOUD, kind: cloud storage }
-  - { match: GOOGLE ONE, kind: cloud storage }
-  - { match: GOOGLE STORAGE, kind: cloud storage }
-  - { match: DROPBOX, kind: cloud storage }
-  - { match: ONEDRIVE, kind: cloud storage }
-  - { match: BACKBLAZE, kind: cloud storage }
+  - { match: SIRIUS XM, kind: music }
+  - { match: AMAZON MUSIC, kind: music }
+  - { match: YOUTUBE MUSIC, kind: music }
+  - { match: DEEZER, kind: music }
+  - { match: QOBUZ, kind: music }
+  - { match: SOUNDCLOUD, kind: music }
+  - { match: IHEARTRADIO, kind: music }
+  - { match: NAPSTER, kind: music }
+  # Books, audiobooks & podcasts
+  - { match: AUDIBLE, kind: audio }
+  - { match: LIBRO FM, kind: audio }
+  - { match: LIBRO.FM, kind: audio }
+  - { match: EVERAND, kind: audio }
+  - { match: SCRIBD, kind: audio }
+  - { match: STORYTEL, kind: audio }
+  - { match: KINDLE UNLIMITED, kind: audio }
+  - { match: KINDLE UNLTD, kind: audio }
+  - { match: WONDERY, kind: audio }
+  - { match: LUMINARY, kind: audio }
+  - { match: BLINKIST, kind: audio }
+  - { match: AUDIOBOOKS.COM, kind: audio }
+  - { match: CHIRP BOOKS, kind: audio }
+  - { match: PODIMO, kind: audio }
+  # Cloud storage
+  - { match: ICLOUD, kind: cloud }
+  - { match: GOOGLE ONE, kind: cloud }
+  - { match: GOOGLE STORAGE, kind: cloud }
+  - { match: DROPBOX, kind: cloud }
+  - { match: ONEDRIVE, kind: cloud }
+  - { match: BACKBLAZE, kind: cloud }
+  - { match: BOX.COM, kind: cloud }
+  - { match: PCLOUD, kind: cloud }
+  - { match: SYNC.COM, kind: cloud }
+  - { match: IDRIVE, kind: cloud }
+  - { match: CARBONITE, kind: cloud }
+  # News, magazines & writers
   - { match: NYTIMES, kind: news }
   - { match: NY TIMES, kind: news }
+  - { match: NEW YORK TIMES, kind: news }
   - { match: WSJ, kind: news }
+  - { match: WALL STREET JOURNAL, kind: news }
   - { match: WASHINGTON POST, kind: news }
   - { match: WASHPOST, kind: news }
   - { match: SUBSTACK, kind: news }
+  - { match: PATREON, kind: news }
+  - { match: THE ATLANTIC, kind: news }
+  - { match: NEW YORKER, kind: news }
+  - { match: ECONOMIST, kind: news }
+  - { match: BLOOMBERG, kind: news }
+  - { match: MEDIUM.COM, kind: news }
+  - { match: LA TIMES, kind: news }
+  - { match: LATIMES, kind: news }
+  - { match: BOSTON GLOBE, kind: news }
+  - { match: APPLE NEWS, kind: news }
+  - { match: ZINIO, kind: news }
+  - { match: READLY, kind: news }
+  - { match: THE ATHLETIC, kind: news }
+  - { match: BARRONS, kind: news }
+  - { match: FINANCIAL TIMES, kind: news }
+  - { match: FT.COM, kind: news }
+  - { match: NATIONAL GEOGRAPHIC, kind: news }
+  - { match: PRESSREADER, kind: news }
+  - { match: NEWSWEEK, kind: news }
+  - { match: WIRED, kind: news }
+  - { match: GANNETT, kind: news }
+  # Fitness & wellness
   - { match: PELOTON, kind: fitness }
   - { match: PLANET FITNESS, kind: fitness }
+  - { match: PLANET FIT, kind: fitness }
   - { match: STRAVA, kind: fitness }
   - { match: CLASSPASS, kind: fitness }
   - { match: GYM, kind: fitness }
-  - { match: DASHPASS, kind: food delivery }
-  - { match: UBER ONE, kind: food delivery }
-  - { match: GRUBHUB, kind: food delivery }
-  - { match: INSTACART, kind: food delivery }
-  - { match: HELLOFRESH, kind: food delivery }
+  - { match: FITNESS, kind: fitness }
+  - { match: YMCA, kind: fitness }
+  - { match: ORANGETHEORY, kind: fitness }
+  - { match: EQUINOX, kind: fitness }
+  - { match: BEACHBODY, kind: fitness }
+  - { match: FITBIT, kind: fitness }
+  - { match: NOOM, kind: fitness }
+  - { match: HEADSPACE, kind: fitness }
+  - { match: CALM.COM, kind: fitness }
+  - { match: CALM APP, kind: fitness }
+  - { match: MYFITNESSPAL, kind: fitness }
+  - { match: WEIGHTWATCHERS, kind: fitness }
+  - { match: WW INTERNATIONAL, kind: fitness }
+  - { match: ZWIFT, kind: fitness }
+  - { match: APPLE FITNESS, kind: fitness }
+  - { match: TONAL, kind: fitness }
+  - { match: WHOOP, kind: fitness }
+  - { match: OURA, kind: fitness }
+  - { match: BETTERHELP, kind: fitness }
+  - { match: TALKSPACE, kind: fitness }
+  - { match: ALLTRAILS, kind: fitness }
+  - { match: SWEAT APP, kind: fitness }
+  - { match: CRUNCH, kind: fitness }
+  - { match: YOGA, kind: fitness }
+  # Food delivery & meal kits
+  - { match: DASHPASS, kind: food }
+  - { match: UBER ONE, kind: food }
+  - { match: GRUBHUB, kind: food }
+  - { match: INSTACART, kind: food }
+  - { match: HELLOFRESH, kind: food }
+  - { match: HELLO FRESH, kind: food }
+  - { match: BLUE APRON, kind: food }
+  - { match: HOME CHEF, kind: food }
+  - { match: FACTOR 75, kind: food }
+  - { match: FACTOR75, kind: food }
+  - { match: EVERYPLATE, kind: food }
+  - { match: GREEN CHEF, kind: food }
+  - { match: SUNBASKET, kind: food }
+  - { match: GOBBLE, kind: food }
+  - { match: MARLEY SPOON, kind: food }
+  - { match: DINNERLY, kind: food }
+  - { match: HUNGRYROOT, kind: food }
+  - { match: DAILY HARVEST, kind: food }
+  - { match: SHIPT, kind: food }
+  - { match: MISFITS MARKET, kind: food }
+  - { match: IMPERFECT FOODS, kind: food }
+  - { match: THRIVE MARKET, kind: food }
+  - { match: BUTCHERBOX, kind: food }
+  - { match: PANERA SIP CLUB, kind: food }
+  # Software & apps
   - { match: ADOBE, kind: software }
   - { match: MICROSOFT 365, kind: software }
+  - { match: "MICROSOFT*365", kind: software }
   - { match: MSFT 365, kind: software }
+  - { match: "MSFT*365", kind: software }
+  - { match: OFFICE 365, kind: software }
   - { match: CANVA, kind: software }
-  - { match: 1PASSWORD, kind: software }
   - { match: NOTION, kind: software }
   - { match: GITHUB, kind: software }
+  - { match: EVERNOTE, kind: software }
+  - { match: GRAMMARLY, kind: software }
+  - { match: ZOOM.US, kind: software }
+  - { match: ZOOM VIDEO, kind: software }
+  - { match: SLACK, kind: software }
+  - { match: TODOIST, kind: software }
+  - { match: SETAPP, kind: software }
+  - { match: JETBRAINS, kind: software }
+  - { match: AUTODESK, kind: software }
+  - { match: SQUARESPACE, kind: software }
+  - { match: WIX.COM, kind: software }
+  - { match: GODADDY, kind: software }
+  - { match: DOCUSIGN, kind: software }
+  - { match: GOOGLE WORKSPACE, kind: software }
+  - { match: GSUITE, kind: software }
+  - { match: LINKEDIN, kind: software }
+  - { match: PICSART, kind: software }
+  - { match: CAPCUT, kind: software }
+  - { match: SPLICE, kind: software }
+  - { match: FIGMA, kind: software }
+  # Gaming
+  - { match: XBOX, kind: gaming }
+  - { match: GAME PASS, kind: gaming }
+  - { match: PLAYSTATION, kind: gaming }
+  - { match: PSN, kind: gaming }
+  - { match: NINTENDO, kind: gaming }
+  - { match: EA PLAY, kind: gaming }
+  - { match: UBISOFT, kind: gaming }
+  - { match: GEFORCE NOW, kind: gaming }
+  - { match: TWITCH, kind: gaming }
+  - { match: DISCORD, kind: gaming }
+  - { match: ROBLOX, kind: gaming }
+  - { match: APPLE ARCADE, kind: gaming }
+  - { match: HUMBLE BUNDLE, kind: gaming }
+  - { match: HUMBLE CHOICE, kind: gaming }
+  - { match: BLIZZARD, kind: gaming }
+  - { match: WORLD OF WARCRAFT, kind: gaming }
+  - { match: STEAM, kind: gaming }
+  - { match: EPIC GAMES, kind: gaming }
+  - { match: MINECRAFT, kind: gaming }
+  - { match: FORTNITE, kind: gaming }
+  # Dating
+  - { match: TINDER, kind: dating }
+  - { match: BUMBLE, kind: dating }
+  - { match: HINGE, kind: dating }
+  - { match: MATCH.COM, kind: dating }
+  - { match: MATCH GROUP, kind: dating }
+  - { match: EHARMONY, kind: dating }
+  - { match: OKCUPID, kind: dating }
+  - { match: GRINDR, kind: dating }
+  - { match: COFFEE MEETS BAGEL, kind: dating }
+  - { match: ZOOSK, kind: dating }
+  - { match: ELITESINGLES, kind: dating }
+  - { match: ELITE SINGLES, kind: dating }
+  - { match: SILVERSINGLES, kind: dating }
+  - { match: SILVER SINGLES, kind: dating }
+  - { match: FEELD, kind: dating }
+  - { match: RAYA, kind: dating }
+  # Learning
+  - { match: DUOLINGO, kind: learning }
+  - { match: MASTERCLASS, kind: learning }
+  - { match: COURSERA, kind: learning }
+  - { match: UDEMY, kind: learning }
+  - { match: SKILLSHARE, kind: learning }
+  - { match: BABBEL, kind: learning }
+  - { match: ROSETTA STONE, kind: learning }
+  - { match: BRILLIANT.ORG, kind: learning }
+  - { match: CHEGG, kind: learning }
+  - { match: QUIZLET, kind: learning }
+  - { match: ABCMOUSE, kind: learning }
+  - { match: ABC MOUSE, kind: learning }
+  - { match: CODECADEMY, kind: learning }
+  - { match: DATACAMP, kind: learning }
+  - { match: PIMSLEUR, kind: learning }
+  - { match: BUSUU, kind: learning }
+  - { match: OUTSCHOOL, kind: learning }
+  - { match: EPIC KIDS, kind: learning }
+  - { match: STUDY.COM, kind: learning }
+  - { match: PLURALSIGHT, kind: learning }
+  - { match: BRAINPOP, kind: learning }
+  # VPN, passwords & security
+  - { match: NORDVPN, kind: security }
+  - { match: NORD VPN, kind: security }
+  - { match: NORDSEC, kind: security }
+  - { match: EXPRESSVPN, kind: security }
+  - { match: SURFSHARK, kind: security }
+  - { match: PROTONVPN, kind: security }
+  - { match: PROTON VPN, kind: security }
+  - { match: PROTONMAIL, kind: security }
+  - { match: PROTON AG, kind: security }
+  - { match: PRIVATE INTERNET ACCESS, kind: security }
+  - { match: CYBERGHOST, kind: security }
+  - { match: NORTON, kind: security }
+  - { match: MCAFEE, kind: security }
+  - { match: AVAST, kind: security }
+  - { match: KASPERSKY, kind: security }
+  - { match: BITDEFENDER, kind: security }
+  - { match: MALWAREBYTES, kind: security }
+  - { match: LIFELOCK, kind: security }
+  - { match: IDENTITY GUARD, kind: security }
+  - { match: "1PASSWORD", kind: security }
+  - { match: LASTPASS, kind: security }
+  - { match: DASHLANE, kind: security }
+  - { match: BITWARDEN, kind: security }
+  - { match: KEEPER SECURITY, kind: security }
+  - { match: IPVANISH, kind: security }
+  - { match: TUNNELBEAR, kind: security }
+  # Phone & internet add-ons
+  - { match: APPLECARE, kind: phone }
+  - { match: APPLE CARE, kind: phone }
+  - { match: ASURION, kind: phone }
+  - { match: SQUARETRADE, kind: phone }
+  - { match: AKKO, kind: phone }
+  - { match: GOOGLE VOICE, kind: phone }
+  - { match: SKYPE, kind: phone }
+  - { match: TEXTNOW, kind: phone }
+  - { match: BURNER APP, kind: phone }
+  - { match: HUSHED, kind: phone }
+  - { match: EERO PLUS, kind: phone }
+  - { match: EERO SECURE, kind: phone }
+  - { match: VISIBLE PLUS, kind: phone }
+  - { match: DEVICE PROTECTION, kind: phone }
+  # Shopping memberships
+  - { match: AMAZON PRIME, kind: shopping }
+  - { match: AMZN PRIME, kind: shopping }
+  - { match: PRIME MEMBERSHIP, kind: shopping }
+  - { match: WALMART PLUS, kind: shopping }
+  - { match: "WALMART+", kind: shopping }
+  - { match: COSTCO, kind: shopping }
+  - { match: SAMS CLUB, kind: shopping }
+  - { match: "SAM'S CLUB", kind: shopping }
+  - { match: BJS WHOLESALE, kind: shopping }
+  - { match: "BJ'S WHOLESALE", kind: shopping }
+  - { match: TARGET CIRCLE, kind: shopping }
+  - { match: EBAY PLUS, kind: shopping }
+  - { match: GOPUFF FAM, kind: shopping }
+  # Subscription boxes
+  - { match: BARKBOX, kind: boxes }
+  - { match: BARK BOX, kind: boxes }
+  - { match: IPSY, kind: boxes }
+  - { match: BIRCHBOX, kind: boxes }
+  - { match: FABFITFUN, kind: boxes }
+  - { match: STITCH FIX, kind: boxes }
+  - { match: STITCHFIX, kind: boxes }
+  - { match: KIWICO, kind: boxes }
+  - { match: BOXYCHARM, kind: boxes }
+  - { match: DOLLAR SHAVE, kind: boxes }
+  - { match: DOLLARSHAVE, kind: boxes }
+  - { match: HARRYS, kind: boxes }
+  - { match: CHEWY, kind: boxes }
+  - { match: BOOK OF THE MONTH, kind: boxes }
+  - { match: LOOT CRATE, kind: boxes }
+  - { match: CRATEJOY, kind: boxes }
+  - { match: WINC, kind: boxes }
+  - { match: FIRSTLEAF, kind: boxes }
+  - { match: BLOOMSYBOX, kind: boxes }
+  - { match: RENT THE RUNWAY, kind: boxes }
+  - { match: QUIP, kind: boxes }
+  - { match: HIMS, kind: boxes }
+  - { match: CUROLOGY, kind: boxes }
+  - { match: SCENTBOX, kind: boxes }
+  - { match: SAVAGE X, kind: boxes }
+  # Home & security devices
+  - { match: RING.COM, kind: home }
+  - { match: RING PROTECT, kind: home }
+  - { match: RING LLC, kind: home }
+  - { match: SIMPLISAFE, kind: home }
+  - { match: ADT, kind: home }
+  - { match: ARLO, kind: home }
+  - { match: NEST AWARE, kind: home }
+  - { match: GOOGLE NEST, kind: home }
+  - { match: WYZE, kind: home }
+  - { match: VIVINT, kind: home }
+  - { match: FRONTPOINT, kind: home }
+  - { match: BRINKS HOME, kind: home }
+  - { match: CANARY CONNECT, kind: home }

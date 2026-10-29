@@ -1,0 +1,110 @@
+{
+  "items": [
+    {
+      "id": "b",
+      "label": "Hulu",
+      "kind": "music",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 21600,
+      "monthly_cents": 1800
+    },
+    {
+      "id": "a",
+      "label": "Netflix",
+      "kind": "video",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 18588,
+      "monthly_cents": 1549
+    },
+    {
+      "id": "e",
+      "label": "Disney",
+      "kind": null,
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 16788,
+      "monthly_cents": 1399
+    },
+    {
+      "id": "c",
+      "label": "Spotify",
+      "kind": "music",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 14388,
+      "monthly_cents": 1199
+    },
+    {
+      "id": "d",
+      "label": "Cinema Club",
+      "kind": "video",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 11988,
+      "monthly_cents": 999
+    }
+  ],
+  "duplicates": [
+    {
+      "kind": "music",
+      "count": 2,
+      "monthly_total_cents": 2999,
+      "ids": [
+        "b",
+        "c"
+      ]
+    },
+    {
+      "kind": "video",
+      "count": 2,
+      "monthly_total_cents": 2548,
+      "ids": [
+        "a",
+        "d"
+      ]
+    }
+  ],
+  "by_kind": [
+    {
+      "kind": "music",
+      "count": 2,
+      "yearly_cents": 35988,
+      "monthly_cents": 2999,
+      "ids": [
+        "b",
+        "c"
+      ]
+    },
+    {
+      "kind": "video",
+      "count": 2,
+      "yearly_cents": 30576,
+      "monthly_cents": 2548,
+      "ids": [
+        "a",
+        "d"
+      ]
+    },
+    {
+      "kind": null,
+      "count": 1,
+      "yearly_cents": 16788,
+      "monthly_cents": 1399,
+      "ids": [
+        "e"
+      ]
+    }
+  ]
+}

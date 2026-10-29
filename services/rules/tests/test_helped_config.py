@@ -34,7 +34,7 @@ def test_the_fixed_choices() -> None:
         "cash_for_treats",
         "shopping_list",
     ]
-    assert out["max_choices"] == 3
+    assert out["max_choices"] == 5
     assert out["min_answers"] == 2
 
 

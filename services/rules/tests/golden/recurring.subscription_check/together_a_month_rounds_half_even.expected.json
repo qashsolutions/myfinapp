@@ -33,5 +33,17 @@
         "s-n"
       ]
     }
+  ],
+  "by_kind": [
+    {
+      "kind": "video",
+      "count": 2,
+      "yearly_cents": 18,
+      "monthly_cents": 2,
+      "ids": [
+        "s-h",
+        "s-n"
+      ]
+    }
   ]
 }
