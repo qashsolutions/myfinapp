@@ -21,3 +21,4 @@ export * as recurring from "./recurring.ts";
 export { type JsonObject, RULES, type Rule } from "./registry.ts";
 export * as text from "./text.ts";
 export { RULES_VERSION } from "./version.ts";
+export * as whatif from "./whatif.ts";

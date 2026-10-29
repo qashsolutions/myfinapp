@@ -3,6 +3,7 @@
  * of BigInts, rounded half-even once at the end. (growth.compound was removed October 27, 2026.)
  */
 
+import { daysUntil, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { assertInt } from "./money.ts";
 
@@ -135,4 +136,115 @@ export function projection(
     reaches_target: reaches,
     monthly_needed_cents: needed,
   };
+}
+
+// Goals that grow (October 28, 2026; proposed, awaiting owner sign-off).
+const MAX_GOAL_MONTHS = 1200;
+
+/** Calendar months from start's month to end's month (days ignored), as in Python. */
+export function monthsBetween(start: unknown, end: unknown): number {
+  const a = parseDate(start);
+  const b = parseDate(end);
+  return (b.y - a.y) * 12 + (b.m - a.m);
+}
+
+/** a after b by day, parsing a first, as Python's `parse_date(a) > parse_date(b)`. */
+function after(a: unknown, b: unknown): boolean {
+  const first = parseDate(a);
+  const second = parseDate(b);
+  return daysUntil(second, first) > 0;
+}
+
+export interface GoalPlan {
+  months: number;
+  cost_months: number;
+  future_cost_cents: number;
+  saved_grows_to_cents: number;
+  monthly_needed_cents: number;
+  already_enough: boolean;
+}
+
+/**
+ * Port of growth.goal_plan. With M = 120000, F = T × (M + c)^m ÷ M^m and g = (M + r)^n ÷ M^n, so
+ * P = (T (M + c)^m M^n − S (M + r)^n M^m) × r ÷ (M^(m + 1) × ((M + r)^n − M^n)); r = 0 →
+ * (T (M + c)^m − S M^m) ÷ (n M^m). Each output rounded half-even once, P at least 0.
+ */
+export function goalPlan(
+  todayCostCents: unknown,
+  costRiseBps: unknown,
+  returnBps: unknown,
+  savedCents: unknown,
+  asOf: unknown,
+  targetDate: unknown,
+  pricedOn: unknown = null,
+): GoalPlan {
+  const today = assertInt(todayCostCents);
+  const rise = assertInt(costRiseBps);
+  const rate = assertInt(returnBps);
+  const saved = assertInt(savedCents);
+  if (today <= 0 || saved < 0) throw new RuleError("invalid_amount");
+  if (rise < 0 || rise > MAX_RATE_BPS || rate < 0 || rate > MAX_RATE_BPS)
+    throw new RuleError("invalid_rate");
+  const priced = pricedOn === null || pricedOn === undefined ? asOf : pricedOn;
+  if (after(priced, asOf)) throw new RuleError("invalid_date");
+  if (after(asOf, targetDate)) throw new RuleError("deadline_in_past");
+  const months = monthsBetween(asOf, targetDate);
+  if (months === 0) throw new RuleError("too_soon");
+  const costMonths = monthsBetween(priced, targetDate);
+  if (costMonths > MAX_GOAL_MONTHS) throw new RuleError("too_far");
+  const M = MONTHS_BPS;
+  const T = BigInt(today);
+  const S = BigInt(saved);
+  const r = BigInt(rate);
+  const costUp = (M + BigInt(rise)) ** BigInt(costMonths);
+  const costBase = M ** BigInt(costMonths);
+  const up = (M + r) ** BigInt(months);
+  const base = M ** BigInt(months);
+  const future = roundHalfEven(T * costUp, costBase);
+  const grows = roundHalfEven(S * up, base);
+  let numerator: bigint;
+  let denominator: bigint;
+  if (r === 0n) {
+    numerator = T * costUp - S * costBase;
+    denominator = BigInt(months) * costBase;
+  } else {
+    numerator = (T * costUp * base - S * up * costBase) * r;
+    denominator = costBase * M * (up - base);
+  }
+  const needed = numerator <= 0n ? 0n : roundHalfEven(numerator, denominator);
+  return {
+    months,
+    cost_months: costMonths,
+    future_cost_cents: fit(future),
+    saved_grows_to_cents: fit(grows),
+    monthly_needed_cents: fit(needed),
+    already_enough: S * up * costBase >= T * costUp * base,
+  };
+}
+
+export interface GoalPace {
+  months_in: number;
+  expected_cents: number;
+  status: "ahead" | "on_track" | "behind";
+}
+
+/** Port of growth.goal_pace: expected = P × (months from the start's month + 1). */
+export function goalPace(
+  planMonthlyCents: unknown,
+  depositedCents: unknown,
+  startDate: unknown,
+  asOf: unknown,
+): GoalPace {
+  const plan = assertInt(planMonthlyCents);
+  const deposited = BigInt(assertInt(depositedCents));
+  if (plan < 0) throw new RuleError("invalid_amount");
+  if (after(startDate, asOf)) throw new RuleError("invalid_date");
+  const monthsIn = monthsBetween(startDate, asOf) + 1;
+  const P = BigInt(plan);
+  const expected = P * BigInt(monthsIn);
+  const expectedCents = fit(expected);
+  let status: GoalPace["status"] = "on_track";
+  if (deposited >= expected + P) status = "ahead";
+  else if (deposited < expected - P) status = "behind";
+  return { months_in: monthsIn, expected_cents: expectedCents, status };
 }
