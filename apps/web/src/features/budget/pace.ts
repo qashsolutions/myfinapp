@@ -27,6 +27,47 @@ export function bucketLineId(bucket: string): string {
   return `bucket:${bucket}`;
 }
 
+/**
+ * The lines the person turned the alert off for ("Don't alert me for this one", October 29,
+ * 2026): category ids and `bucket:<bucket>` ids, synced like other settings. Budget still shows
+ * their word; only the alert schedule leaves them out.
+ */
+export const ALERT_OFF_SETTING = "budget.alert_off";
+
+export function readAlertOff(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+/** The lines the alert schedule reads: every pace line but the ones turned off. */
+export function alertLines(summary: BudgetSummary, off: readonly string[]): BudgetPaceLine[] {
+  const skip = new Set(off);
+  return paceLines(summary).filter((l) => !skip.has(l.category_id));
+}
+
+/** The level a line's marker sits at and "Close" starts from, in bps: the person's own "Tell
+ * me at" when set, else the config's first level. */
+export function closeLevelBps(thresholdPct: number | null | undefined): number {
+  return alertLevels(thresholdPct)[0] ?? CLOSE_BPS;
+}
+
+/**
+ * Where a budget bar's ticks sit (October 29, 2026): the bar runs to the plan, or to the
+ * level when that is past the plan, so "Close" shows as a position and not only a word. The
+ * level reads "Tell me at" while the line alerts, "Close at" when it doesn't. Display only.
+ */
+export function paceMarks(
+  levelBps: number,
+  alerts: boolean,
+): { scaleBps: number; marks: Array<{ at: number; label: string }> } {
+  const scaleBps = Math.max(PLAN_BPS, levelBps);
+  const plan = { at: PLAN_BPS / scaleBps, label: "Plan" };
+  const name = alerts ? "Tell me at" : "Close at";
+  if (levelBps === PLAN_BPS)
+    return { scaleBps, marks: [{ ...plan, label: `Plan · ${name.toLowerCase()} 100%` }] };
+  const level = { at: levelBps / scaleBps, label: `${name} ${levelBps / 100}%` };
+  return { scaleBps, marks: levelBps < PLAN_BPS ? [level, plan] : [plan, level] };
+}
+
 export function paceLines(summary: BudgetSummary): BudgetPaceLine[] {
   if (summary.method === "zero_based") {
     return summary.categories

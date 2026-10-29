@@ -9,5 +9,15 @@
   "next_due_date": "2026-10-15",
   "paid_in_full_streak": 2,
   "utilization_bps": null,
-  "under_guide": null
+  "under_guide": null,
+  "dues": [
+    {
+      "due_date": "2026-08-17",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-09-16",
+      "result": "on_time"
+    }
+  ]
 }
