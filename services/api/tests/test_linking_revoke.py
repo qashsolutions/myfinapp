@@ -61,6 +61,17 @@ def run_job(now: datetime | None = None) -> dict[str, int]:
         return revoke_due(db, now=now)
 
 
+# The job runs over every connection in the database, including rows other tests left behind
+# (their own fakes, their own failures), so its counts are only lower bounds for one test:
+# what each test checks is its own connection's row and token.
+def still_linked(conn_id: str, access: str, fake: FakePlaid) -> bool:
+    return row(conn_id) is not None and access not in fake.removed
+
+
+def revoked(conn_id: str, access: str, fake: FakePlaid) -> bool:
+    return row(conn_id) is None and access in fake.removed
+
+
 def test_disconnect_while_the_provider_is_down_still_disconnects_and_is_retried(
     fake: FakePlaid,
 ) -> None:
@@ -71,11 +82,13 @@ def test_disconnect_while_the_provider_is_down_still_disconnects_and_is_retried(
     assert client.post(f"/api/linking/{conn_id}/sync", json={}).status_code == 404
     pending = row(conn_id)
     assert pending is not None and pending.status == "revoke_pending"
-    assert run_job()["failed"] == 1  # still down: kept for the next run
+    assert run_job()["failed"] >= 1  # still down: kept for the next run
+    pending = row(conn_id)
+    assert pending is not None and pending.status == "revoke_pending"
+    assert access not in fake.removed
     fake.fail_remove = False
-    assert run_job()["pending_revoked"] == 1
-    assert row(conn_id) is None
-    assert access in fake.removed
+    assert run_job()["pending_revoked"] >= 1
+    assert revoked(conn_id, access, fake)
 
 
 def test_pending_rows_do_not_count_against_the_plan(fake: FakePlaid) -> None:
@@ -91,26 +104,30 @@ def test_pending_rows_do_not_count_against_the_plan(fake: FakePlaid) -> None:
 
 def test_sixty_days_without_opening_the_app_revokes_and_tells_the_owner(fake: FakePlaid) -> None:
     client, user_id, conn_id, access = linked(fake)
+    email = client.get("/api/auth/session").json()["user"]["email"]
     age(conn_id, 59)
-    assert run_job()["dormant_revoked"] == 0
+    run_job()
+    assert still_linked(conn_id, access, fake)
     # Reading the list changes nothing (a cross-site GET carries the cookie too, October 28,
     # 2026); opening the app pulls (LinkedSync's POST .../sync), and that counts as use.
     age(conn_id, 61)
     assert client.get("/api/linking").status_code == 200
     assert row(conn_id).last_used_at < datetime.now(UTC) - timedelta(days=60)
     assert client.post(f"/api/linking/{conn_id}/sync", json={}).status_code == 200
-    assert run_job()["dormant_revoked"] == 0
+    run_job()
+    assert still_linked(conn_id, access, fake)
     # Even when the bank wants the person to sign in again, opening the app counted.
     age(conn_id, 61)
     fake.sync_error = "ITEM_LOGIN_REQUIRED"
     assert client.post(f"/api/linking/{conn_id}/sync", json={}).status_code == 409
     fake.sync_error = None
-    assert run_job()["dormant_revoked"] == 0
+    run_job()
+    assert still_linked(conn_id, access, fake)
     age(conn_id, 61)
     outbox().clear()
-    assert run_job()["dormant_revoked"] == 1
-    assert row(conn_id) is None and access in fake.removed
-    [mail] = [m for m in outbox() if "turned off a bank connection" in m.subject]
+    assert run_job()["dormant_revoked"] >= 1
+    assert revoked(conn_id, access, fake)
+    [mail] = [m for m in outbox() if m.to == email and "turned off a bank connection" in m.subject]
     assert "60 days" in mail.text and "stay on your device" in mail.text
     assert "If this was you" not in mail.text
     with get_session_factory()() as db:

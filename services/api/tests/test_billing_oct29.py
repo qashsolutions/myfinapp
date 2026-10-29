@@ -531,7 +531,7 @@ def test_a_dispute_that_lands_before_the_checkout_still_pauses_the_plan_then_end
     stripe = Stripe()
     stripe_billing.transport_override = stripe.transport()
     client, user_id = member("racedispute")
-    sub = "sub_race"
+    sub = f"sub_racedispute_{uuid.uuid4().hex[:8]}"  # unique: external ids are session-wide
     stripe.subscription(sub, user_id, "private", "monthly")
     stripe.paid(sub, 300)
     r = post_event(client, _dispute("charge.dispute.created", f"ch_{sub}", f"pi_{sub}"))
@@ -590,7 +590,11 @@ def test_deleting_while_a_yearly_bank_payment_clears_refunds_all_of_it_once_it_a
     no months charged and no bank fee kept; the Delete account screen says so first."""
     client, user_id, sub, stripe, charge, obj = _yearly_by_bank("achdelete")
     due = promised = 6500
-    assert client.get("/api/billing/credit").json()["refund_if_deleted_cents"] == promised
+    shown = client.get("/api/billing/credit").json()
+    assert shown["refund_if_deleted_cents"] == promised
+    # All of it, no fee: the screen says so and nothing about credit or a fee (invariant 61)
+    assert shown["refund_kind"] == "clearing"
+    assert shown["refund_before_fee_cents"] == promised
     assert client.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
     assert stripe.deleted() == [sub]
     assert stripe.refunds == []  # nothing can be refunded yet
@@ -684,7 +688,8 @@ def test_a_founding_bank_payment_clearing_at_the_deletion_is_promised_and_refund
         post_event(client, _event("checkout.session.completed", founding)).json()["outcome"]
         == "pending"
     )
-    assert client.get("/api/billing/credit").json()["refund_if_deleted_cents"] == 15000
+    shown = client.get("/api/billing/credit").json()
+    assert (shown["refund_if_deleted_cents"], shown["refund_kind"]) == (15000, "clearing")
     assert client.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
     assert stripe.refunds == []
     stripe.charges[-1]["status"] = "succeeded"

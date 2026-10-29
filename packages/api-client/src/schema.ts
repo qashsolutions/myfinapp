@@ -2088,6 +2088,12 @@ export interface components {
             refund_fee_method: "card" | "bank";
             /** Refund If Deleted Cents */
             refund_if_deleted_cents: number;
+            /**
+             * Refund Kind
+             * @default none
+             * @enum {string}
+             */
+            refund_kind: "none" | "clearing" | "founding" | "unused" | "credit" | "mixed";
         };
         /** DeleteRequest */
         DeleteRequest: {

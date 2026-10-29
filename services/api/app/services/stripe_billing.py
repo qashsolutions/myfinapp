@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import re
 import time
 import uuid
 from calendar import monthrange
@@ -63,9 +64,29 @@ transport_override: httpx2.BaseTransport | None = None
 
 
 class BillingError(Exception):
-    def __init__(self, code: str):
+    """`code` is ours and stable; `detail` (when Stripe answered) is Stripe's HTTP status and
+    its own error code, such as "429 lock_timeout", for the log and the ops email. Never
+    Stripe's message, which can quote what it was sent."""
+
+    def __init__(self, code: str, detail: str | None = None):
         super().__init__(code)
         self.code = code
+        self.detail = detail
+
+
+_STRIPE_CODE = re.compile(r"^[a-z0-9_]{1,64}$")
+
+
+def _stripe_failure(response: httpx2.Response, code: str = "stripe_error") -> BillingError:
+    """A BillingError carrying Stripe's status and error code (only when it has the shape of
+    one of Stripe's codes, so nothing else in the body is ever copied)."""
+    try:
+        error = (response.json() or {}).get("error") or {}
+    except ValueError:
+        error = {}
+    found = (error.get("code") or error.get("type")) if isinstance(error, dict) else None
+    tag = str(found) if found and _STRIPE_CODE.fullmatch(str(found)) else "-"
+    return BillingError(code, f"{response.status_code} {tag}")
 
 
 def configured() -> bool:
@@ -152,15 +173,15 @@ def _request(
         # No answer at all (connection, DNS, timeout) is the same outage as a 5xx: every
         # caller already handles BillingError, and deletion waits and retries (October 28,
         # 2026). Only the type is kept; the request carries the secret key.
-        raise BillingError("stripe_unreachable") from exc
+        raise BillingError("stripe_unreachable", type(exc).__name__) from exc
 
 
 def _post(path: str, form: dict[str, str], *, idempotency_key: str | None = None) -> dict[str, Any]:
     response = _request("POST", path, form, idempotency_key=idempotency_key)
     if response.status_code == 402:
-        raise BillingError("payment_failed")  # the card was declined; nothing changed
+        raise _stripe_failure(response, "payment_failed")  # declined; nothing changed
     if response.status_code >= 400:
-        raise BillingError("stripe_error")
+        raise _stripe_failure(response)
     return response.json()
 
 
@@ -169,7 +190,7 @@ def _get(path: str, params: dict[str, str] | None = None) -> dict[str, Any]:
         path = f"{path}?{urlencode(params)}"
     response = _request("GET", path)
     if response.status_code >= 400:
-        raise BillingError("stripe_error")
+        raise _stripe_failure(response)
     return response.json()
 
 
@@ -181,7 +202,7 @@ def _get_or_none(path: str, params: dict[str, str] | None = None) -> dict[str, A
     if response.status_code == 404:
         return None
     if response.status_code >= 400:
-        raise BillingError("stripe_error")
+        raise _stripe_failure(response)
     return response.json()
 
 
@@ -192,8 +213,25 @@ def set_collection_paused(subscription_id: str, paused: bool) -> None:
     longer has (404) needs neither."""
     form = {"pause_collection[behavior]": "void"} if paused else {"pause_collection": ""}
     response = _request("POST", f"/subscriptions/{subscription_id}", form)
-    if response.status_code >= 400 and response.status_code != 404:
-        raise BillingError("stripe_error")
+    if response.status_code < 400 or response.status_code == 404:
+        return
+    # Safe to repeat (invariant 60, October 29, 2026): a redelivered or second closing event
+    # finds the subscription already as asked, or ended, and that is done, not a failure.
+    failure = _stripe_failure(response)
+    if response.status_code == 429 or response.status_code >= 500:
+        raise failure  # Stripe busy or down: the webhook answers 5xx and Stripe retries
+    live = _get_or_none(f"/subscriptions/{subscription_id}")
+    if live is None or _collection_as_asked(live, paused):
+        return
+    raise failure
+
+
+def _collection_as_asked(live: dict[str, Any], paused: bool) -> bool:
+    """The subscription already collects (or not) as asked, or no longer bills at all."""
+    if str(live.get("status") or "") in ("canceled", "incomplete_expired"):
+        return True
+    pause = live.get("pause_collection")
+    return bool(pause) == paused
 
 
 def cancel_now(subscription_id: str, *, prorate: bool = False) -> None:
@@ -203,7 +241,7 @@ def cancel_now(subscription_id: str, *, prorate: bool = False) -> None:
     form = {"prorate": "true", "invoice_now": "true"} if prorate else None
     response = _request("DELETE", f"/subscriptions/{subscription_id}", form)
     if response.status_code >= 400 and response.status_code != 404:
-        raise BillingError("stripe_error")
+        raise _stripe_failure(response)
 
 
 # Nothing is charged until a trial ends, whenever the person subscribes during it (owner
@@ -297,7 +335,7 @@ def expire_checkout(session_id: str) -> None:
     new page is never opened while an older one may still be paid."""
     response = _request("POST", f"/checkout/sessions/{session_id}/expire")
     if response.status_code >= 500:
-        raise BillingError("stripe_error")
+        raise _stripe_failure(response)
 
 
 def close_open_pages(db: DbSession, user_id: uuid.UUID, *, now: datetime | None = None) -> int:

@@ -484,6 +484,30 @@ written against both.
     check-in or invite, and its jar no longer holds a place on the plan. One helper on the
     device (`challengeEnded`) answers the cap, the jar's screen and the lists.
     `test_group_ended.py` (all five types) · `challenge-ended.test.tsx`
+60. **A webhook that fails on our side is delivered again, and someone hears of it** (October
+    29, 2026; a won dispute's closing event answered 400 when Stripe refused the first resume
+    of collection, the plan stayed paused, nobody was told, and the same event sent again
+    worked). Every webhook (Stripe, Apple, Google, Plaid) answers 400 only when the sender's
+    request is wrong (a bad signature or payload, a purchase the store doesn't know); a failure
+    on our side (Stripe or Play busy or down, billing not configured, a database error, a bug)
+    answers 5xx with nothing of the attempt kept, the event id included, so the retry applies it
+    in full. Each failure is logged with the event id, type and error code (Stripe's status and
+    code, never its message); our own failures are also reported through `ops_alerts` as
+    `<source>_webhook_failed`, while a refused request is logged only, never emailed (owner
+    decision, October 29, 2026; `app/webhooks/failures.py`). Pausing or resuming collection is safe to repeat: a
+    subscription already as asked, or ended, is done, not a failure.
+    `test_webhook_failures.py`
+61. **The refund on the Delete account screen says only what is true of it** (October 29,
+    2026; a first bank payment still clearing showed $65.00 beside a fee line and "It's the
+    credit on your account" while all $65 came back). `GET /api/billing/credit` carries
+    `refund_kind` (`deletion.refund_preview`): clearing (all of it once the bank payment clears:
+    no fee, no credit, no month kept), founding, unused (a yearly plan's months), credit (only
+    the account's credit), mixed, none; the screen picks its lines from it and names a fee only
+    when one comes off.
+    `test_billing_oct29.py` "deleting while a yearly bank payment clears…", `test_billing_change.py`
+    (yearly, monthly, Founding), `test_billing_hardening.py` (disputed) · `billing.test.tsx`
+    "a first bank payment still clearing…", "a monthly plan's refund is its credit…",
+    "Founding's refund…", "nothing to refund…"
 
 ## Offline and the way in
 

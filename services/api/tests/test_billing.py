@@ -294,7 +294,11 @@ def test_plan_limits_on_groups() -> None:
     assert free.post("/api/groups/join", json={"code": g2["invite_code"]}).status_code == 200
 
 
-def _subscribe(client, user_id: str, sub_id: str) -> None:
+def _subscribe(client, user_id: str, name: str) -> str:
+    """Subscribe through the checkout webhook; returns the Stripe subscription id. The ids are
+    unique per call: subscriptions.external_id is shared by the whole session's database, so a
+    fixed id another test also used would update that test's row instead (October 29, 2026)."""
+    sub_id = f"{name}_{uuid.uuid4().hex[:8]}"
     event = {
         "id": f"evt_{sub_id}",
         "type": "checkout.session.completed",
@@ -311,6 +315,7 @@ def _subscribe(client, user_id: str, sub_id: str) -> None:
         },
     }
     assert post_event(client, event).json()["outcome"] == "subscribed"
+    return sub_id
 
 
 class CancelStripe:
@@ -346,7 +351,7 @@ def test_deleting_an_account_ends_its_stripe_subscription_at_once() -> None:
     from app.services.deletion import soft_delete
 
     client, user_id = member("leaving")
-    _subscribe(client, user_id, "sub_leave")
+    sub_id = _subscribe(client, user_id, "sub_leave")
     stripe = CancelStripe()
     stripe_billing.transport_override = stripe.transport()
     with get_session_factory()() as db:
@@ -354,10 +359,10 @@ def test_deleting_an_account_ends_its_stripe_subscription_at_once() -> None:
         assert user is not None
         soft_delete(db, user)
         db.commit()
-        sub = db.scalars(select(Subscription).where(Subscription.external_id == "sub_leave")).one()
+        sub = db.scalars(select(Subscription).where(Subscription.external_id == sub_id)).one()
         assert sub.status == "canceled" and sub.ends_at is not None
         assert sub.ends_at <= datetime.now(UTC)
-    assert "sub_leave" in stripe.cancelled
+    assert sub_id in stripe.cancelled
 
 
 def test_the_purge_waits_while_stripe_cannot_be_reached() -> None:
@@ -367,7 +372,7 @@ def test_the_purge_waits_while_stripe_cannot_be_reached() -> None:
     from app.services.deletion import purge_due, soft_delete
 
     client, user_id = member("stuck")
-    _subscribe(client, user_id, "sub_stuck")
+    sub_id = _subscribe(client, user_id, "sub_stuck")
     stripe = CancelStripe()
     stripe.down = True
     stripe_billing.transport_override = stripe.transport()
@@ -384,7 +389,7 @@ def test_the_purge_waits_while_stripe_cannot_be_reached() -> None:
         purge_due(db, grace_days=30, now=later)
         db.commit()
         assert db.get(User, uuid.UUID(user_id)) is None
-    assert "sub_stuck" in stripe.cancelled
+    assert sub_id in stripe.cancelled
 
 
 def test_the_purge_takes_the_person_before_their_plans_so_a_webhook_waits() -> None:
@@ -399,7 +404,7 @@ def test_the_purge_takes_the_person_before_their_plans_so_a_webhook_waits() -> N
     from app.services.deletion import purge_due, soft_delete
 
     client, user_id = member("race")
-    _subscribe(client, user_id, "sub_race")
+    sub_id = _subscribe(client, user_id, "sub_race")
     stripe = CancelStripe()
     stripe.down = True  # the deletion couldn't end the plan, so the purge will
     stripe_billing.transport_override = stripe.transport()
@@ -445,10 +450,11 @@ def test_the_purge_takes_the_person_before_their_plans_so_a_webhook_waits() -> N
         worker.join(timeout=30)
     assert not worker.is_alive()
     assert errors == []
-    assert purged == [1]
+    # The purge also takes other tests' deleted accounts; this one is what's checked.
+    assert len(purged) == 1 and purged[0] >= 1
     with factory() as db:
         assert db.get(User, uuid.UUID(user_id)) is None
-    assert "sub_race" in stripe.cancelled
+    assert sub_id in stripe.cancelled
 
 
 def test_one_account_failing_in_the_purge_never_stops_the_rest(monkeypatch) -> None:

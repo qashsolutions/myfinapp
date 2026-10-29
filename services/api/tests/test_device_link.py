@@ -2,7 +2,7 @@
 phone approves it after a fresh passkey check, the computer picks up a session once. A different
 network warns and needs the person's confirmation; at most 3 requests an hour per IP."""
 
-import random
+import itertools
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -24,8 +24,15 @@ def _infra(migrated, bucket):
     outbox().clear()
 
 
+_NETWORKS = itertools.count(0)
+
+
 def _network() -> str:
-    return f"198.{random.randint(18, 19)}.{random.randint(0, 255)}"
+    """A /24 no other test in the session has used (198.18.0 to 198.19.255): random ones could
+    repeat, and link starts are limited to 3 an hour per IP across tests."""
+    n = next(_NETWORKS)
+    assert n < 512, "more networks than 198.18.0.0/15 holds"
+    return f"198.{18 + (n >> 8)}.{n & 255}"
 
 
 def _phone(network: str | None = None):
@@ -88,7 +95,7 @@ def test_phone_approves_and_the_computer_signs_in_once() -> None:
 
 def test_a_different_network_warns_and_needs_confirmation() -> None:
     phone, auth, _ = _phone()
-    # A network new_client() never picks (it uses 203.0.x.x), so the two can't share a /24.
+    # A network new_client() never picks (it uses 10.x.x.1), so the two can't share a /24.
     computer, started = _computer("198.51.100")
     assert (
         phone.post("/api/auth/link/lookup", json={"code": started["code"]}).json()["same_network"]

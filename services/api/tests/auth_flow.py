@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import random
+import itertools
 import re
 
 from fastapi.testclient import TestClient
@@ -27,11 +27,26 @@ def outbox() -> list:
     return sender.outbox
 
 
+# Every client in a test session gets an address no other client has had, each on its own /24.
+# They used to be random 203.0.x.y: rate-limit buckets outlive a test, so a test that fills an
+# IP's limit on purpose (20 code checks, 5 sends, 10 passkey sign-ins) left that address blocked
+# for its window, and a later test that drew the same address failed with rate_limited.
+_CLIENT_NUMBERS = itertools.count(1)
+
+
+def next_client_ip() -> str:
+    """10.a.b.1 with (a, b) counting up: 65,535 distinct /24 networks before any repeat, never
+    the 203.0.113.x / 198.x addresses tests pick by hand."""
+    n = next(_CLIENT_NUMBERS)
+    assert n < 1 << 16, "more clients than distinct test addresses"
+    return f"10.{n >> 8}.{n & 255}.1"
+
+
 def new_client(user_agent: str = IPHONE_UA) -> TestClient:
     c = TestClient(create_app())
     c.headers["user-agent"] = user_agent
     # A distinct client IP per device, so per-IP rate limits behave as they would in production.
-    c.headers["x-forwarded-for"] = f"203.0.{random.randint(0, 255)}.{random.randint(1, 254)}"
+    c.headers["x-forwarded-for"] = next_client_ip()
     return c
 
 

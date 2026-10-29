@@ -642,7 +642,8 @@ def test_deleting_with_a_disputed_payment_refunds_nothing_more() -> None:
     stripe_billing.transport_override = fake.transport()
     with get_session_factory()() as db:
         assert deletion.refund_preview(db, uuid.UUID(user_id))[0] == 0
-    assert client.get("/api/billing/credit").json()["refund_if_deleted_cents"] == 0
+    shown = client.get("/api/billing/credit").json()
+    assert (shown["refund_if_deleted_cents"], shown["refund_kind"]) == (0, "none")
     with get_session_factory()() as db, db.begin():
         assert deletion.cancel_billing(db, uuid.UUID(user_id)) is True
     assert fake.refunds == []  # the bank already returned the money: never paid twice

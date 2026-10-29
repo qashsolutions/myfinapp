@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session as DbSession
 from app.db import get_db
 from app.linking import plaid, webhook_verify
 from app.models.linking import BankConnection
+from app.webhooks.failures import failed
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
@@ -40,7 +41,15 @@ async def plaid_webhook(request: Request, db: Annotated[DbSession, Depends(get_d
     try:
         payload = webhook_verify.verify(body, request.headers.get("plaid-verification", ""))
     except webhook_verify.WebhookError as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=exc.code) from exc
+        raise failed("plaid", exc) from exc  # 400: a token we can't check is refused
+    try:
+        return _apply(db, payload)
+    except Exception as exc:  # noqa: BLE001 - answered 500, logged and reported (invariant 60)
+        db.rollback()
+        raise failed("plaid", exc) from exc
+
+
+def _apply(db: DbSession, payload: dict) -> Ack:
     kind = (str(payload.get("webhook_type") or ""), str(payload.get("webhook_code") or ""))
     item_id = str(payload.get("item_id") or "")
     row = db.scalar(select(BankConnection).where(BankConnection.item_id == item_id))

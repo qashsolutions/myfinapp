@@ -466,8 +466,11 @@ def handle_google_rtdn(db: Any, body: dict[str, Any], *, now: datetime | None = 
         str(data.get("packageName") or "") == get_settings().play_package
         and notification.get("purchaseToken")
         and valid_play_token(str(notification["purchaseToken"]))
-        and play_configured()
     ):
+        if not play_configured():
+            # Ours to fix, not Play's: answered 503 and not recorded, so Pub/Sub delivers it
+            # again once the account is set (invariant 60, October 29, 2026).
+            raise BillingError("billing_unavailable")
         token = str(notification["purchaseToken"])
         outcome = apply_play_subscription(db, token, verify_play_subscription(token), now=now)
     db.add(BillingEvent(event_id=f"google:{event_id}", kind="google:rtdn"))

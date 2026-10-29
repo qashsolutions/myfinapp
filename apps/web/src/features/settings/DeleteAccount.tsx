@@ -111,39 +111,9 @@ export function DeleteAccount() {
               Back to your card: the months of your plan after this one. We couldn't work out the
               amount right now.
             </p>
-          ) : (
-            <>
-              <p className="sk-card__hero" role="status">
-                {formatCents(refund)}
-              </p>
-              <p>
-                <strong>
-                  Back to the {detail?.refund_fee_method === "bank" ? "bank account" : "card"} you
-                  paid with
-                </strong>
-                , not as credit.
-              </p>
-              {detail && detail.refund_before_fee_cents > refund ? (
-                <p>
-                  {formatCents(detail.refund_before_fee_cents)} unused −{" "}
-                  {formatCents(detail.refund_before_fee_cents - refund)} Stripe{" "}
-                  {detail.refund_fee_method === "bank" ? "bank" : "card"} fee ={" "}
-                  {formatCents(refund)}
-                </p>
-              ) : null}
-            </>
-          )}
-          <p className="auth__hint">
-            {detail?.kept_until
-              ? `We keep this month (it runs to ${formatDate(detail.kept_until)}). On a yearly plan the months used, this one included, cost the monthly price and the rest of the year comes back, plus any credit on your account.`
-              : "It's the credit on your account, at the price you paid."}{" "}
-            {detail
-              ? detail.refund_fee_method === "bank"
-                ? `Stripe keeps its bank fee (${(detail.refund_bank_fee_bps ?? 80) / 100}%, at most ${formatCents(detail.refund_bank_fee_cap_cents ?? 500)}) when a payment is refunded, so it comes off the refund. `
-                : `Stripe keeps its card fee (${detail.refund_fee_bps / 100}% + ${detail.refund_fee_fixed_cents}¢) when a payment is refunded, so it comes off the refund. `
-              : ""}
-            Stripe sends it at once; your bank usually shows it in 5 to 10 days.
-          </p>
+          ) : detail ? (
+            <RefundLines refund={refund} detail={detail} />
+          ) : null}
         </Card>
       )}
       <ExportData label="Download my data first" />
@@ -166,6 +136,78 @@ export function DeleteAccount() {
       </Button>
       <p className="auth__fineprint">
         You'll confirm with {biometricName()} next. Deletion finishes within 30 days.
+      </p>
+    </>
+  );
+}
+
+/**
+ * What the refund is made of, said only where it is true (invariant 61, October 29, 2026): a
+ * first bank payment still clearing comes back whole with no fee and no month kept, so its
+ * card says only that; the others name the account, the fee only when one comes off, and the
+ * month kept with what comes back after it.
+ */
+function RefundLines({ refund, detail }: { refund: number; detail: Credit }) {
+  const timing = "Stripe sends it at once; your bank usually shows it in 5 to 10 days.";
+  if (detail.refund_kind === "clearing") {
+    return (
+      <>
+        <p className="sk-card__hero" role="status">
+          {formatCents(refund)}
+        </p>
+        <p>
+          <strong>All of it, once your bank payment clears.</strong>
+        </p>
+        <p className="auth__hint">
+          The plan never started, so no month is kept and no fee comes off. It goes back to the bank
+          account you paid with; your bank usually shows it 5 to 10 days after the payment clears.
+        </p>
+      </>
+    );
+  }
+  const bank = detail.refund_fee_method === "bank";
+  const to = bank ? "bank account" : "card";
+  const feeTaken = detail.refund_before_fee_cents > refund;
+  const kept = detail.kept_until
+    ? `We keep this month (it runs to ${formatDate(detail.kept_until)}). `
+    : "";
+  const after =
+    detail.refund_kind === "credit"
+      ? "What comes back is the credit on your account."
+      : detail.refund_kind === "founding"
+        ? "The rest of your Founding term comes back, in proportion to what you paid."
+        : detail.refund_kind === "unused"
+          ? "The months used, this one included, cost the monthly price and the rest of the year comes back, plus any credit on your account."
+          : "The rest of what you paid comes back, plus any credit on your account.";
+  const fee = !feeTaken
+    ? ""
+    : bank
+      ? `Stripe keeps its bank fee (${(detail.refund_bank_fee_bps ?? 80) / 100}%, at most ${formatCents(detail.refund_bank_fee_cap_cents ?? 500)}) when a payment is refunded, so it comes off the refund. `
+      : `Stripe keeps its card fee (${detail.refund_fee_bps / 100}% + ${detail.refund_fee_fixed_cents}¢) when a payment is refunded, so it comes off the refund. `;
+  return (
+    <>
+      <p className="sk-card__hero" role="status">
+        {formatCents(refund)}
+      </p>
+      <p>
+        <strong>
+          {detail.refund_kind === "credit"
+            ? `Your credit, paid back to the ${to} you paid with.`
+            : `Back to the ${to} you paid with, not as credit.`}
+        </strong>
+      </p>
+      {feeTaken ? (
+        <p>
+          {formatCents(detail.refund_before_fee_cents)}{" "}
+          {detail.refund_kind === "credit" ? "credit" : "unused"} −{" "}
+          {formatCents(detail.refund_before_fee_cents - refund)} Stripe {bank ? "bank" : "card"} fee
+          = {formatCents(refund)}
+        </p>
+      ) : null}
+      <p className="auth__hint">
+        {kept}
+        {after} {fee}
+        {timing}
       </p>
     </>
   );
