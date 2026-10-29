@@ -558,11 +558,15 @@ def _deleted(user_id: str) -> User:
         return user
 
 
-def _purge(days: int = 31) -> int:
+def _purged(user_id: uuid.UUID | str, days: int = 31) -> bool:
+    """Run the purge, then say whether this test's own account went. Only its own: the purge
+    also takes accounts other test files left deleted, so a count would depend on file order."""
     from app.services import deletion
 
     with get_session_factory()() as db, db.begin():
-        return deletion.purge_due(db, grace_days=30, now=datetime.now(UTC) + timedelta(days=days))
+        deletion.purge_due(db, grace_days=30, now=datetime.now(UTC) + timedelta(days=days))
+    with get_session_factory()() as db:
+        return db.get(User, uuid.UUID(str(user_id))) is None
 
 
 def _yearly_by_bank(name: str):
@@ -597,7 +601,7 @@ def test_deleting_while_a_yearly_bank_payment_clears_refunds_all_of_it_once_it_a
     with get_session_factory()() as db, db.begin():
         deletion.settle_billing(db, now=datetime.now(UTC) + timedelta(hours=1))
     assert stripe.refunds == [] and _row(sub).refund_due_cents == due
-    assert _purge() == 0
+    assert not _purged(user_id)
     # The payment arrives: all of it goes back, once, in full.
     stripe.clear(charge)
     cleared = {**obj, "payment_status": "paid"}
@@ -610,7 +614,7 @@ def test_deleting_while_a_yearly_bank_payment_clears_refunds_all_of_it_once_it_a
         deletion.settle_billing(db, now=datetime.now(UTC) + timedelta(hours=2))
     assert len(stripe.refunds) == 1
     assert _deleted(user_id).deleted_at is not None
-    assert _purge() == 1
+    assert _purged(user_id)
 
 
 def test_a_bank_payment_that_fails_after_the_deletion_owes_nothing_and_the_purge_goes_on() -> None:
@@ -622,7 +626,7 @@ def test_a_bank_payment_that_fails_after_the_deletion_owes_nothing_and_the_purge
     assert r.json()["outcome"] == "payment_failed"
     assert _row(sub).refund_due_cents == 0
     assert stripe.refunds == []
-    assert _purge() == 1
+    assert _purged(user_id)
 
 
 def test_a_page_paid_after_the_deletion_grants_nothing_and_is_refunded_in_full() -> None:

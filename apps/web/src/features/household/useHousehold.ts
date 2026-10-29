@@ -130,7 +130,7 @@ export function isFailure(value: unknown): value is ApiFailure {
  *   (`HOUSEHOLD_PUBLISH_DEBOUNCE_MS`; every write path, since it watches the tables),
  * - the app pulls when it comes back to the foreground,
  * - while the household screen or a shared jar is open, it pulls every 15 s
- *   (`HOUSEHOLD_CLOSE_SYNC_MS`, proposed), and the 2-minute round carries on otherwise.
+ *   (`HOUSEHOLD_CLOSE_SYNC_MS`; owner sign-off, October 29, 2026), and the 2-minute round goes on.
  * Publishing sends nothing when the blob is unchanged (its hash), so calling it often is cheap.
  */
 export const HOUSEHOLD_PUBLISH_DEBOUNCE_MS = 2000;

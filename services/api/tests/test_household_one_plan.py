@@ -16,8 +16,9 @@ from sqlalchemy import select
 
 from app.db import get_session_factory
 from app.jobs import plan_lifecycle
-from app.models.billing import Subscription
+from app.models.billing import Entitlement, Subscription
 from app.models.user import User
+from app.rules_server.entitlements import store_entitlements
 from app.services import stripe_billing
 from tests.auth_flow import new_client, outbox, sign_up
 from tests.billing_helpers import PLACEHOLDER_CONSENT, grant_plan
@@ -208,7 +209,7 @@ def test_a_founding_term_reminds_both_once_per_stage() -> None:
 
 
 def test_leaving_returns_the_partner_to_their_own_state_with_seven_days_and_an_email() -> None:
-    """Assumed with the owner (October 29, 2026): leaving never ends the holder's plan; the one
+    """Owner decision, October 29, 2026: leaving never ends the holder's plan; the one
     the shared plan covered is on their own from then, with the 7 days and a note."""
     asha, asha_id, _ = person("Asha")
     grant_plan(str(asha_id), "connected")
@@ -266,3 +267,31 @@ def test_a_disputed_payment_pauses_the_shared_plan_for_both_never_closing_either
     with get_session_factory()() as db:
         stripe_billing._tell_covered_partner(db, asha_id, "disputed")
     assert mail(ben_email)[-1] == "Your household's Qash plan is paused"
+
+
+def stored_plan(user_id: uuid.UUID) -> str | None:
+    with get_session_factory()() as db:
+        return db.scalar(
+            select(Entitlement.value).where(
+                Entitlement.user_id == user_id, Entitlement.key == "plan"
+            )
+        )
+
+
+def test_the_stored_limits_follow_the_shared_plan_for_both() -> None:
+    """The `entitlements` rows (the table the spec names) never go stale for the partner: they
+    are written for both whenever either's plan changes, and on joining and leaving."""
+    asha, asha_id, _ = person("Asha")
+    grant_plan(str(asha_id), "connected")
+    ben, ben_id, _ = person("Ben")
+    household(asha, ben)
+    assert stored_plan(ben_id) == "connected"
+    set_subscription(asha_id, status="canceled", ends_at=datetime.now(UTC) - timedelta(hours=1))
+    with get_session_factory()() as db:
+        store_entitlements(db, asha_id)  # what every billing path does after a change
+        db.commit()
+    assert stored_plan(ben_id) == "free"
+    grant_plan(str(asha_id), "connected")
+    assert stored_plan(ben_id) == "connected"
+    assert ben.post("/api/household/leave").status_code == 204
+    assert stored_plan(ben_id) == "free" and stored_plan(asha_id) == "connected"

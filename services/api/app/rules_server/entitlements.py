@@ -417,7 +417,15 @@ def entitlements(db: DbSession, user_id: uuid.UUID) -> dict[str, Any]:
 
 
 def store_entitlements(db: DbSession, user_id: uuid.UUID) -> None:
-    """Materialise the current limits (the `entitlements` table the spec names)."""
+    """Materialise the current limits (the `entitlements` table the spec names). A household of
+    two is one plan (invariant 54): the partner's rows follow the holder's plan, so both are
+    written whenever either's plan changes, and on joining or leaving."""
+    for person in (user_id, *(u for u in household_pair(db, user_id) or () if u != user_id)):
+        _store_one(db, person)
+    db.flush()
+
+
+def _store_one(db: DbSession, user_id: uuid.UUID) -> None:
     plan, sub = effective_plan(db, user_id)
     current = {
         e.key: e for e in db.scalars(select(Entitlement).where(Entitlement.user_id == user_id))
@@ -434,7 +442,6 @@ def store_entitlements(db: DbSession, user_id: uuid.UUID) -> None:
         else:
             row.value = text
             row.derived_from = sub.id if sub else None
-    db.flush()
 
 
 def require_feature(db: DbSession, user_id: uuid.UUID, key: str) -> None:

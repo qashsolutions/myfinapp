@@ -38,7 +38,13 @@ from app.models.household import (
 from app.models.user import User
 from app.routers.backup import B64, decode_b64url, encode_b64url
 from app.routers.groups import CODE_ALPHABET, _shown_name
-from app.rules_server.entitlements import access, entitlements, household_pair, require_feature
+from app.rules_server.entitlements import (
+    access,
+    entitlements,
+    household_pair,
+    require_feature,
+    store_entitlements,
+)
 from app.security.audit import AuditAction, record
 from app.security.authz import not_found
 from app.security.client import client_ip
@@ -320,6 +326,7 @@ def join(
     row.used_by = caller.user.id
     row.used_at = now
     db.flush()
+    store_entitlements(db, caller.user.id)  # both now ride the holder's plan (invariant 54)
     record(
         db,
         actor_id=caller.user.id,
@@ -366,6 +373,7 @@ def leave_households(
     _lock_person(db, user_id)
     if covered is None:
         covered = covered_in_household(db, user_id, now=now)
+    members = household_pair(db, user_id) or (user_id,)
     for m in db.scalars(
         select(HouseholdMember).where(
             HouseholdMember.user_id == user_id, HouseholdMember.left_at.is_(None)
@@ -394,6 +402,8 @@ def leave_households(
     for person in covered:
         person.household_cover_ended_at = now
     db.flush()
+    for member_id in members:  # each on their own plan again (invariant 54)
+        store_entitlements(db, member_id)
     return count
 
 
