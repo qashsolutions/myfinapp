@@ -1,5 +1,12 @@
 import "fake-indexeddb/auto";
 import "@testing-library/jest-dom/vitest";
+import { configure } from "@testing-library/react";
+
+// Screens show a card only once the engine has answered every rule it needs, never half of it.
+// Under the full suite's parallel load those answers can take just over the library's 1 s
+// default, so findBy and waitFor wait up to 4 s everywhere (October 29, 2026; the same limit the
+// whole-screen tests already used). A real failure still fails, only later.
+configure({ asyncUtilTimeout: 4000 });
 
 // The passkey ceremony needs a real authenticator; tests get a cooperative stand-in and the
 // server side is faked in tests/fakeApi.ts. Cancellation is simulated by rejecting with

@@ -1,11 +1,13 @@
 import "../groups/groups.css";
 
-import { Card, Illustration } from "@stackd/ui";
+import { Button, Card, Chip, Illustration } from "@stackd/ui";
 import { useEffect, useState } from "react";
+import { Word } from "../../app/layout/Word.tsx";
 import { type Debt, ignoreClosed } from "../../data/db.ts";
 import { type AvalancheOrder, avalancheOrder, payoffPlan } from "../../engine/bridge.ts";
 import { formatCents, todayIso } from "../../lib/format.ts";
-import { debtInputs, useDebtSettings } from "./debtPlan.ts";
+import { bankName } from "../linking/anchorText.ts";
+import { type CardInPlan, cardName, debtInputs, useDebtSettings } from "./debtPlan.ts";
 
 export function aprText(bps: number): string {
   return `${(bps / 100).toFixed(2)}% APR`;
@@ -13,7 +15,14 @@ export function aprText(bps: number): string {
 
 /** Cards and loans in the order the person picked (mockup F5Bills; highest rate first unless
  * they chose smallest balance first): the top one is where extra payments go. */
-export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
+export function DebtList({
+  onEdit,
+  onCard,
+}: {
+  onEdit: (debt: Debt) => void;
+  /** A linked card's row: its own sheet (APR when the issuer sent none, count it, same card). */
+  onCard: (accountId: string) => void;
+}) {
   const settings = useDebtSettings();
   const debts = settings?.debts;
   const kind = settings?.order ?? "avalanche";
@@ -43,9 +52,25 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
     };
   }, [debts, kind]);
   const byId = new Map((debts ?? []).map((d) => [d.id, d]));
+  const cards = settings?.cards ?? [];
+  const needs = cards.filter((c) => c.status === "needs");
+  const twice =
+    (settings?.unpaired.length ?? 0) > 0 && cards.some((c) => c.status === "in_plan" && !c.paired);
   return (
     <>
-      {order && order.order.length === 0 ? (
+      {needs.map((c) => (
+        <CardNeedsRate key={c.account.id} card={c} onOpen={() => onCard(c.account.id)} />
+      ))}
+      {twice ? (
+        <Card as="div" role="note" aria-label="Counted twice?">
+          <Word>Review</Word>
+          <p>
+            Added a linked card by hand too? Open the card below and pick which debt it is, so it
+            counts once.
+          </p>
+        </Card>
+      ) : null}
+      {order && order.order.length === 0 && needs.length === 0 ? (
         <Card>
           <Illustration name="card" tone="a3" />
           <p>
@@ -81,7 +106,8 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
               }}
               onClick={() => {
                 const row = byId.get(d.id);
-                if (row) onEdit(row);
+                if (row?.card_account_id) onCard(row.card_account_id);
+                else if (row) onEdit(row);
               }}
               aria-label={`${d.label}, ${aprText(d.apr_bps)}, balance ${formatCents(d.balance_cents)}, rank ${d.rank}`}
             >
@@ -96,6 +122,11 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
                   <span className="lb__pct">{formatCents(d.balance_cents)}</span>
                 </div>
                 <p className="group-row__meta">
+                  {byId.get(d.id)?.card_account_id ? (
+                    <>
+                      <Chip tone="accent">Linked</Chip>{" "}
+                    </>
+                  ) : null}
                   {aprText(d.apr_bps)} · min {formatCents(d.min_payment_cents)}
                   {d.rank === 1 ? " · extra payments go here" : ""}
                 </p>
@@ -112,5 +143,29 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
         </p>
       ) : null}
     </>
+  );
+}
+
+/** A linked card the plan can't count yet: ask once for what the issuer didn't send. */
+function CardNeedsRate({ card, onOpen }: { card: CardInPlan; onOpen: () => void }) {
+  const missing = [
+    card.apr_bps === null ? "APR" : null,
+    card.min_payment_cents === null ? "minimum payment" : null,
+  ].filter((x): x is string => x !== null);
+  const name = cardName(card.account);
+  const line =
+    card.owed_cents === null
+      ? `${bankName(card.account)} hasn't sent ${name}'s balance yet. It joins the plan after the next sync.`
+      : `${bankName(card.account)} didn't send ${name}'s ${missing.join(" or ")}. Add it once and the card joins the plan.`;
+  return (
+    <Card as="div" role="group" aria-label={`${name} needs details`}>
+      <Word>Review</Word>
+      <p>{line}</p>
+      {card.owed_cents !== null ? (
+        <Button size="sm" onClick={onOpen}>
+          Add {missing.join(" and ")}
+        </Button>
+      ) : null}
+    </Card>
   );
 }

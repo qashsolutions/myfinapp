@@ -26,6 +26,7 @@ import {
 import { formatCents } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
 import { emitMoment } from "../../moments/bus.ts";
+import { usePlanDebts } from "../bills/debtPlan.ts";
 import { payScheduleOf } from "../budget/payDays.ts";
 import { type BudgetView, useBudget } from "../budget/useBudget.ts";
 import { type ForecastView, useForecast } from "../forecast/useForecast.ts";
@@ -75,7 +76,8 @@ export function useHome(asOf: string): HomeView & { logSetAside: () => Promise<b
     async () => ((await db.settings.get("pay"))?.value as PaySettings | undefined) ?? null,
     [db],
   );
-  const debts = useLiveQuery(() => db.debts.toArray(), [db]);
+  // The payoff plan's own debts: hand-added ones and linked cards, once each (invariant 65).
+  const debts = usePlanDebts()?.debts;
   const fund = useLiveQuery(async () => (await db.emergency_fund.get("me")) ?? null, [db]);
   // Deposits and withdrawals (Move money), so a jar's saved matches its goal screen.
   const jarEvents = useLiveQuery(

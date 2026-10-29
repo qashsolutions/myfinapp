@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { openDb, seedDefaults } from "../../src/data/db.ts";
 import { createBudget } from "../../src/features/budget/useBudget.ts";
+import { PUSH_STEP_TIMEOUT_MS, subscribeToPush } from "../../src/pwa/pushSubscribe.ts";
 import { installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 
@@ -117,6 +118,118 @@ describe("Notifications", () => {
     });
     expect(Object.keys(posted).sort()).toEqual(["endpoint", "keys", "user_agent"]);
     await waitFor(() => expect(screen.getByText(/Push is on/)).toBeInTheDocument());
+  });
+
+  async function openPrompt(user: ReturnType<typeof userEvent.setup>) {
+    renderApp("/me/notifications");
+    await screen.findByRole("list", { name: "Alert types" });
+    await user.click(screen.getByRole("button", { name: "Turn on notifications" }));
+    return screen.findByRole("dialog", { name: "Stay on track" });
+  }
+
+  it("a private window's refusal says what happened and what to try (invariant 63)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const browser = fakePushBrowser();
+    // Chrome's private window: the permission is already "denied" and nothing is ever asked.
+    Object.defineProperty(window, "Notification", {
+      value: { permission: "denied", requestPermission: vi.fn(async () => "denied") },
+      configurable: true,
+    });
+    const sheet = await openPrompt(user);
+    await user.click(within(sheet).getByRole("button", { name: "Turn on notifications" }));
+    expect(await within(sheet).findByRole("alert")).toHaveTextContent(
+      "This browser didn't allow notifications. Private windows can't get them: try a normal window, or check the browser's site settings.",
+    );
+    // Nothing another tap could change: no spinner, no disabled button, a way out.
+    expect(within(sheet).queryByRole("button", { name: /Turn on|Try again/ })).toBeNull();
+    expect(browser.pushManager.subscribe).not.toHaveBeenCalled();
+    expect(api.calls.filter((c) => c.path === "/api/notifications/push")).toEqual([]);
+    await user.click(within(sheet).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByRole("status")).toHaveTextContent("Private windows can't get them");
+  });
+
+  it("the browser's Allow question has no time limit; only the technical steps do (owner, October 29, 2026)", async () => {
+    installFakeApi({ session: readySession() });
+    const browser = fakePushBrowser();
+    vi.useFakeTimers(); // every timer, so a 15-second limit would fire
+    let answer: (v: string) => void = () => {};
+    Object.defineProperty(window, "Notification", {
+      value: {
+        permission: "default",
+        requestPermission: vi.fn(() => new Promise<string>((r) => (answer = r))),
+      },
+      configurable: true,
+    });
+    const outcome = subscribeToPush();
+    await vi.advanceTimersByTimeAsync(60_000); // the person takes a minute to decide
+    answer("granted");
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(outcome).resolves.toBe("subscribed");
+    expect(browser.pushManager.subscribe).toHaveBeenCalledTimes(1);
+
+    // A push service that never answers is given up on after 15 seconds.
+    browser.pushManager.getSubscription.mockResolvedValue(null);
+    browser.pushManager.subscribe.mockImplementation(() => new Promise(() => {}));
+    Object.defineProperty(window, "Notification", {
+      value: { permission: "granted", requestPermission: vi.fn(async () => "granted") },
+      configurable: true,
+    });
+    const stuck = subscribeToPush();
+    await vi.advanceTimersByTimeAsync(PUSH_STEP_TIMEOUT_MS);
+    await expect(stuck).resolves.toBe("push_failed");
+  });
+
+  it("a push service that throws, then answers, ends in a message and a working Try again (invariant 63)", async () => {
+    const user = userEvent.setup();
+    installFakeApi({ session: readySession() });
+    const browser = fakePushBrowser();
+    browser.pushManager.subscribe.mockRejectedValueOnce(
+      new DOMException("Registration failed - push service not available", "AbortError"),
+    );
+    const sheet = await openPrompt(user);
+    await user.click(within(sheet).getByRole("button", { name: "Turn on notifications" }));
+    expect(await within(sheet).findByRole("alert")).toHaveTextContent(
+      "The browser's push service didn't answer.",
+    );
+    const again = within(sheet).getByRole("button", { name: "Try again" });
+    expect(again).toBeEnabled();
+    await user.click(again);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByRole("status")).toHaveTextContent("Notifications are on.");
+  });
+
+  it("answering Block, and going offline before the device is saved, each say so (invariant 63)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    fakePushBrowser();
+    const ask = vi.fn(async () => "denied");
+    Object.defineProperty(window, "Notification", {
+      value: { permission: "default", requestPermission: ask },
+      configurable: true,
+    });
+    const sheet = await openPrompt(user);
+    await user.click(within(sheet).getByRole("button", { name: "Turn on notifications" }));
+    expect(await within(sheet).findByRole("alert")).toHaveTextContent(
+      "Notifications are blocked for this site.",
+    );
+    expect(ask).toHaveBeenCalledTimes(1);
+    await user.click(within(sheet).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    Object.defineProperty(window, "Notification", {
+      value: { permission: "default", requestPermission: vi.fn(async () => "granted") },
+      configurable: true,
+    });
+    await user.click(screen.getByRole("button", { name: "Turn on notifications" }));
+    const again = await screen.findByRole("dialog", { name: "Stay on track" });
+    api.offline = true;
+    await user.click(within(again).getByRole("button", { name: "Turn on notifications" }));
+    expect(await within(again).findByRole("alert")).toHaveTextContent(
+      "You're offline. Try again when connected.",
+    );
+    expect(within(again).getByRole("button", { name: "Try again" })).toBeEnabled();
   });
 
   it("lets the weekly recap arrive by push, email or both", async () => {

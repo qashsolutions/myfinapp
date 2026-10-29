@@ -46,6 +46,9 @@ export const cursorKey = (connectionId: string) => `linking.cursor.${connectionI
 export const LAST_SYNC_KEY = "linking.last_sync_at";
 const MAX_ROUNDS = 20; // a first sync of a year of history is a few pages; this is a backstop
 
+/** What a sync changed on this device (invariant 66): `added` new rows, `updated` rows whose
+ * content changed (a pending row posting counts once), `removed` rows the bank took back;
+ * `adopted` uploaded rows the bank matched, which look the same as before. */
 export interface SyncReport {
   added: number;
   updated: number;
@@ -181,11 +184,30 @@ interface Planned {
    * copy never overwrites what they did (invariants 6 and 18).
    */
   basis: Map<string, string | undefined>;
+  /** Each stored row as the plan first read it, to tell a real change from a repeat. */
+  before: Map<string, Entry>;
+  /** Uploaded rows the bank matched this page: changed underneath, the same to the person. */
+  adopted: Set<string>;
 }
 
 /** The row as the plan read it; the first read wins. */
 function remember(plan: Planned, e: Entry): void {
   if (!plan.basis.has(e.id)) plan.basis.set(e.id, e.updated_at);
+  // A copy: later steps change the row they were given in place.
+  if (!plan.before.has(e.id)) plan.before.set(e.id, structuredClone(e));
+}
+
+/** The same row in every field but `updated_at` (invariant 66). */
+export function sameRow(a: Entry, b: Entry): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  keys.delete("updated_at");
+  for (const k of keys)
+    if (
+      JSON.stringify((a as unknown as Record<string, unknown>)[k]) !==
+      JSON.stringify((b as unknown as Record<string, unknown>)[k])
+    )
+      return false;
+  return true;
 }
 
 /** A stored row changed between planning a page and writing it. */
@@ -238,6 +260,8 @@ async function applyOnce(
     anchors: [],
     report: emptyReport(),
     basis: new Map(),
+    before: new Map(),
+    adopted: new Set(),
   };
   const names = await savedNames(db);
 
@@ -312,7 +336,6 @@ async function applyOnce(
       });
       claimed.add(known.id);
       bankCents.set(known.id, txn.amount_cents);
-      plan.report.updated += 1;
       continue;
     }
 
@@ -327,6 +350,7 @@ async function applyOnce(
       });
       claimed.add(twin.id);
       plan.report.adopted += 1;
+      plan.adopted.add(twin.id);
       continue;
     }
 
@@ -402,7 +426,30 @@ async function applyOnce(
       created_at: stamp,
     });
   }
-  plan.report.removed = plan.remove.length;
+  // Count what changes on this device (invariant 66): a row the bank sent again exactly as stored
+  // is not written and not "updated"; a posted row taking its pending row's place is one update,
+  // not one new and one removed; split parts follow their entry and are not counted.
+  plan.put = plan.put.filter((e) => {
+    const stored = plan.before.get(e.id);
+    return !(stored && sameRow(stored, e));
+  });
+  const replaced = new Set(replaces.values());
+  const wasPart = (id: string) => Boolean(plan.before.get(id)?.split_parent_id);
+  const written = new Set(plan.put.map((e) => e.id));
+  plan.report.added = 0;
+  plan.report.updated = 0;
+  for (const e of plan.put) {
+    // The bank's own rows only: a partner or a part moved along with one isn't another change.
+    if (e.split_parent_id || !claimed.has(e.id)) continue;
+    const stored = plan.before.get(e.id);
+    if (stored) {
+      if (!plan.adopted.has(e.id)) plan.report.updated += 1;
+    } else if (replaces.has(e.id)) plan.report.updated += 1;
+    else plan.report.added += 1;
+  }
+  plan.report.removed = plan.remove.filter(
+    (id) => !wasPart(id) && !replaced.has(id) && !written.has(id),
+  ).length;
 
   await db.transaction(
     "rw",
@@ -711,11 +758,12 @@ export async function syncIfDue(
 }
 
 /** "3 new, 1 updated" for a status line; empty when nothing changed. */
+/** "3 new · 1 updated · 2 removed", only what changed on this device; "" when nothing did
+ * (invariant 66). An uploaded row the bank matched looks the same, so it isn't counted. */
 export function describeReport(r: SyncReport): string {
   const parts: string[] = [];
-  const fresh = r.added + r.adopted;
-  if (fresh) parts.push(`${fresh} new`);
+  if (r.added) parts.push(`${r.added} new`);
   if (r.updated) parts.push(`${r.updated} updated`);
   if (r.removed) parts.push(`${r.removed} removed`);
-  return parts.join(", ");
+  return parts.join(" · ");
 }
