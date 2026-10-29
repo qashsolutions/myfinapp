@@ -203,8 +203,10 @@ def change(
     credit_after_cents: int,
     disconnects_banks: bool,
     current_plan: str,
+    ends_cover_for: str | None = None,
 ) -> ConsentText:
-    """ "Change your plan": what a switch means, in the same short lines (October 17, 2026)."""
+    """ "Change your plan": what a switch means, in the same short lines (October 17, 2026).
+    `ends_cover_for`: the partner this plan covers, when the new plan doesn't (invariant 69)."""
     per = "year" if interval == "yearly" else "month"
     price = money(_price(plans, plan, interval))
     name = _label(plans, plan)
@@ -236,6 +238,15 @@ def change(
             Point(
                 f"{name} doesn't link banks: yours are disconnected now. Accounts and entries "
                 "stay.",
+                "unlink",
+            )
+        )
+    if ends_cover_for:
+        grace = int(plans["trials"]["grace_days"])
+        points.append(
+            Point(
+                f"{name} doesn't cover your household: {ends_cover_for} has {grace} days to "
+                "choose a plan, and we'll email them.",
                 "unlink",
             )
         )

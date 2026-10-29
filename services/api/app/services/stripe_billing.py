@@ -31,6 +31,8 @@ from app.models.billing import (
 from app.models.user import User
 from app.rules_server.entitlements import (
     access,
+    covered_members,
+    end_lost_cover,
     founding_taken,
     household_pair,
     is_tester,
@@ -1780,6 +1782,9 @@ def _subscription_event(
         plan, interval = mapped
     if plan not in ("private", "connected"):
         return "ignored"
+    # Read before the change: a switch made at Stripe (not through /change) that leaves the
+    # plan without household ends the partner's cover just the same (invariant 69).
+    covered = covered_members(db, user_id, now=now)
     stripe_status = "canceled" if kind.endswith("deleted") else str(obj.get("status") or "active")
     status = _status(stripe_status)
     end = period_end(obj)
@@ -1826,6 +1831,7 @@ def _subscription_event(
     if clearing and row.first_payment is None:
         row.first_payment = "pending"
     db.flush()
+    end_lost_cover(db, covered, now=now)
     store_entitlements(db, user_id)
     return status
 

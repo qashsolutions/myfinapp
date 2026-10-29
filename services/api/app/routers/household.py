@@ -39,7 +39,8 @@ from app.models.user import User
 from app.routers.backup import B64, decode_b64url, encode_b64url
 from app.routers.groups import CODE_ALPHABET, _shown_name
 from app.rules_server.entitlements import (
-    access,
+    covered_members,
+    end_lost_cover,
     entitlements,
     household_pair,
     require_feature,
@@ -51,6 +52,7 @@ from app.security.client import client_ip
 from app.security.csrf import same_site_only
 from app.security.principal import Caller, require_unlocked
 from app.security.rate_limit import rate_limited
+from app.services import ops_alerts, stripe_billing
 
 router = APIRouter(
     prefix="/api/household", tags=["household"], dependencies=[Depends(same_site_only)]
@@ -217,6 +219,8 @@ def _my_household(db: DbSession, caller: Caller) -> Household:
 
 
 def _owner_plan_allows(db: DbSession, household: Household) -> None:
+    """The household's plan (the owner's own, or the partner's that covers the owner, as
+    `household_plan` says) includes couples & household."""
     if not entitlements(db, household.owner_id).get("household"):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="plan_required")
 
@@ -327,6 +331,12 @@ def join(
     row.used_at = now
     db.flush()
     store_entitlements(db, caller.user.id)  # both now ride the holder's plan (invariant 54)
+    # Never paid twice (invariant 70): any payment page the joiner still had open is closed now
+    # that the household's plan covers them; one already being paid is refunded by the webhook.
+    try:
+        stripe_billing.close_open_pages(db, caller.user.id, now=now)
+    except stripe_billing.BillingError as exc:
+        ops_alerts.report("household_join_pages_open", "household.join", exc)
     record(
         db,
         actor_id=caller.user.id,
@@ -336,20 +346,6 @@ def join(
     )
     db.commit()
     return _out(db, household, caller.user.id)
-
-
-def covered_in_household(db: DbSession, user_id: uuid.UUID, *, now: datetime) -> list[User]:
-    """Who in this person's household of two the shared plan covers right now (invariant 54).
-    Read before anything changes the plan, since closing an account ends its billing first."""
-    covered: list[User] = []
-    for uid in household_pair(db, user_id) or ():
-        person = db.get(User, uid)
-        if person is None or person.deleted_at is not None:
-            continue
-        state = access(db, person, now=now)
-        if state.get("shared") == "covered" and state["state"] == "subscribed":
-            covered.append(person)
-    return covered
 
 
 def leave_households(
@@ -372,7 +368,7 @@ def leave_households(
     count = 0
     _lock_person(db, user_id)
     if covered is None:
-        covered = covered_in_household(db, user_id, now=now)
+        covered = covered_members(db, user_id, now=now)
     members = household_pair(db, user_id) or (user_id,)
     for m in db.scalars(
         select(HouseholdMember).where(
@@ -399,9 +395,7 @@ def leave_households(
                 )
             )
         count += 1
-    for person in covered:
-        person.household_cover_ended_at = now
-    db.flush()
+    end_lost_cover(db, covered, now=now)
     for member_id in members:  # each on their own plan again (invariant 54)
         store_entitlements(db, member_id)
     return count

@@ -8,6 +8,7 @@ refuses only new things (creating a group, joining past the cap).
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -136,7 +137,13 @@ def purchase_conflict(
     None. Never two plans at once (October 17, 2026): checkout asks before a payment page
     opens, and the webhook asks again when one is paid (`exclude` = that purchase), since two
     pages opened at once could both be paid (October 29, 2026). Founding may follow a plan
-    set not to renew; everything else waits until nothing else is live."""
+    set not to renew; everything else waits until nothing else is live, and nothing is bought
+    while a household's plan covers the person (`household_covered`)."""
+    person = db.get(User, user_id)
+    if person is not None and household_plan(db, person, exclude=exclude).covered:
+        # One price covers both of a household (invariants 54, 70): a covered person never
+        # pays a second time, whether at checkout or for a page paid after joining.
+        return "household_covered"
     sub = active_subscription(db, user_id, exclude=exclude)
     if sub is not None and sub.plan == "founding":
         return "already_founding"
@@ -207,13 +214,28 @@ def household_pair(db: DbSession, user_id: uuid.UUID) -> tuple[uuid.UUID, uuid.U
     return owner, other
 
 
+def _formed_at(db: DbSession, pair: tuple[uuid.UUID, uuid.UUID]) -> datetime:
+    """When the household became two: the later of the two members' joins."""
+    joined = db.scalar(
+        select(func.max(HouseholdMember.joined_at)).where(
+            HouseholdMember.user_id.in_(pair), HouseholdMember.left_at.is_(None)
+        )
+    )
+    assert joined is not None
+    return joined
+
+
 def _covers(state: dict[str, Any]) -> bool:
     """A live plan of the person's own that includes couples & household."""
     return state["state"] in LIVE_STATES and bool(limits_for(state["plan"])["household"])
 
 
-def household_holder(
-    db: DbSession, pair: tuple[uuid.UUID, uuid.UUID], *, now: datetime
+def _holder(
+    db: DbSession,
+    pair: tuple[uuid.UUID, uuid.UUID],
+    *,
+    now: datetime,
+    exclude: str | None = None,
 ) -> uuid.UUID | None:
     """Whose plan covers the household of two (owner decision, October 29, 2026: "partner and
     owner use the same account for one price"): the owner's while their own plan (or trial)
@@ -221,69 +243,202 @@ def household_holder(
     own (the subscriber becomes the plan's holder); else nobody, and the plan has ended for both."""
     owner_id, other_id = pair
     owner = db.get(User, owner_id)
-    if owner is not None and _covers(_own_access(db, owner, now=now)):
+    if owner is not None and _covers(_own_access(db, owner, now=now, exclude=exclude)):
         return owner_id
     other = db.get(User, other_id)
     if other is not None:
-        state = _own_access(db, other, now=now)
+        state = _own_access(db, other, now=now, exclude=exclude)
         if state["state"] == "subscribed" and _covers(state):
             return other_id
     return None
 
 
-def access(db: DbSession, user: User, *, now: datetime | None = None) -> dict[str, Any]:
+def _household_end(
+    db: DbSession, user: User, formed: datetime, now: datetime, *, owner: bool
+) -> datetime | None:
+    """The latest end, after the household became two, of a plan of this person's that held
+    the household (a paid plan, a Founding term, a dispute lost, and the owner's trial: a
+    partner's free trial never held it): the end of the plan the household shared, when it
+    was theirs."""
+    ends: list[datetime] = []
+    if (
+        owner
+        and user.trial_plan
+        and limits_for(user.trial_plan)["household"]
+        and user.trial_ends_at is not None
+        and formed < user.trial_ends_at <= now
+    ):
+        ends.append(user.trial_ends_at)
+    for row in db.scalars(select(Subscription).where(Subscription.user_id == user.id)):
+        if never_started(row) or not limits_for(row.plan)["household"]:
+            continue
+        end = row.ends_at or (row.updated_at if row.status in ("canceled", "expired") else None)
+        for when in (end, row.dispute_lost_at):
+            if when is not None and formed < when <= now:
+                ends.append(when)
+    return max(ends) if ends else None
+
+
+def _household_dispute(db: DbSession, user_id: uuid.UUID, formed: datetime) -> datetime | None:
+    """When a payment for this person's plan that covered the household is disputed (still
+    open): the household's plan is paused for both (invariant 54)."""
+    for row in db.scalars(
+        select(Subscription)
+        .where(
+            Subscription.user_id == user_id,
+            Subscription.disputed_at.is_not(None),
+            Subscription.dispute_lost_at.is_(None),
+        )
+        .order_by(Subscription.disputed_at.desc())
+    ):
+        if limits_for(row.plan)["household"] and (row.ends_at is None or row.ends_at > formed):
+            return row.disputed_at
+    return None
+
+
+@dataclass(frozen=True)
+class HouseholdPlan:
+    """Where one person stands, a household of two counted as one plan: the one answer the
+    app, the limits, checkout, the webhooks, plan changes, joining and leaving, deletion and the
+    plan job all read (invariants 54, 67)."""
+
+    access: dict[str, Any]
+    # Whose plan applies to this person now: their own, the partner's that covers them, or
+    # nobody's (no live plan).
+    holder_id: uuid.UUID | None
+    pair: tuple[uuid.UUID, uuid.UUID] | None
+
+    @property
+    def state(self) -> str:
+        return str(self.access["state"])
+
+    @property
+    def plan(self) -> str:
+        """The plan whose limits apply: the one shown, so the two never disagree."""
+        return str(self.access["plan"]) if self.state in LIVE_STATES else "free"
+
+    @property
+    def covered(self) -> bool:
+        """The partner's live plan covers this person: nothing to buy, no clock of their own."""
+        return self.access.get("shared") == "covered" and self.state == "subscribed"
+
+    @property
+    def shared(self) -> bool:
+        """The household's one plan is what this person is on: live, paused or ended for both,
+        so its notices name the plan they share."""
+        return "shared" in self.access
+
+
+def household_plan(
+    db: DbSession, user: User, *, now: datetime | None = None, exclude: str | None = None
+) -> HouseholdPlan:
     """Where this account stands, a household of two counted as one plan (owner decision,
-    October 29, 2026; invariant 54). The holder (`household_holder`) has their own state, marked
-    `shared: "holder"`; the other is `subscribed` to the holder's plan, `shared: "covered"`: no
-    trial clock, no card ask, no reminders of their own. When the household's plan has ended,
-    the other has the holder's end too (`lapsed` from the same day, or `paused` while the
-    holder's payment is disputed), so both get the same notices and the same 7 days. A person's
-    own paid plan that includes household, and their own dispute, are always their own."""
+    October 29, 2026; invariants 54, 67). The one rule; nothing else decides it.
+
+    - A paid plan of one's own that includes household is one's own (`shared: "holder"`), and
+      so is the owner's trial that includes it.
+    - One's own dispute (paused) or lost dispute (ended) is one's own.
+    - Else, while the other's plan holds the household, one is `subscribed` to it,
+      `shared: "covered"`: no trial clock, no card ask, no reminders, nothing to buy.
+    - Else a live plan of one's own without household is one's own (no `shared`).
+    - Else the household's plan is over: `paused` (`shared: "covered"`) while a payment for
+      the plan that held it is disputed, never closed for it; else, when the other has no live
+      plan either, `lapsed` from the end of that plan, the same day and the same 7 days for both
+      (`shared: "holder"` for the person whose plan it was), unless an end of one's own came
+      later (leaving, a holder switching down: `household_cover_ended_at`), which is then
+      theirs alone.
+
+    `exclude`: a purchase (its Stripe id) to leave out, to ask where the person stood beside it.
+    """
     now = now or datetime.now(UTC)
-    own = _own_access(db, user, now=now)
+    own = _own_access(db, user, now=now, exclude=exclude)
+    live = own["state"] in LIVE_STATES
     pair = household_pair(db, user.id)
     if pair is None:
-        return own
-    holder = household_holder(db, pair, now=now)
-    if holder == user.id or (own["state"] == "subscribed" and _covers(own)):
-        return {**own, "shared": "holder"}
+        return HouseholdPlan(own, user.id if live else None, None)
+    if own["state"] == "subscribed" and _covers(own):
+        return HouseholdPlan({**own, "shared": "holder"}, user.id, pair)
+    holder = _holder(db, pair, now=now, exclude=exclude)
+    if holder == user.id:  # the owner's trial that includes household
+        return HouseholdPlan({**own, "shared": "holder"}, user.id, pair)
     if own["state"] in ("paused", "ended"):
-        return own  # a dispute of their own is theirs alone
+        return HouseholdPlan(own, None, pair)  # a dispute of their own is theirs alone
     if holder is not None:
         holder_user = db.get(User, holder)
         assert holder_user is not None
         plan = _own_access(db, holder_user, now=now)["plan"]
-        return {"state": "subscribed", "plan": plan, "shared": "covered"}
-    owner_id, _ = pair
-    if own["state"] == "subscribed":
-        return own  # a plan of their own without household: theirs to use
-    if user.id == owner_id:
-        return {**own, "shared": "holder"}
-    owner = db.get(User, owner_id)
-    assert owner is not None
-    theirs = _own_access(db, owner, now=now)
-    if theirs["state"] == "paused":
-        return {
-            "state": "paused",
-            "plan": "free",
-            "disputed_at": theirs["disputed_at"],
-            "shared": "covered",
-        }
-    end = theirs.get("ended_at")
-    if end is None:
-        return own
+        return HouseholdPlan(
+            {"state": "subscribed", "plan": plan, "shared": "covered"}, holder, pair
+        )
+    if live:
+        return HouseholdPlan(own, user.id, pair)  # a plan of their own without household
+    other_id = pair[1] if pair[0] == user.id else pair[0]
+    other = db.get(User, other_id)
+    assert other is not None
+    formed = _formed_at(db, pair)
+    disputed = _household_dispute(db, other_id, formed)
+    if disputed is not None:
+        state = {"state": "paused", "plan": "free", "disputed_at": disputed, "shared": "covered"}
+        return HouseholdPlan(state, None, pair)
+    if _own_access(db, other, now=now)["state"] in LIVE_STATES:
+        return HouseholdPlan(own, None, pair)  # it didn't end for both: the other has a plan
+    mine = _household_end(db, user, formed, now, owner=user.id == pair[0])
+    theirs = _household_end(db, other, formed, now, owner=other_id == pair[0])
+    ends = [e for e in (mine, theirs) if e is not None]
+    if not ends:
+        return HouseholdPlan(own, None, pair)  # never covered: their own state
+    end = max(ends)
     if own["state"] == "lapsed" and own["ended_at"] > end:
-        end = own["ended_at"]
-    return {
+        return HouseholdPlan(own, None, pair)  # an end of their own came later
+    state = {
         "state": "lapsed",
         "plan": "free",
         "ended_at": end,
         "delete_at": end + timedelta(days=int(trial_settings()["grace_days"])),
-        "shared": "covered",
+        "shared": "holder" if mine == end else "covered",
     }
+    return HouseholdPlan(state, None, pair)
 
 
-def _own_access(db: DbSession, user: User, *, now: datetime | None = None) -> dict[str, Any]:
+def access(db: DbSession, user: User, *, now: datetime | None = None) -> dict[str, Any]:
+    """Where this account stands (`household_plan`'s answer, as the app reads it)."""
+    return household_plan(db, user, now=now).access
+
+
+def covered_members(db: DbSession, user_id: uuid.UUID, *, now: datetime) -> list[User]:
+    """Who in this person's household of two the shared plan covers right now (themselves
+    included, when they are the one covered). Read before anything changes a plan or the
+    household, then passed to `end_lost_cover`."""
+    covered: list[User] = []
+    for uid in household_pair(db, user_id) or ():
+        person = db.get(User, uid)
+        if person is None or person.deleted_at is not None:
+            continue
+        if household_plan(db, person, now=now).covered:
+            covered.append(person)
+    return covered
+
+
+def end_lost_cover(db: DbSession, before: list[User], *, now: datetime) -> list[User]:
+    """After a change (leaving, deleting, the holder switching to a plan without household):
+    whoever the shared plan covered before and is now on their own, while that plan carries on
+    for its holder, starts their own 7 days now (`household_cover_ended_at`), with the plan job's
+    "no longer covers you" email, and never a fresh trial (invariants 54, 69). A plan that
+    ended, or is paused, for both is the household's end, not this."""
+    db.flush()
+    stamped: list[User] = []
+    for person in before:
+        if household_plan(db, person, now=now).shared:
+            continue  # still covered, or the household's plan ended or paused for both
+        person.household_cover_ended_at = now
+        stamped.append(person)
+    db.flush()
+    return stamped
+
+
+def _own_access(
+    db: DbSession, user: User, *, now: datetime | None = None, exclude: str | None = None
+) -> dict[str, Any]:
     """What this account may do now on its own (owner decision, October 14, 2026):
 
     subscribed  a live paid plan (or Founding)
@@ -303,7 +458,7 @@ def _own_access(db: DbSession, user: User, *, now: datetime | None = None) -> di
     now = now or datetime.now(UTC)
     if testing := tester_plan(user):
         return {"state": "subscribed", "plan": testing}
-    sub = active_subscription(db, user.id, now=now)
+    sub = active_subscription(db, user.id, now=now, exclude=exclude)
     if sub is not None:
         return {"state": "subscribed", "plan": sub.plan}
     if user.trial_plan and user.trial_ends_at and user.trial_ends_at > now:
@@ -379,26 +534,26 @@ def tester_plan(user: User | None) -> str | None:
 def effective_plan(
     db: DbSession, user_id: uuid.UUID, *, tester: bool = True
 ) -> tuple[str, Subscription | None]:
-    """The plan whose limits apply: an admin's tester plan (unless `tester` is False: billing
-    always acts on the real subscription, so it also leaves out a household's shared plan), a
-    live subscription, else the household's plan or the trial in progress, else "free" (no
-    plan: choosing a trial, or lapsed)."""
-    if tester and (testing := tester_plan(db.get(User, user_id))):
-        return testing, None
+    """The plan whose limits apply, with the person's own live subscription (if any): what
+    `household_plan` says, so the limits always agree with what the person is shown
+    (invariant 67): a household's shared plan covers a person even beside a plan of their own
+    without household, and an admin's tester plan counts.
+
+    `tester=False` is billing's question instead: the person's own real subscription (or own
+    trial), leaving out the tester plan and the household's cover, because checkout, change,
+    cancel and the portal act on what the person pays for themselves."""
     sub = active_subscription(db, user_id)
-    if sub is not None:
-        return sub.plan, sub
     user = db.get(User, user_id)
     if user is None:
         return "free", None
-    if tester:
-        # The limits that apply, a household's shared plan included (invariant 54).
-        state = access(db, user)
-        return (state["plan"], None) if state["state"] in LIVE_STATES else ("free", None)
-    now = datetime.now(UTC)
-    if user.trial_plan and user.trial_ends_at and user.trial_ends_at > now:
-        return user.trial_plan, None
-    return "free", None
+    if not tester:
+        if sub is not None:
+            return sub.plan, sub
+        now = datetime.now(UTC)
+        if user.trial_plan and user.trial_ends_at and user.trial_ends_at > now:
+            return user.trial_plan, None
+        return "free", None
+    return household_plan(db, user).plan, sub
 
 
 def _iso(value: Any) -> Any:
@@ -406,13 +561,14 @@ def _iso(value: Any) -> Any:
 
 
 def entitlements(db: DbSession, user_id: uuid.UUID) -> dict[str, Any]:
-    plan, _ = effective_plan(db, user_id)
     user = db.get(User, user_id)
-    state = access(db, user) if user else {"state": "choose", "plan": "free"}
+    if user is None:
+        return {"plan": "free", **limits_for("free"), "access": {"state": "choose", "plan": "free"}}
+    found = household_plan(db, user)
     return {
-        "plan": plan,
-        **limits_for(plan),
-        "access": {k: _iso(v) for k, v in state.items()},
+        "plan": found.plan,
+        **limits_for(found.plan),
+        "access": {k: _iso(v) for k, v in found.access.items()},
     }
 
 

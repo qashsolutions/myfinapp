@@ -40,7 +40,12 @@ from pydantic import StringConstraints
 from app.config import get_settings
 from app.models.billing import BillingEvent, Subscription
 from app.models.user import User
-from app.rules_server.entitlements import load_plans, store_entitlements
+from app.rules_server.entitlements import (
+    covered_members,
+    end_lost_cover,
+    load_plans,
+    store_entitlements,
+)
 from app.security.outbound import outbound_client
 from app.services.google_auth import access_token
 from app.services.stripe_billing import BillingError
@@ -281,6 +286,7 @@ def apply_apple_transaction(
     else:
         status, renews_at, ends_at = "active", expires, None
     auto_renew_off = bool(renewal) and str(renewal.get("autoRenewStatus")) == "0"
+    covered = covered_members(db, owner, now=now)  # a switch to a plan without household
     _upsert(
         db,
         source="apple",
@@ -294,6 +300,7 @@ def apply_apple_transaction(
         cancel_at_period_end=auto_renew_off and status == "active",
     ).last_event_at = signed
     db.flush()
+    end_lost_cover(db, covered, now=now)  # ends the partner's cover, with notice (invariant 69)
     store_entitlements(db, owner)
     return "synced"
 
@@ -429,6 +436,7 @@ def apply_play_subscription(
         status, cancel, renews_at, ends_at = "past_due", False, expiry, None
     else:  # expired, revoked, paused, anything new
         status, cancel, renews_at, ends_at = "canceled", False, None, expiry or now
+    covered = covered_members(db, owner, now=now)  # a switch to a plan without household
     _upsert(
         db,
         source="google",
@@ -441,6 +449,7 @@ def apply_play_subscription(
         ends_at=ends_at,
         cancel_at_period_end=cancel,
     )
+    end_lost_cover(db, covered, now=now)  # ends the partner's cover, with notice (invariant 69)
     store_entitlements(db, owner)
     return "synced"
 

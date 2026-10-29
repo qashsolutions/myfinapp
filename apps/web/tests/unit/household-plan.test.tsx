@@ -125,6 +125,22 @@ describe("A household is one plan (invariant 54)", () => {
       expect(card).toHaveTextContent("This plan covers you and your partner in your household"),
     );
   });
+
+  it("a holder whose plan ended is never told it still covers both (invariant 67)", async () => {
+    const billing = { ...freeBilling(), shared: "holder" as const };
+    const api = installFakeApi({ session: ben(), billing });
+    api.access = {
+      state: "lapsed",
+      plan: "free",
+      shared: "holder",
+      ended_at: "2026-10-28T12:00:00Z",
+      delete_at: "2026-11-04T12:00:00Z",
+    };
+    renderApp("/me/plan");
+    const card = await screen.findByRole("region", { name: "Current plan" });
+    await waitFor(() => expect(card).toHaveTextContent("It ended for both of you"));
+    expect(card).not.toHaveTextContent("This plan covers you and your partner");
+  });
 });
 
 describe("Shared jars travel soon (invariant 55)", () => {

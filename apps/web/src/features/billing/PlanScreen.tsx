@@ -562,7 +562,8 @@ export function PlanScreen() {
           {billing.interval ? ` · ${billing.interval}` : ""}
         </p>
         <p>{currentLine(billing, access)}</p>
-        {billing.shared === "holder" ? (
+        {billing.shared === "holder" &&
+        (access?.state === "subscribed" || access?.state === "trial") ? (
           <p>This plan covers you and your partner in your household: one price for both.</p>
         ) : null}
         {billing.shared && access?.state === "lapsed" ? (

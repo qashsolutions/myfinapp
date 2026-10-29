@@ -39,8 +39,8 @@ from app.models.user import User
 from app.rules_server.entitlements import (
     access,
     active_subscription,
-    household_holder,
     household_pair,
+    household_plan,
     load_plans,
     trial_settings,
 )
@@ -130,10 +130,12 @@ def _one(
     user = db.get(User, user_id)
     if user is None or user.deleted_at is not None:
         return
-    state = access(db, user, now=now)
-    shared = "shared" in state  # in a household of two: the notices say it's the plan they share
-    if state.get("shared") == "covered" and state["state"] == "subscribed":
-        _covered_notices(db, user, now, before, sender, counts)
+    found = household_plan(db, user, now=now)
+    state = found.access
+    shared = found.shared  # in a household of two: the notices say it's the plan they share
+    if found.covered:
+        assert found.holder_id is not None
+        _covered_notices(db, user, found.holder_id, now, before, sender, counts)
         return
     sub = active_subscription(db, user.id, now=now)
     if sub is not None and sub.plan == "founding" and sub.ends_at is not None:
@@ -161,7 +163,9 @@ def _one(
     # The plan that ended: this person's own, or the one the household shared (its holder's).
     pair = household_pair(db, user.id)
     plan_of = [user.id, *(pair or ())]
-    if now >= delete_at:
+    # Never closed without the ended email for this end (invariant 68): an account whose end
+    # moved later than its notice (a household's plan, read again) hears of it first.
+    if now >= delete_at and user.lapsed_notice_for == ended:
         # Both accounts of a household close together (invariant 54): a partner whose 7 days
         # are over too goes in this run, read before this closing splits the household.
         together = [user]
@@ -170,7 +174,11 @@ def _one(
             if other is None or other.id == user.id or other.deleted_at is not None:
                 continue
             theirs = access(db, other, now=now)
-            if theirs["state"] == "lapsed" and now >= theirs["delete_at"]:
+            if (
+                theirs["state"] == "lapsed"
+                and now >= theirs["delete_at"]
+                and other.lapsed_notice_for == theirs["ended_at"]
+            ):
                 together.append(other)
         for person in together:
             address, welcome_back = person.email, not is_blocked(db, person)
@@ -180,7 +188,10 @@ def _one(
             soft_delete(db, person, now=now, plan_ended=True)
             sender.send(
                 email.account_deleted_after_plan_message(
-                    address, welcome_back=welcome_back, shared=shared
+                    # "closed both accounts" only when both did close
+                    address,
+                    welcome_back=welcome_back,
+                    shared=shared and len(together) > 1,
                 )
             )
             counts["deleted"] += 1
@@ -191,7 +202,9 @@ def _one(
             sender.send(email.plan_ended_payment_returned_message(user.email, _day(delete_at)))
         elif left and not shared:
             sender.send(
-                email.household_cover_ended_message(user.email, _day(delete_at), plan_link())
+                email.household_cover_ended_message(
+                    user.email, _day(delete_at), plan_link(), switched=pair is not None
+                )
             )
         elif founding:
             sender.send(
@@ -276,6 +289,7 @@ def _founding_reminder(
 def _covered_notices(
     db: DbSession,
     user: User,
+    holder_id: uuid.UUID,
     now: datetime,
     before: timedelta,
     sender: email.EmailSender,
@@ -283,9 +297,7 @@ def _covered_notices(
 ) -> None:
     """The partner a household's plan covers hears what its holder hears about that plan
     ending (invariant 54), stamped on their own row so each goes to them once."""
-    pair = household_pair(db, user.id)
-    holder_id = household_holder(db, pair, now=now) if pair else None
-    holder = db.get(User, holder_id) if holder_id else None
+    holder = db.get(User, holder_id)
     if holder is None:
         return
     sub = active_subscription(db, holder.id, now=now)

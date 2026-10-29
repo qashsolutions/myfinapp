@@ -31,6 +31,7 @@ from app.models.otp_code import OtpCode
 from app.models.session import Session
 from app.models.user import User
 from app.models.webauthn_credential import WebauthnCredential
+from app.rules_server.entitlements import covered_members
 from app.security import audit
 from app.security.audit import AuditAction
 from app.services import backup_store
@@ -295,12 +296,11 @@ def soft_delete(
     now = now or datetime.now(UTC)
     _lock_person(db, user.id)
     from app.routers.household import (  # noqa: PLC0415 - avoids a router import cycle
-        covered_in_household,
         leave_households,
     )
 
     # Read before the plan ends below: a partner this plan covered gets their own 7 days.
-    covered = covered_in_household(db, user.id, now=now)
+    covered = covered_members(db, user.id, now=now)
     if not cancel_billing(db, user.id, now=now):
         # Stripe couldn't be reached: `settle_billing` (hourly) tries again, as of this moment,
         # so the person is never charged on for the 30 days until the purge.
