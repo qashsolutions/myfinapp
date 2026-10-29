@@ -1,5 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Ports and database can move (E2E_API_PORT, E2E_WEB_PORT, E2E_DB) so two checkouts can run at once.
+const API_PORT = process.env.E2E_API_PORT ?? "8100";
+const WEB_PORT = process.env.E2E_WEB_PORT ?? "5174";
+
 /**
  * End-to-end tests (first run October 22, 2026): the real PWA in the installed Chrome against a
  * real API with its own database (stackd_e2e, :8100) and a dev server on :5174, so a run never
@@ -16,7 +20,7 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   retries: process.env.CI ? 1 : 0,
   use: {
-    baseURL: "http://localhost:5174",
+    baseURL: `http://localhost:${WEB_PORT}`,
     channel: "chrome",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
@@ -35,13 +39,13 @@ export default defineConfig({
   webServer: [
     {
       command: "mkdir -p e2e/.output && sh e2e/start-api.sh > e2e/.output/api.log 2>&1",
-      url: "http://127.0.0.1:8100/health",
+      url: `http://127.0.0.1:${API_PORT}/health`,
       timeout: 120_000,
       reuseExistingServer: false,
     },
     {
-      command: "STACKD_API_PROXY=http://127.0.0.1:8100 pnpm exec vite --port 5174 --strictPort",
-      url: "http://localhost:5174",
+      command: `STACKD_API_PROXY=http://127.0.0.1:${API_PORT} pnpm exec vite --port ${WEB_PORT} --strictPort`,
+      url: `http://localhost:${WEB_PORT}`,
       timeout: 120_000,
       reuseExistingServer: false,
     },
