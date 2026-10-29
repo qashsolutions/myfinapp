@@ -11,6 +11,7 @@ import { addDaysIso } from "../../lib/dates.ts";
 import { todayIso } from "../../lib/format.ts";
 import { parseWholeNumber } from "../../lib/ownValues.ts";
 import { needsHomeScreen, type PushOutcome, unsubscribeFromPush } from "../../pwa/pushSubscribe.ts";
+import { BudgetAlertOptions } from "../budget/BudgetAlertOptions.tsx";
 import { ChipsOrOwn, ChoiceChips } from "../goals/CustomValueSheet.tsx";
 import { NotificationPrePrompt } from "./NotificationPrePrompt.tsx";
 import {
@@ -204,41 +205,10 @@ export function NotificationSettings() {
       case "budget_pace":
         return (
           <>
-            <ChipsOrOwn
-              name={`${ids}-budget-level`}
-              legend="Tell me at"
-              options={[
-                ["90", "90%"],
-                ["100", "100%"],
-              ]}
-              value={String(prefs.budget_pace?.threshold ?? 90)}
-              onPick={(v) => void update({ prefs: { budget_pace: { threshold: Number(v) } } })}
-              own={{
-                label: "Your own percent of the plan, 50 to 150",
-                placeholder: "Or your own: 50 to 150%",
-                parse: (t) => {
-                  const n = parseWholeNumber(t.replace("%", ""), 50, 150);
-                  return n === null
-                    ? { error: "Pick a whole percent from 50 to 150." }
-                    : { value: String(n) };
-                },
-              }}
-            />
+            <BudgetAlertOptions prefs={prefs} update={update} />
             <p className="auth__hint">
-              Once per category each month. The alert never names the category or an amount.
+              Choose which budget lines alert on Budget → Adjust budget alerts.
             </p>
-            <label className="auth__field">
-              <span className="auth__label">Budget alert time</span>
-              <input
-                className="auth__input"
-                type="time"
-                defaultValue={prefs.budget_pace?.time_of_day ?? "09:00"}
-                onBlur={(e) =>
-                  e.target.value &&
-                  void update({ prefs: { budget_pace: { time_of_day: e.target.value } } })
-                }
-              />
-            </label>
           </>
         );
       case "weekly_recap":

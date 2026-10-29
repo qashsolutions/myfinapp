@@ -9,5 +9,6 @@
   "next_due_date": null,
   "paid_in_full_streak": null,
   "utilization_bps": null,
-  "under_guide": null
+  "under_guide": null,
+  "dues": []
 }

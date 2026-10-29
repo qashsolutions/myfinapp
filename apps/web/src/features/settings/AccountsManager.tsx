@@ -31,7 +31,7 @@ const TYPE_LABELS: Record<AccountType, string> = {
  * on this device; removing an account deletes its imported transactions after you confirm.
  */
 /** Suggested due days; any day 1 to 31 works (31 is the last day of a shorter month). */
-const DUE_DAY_OPTIONS: Array<[string, string]> = [
+export const DUE_DAY_OPTIONS: Array<[string, string]> = [
   ["", "None"],
   ["1", "1st"],
   ["15", "15th"],

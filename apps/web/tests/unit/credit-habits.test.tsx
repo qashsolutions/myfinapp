@@ -197,17 +197,17 @@ describe("credit habits and card spending (October 28, 2026)", () => {
     await waitFor(() => expect(card).toHaveTextContent("No due date yet"));
     expect(card).toHaveTextContent("Start");
 
-    await user.click(within(card).getByRole("link", { name: "Set a payment due day" }));
-    const visa = await screen.findByRole("region", { name: "Visa" });
-    await user.click(within(visa).getByRole("button", { name: "Edit or remove" }));
-    const sheet = await screen.findByRole("dialog", { name: "Edit account" });
-    await user.type(within(sheet).getByLabelText("Own due day, 1 to 31"), "32");
-    await user.click(within(sheet).getByRole("button", { name: "Use" }));
+    // The due day is set in the screen's Adjust sheet (October 29, 2026), any day 1 to 31.
+    await user.click(within(card).getByRole("button", { name: "Set a payment due day" }));
+    const sheet = await screen.findByRole("dialog", { name: "Adjust credit habits" });
+    const own = within(sheet).getByLabelText("Own due day for Visa, 1 to 31");
+    await user.type(own, "32");
+    const row = own.closest(".own-choice") as HTMLElement;
+    await user.click(within(row).getByRole("button", { name: "Use" }));
     expect(within(sheet).getByRole("alert")).toHaveTextContent("Pick a day from 1 to 31.");
-    await user.clear(within(sheet).getByLabelText("Own due day, 1 to 31"));
-    await user.type(within(sheet).getByLabelText("Own due day, 1 to 31"), "20");
-    await user.click(within(sheet).getByRole("button", { name: "Use" }));
-    await user.click(within(sheet).getByRole("button", { name: "Save" }));
+    await user.clear(own);
+    await user.type(own, "20");
+    await user.click(within(row).getByRole("button", { name: "Use" }));
     await waitFor(async () => expect((await db.accounts.get(VISA.id))?.due_day).toBe(20));
   });
 

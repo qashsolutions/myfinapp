@@ -13,10 +13,21 @@ export interface CreditCardView {
   /** null until the card has a due date to check against (linked facts or a due day). */
   habits: CreditHabits | null;
   trend: CardTrend;
+  /** The guide the limit used is read against: the person's own, else the config's. */
+  guideBps: number;
 }
 
-/** Thresholds from config/insights.yaml (proposed October 28, 2026, awaiting owner sign-off). */
+/** Thresholds from config/insights.yaml (signed off by the owner, October 29, 2026). */
 export const CREDIT_GUIDE_BPS = THRESHOLDS.credit_guide_bps ?? 3000;
+/** The person's own guide percent for the limit used, in bps (October 29, 2026; synced). */
+export const GUIDE_SETTING = "credit.guide_bps";
+
+/** A saved guide when it is a whole percent from 1 to 100, else the config's. */
+export function readGuide(value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 100 && value <= 10000
+    ? value
+    : CREDIT_GUIDE_BPS;
+}
 const HABIT_MONTHS = THRESHOLDS.credit_habits_months ?? 12;
 const TREND_MONTHS = THRESHOLDS.card_trend_months ?? 6;
 
@@ -34,13 +45,14 @@ export function useCreditCards(asOf: string): CreditCardView[] | undefined {
   const source = useLiveQuery(async () => {
     const cards = (await db.accounts.toArray()).filter((a) => a.type === "credit_card");
     const ids = cards.map((a) => a.id);
-    const [entries, details, dues, anchors, imports, lastSync] = await Promise.all([
+    const [entries, details, dues, anchors, imports, lastSync, guide] = await Promise.all([
       ids.length ? db.entries.where("account_id").anyOf(ids).toArray() : [],
       db.card_details.toArray(),
       db.card_due_dates.toArray(),
       db.balance_anchors.toArray(),
       ids.length ? db.statement_imports.where("account_id").anyOf(ids).toArray() : [],
       db.settings.get(LAST_SYNC_KEY),
+      db.settings.get(GUIDE_SETTING),
     ]);
     const synced = typeof lastSync?.value === "string" ? Date.parse(lastSync.value) : Number.NaN;
     return {
@@ -51,6 +63,7 @@ export function useCreditCards(asOf: string): CreditCardView[] | undefined {
       anchors,
       imports,
       lastSyncDay: Number.isNaN(synced) ? null : todayIso(new Date(synced)),
+      guideBps: readGuide(guide?.value),
     };
   }, [db]);
   const [views, setViews] = useState<CreditCardView[] | undefined>(undefined);
@@ -95,7 +108,7 @@ export function useCreditCards(asOf: string): CreditCardView[] | undefined {
             limitCents: detail?.limit_cents ?? null,
             asOf,
             months: HABIT_MONTHS,
-            guideBps: CREDIT_GUIDE_BPS,
+            guideBps: source.guideBps,
             // What was owed on each due date comes from the card's balances and entries, so a
             // month with nothing owed is never missed and one with no balance yet is unknown.
             balanceHistory: {
@@ -126,7 +139,7 @@ export function useCreditCards(asOf: string): CreditCardView[] | undefined {
             ]),
           });
         }
-        out.push({ account, habits, trend });
+        out.push({ account, habits, trend, guideBps: source.guideBps });
       }
       if (alive) setViews(out);
     })().catch(ignoreClosed);

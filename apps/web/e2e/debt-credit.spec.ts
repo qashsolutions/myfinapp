@@ -23,16 +23,31 @@ test("@phone debt payoff: smallest balance first beside highest rate first, and 
   await addDebt(page, "Card", "200", "24", "20");
   await addDebt(page, "Loan", "100", "12", "20");
   const plan = page.getByRole("region", { name: "Payoff plan" });
-  await plan.getByRole("textbox", { name: "Other extra amount each month" }).fill("50");
-  await plan.getByRole("button", { name: "Use" }).click();
+  // The extra and the order live in "Adjust payoff plan" (October 29, 2026), which redraws the
+  // timeline live and saves on "Use these".
+  await plan.getByRole("button", { name: "Adjust payoff plan" }).click();
+  let sheet = page.getByRole("dialog", { name: "Adjust payoff plan" });
+  await sheet.getByRole("textbox", { name: "Other extra amount each month" }).fill("50");
+  await sheet.getByRole("button", { name: "Use", exact: true }).click();
+  await expect(sheet.getByRole("slider")).toHaveAttribute("aria-valuetext", "$50.00 extra a month");
+  await expect(
+    sheet.getByRole("img", { name: /Total balance falls from \$300\.00/ }),
+  ).toBeVisible();
+  await sheet.getByRole("button", { name: "Use these" }).click();
+  await expect(sheet).toBeHidden();
 
   const both = plan.getByRole("list", { name: "Both orders side by side" });
   await expect(both).toContainText("$10.84 interest");
   await expect(both).toContainText("$12.40 interest");
-  await expect(plan.getByRole("radio", { name: "Highest rate first" })).toBeChecked();
+  await expect(plan.getByRole("img", { name: /Total balance falls/ })).toBeVisible();
 
-  await plan.locator("label.chip-option", { hasText: "Smallest balance first" }).click();
-  await expect(plan.getByRole("radio", { name: "Smallest balance first" })).toBeChecked();
+  await plan.getByRole("button", { name: "Adjust payoff plan" }).click();
+  sheet = page.getByRole("dialog", { name: "Adjust payoff plan" });
+  await expect(sheet.getByRole("radio", { name: "Highest rate first" })).toBeChecked();
+  await sheet.locator("label.chip-option", { hasText: "Smallest balance first" }).click();
+  await expect(sheet.getByRole("radio", { name: "Smallest balance first" })).toBeChecked();
+  await sheet.getByRole("button", { name: "Use these" }).click();
+  await expect(sheet).toBeHidden();
   await expect(plan).toContainText("Loan: paid off");
   await expect(plan).toContainText("$1.31 interest");
   await expect(page.getByRole("list", { name: "Debts, smallest balance first" })).toBeVisible();
@@ -41,6 +56,7 @@ test("@phone debt payoff: smallest balance first beside highest rate first, and 
   const card = page.getByRole("link", { name: "Open Debt payoff" });
   await expect(card).toContainText("Debt-free at this pace");
   await expect(card).toContainText(/[A-Z][a-z]{2} \d{4}/);
+  await expect(card.locator(".payoff-spark polyline")).toBeVisible();
   await card.click();
   await expect(page.getByRole("region", { name: "Payoff plan" })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("debt-payoff.png"), fullPage: true });
@@ -89,10 +105,20 @@ test("credit habits: a card with its own due day and a payment before it shows a
   await expect(habits).toContainText("1 payment on time in a row");
   await expect(habits).toContainText("Education only. Qash never sees or shows a credit score.");
 
+  await expect(habits.getByRole("img", { name: /^Due dates: .* on time/ })).toBeVisible();
+
   await habits.getByRole("link", { name: "See each card" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Credit habits" })).toBeVisible();
   await expect(page.getByRole("article", { name: "Visa" })).toContainText(
     "1 payment on time in a row",
   );
+  // The person's own guide for the limit used, in the screen's Adjust sheet.
+  await page.getByRole("button", { name: "Adjust credit habits" }).click();
+  const adjust = page.getByRole("dialog", { name: "Adjust credit habits" });
+  await adjust.locator("label.chip-option", { hasText: "50%" }).click();
+  await expect(adjust.getByRole("radio", { name: "50%" })).toBeChecked();
+  await expect(adjust.getByLabel("Own due day for Visa, 1 to 31")).toBeVisible();
+  await adjust.getByRole("button", { name: "Done" }).click();
+  await expect(adjust).toBeHidden();
   await page.screenshot({ path: test.info().outputPath("credit-habits.png"), fullPage: true });
 });

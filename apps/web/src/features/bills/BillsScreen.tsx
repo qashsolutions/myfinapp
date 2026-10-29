@@ -32,7 +32,7 @@ import { PayoffPlan } from "./PayoffPlan.tsx";
 /**
  * Bills & debt (mockup F5Bills): suggestions found in statements, the confirmed bills and
  * expected income that feed Upcoming and the forecast, add and edit by hand. The Debt payoff
- * tab lists cards and loans in avalanche order (highest APR first); nothing is moved for you.
+ * tab lists cards and loans in the person's order (`debt.order`); nothing is moved for you.
  */
 export function BillsScreen() {
   const { db } = useDb();

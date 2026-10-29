@@ -108,9 +108,10 @@ describe("Budget", () => {
     const needs = await screen.findByRole("region", { name: "Needs 50%" });
     await waitFor(() => expect(needs).toHaveTextContent("$3,062.00 of $2,600.00"));
     expect(needs).toHaveTextContent("$462.00 over");
+    // The bar's text says what it shows, then its ticks (October 29, 2026).
     expect(within(needs).getByRole("progressbar", { name: "Needs spent" })).toHaveAttribute(
       "aria-valuetext",
-      "$3,062.00 of $2,600.00",
+      expect.stringMatching(/^\$3,062\.00 of \$2,600\.00 · .*90% · Plan$/),
     );
     expect(screen.getByRole("region", { name: "Wants 30%" })).toHaveTextContent(
       "$1,326.00 of $1,560.00",

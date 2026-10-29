@@ -220,6 +220,9 @@ def habits(
     date after `until`, the last day the card's data reaches (its latest import, entry, balance
     or sync), unless the payments already seen make it on time: its payment may not be in yet.
     We say only what the person's own data shows.
+
+    `dues` lists every due date in the window in date order with its result, on_time, missed
+    or unknown (October 29, 2026: the dot strip on Credit habits).
     """
     today = parse_date(as_of)
     span = _window_months(months)
@@ -276,11 +279,13 @@ def habits(
     window = [d for d in ordered if start <= d < today and (first is None or d >= first)]
     checked = []
     unknown = 0
+    unknown_dates = set()
     for d in window:
         if history is not None and d not in owed_by_due:
             owed_then = _owed_on(history, d)
             if owed_then is None:
                 unknown += 1
+                unknown_dates.add(d)
                 continue
             if owed_then == 0:
                 owed_by_due[d] = 0
@@ -300,6 +305,7 @@ def habits(
         if not on_time and last is not None and d > last:
             # Past what the card's data reaches: its payment may simply not be in yet.
             unknown += 1
+            unknown_dates.add(d)
             continue
         results.append({"due_date": d, "on_time": on_time, "in_full": in_full})
 
@@ -326,6 +332,11 @@ def habits(
     else:
         status = "building"
     upcoming = [d for d in ordered if d >= today]
+    by_date = {r["due_date"]: ("on_time" if r["on_time"] else "missed") for r in results}
+    dues_out = [
+        {"due_date": d.isoformat(), "result": "unknown" if d in unknown_dates else by_date[d]}
+        for d in window
+    ]
     util = utilization_bps(statement_balance_cents, current_balance_cents, limit_cents)[
         "utilization_bps"
     ]
@@ -341,6 +352,7 @@ def habits(
         "paid_in_full_streak": full_streak,
         "utilization_bps": util,
         "under_guide": None if util is None else util <= guide,
+        "dues": dues_out,
     }
 
 

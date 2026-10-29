@@ -178,6 +178,8 @@ export interface CreditHabits {
   paid_in_full_streak: number | null;
   utilization_bps: number | null;
   under_guide: boolean | null;
+  /** Every due date in the window, in date order, with its result (October 29, 2026). */
+  dues: Array<{ due_date: string; result: "on_time" | "missed" | "unknown" }>;
 }
 
 interface DueResult {
@@ -264,11 +266,13 @@ export function habits(
   );
   const checked: Day[] = [];
   let unknown = 0;
+  const unknownDates = new Set<string>();
   for (const d of window) {
     if (history !== null && !owedByDue.has(iso(d))) {
       const owedThen = owedOn(history, d);
       if (owedThen === null) {
         unknown += 1;
+        unknownDates.add(iso(d));
         continue;
       }
       if (owedThen === 0) owedByDue.set(iso(d), 0);
@@ -293,6 +297,7 @@ export function habits(
     if (!onTime && last !== null && daysUntil(last, d) > 0) {
       // Past what the card's data reaches: its payment may simply not be in yet.
       unknown += 1;
+      unknownDates.add(key);
       continue;
     }
     results.push({ due: key, onTime, inFull: owed === null ? null : total >= owed });
@@ -339,6 +344,14 @@ export function habits(
     paid_in_full_streak: fullStreak,
     utilization_bps: util,
     under_guide: util === null ? null : util <= guide,
+    dues: window.map((d) => {
+      const key = iso(d);
+      const r = results.find((x) => x.due === key);
+      return {
+        due_date: key,
+        result: unknownDates.has(key) || !r ? "unknown" : r.onTime ? "on_time" : "missed",
+      };
+    }),
   };
 }
 

@@ -5,9 +5,11 @@
  */
 
 import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { type Entry, openDb, seedDefaults } from "../../src/data/db.ts";
 import { resetEntitlements } from "../../src/features/billing/entitlements.ts";
+import { createBudget } from "../../src/features/budget/useBudget.ts";
 import { createGoal } from "../../src/features/goals/useGoals.ts";
 import { forgetKept, rememberKept } from "../../src/lib/keptAccount.ts";
 import { installFakeApi, readySession } from "../fakeApi.ts";
@@ -222,5 +224,117 @@ describe("accessibility (axe-core)", () => {
       await screen.findByRole("heading", { level: 1, name: "Welcome back, Maya." });
     });
     localStorage.removeItem("stackd.last_account");
+  });
+});
+
+/** The page and any open sheet (sheets are portalled to the body). */
+async function checkBody(what: string) {
+  const results = await axe.run(document.body, {
+    rules: { "color-contrast": { enabled: false } },
+  });
+  const summary = results.violations.map(
+    (v) =>
+      `${v.id} (${v.impact}): ${v.help}\n  ${v.nodes.map((n) => n.target.join(" ")).join("\n  ")}`,
+  );
+  expect(summary, `${what}\n${summary.join("\n")}`).toEqual([]);
+}
+
+// The Adjust sheets and the pictures behind them (October 29, 2026).
+describe("accessibility of the Adjust sheets (axe-core)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(TODAY);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("Adjust payoff plan, over the payoff timeline", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await db.debts.bulkAdd([
+      {
+        id: "a",
+        label: "Card",
+        balance_cents: 20000,
+        apr_bps: 2400,
+        min_payment_cents: 2000,
+        created_at: "2026-10-01T00:00:00Z",
+        updated_at: "2026-10-01T00:00:00Z",
+      },
+      {
+        id: "b",
+        label: "Loan",
+        balance_cents: 10000,
+        apr_bps: 1200,
+        min_payment_cents: 2000,
+        created_at: "2026-10-01T00:00:00Z",
+        updated_at: "2026-10-01T00:00:00Z",
+      },
+    ]);
+    installFakeApi({ session: readySession() });
+    renderApp("/bills?tab=debt");
+    const plan = await screen.findByRole("region", { name: "Payoff plan" });
+    await within(plan).findByRole("img", { name: /Total balance falls/ });
+    await checkBody("Debt payoff");
+    await user.click(within(plan).getByRole("button", { name: "Adjust payoff plan" }));
+    const sheet = await screen.findByRole("dialog", { name: "Adjust payoff plan" });
+    await within(sheet).findByRole("img", { name: /Total balance falls/ });
+    await checkBody("Adjust payoff plan");
+  });
+
+  it("Adjust credit habits, over the dot strip", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await db.accounts.put({
+      id: "acct-visa",
+      label: "Visa",
+      type: "credit_card",
+      last4: "4242",
+      institution: null,
+      currency: "USD",
+      created_at: "2026-07-01T00:00:00Z",
+      due_day: 15,
+    });
+    await db.entries.bulkAdd([
+      { ...entry("c1", "2026-08-03", 8000, "Grocer", "out"), account_id: "acct-visa" },
+      { ...entry("c2", "2026-08-14", 5000, "Payment", "in"), account_id: "acct-visa" },
+    ]);
+    await db.balance_anchors.add({
+      id: "anc-visa",
+      account_id: "acct-visa",
+      as_of: "2026-08-01",
+      balance_cents: 0,
+      source: "user",
+      created_at: "2026-08-01T00:00:00Z",
+    });
+    installFakeApi({ session: readySession() });
+    renderApp("/credit-habits");
+    await screen.findByRole("img", { name: /^Due dates:/ });
+    await checkBody("Credit habits");
+    await user.click(screen.getByRole("button", { name: "Adjust credit habits" }));
+    await screen.findByRole("dialog", { name: "Adjust credit habits" });
+    await checkBody("Adjust credit habits");
+  });
+
+  it("Adjust budget alerts, over the marked bars", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await db.entries.add({
+      ...entry("b1", "2026-10-05", 18500, "Bistro", "out"),
+      category_id: "cat-groceries",
+    });
+    await createBudget(db, "2026-10", "zero_based", 400000, [
+      { category_id: "cat-groceries", planned_cents: 20000 },
+    ]);
+    installFakeApi({ session: readySession() });
+    renderApp("/budget");
+    await screen.findByRole("region", { name: "Planned by category" });
+    await checkBody("Budget");
+    await user.click(screen.getByRole("button", { name: "Adjust budget alerts" }));
+    const sheet = await screen.findByRole("dialog", { name: "Adjust budget alerts" });
+    await within(sheet).findByRole("switch", { name: "Budget alert" });
+    await checkBody("Adjust budget alerts");
   });
 });

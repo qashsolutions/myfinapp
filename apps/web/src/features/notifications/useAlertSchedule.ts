@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { localStamp, syncAlertSchedule } from "../../data/alertSchedule.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { todayIso } from "../../lib/format.ts";
+import { ALERT_OFF_SETTING } from "../budget/pace.ts";
 import { useBudget } from "../budget/useBudget.ts";
 import { useForecast } from "../forecast/useForecast.ts";
 import { useGoals } from "../goals/useGoals.ts";
@@ -33,13 +34,18 @@ export function useAlertSchedule(): void {
   );
   // Chunk 3.5: a new card statement (due date, balance) changes the schedule too.
   const cards = useLiveQuery(() => db.card_details.toArray(), [db]);
+  // A budget line turned off or back on ("Don't alert me for this one", October 29, 2026).
+  const alertOff = useLiveQuery(
+    async () => (await db.settings.get(ALERT_OFF_SETTING))?.value,
+    [db],
+  );
   const running = useRef(false);
   const projection = forecast.projection;
   const upcoming = forecast.upcoming;
   const prefs = settings.data?.prefs;
   const challenges = groups.groups;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: cards is a trigger; buildInputs reads the table
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cards and alertOff are triggers; buildInputs reads the tables
   useEffect(() => {
     if (forecast.loading || !goals || !prefs || !challenges || running.current) return;
     running.current = true;
@@ -69,6 +75,7 @@ export function useAlertSchedule(): void {
     today,
     milestones,
     cards,
+    alertOff,
     budget,
   ]);
 }

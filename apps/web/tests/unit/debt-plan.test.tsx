@@ -1,10 +1,16 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { openDb, seedDefaults } from "../../src/data/db.ts";
 import { installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 
 const TODAY = new Date("2026-10-10T12:00:00");
+
+/** Opens "Adjust payoff plan" (October 29, 2026): the extra and the order live there. */
+async function openAdjust(user: ReturnType<typeof userEvent.setup>, plan: HTMLElement) {
+  await user.click(within(plan).getByRole("button", { name: "Adjust payoff plan" }));
+  return screen.findByRole("dialog", { name: "Adjust payoff plan" });
+}
 
 async function seedDebts(cardMin = 2000) {
   const db = openDb("u1");
@@ -54,11 +60,17 @@ describe("Debt payoff planner", () => {
     );
     expect(plan).toHaveTextContent("Debt-free at this pace");
     expect(plan.querySelector(".word--good")).toBeNull();
-    expect(within(plan).getByRole("radio", { name: "Minimums only" })).toBeChecked();
-    expect(within(plan).getByRole("radio", { name: "Highest rate first" })).toBeChecked();
     expect(plan).toHaveTextContent("at $40.00 a month");
+    expect(plan).toHaveTextContent("Minimums only.");
 
-    await user.click(within(plan).getByRole("radio", { name: "+$50.00" }));
+    let sheet = await openAdjust(user, plan);
+    expect(within(sheet).getByRole("radio", { name: "Minimums only" })).toBeChecked();
+    expect(within(sheet).getByRole("radio", { name: "Highest rate first" })).toBeChecked();
+    await user.click(within(sheet).getByRole("radio", { name: "+$50" }));
+    // The sheet redraws before anything is saved.
+    await waitFor(() => expect(within(sheet).getByRole("status")).toHaveTextContent("Mar 2027"));
+    expect(await db.settings.get("debt.extra_cents")).toBeUndefined();
+    await user.click(within(sheet).getByRole("button", { name: "Use these" }));
     await waitFor(() => expect(within(plan).getByRole("status")).toHaveTextContent("March 2027"));
     expect(plan).toHaveTextContent("5 months at $90.00 a month · $15.45 in interest");
     expect(plan).toHaveTextContent(
@@ -67,7 +79,9 @@ describe("Debt payoff planner", () => {
     expect(plan).toHaveTextContent("Card: paid off January 2027 · $8.01 interest");
     expect(plan).toHaveTextContent("Loan: paid off March 2027 · $7.44 interest");
     expect(
-      within(plan).getByRole("img", { name: /Total balance falling to zero over 5 months/ }),
+      within(plan).getByRole("img", {
+        name: /Total balance falls from \$400\.00 to zero by Mar 2027/,
+      }),
     ).toBeInTheDocument();
     expect(await db.settings.get("debt.extra_cents")).toMatchObject({ value: 5000 });
     expect(await db.computed_results.get("payoff_plan:2026-10-10")).toMatchObject({
@@ -80,9 +94,25 @@ describe("Debt payoff planner", () => {
       },
     });
 
-    await user.type(within(plan).getByLabelText("Other extra amount each month"), "150");
-    await user.click(within(plan).getByRole("button", { name: "Use" }));
+    sheet = await openAdjust(user, plan);
+    await user.type(within(sheet).getByLabelText("Other extra amount each month"), "150");
+    await user.click(within(sheet).getByRole("button", { name: "Use" }));
+    await waitFor(() =>
+      expect(within(sheet).getByRole("slider")).toHaveAttribute(
+        "aria-valuetext",
+        "$150.00 extra a month",
+      ),
+    );
+    await user.click(within(sheet).getByRole("button", { name: "Use these" }));
     await waitFor(() => expect(plan).toHaveTextContent("at $190.00 a month"));
+    expect(await db.settings.get("debt.extra_cents")).toMatchObject({ value: 15000 });
+
+    // The slider tries amounts out; Cancel keeps what was saved.
+    sheet = await openAdjust(user, plan);
+    const slider = within(sheet).getByRole("slider");
+    fireEvent.change(slider, { target: { value: "16000" } });
+    expect(slider).toHaveAttribute("aria-valuetext", "$160.00 extra a month");
+    await user.click(within(sheet).getByRole("button", { name: "Cancel" }));
     expect(await db.settings.get("debt.extra_cents")).toMatchObject({ value: 15000 });
   });
 
@@ -101,7 +131,9 @@ describe("Debt payoff planner", () => {
       ),
     );
     expect(plan).toHaveTextContent("Stalled");
-    await user.click(within(plan).getByRole("radio", { name: "+$100.00" }));
+    const sheet = await openAdjust(user, plan);
+    await user.click(within(sheet).getByRole("radio", { name: "+$100" }));
+    await user.click(within(sheet).getByRole("button", { name: "Use these" }));
     await waitFor(() =>
       expect(within(plan).getByRole("status")).toHaveTextContent(/^[A-Z][a-z]+ \d{4}$/),
     );
@@ -148,7 +180,9 @@ describe("Debt payoff planner", () => {
     expect(both).toHaveTextContent("Clears a debt sooner.");
     expect(plan).toHaveTextContent("Card: paid off January 2027 · $8.01 interest");
 
-    await user.click(within(plan).getByRole("radio", { name: "Smallest balance first" }));
+    const sheet = await openAdjust(user, plan);
+    await user.click(within(sheet).getByRole("radio", { name: "Smallest balance first" }));
+    await user.click(within(sheet).getByRole("button", { name: "Use these" }));
     await waitFor(() =>
       expect(plan).toHaveTextContent("Loan: paid off December 2026 · $1.31 interest"),
     );

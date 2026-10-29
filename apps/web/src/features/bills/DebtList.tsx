@@ -46,8 +46,8 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
           <Illustration name="card" tone="a3" />
           <p>
             No cards or loans yet. Add each one with its balance, APR and minimum payment, and the
-            app orders them by highest APR: pay minimums on all, extra on the first. Nothing is
-            moved for you.
+            app orders them the way you pick in the payoff plan: pay minimums on all, extra on the
+            first. Nothing is moved for you.
           </p>
         </Card>
       ) : null}
@@ -60,7 +60,7 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
       <ol
         className="lb"
         aria-label={
-          kind === "snowball" ? "Debts, smallest balance first" : "Debts, highest APR first"
+          kind === "snowball" ? "Debts, smallest balance first" : "Debts, highest rate first"
         }
       >
         {order?.order.map((d) => (
@@ -103,8 +103,8 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
       {order && order.order.length > 0 ? (
         <p className="auth__fineprint">
           {kind === "snowball"
-            ? "Smallest balance first, so a debt is cleared sooner. Education, not advice."
-            : "Avalanche order: highest APR first, so interest costs the least. Education, not advice."}
+            ? "Smallest balance first: a debt clears sooner. Education, not advice."
+            : "Highest rate first: interest costs the least. Education, not advice."}
         </p>
       ) : null}
     </>
