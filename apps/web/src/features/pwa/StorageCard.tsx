@@ -26,10 +26,13 @@ export function isIphoneTab(): boolean {
   return installPlatform() === "iphone" && !isStandalone() && !isNativePlatform();
 }
 
-const LINES: Record<NonNullable<StorageRisk>, string> = {
-  iphone_tab: `On iPhone, Safari can erase this data after 7 days without a visit. Add ${APP_NAME} to your Home Screen, or turn on backup.`,
-  export: "This browser may clear what's stored here. Keep a copy somewhere safe.",
-};
+function line(risk: NonNullable<StorageRisk>): string {
+  if (risk === "export")
+    return "This browser may clear what's stored here. Keep a copy somewhere safe.";
+  const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
+  const device = /iPhone|iPod/.test(ua) ? "iPhone" : "iPad"; // an iPad may report itself as a Mac
+  return `On ${device}, Safari can erase this data after 7 days without a visit. Add ${APP_NAME} to your Home Screen, or turn on backup.`;
+}
 
 /**
  * Home's "keep it safe" card (defect round 3, October 29, 2026; invariant 58): said once a
@@ -77,7 +80,7 @@ export function StorageCard() {
       <h2 className="storage-card__title" id="storage-card">
         Keep your data safe
       </h2>
-      <p className="storage-card__sub">{LINES[risk]}</p>
+      <p className="storage-card__sub">{line(risk)}</p>
       <div className="storage-card__actions">
         {risk === "iphone_tab" ? (
           <Button onClick={() => setGuide(true)}>Add to Home Screen</Button>

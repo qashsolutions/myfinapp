@@ -1,13 +1,13 @@
 import { Button, Sheet } from "@stackd/ui";
 import { useState } from "react";
-import { biometricName, isNativePlatform } from "../../lib/platform.ts";
+import { biometricName, isAppleMobile, isNativePlatform } from "../../lib/platform.ts";
 import { preferPhoneNext } from "../security/webauthn.ts";
 
 /** A computer (not a phone or tablet, not the native app): the only place this help appears. */
 export function onComputer(
   userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent,
 ) {
-  return !/iPhone|iPad|iPod|Android/.test(userAgent) && !isNativePlatform();
+  return !/Android/.test(userAgent) && !isAppleMobile(userAgent) && !isNativePlatform();
 }
 
 /** "No Touch ID on this computer?" / "No Windows Hello…"; elsewhere a plain fingerprint line. */

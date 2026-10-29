@@ -18,10 +18,15 @@ import {
 import { resetEntitlements } from "../../src/features/billing/entitlements.ts";
 import { keptAccount, rememberKept } from "../../src/lib/keptAccount.ts";
 import { lastAccount, rememberAccount } from "../../src/lib/lastAccount.ts";
+import { isAppleMobile } from "../../src/lib/platform.ts";
+import { installPlatform, installTarget } from "../../src/pwa/install.ts";
 import { installFakeApi, readySession, signedOut } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 
 const DAY = 86_400_000;
+// iPadOS Safari asks for desktop sites: a Mac's user agent, but a touch screen.
+const IPAD_AS_MAC =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
 const IPHONE =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
 
@@ -200,5 +205,39 @@ describe("a locked app's plan screen", () => {
       expect(current).not.toHaveTextContent(/jars and goals|statement account/);
       unmount();
     }
+  });
+});
+
+/** jsdom has no `maxTouchPoints`; a tablet reports several. */
+function touchScreen(points: number) {
+  Object.defineProperty(navigator, "maxTouchPoints", { value: points, configurable: true });
+}
+
+describe("an iPad that reports itself as a Mac", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    touchScreen(0);
+  });
+
+  it("is an iPad when it has a touch screen; a Mac (no touch points) stays a Mac", () => {
+    expect(isAppleMobile(IPAD_AS_MAC, 5)).toBe(true);
+    expect(isAppleMobile(IPAD_AS_MAC, 0)).toBe(false);
+    expect(isAppleMobile(IPHONE, 0)).toBe(true);
+    touchScreen(5);
+    expect(installPlatform(IPAD_AS_MAC)).toBe("iphone");
+    expect(installTarget(IPAD_AS_MAC)).toBe("iphone_safari");
+  });
+
+  it("gets the keep-it-safe card on Home, naming the iPad, with the picture steps", async () => {
+    resetLastOpen();
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(IPAD_AS_MAC);
+    touchScreen(5);
+    const user = userEvent.setup();
+    installFakeApi({ session: readySession() });
+    renderApp("/");
+    const card = await screen.findByRole("region", { name: "Keep your data safe" });
+    expect(card).toHaveTextContent("On iPad, Safari can erase this data after 7 days");
+    await user.click(within(card).getByRole("button", { name: "Add to Home Screen" }));
+    expect(await screen.findByRole("dialog")).toHaveTextContent(/Share/);
   });
 });
