@@ -492,8 +492,9 @@ written against both.
     on our side (Stripe or Play busy or down, billing not configured, a database error, a bug)
     answers 5xx with nothing of the attempt kept, the event id included, so the retry applies it
     in full. Each failure is logged with the event id, type and error code (Stripe's status and
-    code, never its message) and reported through `ops_alerts` as `<source>_webhook_failed`
-    (`app/webhooks/failures.py`). Pausing or resuming collection is safe to repeat: a
+    code, never its message); our own failures are also reported through `ops_alerts` as
+    `<source>_webhook_failed`, while a refused request is logged only, never emailed (owner
+    decision, October 29, 2026; `app/webhooks/failures.py`). Pausing or resuming collection is safe to repeat: a
     subscription already as asked, or ended, is done, not a failure.
     `test_webhook_failures.py`
 61. **The refund on the Delete account screen says only what is true of it** (October 29,

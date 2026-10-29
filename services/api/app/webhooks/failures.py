@@ -4,9 +4,10 @@
 purchase the store doesn't know): sending it again can't help. Anything that failed on our side
 (Stripe or the Play API busy or down, billing not configured, a database error, a bug) answers
 5xx, so the sender delivers it again; nothing was recorded as applied, so the retry runs it in
-full. Every failure is logged with the event's id, type and the error code, and reported to the
-admins through `ops_alerts` (at most one email per kind and place an hour). Never the event's
-contents, an email address or an amount.
+full. Every failure is logged with the event's id, type and the error code; only our own
+failures (5xx) are reported to the admins through `ops_alerts` (at most one email per kind and
+place an hour; owner decision, October 29, 2026: a refused request is logged, not emailed).
+Never the event's contents, an email address or an amount.
 """
 
 from __future__ import annotations
@@ -54,12 +55,14 @@ def failed(
         code,
         detail or "-",
     )
+    if code in REFUSED:
+        # Logged only (owner decision, October 29, 2026): a forged or malformed request is the
+        # sender's, not ours to fix, and anyone on the internet can send one.
+        return HTTPException(status.HTTP_400_BAD_REQUEST, detail=code)
     where = f"POST /api/webhooks/{source} {event_type or '-'}: {code}"
     if detail:
         where += f" ({detail})"
     report(f"{source}_webhook_failed", where, exc)
-    if code in REFUSED:
-        return HTTPException(status.HTTP_400_BAD_REQUEST, detail=code)
     if code in UPSTREAM:
         return HTTPException(status.HTTP_502_BAD_GATEWAY, detail=code)
     if hasattr(exc, "code"):  # one of ours, such as billing_unavailable

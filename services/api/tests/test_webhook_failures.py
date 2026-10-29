@@ -176,15 +176,19 @@ def test_an_unexpected_error_is_500_reported_and_nothing_kept(monkeypatch) -> No
     ]
 
 
-def test_a_bad_signature_is_still_400_and_reported() -> None:
+def test_a_bad_signature_is_400_logged_and_not_emailed(caplog) -> None:
+    """Owner decision, October 29, 2026: a refused request is logged, never emailed."""
     client = new_client()
-    r = client.post(
-        "/api/webhooks/stripe",
-        content=b'{"id": "evt_x"}',
-        headers={"stripe-signature": "t=1,v1=00", "content-type": "application/json"},
-    )
+    with caplog.at_level(logging.WARNING, logger="stackd.webhooks"):
+        r = client.post(
+            "/api/webhooks/stripe",
+            content=b'{"id": "evt_x", "email": "someone@example.com"}',
+            headers={"stripe-signature": "t=1,v1=00", "content-type": "application/json"},
+        )
     assert r.status_code == 400 and r.json()["detail"] == "bad_signature"
-    assert len(_ops_alerts()) == 1
+    line = next(rec.getMessage() for rec in caplog.records if "webhook failed" in rec.getMessage())
+    assert "stripe" in line and "bad_signature" in line and "example.com" not in line
+    assert _ops_alerts() == []
 
 
 def test_play_billing_not_configured_is_503_so_pubsub_retries(monkeypatch) -> None:
