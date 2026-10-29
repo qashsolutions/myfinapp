@@ -30,6 +30,7 @@ import { LaterScreen } from "../features/later/LaterScreen.tsx";
 import { LinkDone } from "../features/linking/LinkDone.tsx";
 import { LinkedAccounts } from "../features/linking/LinkedAccounts.tsx";
 import { MoneyScreen } from "../features/money/MoneyScreen.tsx";
+import { MonthReviewScreen } from "../features/monthreview/MonthReviewScreen.tsx";
 import { NetWorthScreen } from "../features/networth/NetWorthScreen.tsx";
 import { NotificationSettings } from "../features/notifications/NotificationSettings.tsx";
 import { SetupHub } from "../features/onboarding/SetupHub.tsx";
@@ -97,6 +98,7 @@ export function AppRoutes() {
           <Route path="credit-habits" element={<CreditHabitsScreen />} />
           <Route path="insights/later" element={<LaterScreen />} />
           <Route path="what-if" element={<WhatIfScreen />} />
+          <Route path="month-review" element={<MonthReviewScreen />} />
           <Route path="review" element={<ReviewScreen />} />
           <Route path="net-worth" element={<NetWorthScreen />} />
           <Route path="setup" element={<SetupHub />} />

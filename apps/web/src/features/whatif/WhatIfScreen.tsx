@@ -40,6 +40,13 @@ export const SPEND_LESS = [2500, 5000, 10000];
 
 const DISCLAIMER = "An illustration from your own numbers, not advice.";
 
+/** `?amount=` in whole cents, 1 to 999,999,999; null for anything else. */
+export function prefillAmount(raw: string | null): number | null {
+  if (raw === null || !/^[0-9]{1,9}$/.test(raw)) return null;
+  const cents = Number.parseInt(raw, 10);
+  return cents > 0 ? cents : null;
+}
+
 function monthsWords(n: number): string {
   if (n >= 24 && n % 12 === 0) return `${n / 12} years`;
   return `${n} ${n === 1 ? "month" : "months"}`;
@@ -253,12 +260,15 @@ export function WhatIfScreen() {
   const [lever, setLever] = useState<Lever>(
     LEVERS.some(([k]) => k === asked) ? (asked as Lever) : params.get("goal") ? "spend" : "loan",
   );
+  // Prefilled from the address (the month review's "Try it in What if"; October 28, 2026): an
+  // amount for the lever asked, a category the person has. Anything else is ignored.
+  const prefill = prefillAmount(params.get("amount"));
   const [debtId, setDebtId] = useState<string | null>(params.get("debt"));
-  const [loanAdd, setLoanAdd] = useState(10000);
+  const [loanAdd, setLoanAdd] = useState(lever === "loan" ? (prefill ?? 10000) : 10000);
   const [halfBiweekly, setHalfBiweekly] = useState(false);
-  const [allAdd, setAllAdd] = useState(10000);
-  const [categoryId, setCategoryId] = useState<string>("");
-  const [spendAdd, setSpendAdd] = useState(5000);
+  const [allAdd, setAllAdd] = useState(lever === "debts" ? (prefill ?? 10000) : 10000);
+  const [categoryId, setCategoryId] = useState<string>(params.get("category") ?? "");
+  const [spendAdd, setSpendAdd] = useState(lever === "spend" ? (prefill ?? 5000) : 5000);
   const [loanResult, setLoanResult] = useState<WhatIfDebt | null>(null);
   const [allResult, setAllResult] = useState<WhatIfDebt | null>(null);
   const [spendDebts, setSpendDebts] = useState<WhatIfDebt | null>(null);

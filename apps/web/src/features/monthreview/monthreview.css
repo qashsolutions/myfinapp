@@ -1,0 +1,12 @@
+/* Your month (October 28, 2026): the sections reuse the cards' own classes; only spacing here. */
+.review-month__line {
+  margin: 0 0 8px;
+  font-size: var(--fs-body);
+}
+
+.review-month__list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: var(--fs-small);
+  color: var(--c-sub);
+}

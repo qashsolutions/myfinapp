@@ -164,6 +164,10 @@ const BARE: Record<string, Rule> = {
     const { start, end, entries, limit } = args(input, ["start", "end", "entries", "limit"]);
     return { ...insights.topSpending(start, end, entries, limit) };
   },
+  "insights.one_change": (input) => {
+    const { candidates, order } = args(input, ["candidates", "order"]);
+    return { ...insights.oneChange(candidates, order) };
+  },
   "bills.consolidation": (input) => {
     const { debts, offer, payment_cents, as_of } = args(input, [
       "debts",

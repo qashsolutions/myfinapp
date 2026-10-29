@@ -11,6 +11,7 @@ import type { StackdDb } from "../../data/db.ts";
  * about into your own order and hide the rest). */
 export const HOME_CARDS = [
   ["kept", "This month", "Kept, with money in and out"],
+  ["month_review", "Your month", "Last month at a glance, in its first week"],
   ["found", "Found in your statements", "Bills and pay to confirm"],
   ["where", "Where it went", "Spending by category"],
   ["aside", "Set aside", "This month's saving"],

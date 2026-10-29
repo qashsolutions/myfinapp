@@ -1,0 +1,7 @@
+{
+  "pick": {
+    "index": 1,
+    "kind": "subscription_check",
+    "yearly_cents": 15000
+  }
+}

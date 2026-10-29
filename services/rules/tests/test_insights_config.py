@@ -38,6 +38,18 @@ def test_every_threshold_is_present() -> None:
     assert all(isinstance(v, int) and v >= 0 for v in thresholds.values())
 
 
+def test_month_review_values() -> None:
+    review = build.compile_config()["month_review"]
+    assert 1 <= review["show_days"] <= 28
+    assert review["debt_add_cents"] > 0
+    order = review["one_change_order"]
+    assert sorted(order) == ["debt_interest", "over_plan", "subscription_check"]
+    # the rule accepts the configured order as it stands
+    from stackd_rules.registry import RULES
+
+    assert RULES["insights.one_change"](candidates=[], order=order) == {"pick": None}
+
+
 def test_budget_alert_levels_are_ascending_whole_bps() -> None:
     levels = build.compile_config()["budget_alerts"]["levels_bps"]
     assert levels, "at least one level"
