@@ -694,3 +694,30 @@ describe("PDF statement (fast-follow 2)", () => {
     expect(onlySessionReads(fake.calls)).toEqual([]);
   });
 });
+
+// Invariant 40: a statement's balance is anchored on its true last row, whatever order it lists.
+describe("ending balance from a running-balance column", () => {
+  const csv = (rows: string[]) => `Date,Description,Amount,Balance\n${rows.join("\n")}\n`;
+  async function ending(text: string) {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    const parsed = await parseFile("s.csv", text);
+    const table = parsed.csv as NonNullable<typeof parsed.csv>;
+    const { rows } = await applyMapping(table, guessMapping(table), parseAmount);
+    return (await prepareRows(db, "acct-cash", rows)).ending_balance;
+  }
+  const oldestFirst = [
+    "2026-10-01,Deposit,1000.00,1000.00",
+    "2026-10-03,Coffee,-5.00,995.00",
+    "2026-10-03,Lunch,-20.00,975.00",
+  ];
+
+  it("oldest first, newest first and the same day listed either way all end on $975.00", async () => {
+    const want = { cents: 97500, as_of: "2026-10-03" };
+    expect(await ending(csv(oldestFirst))).toEqual(want);
+    expect(await ending(csv([...oldestFirst].reverse()))).toEqual(want);
+    const sameDay = ["2026-10-03,Coffee,-5.00,995.00", "2026-10-03,Lunch,-20.00,975.00"];
+    expect(await ending(csv(sameDay))).toEqual(want);
+    expect(await ending(csv([...sameDay].reverse()))).toEqual(want);
+  });
+});

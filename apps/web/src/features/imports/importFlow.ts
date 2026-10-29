@@ -20,7 +20,7 @@ import { storeFile } from "../../data/files.ts";
 import { engine, matchTransfers, parseAmount, type RuleEntry } from "../../engine/bridge.ts";
 import { type CsvTable, guessMapping, type MappedRow, parseCsv } from "../../importers/csv.ts";
 import { looksLikeOfx, type OfxStatement, parseOfx } from "../../importers/ofx.ts";
-import { type PdfStatement, parsePdf } from "../../importers/pdf/index.ts";
+import { extractLines, type PdfStatement, parsePdfLines } from "../../importers/pdf/index.ts";
 import { addDaysIso } from "../../lib/dates.ts";
 import { compareText } from "../../lib/order.ts";
 import { savedNames } from "../entries/entryActions.ts";
@@ -39,13 +39,31 @@ export interface ParsedFile {
   csv?: CsvTable;
   ofx?: OfxStatement;
   pdf?: PdfStatement;
+  /** A PDF's text lines, kept in memory only, to read it again as a card if one is picked. */
+  pdfLines?: string[];
   rowCount: number;
 }
 
 /** A PDF statement (fast-follow 2): bytes, not text; the text layer is read on the device. */
 export async function parsePdfFile(bytes: Uint8Array): Promise<ParsedFile> {
-  const pdf = await parsePdf(bytes, parseAmount);
-  return { format: "pdf", pdf, rowCount: pdf.rows.length };
+  const pdfLines = await extractLines(bytes);
+  const pdf = await parsePdfLines(pdfLines, parseAmount);
+  return { format: "pdf", pdf, pdfLines, rowCount: pdf.rows.length };
+}
+
+/**
+ * The PDF read for the account it goes into (invariant 39): a statement the header didn't mark as
+ * a card, going into a credit-card account, is read again as one, so its purchases are money out
+ * and its balance is owed.
+ */
+export async function pdfForAccount(
+  parsed: ParsedFile,
+  accountType: string,
+): Promise<PdfStatement | undefined> {
+  const pdf = parsed.pdf;
+  if (!pdf || accountType !== "credit_card" || pdf.account.type === "credit_card") return pdf;
+  if (!parsed.pdfLines) return pdf;
+  return parsePdfLines(parsed.pdfLines, parseAmount, { card: true });
 }
 
 export async function parseFile(name: string, text: string): Promise<ParsedFile> {
@@ -133,6 +151,45 @@ export async function loadCategorizer(
     });
 }
 
+/**
+ * Which way a file lists its rows (invariant 40): "asc" oldest first, "desc" newest first, null
+ * when it can't tell. A running balance decides first (each row's balance is the one before plus
+ * its amount when oldest first, the one after plus the row's own amount when newest first), so
+ * rows on one day are told apart too; else the first and last rows' dates.
+ */
+export function fileOrder(mapped: MappedRow[]): "asc" | "desc" | null {
+  const rows = [...mapped].sort((a, b) => a.row - b.row);
+  let asc = 0;
+  let desc = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const before = rows[i - 1] as MappedRow;
+    const here = rows[i] as MappedRow;
+    if (before.balance_cents === null || here.balance_cents === null) continue;
+    if (here.balance_cents === before.balance_cents + here.amount_cents) asc += 1;
+    if (before.balance_cents === here.balance_cents + before.amount_cents) desc += 1;
+  }
+  if (asc !== desc) return asc > desc ? "asc" : "desc";
+  const first = rows[0];
+  const last = rows[rows.length - 1];
+  if (!first || !last) return null;
+  const c = compareText(first.date, last.date);
+  return c < 0 ? "asc" : c > 0 ? "desc" : null;
+}
+
+/** The balance after the file's true last row: its latest day, the row listed last on it. */
+export function endingFromRows(mapped: MappedRow[]): Prepared["ending_balance"] {
+  const order = fileOrder(mapped);
+  const withBalance = mapped
+    .filter((r) => r.balance_cents !== null)
+    .sort(
+      (a, b) => compareText(b.date, a.date) || (order === "asc" ? b.row - a.row : a.row - b.row),
+    );
+  const latest = withBalance[0];
+  return latest && latest.balance_cents !== null
+    ? { cents: latest.balance_cents, as_of: latest.date }
+    : null;
+}
+
 /** Fingerprint, dedupe and categorise. Identical rows within one file get a numbered suffix. */
 export async function prepareRows(
   db: StackdDb,
@@ -181,14 +238,7 @@ export async function prepareRows(
   let ending: Prepared["ending_balance"] = ledger
     ? { cents: ledger.cents, as_of: ledger.as_of }
     : null;
-  if (!ending) {
-    const withBalance = mapped
-      .filter((r) => r.balance_cents !== null)
-      .sort((a, b) => compareText(b.date, a.date) || a.row - b.row);
-    const latest = withBalance[0];
-    if (latest && latest.balance_cents !== null)
-      ending = { cents: latest.balance_cents, as_of: latest.date };
-  }
+  if (!ending) ending = endingFromRows(mapped);
   return {
     rows,
     found: rows.length,

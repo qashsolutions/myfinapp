@@ -60,7 +60,10 @@ def typical_daily_spending(entries: list, as_of: str, fallback_monthly_cents: in
             return {"cents_per_day": 0, "basis": "none", "days_of_history": days_of_history}
         per_day = money.round_div(fallback, dates.days_in_month(today))
         return {"cents_per_day": per_day, "basis": "budget", "days_of_history": days_of_history}
-    window_start = today - timedelta(days=89)
+    # The window is the history there is, up to 90 days (owner decision, October 29, 2026):
+    # 45 days of history divide by 45, never by 90.
+    window = min(days_of_history, 90)
+    window_start = today - timedelta(days=window - 1)
     spent = sum(
         cents
         for day, cents, direction, is_transfer, is_recurring in rows
@@ -70,7 +73,7 @@ def typical_daily_spending(entries: list, as_of: str, fallback_monthly_cents: in
         and not is_recurring
     )
     return {
-        "cents_per_day": money.round_div(spent, 90),
+        "cents_per_day": money.round_div(spent, window),
         "basis": "history",
         "days_of_history": days_of_history,
     }
