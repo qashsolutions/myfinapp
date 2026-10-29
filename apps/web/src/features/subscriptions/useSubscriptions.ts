@@ -13,7 +13,8 @@ import {
   yearlyCost,
 } from "../../engine/bridge.ts";
 import { compareText } from "../../lib/order.ts";
-import { checkThresholds, KIND_TABLE, useCheckIntervals } from "./kinds.ts";
+import { checkThresholds, KIND_TABLE, OTHER_KIND, useCheckIntervals } from "./kinds.ts";
+import { isKnownKind, useOwnKinds } from "./ownKinds.ts";
 
 /** The built-in Subscriptions category (data/defaults.ts); renaming it keeps the id. */
 export const SUBSCRIPTIONS_CATEGORY = "cat-subscriptions";
@@ -33,6 +34,8 @@ export interface SubscriptionsView {
   totals: YearlyCost;
   /** The subscription check: when to ask "still using it?" and the facts from the charges. */
   check: SubscriptionCheck;
+  /** The person's own kinds, id → name, for every label of a kind. */
+  labels: ReadonlyMap<string, string>;
 }
 
 /**
@@ -97,9 +100,10 @@ export function useSubscriptions(today: string): SubscriptionsView | undefined {
     [db],
   );
   const intervals = useCheckIntervals();
+  const own = useOwnKinds();
   const [view, setView] = useState<SubscriptionsView | undefined>(undefined);
   useEffect(() => {
-    if (!bills || !intervals) return;
+    if (!bills || !intervals || !own) return;
     let alive = true;
     void (async () => {
       const { subs, others, charges } = await splitBills(db, bills);
@@ -131,11 +135,19 @@ export function useSubscriptions(today: string): SubscriptionsView | undefined {
             next_date: s.next_date,
             checked_at: s.checked_at ?? null,
             charges: charges.get(s.payee) ?? [],
-            own_kind: s.subscription_kind ?? null,
+            // A kind removed on another device before this row synced reads from the name.
+            own_kind:
+              s.subscription_kind && isKnownKind(s.subscription_kind, own.labels)
+                ? s.subscription_kind
+                : null,
           }),
         ),
         KIND_TABLE,
         checkThresholds(intervals),
+        own.words
+          .filter((w) => w.kind !== OTHER_KIND && isKnownKind(w.kind, own.labels))
+          .map((w) => ({ match: w.match, kind: w.kind })),
+        own.kinds.map((k) => k.id),
       );
       const byId = new Map(subs.map((s) => [s.id, s]));
       const kindOf = new Map(check.items.map((i) => [i.id, i.kind] as const));
@@ -158,12 +170,12 @@ export function useSubscriptions(today: string): SubscriptionsView | undefined {
         payload: check,
         computed_at: new Date().toISOString(),
       });
-      if (alive) setView({ subscriptions, others, totals, check });
+      if (alive) setView({ subscriptions, others, totals, check, labels: own.labels });
     })().catch(ignoreClosed);
     return () => {
       alive = false;
     };
-  }, [db, bills, today, intervals]);
+  }, [db, bills, today, intervals, own]);
   return view;
 }
 

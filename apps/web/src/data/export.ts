@@ -77,6 +77,8 @@ export async function collectExport(
     templates,
     csvMappings,
     statementFiles,
+    ownSubscriptionKinds,
+    ownSubscriptionWords,
   ] = await Promise.all([
     db.accounts.toArray(),
     db.categories.toArray(),
@@ -102,6 +104,8 @@ export async function collectExport(
     db.goal_templates.toArray(),
     db.csv_mappings.toArray(),
     db.files.where("kind").equals("statement").toArray(),
+    db.own_subscription_kinds.toArray(),
+    db.own_subscription_words.toArray(),
   ]);
   const statementPath = (f: { id: string; name: string }) =>
     `statements/${f.id}-${safeName(f.name)}`;
@@ -198,6 +202,8 @@ export async function collectExport(
         categories,
         merchant_rules: merchantRules,
         merchant_names: merchantNames,
+        own_subscription_kinds: ownSubscriptionKinds,
+        own_subscription_words: ownSubscriptionWords,
         recurring_series: recurring,
         debts,
         emergency_fund: fund ?? null,

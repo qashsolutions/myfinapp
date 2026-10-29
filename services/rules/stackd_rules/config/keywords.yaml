@@ -119,12 +119,14 @@ keywords:
 
 # Subscription kinds (docs/spec.md "Subscriptions", Subscription check). The kinds and their
 # names, and the merchant words below, were expanded on October 29, 2026 (owner: "make this more
-# robust"; the words are proposed, awaiting owner sign-off). `subscription_kind_names` is the fixed
-# list the person can pick from on any subscription (plus Other, no kind); `label` names the kind,
+# robust"; the kinds, their names and the words signed off by the owner, October 29, 2026, as
+# is). `subscription_kind_names` is the fixed list the person can pick from on any subscription
+# (plus Other, no kind, and kinds of their own, which live on their device); `label` names the kind,
 # `many` reads in "3 video services · $47 a month together". `subscription_kinds` is matched on the
 # cleaned payee, top to bottom, first match wins, as a whole word: the characters on either side of
-# the word must not be A-Z or 0-9, so GYM never hits GYMBOREE and RING never hits SPRINGFIELD. A
-# kind the person set on the subscription wins over this table. Two or more subscriptions of one
+# the word must not be A-Z or 0-9, so GYM never hits GYMBOREE and RING never hits SPRINGFIELD. The
+# person cannot edit this table; their own words (kept on their device) are tried before it, and a
+# kind they set on the subscription wins over both. Two or more subscriptions of one
 # kind are shown together; nothing else is read from the kind.
 subscription_kind_names:
   - { kind: video, label: "Video streaming", many: "video services" }

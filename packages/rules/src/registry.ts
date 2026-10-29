@@ -520,13 +520,14 @@ const BARE: Record<string, Rule> = {
     return { ...recurring.yearlyCost(series) };
   },
   "recurring.subscription_check": (input) => {
-    const { as_of, subscriptions, kinds, thresholds } = args(input, [
-      "as_of",
-      "subscriptions",
-      "kinds",
-      "thresholds",
-    ]);
-    return { ...recurring.subscriptionCheck(as_of, subscriptions, kinds, thresholds) };
+    const { as_of, subscriptions, kinds, thresholds, own_words, own_kinds } = args(
+      input,
+      ["as_of", "subscriptions", "kinds", "thresholds"],
+      ["own_words", "own_kinds"],
+    );
+    return {
+      ...recurring.subscriptionCheck(as_of, subscriptions, kinds, thresholds, own_words, own_kinds),
+    };
   },
   "forecast.typical_daily_spending": (input) => {
     const { entries, as_of, fallback_monthly_cents } = args(input, [

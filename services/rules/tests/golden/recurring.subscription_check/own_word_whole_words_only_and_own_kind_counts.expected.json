@@ -1,0 +1,69 @@
+{
+  "items": [
+    {
+      "id": "s2",
+      "label": "Kidsbox",
+      "kind": null,
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 24000,
+      "monthly_cents": 2000
+    },
+    {
+      "id": "s3",
+      "label": "Gym Kids",
+      "kind": "own-kids",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 18000,
+      "monthly_cents": 1500
+    },
+    {
+      "id": "s1",
+      "label": "Kids Club",
+      "kind": "own-kids",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 12000,
+      "monthly_cents": 1000
+    }
+  ],
+  "duplicates": [
+    {
+      "kind": "own-kids",
+      "count": 2,
+      "monthly_total_cents": 2500,
+      "ids": [
+        "s3",
+        "s1"
+      ]
+    }
+  ],
+  "by_kind": [
+    {
+      "kind": "own-kids",
+      "count": 2,
+      "yearly_cents": 30000,
+      "monthly_cents": 2500,
+      "ids": [
+        "s3",
+        "s1"
+      ]
+    },
+    {
+      "kind": null,
+      "count": 1,
+      "yearly_cents": 24000,
+      "monthly_cents": 2000,
+      "ids": [
+        "s2"
+      ]
+    }
+  ]
+}

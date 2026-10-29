@@ -1,0 +1,89 @@
+{
+  "items": [
+    {
+      "id": "b",
+      "label": "Netflix",
+      "kind": "own-family",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 18588,
+      "monthly_cents": 1549
+    },
+    {
+      "id": "c",
+      "label": "Spotify Duo",
+      "kind": "music",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 17988,
+      "monthly_cents": 1499
+    },
+    {
+      "id": "a",
+      "label": "Spotify",
+      "kind": "own-family",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 14388,
+      "monthly_cents": 1199
+    },
+    {
+      "id": "d",
+      "label": "Spotify Kids",
+      "kind": null,
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 7188,
+      "monthly_cents": 599
+    }
+  ],
+  "duplicates": [
+    {
+      "kind": "own-family",
+      "count": 2,
+      "monthly_total_cents": 2748,
+      "ids": [
+        "b",
+        "a"
+      ]
+    }
+  ],
+  "by_kind": [
+    {
+      "kind": "own-family",
+      "count": 2,
+      "yearly_cents": 32976,
+      "monthly_cents": 2748,
+      "ids": [
+        "b",
+        "a"
+      ]
+    },
+    {
+      "kind": "music",
+      "count": 1,
+      "yearly_cents": 17988,
+      "monthly_cents": 1499,
+      "ids": [
+        "c"
+      ]
+    },
+    {
+      "kind": null,
+      "count": 1,
+      "yearly_cents": 7188,
+      "monthly_cents": 599,
+      "ids": [
+        "d"
+      ]
+    }
+  ]
+}

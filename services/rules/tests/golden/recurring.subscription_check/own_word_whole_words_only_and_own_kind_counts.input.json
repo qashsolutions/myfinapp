@@ -1,0 +1,56 @@
+{
+  "as_of": "2026-10-29",
+  "subscriptions": [
+    {
+      "id": "s1",
+      "label": "Kids Club",
+      "payee": "KIDS CLUB",
+      "interval": "monthly",
+      "expected_cents": 1000,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": []
+    },
+    {
+      "id": "s2",
+      "label": "Kidsbox",
+      "payee": "KIDSBOX",
+      "interval": "monthly",
+      "expected_cents": 2000,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": []
+    },
+    {
+      "id": "s3",
+      "label": "Gym Kids",
+      "payee": "GYM KIDS",
+      "interval": "monthly",
+      "expected_cents": 1500,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": []
+    }
+  ],
+  "kinds": [
+    {
+      "match": "GYM",
+      "kind": "fitness"
+    }
+  ],
+  "thresholds": {
+    "subscription_ask_days": 90,
+    "subscription_renewal_days": 15,
+    "trial_max_cents": 100,
+    "trial_window_days": 45
+  },
+  "own_words": [
+    {
+      "match": "KIDS",
+      "kind": "own-kids"
+    }
+  ],
+  "own_kinds": [
+    "own-kids"
+  ]
+}

@@ -100,3 +100,38 @@
   padding: 0;
   min-width: 0;
 }
+/* The new-kind form keeps the sheet's own spacing. */
+.subs__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.subs__form p {
+  margin: 0;
+}
+/* Subscription words (October 29, 2026): which wins, as three numbered steps. */
+.subs__order {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  font-size: var(--fs-small);
+}
+.subs__order li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.subs__order-step {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+  font-weight: 600;
+  font-size: var(--fs-caption);
+}

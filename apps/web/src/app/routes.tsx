@@ -53,6 +53,7 @@ import { LookSettings } from "../features/settings/LookSettings.tsx";
 import { MeLayout } from "../features/settings/MeLayout.tsx";
 import { SettingsScreen } from "../features/settings/SettingsScreen.tsx";
 import { SubscriptionsScreen } from "../features/subscriptions/SubscriptionsScreen.tsx";
+import { SubscriptionWordsScreen } from "../features/subscriptions/SubscriptionWordsScreen.tsx";
 import { WhatIfScreen } from "../features/whatif/WhatIfScreen.tsx";
 import { AppShell } from "./layout/AppShell.tsx";
 import { NotFound } from "./NotYet.tsx";
@@ -117,6 +118,7 @@ export function AppRoutes() {
             <Route path="security" element={<SecurityScreen />} />
             <Route path="accounts" element={<AccountsManager />} />
             <Route path="categories" element={<CategoriesScreen />} />
+            <Route path="subscription-words" element={<SubscriptionWordsScreen />} />
             <Route path="email" element={<ChangeEmail />} />
             <Route path="delete" element={<DeleteAccount />} />
             <Route path="notifications" element={<NotificationSettings />} />

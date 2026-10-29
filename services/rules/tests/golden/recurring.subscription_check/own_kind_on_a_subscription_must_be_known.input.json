@@ -1,0 +1,31 @@
+{
+  "as_of": "2026-10-29",
+  "subscriptions": [
+    {
+      "id": "a",
+      "label": "Golds",
+      "payee": "GOLDS GYM",
+      "interval": "monthly",
+      "expected_cents": 2000,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": [],
+      "own_kind": "own-gone"
+    }
+  ],
+  "kinds": [
+    {
+      "match": "GYM",
+      "kind": "fitness"
+    }
+  ],
+  "thresholds": {
+    "subscription_ask_days": 90,
+    "subscription_renewal_days": 15,
+    "trial_max_cents": 100,
+    "trial_window_days": 45
+  },
+  "own_kinds": [
+    "own-kids"
+  ]
+}

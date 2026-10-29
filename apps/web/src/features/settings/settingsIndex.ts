@@ -166,6 +166,13 @@ export const ENTRIES: SettingEntry[] = [
       "subscriptions still using ask again days renewal heads up reminder adjust interval kind streaming",
   },
   {
+    label: "Subscription words",
+    group: "data",
+    path: "/me/subscription-words",
+    words:
+      "subscription words kinds own new kind merchant charge says match streaming rename remove add",
+  },
+  {
     label: "Linked banks & cards",
     group: "data",
     path: "/me/linking",

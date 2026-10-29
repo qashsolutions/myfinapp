@@ -66,6 +66,28 @@ async function shoot(page: import("@playwright/test").Page, name: string): Promi
   if (before) await page.setViewportSize(before);
 }
 
+/** A sheet at phone and computer width, light and dark: `open` runs again at each size. */
+async function shootSheet(page: Page, name: string, open: () => Promise<void>): Promise<void> {
+  if (!SHOTS || test.info().project.name !== "desktop") return;
+  const before = page.viewportSize();
+  for (const [size, width, height] of [
+    ["phone", 412, 915],
+    ["desktop", 1280, 900],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await page.waitForTimeout(300);
+    await open();
+    for (const scheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: `${SHOTS}/${name}-${size}-${scheme}.png` });
+    }
+    await page.keyboard.press("Escape");
+  }
+  await page.emulateMedia({ colorScheme: "light" });
+  if (before) await page.setViewportSize(before);
+}
+
 test("@phone the subscription check asks, shows the price rise and two video services, and Fixed vs flexible splits the month", async ({
   page,
 }) => {
@@ -147,6 +169,73 @@ test("@phone the subscription check asks, shows the price rise and two video ser
   ).toBeVisible();
   await shoot(page, "H-home");
   await page.goto("/subscriptions");
+
+  // Their own kind (October 29, 2026): Hulu into a new kind, and future charges like it too
+  const huluKind = page.getByRole("dialog", { name: "What kind is Hulu?" });
+  const newKind = page.getByRole("dialog", { name: "New kind" });
+  const openHulu = async () => {
+    await page
+      .getByRole("region", { name: "Hulu" })
+      .getByRole("button", { name: /Change the kind of Hulu/ })
+      .click();
+    await huluKind.getByText("Also for future charges like this", { exact: true }).click();
+    await expect(huluKind.getByRole("switch", { name: /Also for future charges/ })).toBeChecked();
+  };
+  const openNewKind = async () => {
+    await openHulu();
+    await huluKind.getByRole("button", { name: "+ New kind" }).click();
+    await newKind.getByRole("textbox", { name: "Name of the kind" }).fill("Family");
+  };
+  await shootSheet(page, "L-subscriptions-kind", openHulu);
+  await shootSheet(page, "L-subscriptions-newkind", openNewKind);
+  await openHulu();
+  await expect(huluKind.getByRole("textbox", { name: "When a charge says" })).toHaveValue("HULU");
+  await huluKind.getByRole("button", { name: "+ New kind" }).click();
+  await newKind.getByRole("textbox", { name: "Name of the kind" }).fill("Music");
+  await newKind.getByRole("button", { name: "Add and use it" }).click();
+  await expect(newKind.getByRole("alert")).toContainText("Qash already has a kind with that name");
+  await newKind.getByRole("textbox", { name: "Name of the kind" }).fill("Family");
+  await newKind.getByRole("button", { name: "Add and use it" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "Hulu is now Family. Charges that say HULU will be too.",
+  );
+  // Netflix picked into it like any kind: two of a kind, and the bar by kind shows it
+  await page
+    .getByRole("region", { name: "Netflix" })
+    .getByRole("button", { name: /Change the kind of Netflix/ })
+    .click();
+  await page
+    .getByRole("dialog", { name: "What kind is Netflix?" })
+    .getByText("Family", { exact: true })
+    .click();
+  // (215.88 + 185.88) ÷ 12 = 33.48
+  await expect(facts).toContainText("2 subscriptions in Family · $33.48 a month together");
+  await expect(
+    hero.getByRole("img", {
+      name: "Where it goes each month: Family $33.48 a month, Video streaming $11.99 a month",
+    }),
+  ).toBeVisible();
+  // The word lives in Me → Subscription words, reached from Adjust
+  await page.getByRole("button", { name: "Adjust" }).click();
+  await page
+    .getByRole("dialog", { name: "Adjust subscription check" })
+    .getByRole("link", { name: "Your subscription words and kinds" })
+    .click();
+  await expect(page).toHaveURL(/\/me\/subscription-words$/);
+  const words = page.getByRole("list", { name: "Your words" });
+  await expect(words).toContainText("HULU");
+  await expect(words).toContainText("It's Family");
+  await expect(page.getByRole("list", { name: "Your kinds" })).toContainText(
+    "2 subscriptions · 1 word",
+  );
+  await shoot(page, "L-subscription-words");
+  // Me's screens re-mount across the 900px layout change, so the sheet opens at each size
+  await shootSheet(page, "L-subscription-words-add", async () => {
+    await page.getByRole("button", { name: "Add word" }).click();
+    const add = page.getByRole("dialog", { name: "Add a word" });
+    await add.getByRole("textbox", { name: "When a charge says" }).fill("hbo max");
+    await add.getByText("Video streaming", { exact: true }).click();
+  });
 
   // Fixed vs flexible on Insights: bills and subscriptions are fixed, groceries and cafe flexible.
   await page.goto("/insights");

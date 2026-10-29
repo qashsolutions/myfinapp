@@ -119,6 +119,7 @@ const signedIn: Array<[string, string | RegExp]> = [
   ["/me/help", "Help & legal"],
   ["/me/accounts", "Accounts & imports"],
   ["/me/categories", "Categories"],
+  ["/me/subscription-words", "Subscription words"],
   ["/me/linking", "Linked banks & cards"],
   ["/me/linking/done?session=x", "Linking"],
 ];
@@ -247,8 +248,44 @@ describe("accessibility (axe-core)", () => {
     expect(await sheets()).toEqual([]);
     await user.click(screen.getByRole("button", { name: "Done" }));
     await user.click(screen.getByRole("button", { name: /Change the kind of Netflix/ }));
-    await screen.findByRole("dialog", { name: "What kind is Netflix?" });
+    const picker = await screen.findByRole("dialog", { name: "What kind is Netflix?" });
+    // With "Also for future charges like this" on, the word box shows
+    await user.click(within(picker).getByRole("switch", { name: /Also for future charges/ }));
     expect(await sheets()).toEqual([]);
+    await user.click(within(picker).getByRole("button", { name: "+ New kind" }));
+    await screen.findByRole("dialog", { name: "New kind" });
+    expect(await sheets()).toEqual([]);
+  });
+
+  it("/me/subscription-words with a word and a kind, and its sheets open, has no axe violations", async () => {
+    await seed();
+    const db = openDb("u1");
+    await db.own_subscription_kinds.add({
+      id: "own-k1",
+      label: "Toys",
+      created_at: "2026-10-29T00:00:00Z",
+      updated_at: "2026-10-29T00:00:00Z",
+    });
+    await db.own_subscription_words.add({
+      id: "w1",
+      match: "LEGO",
+      kind: "own-k1",
+      created_at: "2026-10-29T00:00:00Z",
+      updated_at: "2026-10-29T00:00:00Z",
+    });
+    installFakeApi({ session: readySession() });
+    renderApp("/me/subscription-words");
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    await screen.findByRole("list", { name: "Your words" });
+    await checkBody("/me/subscription-words");
+    await user.click(screen.getByRole("button", { name: "Add word" }));
+    await screen.findByRole("dialog", { name: "Add a word" });
+    await checkBody("/me/subscription-words · Add a word");
+    await user.keyboard("{Escape}");
+    await user.click(within(screen.getByRole("list", { name: "Your kinds" })).getByText("Toys"));
+    await screen.findByRole("dialog", { name: "Edit Toys" });
+    await checkBody("/me/subscription-words · Edit Toys");
   });
 
   it("/welcome for a returning person (Welcome back) has no axe violations", async () => {

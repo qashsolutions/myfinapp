@@ -257,12 +257,54 @@ def contains_word(text: str, word: str) -> bool:
 OTHER_KIND = "other"  # the person's "Other": no kind, whatever the table says
 
 
-def _own_kind(raw: object) -> str | None:
+def _own_kind(raw: object, known: set[str]) -> str | None:
     if raw is None:
         return None
     if not isinstance(raw, str) or not raw:
         raise RuleError("invalid_kind")
+    if raw != OTHER_KIND and raw not in known:
+        raise RuleError("invalid_kind")
     return raw
+
+
+def _own_kinds(raw: object, builtin: set[str]) -> set[str]:
+    """The person's own kinds (October 29, 2026): ids made on the device, each text, not empty,
+    not Other, not one of the table's kinds and not twice. Their names stay on the device."""
+    if raw is None:
+        return set()
+    if not isinstance(raw, list):
+        raise RuleError("invalid_own_kinds")
+    out: set[str] = set()
+    for kind in raw:
+        if not isinstance(kind, str) or not kind or kind == OTHER_KIND:
+            raise RuleError("invalid_own_kinds")
+        if kind in builtin or kind in out:
+            raise RuleError("invalid_own_kinds")
+        out.add(kind)
+    return out
+
+
+def _own_words(raw: object, known: set[str]) -> list[tuple[str, str]]:
+    """The person's own words (October 29, 2026): cleaned like the table's, each naming a kind
+    from the table or one of their own (else `invalid_kind`), tried before the table."""
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise RuleError("invalid_own_words")
+    words = []
+    for row in raw:
+        if not isinstance(row, dict):
+            raise RuleError("invalid_own_words")
+        word, kind = row.get("match"), row.get("kind")
+        if not isinstance(word, str) or not isinstance(kind, str):
+            raise RuleError("invalid_own_words")
+        cleaned = clean_description(word)
+        if not cleaned:
+            raise RuleError("invalid_own_words")
+        if kind not in known:
+            raise RuleError("invalid_kind")
+        words.append((cleaned, kind))
+    return words
 
 
 def _charges(raw: object) -> list[tuple[date, int]]:
@@ -284,13 +326,23 @@ def _answered_since(checked: date | None, day: date) -> bool:
 
 
 def subscription_check(
-    as_of: str, subscriptions: object, kinds: object, thresholds: object
+    as_of: str,
+    subscriptions: object,
+    kinds: object,
+    thresholds: object,
+    own_words: object = None,
+    own_kinds: object = None,
 ) -> dict:
     """Facts from the person's own charges, and when to ask "still using it?" (docs/spec.md
     "Subscriptions", Subscription check). Never a judgement about use: Qash cannot see it."""
     today = dates.parse_date(as_of)
     limits = _thresholds(thresholds)
     table = _kinds(kinds)
+    builtin = {k for _, k in table}
+    known = builtin | _own_kinds(own_kinds, builtin)
+    # The person's words first, so their call wins over the table; a kind set by hand wins over
+    # both.
+    words = _own_words(own_words, known) + table
     if not isinstance(subscriptions, list):
         raise RuleError("invalid_series")
     items = []
@@ -367,12 +419,12 @@ def subscription_check(
             or rise is not None
             or trial is not None
         )
-        own = _own_kind(raw.get("own_kind"))
+        own = _own_kind(raw.get("own_kind"), known)
         if own is not None:
             kind = None if own == OTHER_KIND else own
         else:
             clean = clean_description(payee)
-            kind = next((k for word, k in table if contains_word(clean, word)), None)
+            kind = next((k for word, k in words if contains_word(clean, word)), None)
         items.append(
             {
                 "id": sid,

@@ -38,7 +38,7 @@ export function checkFacts(view: SubscriptionsView): Array<{ key: string; text: 
   for (const d of view.check.duplicates)
     facts.push({
       key: `kind-${d.kind}`,
-      text: `${d.count} ${kindMany(d.kind)} · ${formatCents(d.monthly_total_cents)} a month together`,
+      text: `${d.count} ${kindMany(d.kind, view.labels)} · ${formatCents(d.monthly_total_cents)} a month together`,
     });
   for (const i of view.check.items)
     if (i.renewal)
@@ -120,7 +120,7 @@ export function SubCheckHomeCard({ today }: { today: string }) {
     >
       <Card as="div">
         <h2 className="sk-card__title">Subscriptions</h2>
-        <KindBar rows={view?.check.by_kind ?? []} height={8} />
+        <KindBar rows={view?.check.by_kind ?? []} height={8} labels={view?.labels} />
         <Word>Check</Word>
         <p className="subs__question">{questionText(question)}</p>
       </Card>

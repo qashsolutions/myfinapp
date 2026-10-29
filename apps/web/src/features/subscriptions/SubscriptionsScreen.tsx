@@ -78,8 +78,8 @@ export function SubscriptionsScreen() {
             {view.subscriptions.length === 1 ? "subscription" : "subscriptions"} ·{" "}
             {formatCents(view.totals.monthly_cents)} a month
           </p>
-          <KindBar rows={view.check.by_kind} />
-          <KindLegend rows={view.check.by_kind} />
+          <KindBar rows={view.check.by_kind} labels={view.labels} />
+          <KindLegend rows={view.check.by_kind} labels={view.labels} />
         </Card>
       )}
       {view && view.subscriptions.length > 0 ? (
@@ -117,10 +117,10 @@ export function SubscriptionsScreen() {
               <button
                 type="button"
                 className="subs__kind"
-                aria-label={`Kind: ${kindLabel(kind)}. Change the kind of ${series.label}`}
+                aria-label={`Kind: ${kindLabel(kind, view.labels)}. Change the kind of ${series.label}`}
                 onClick={() => setKindFor({ series, kind })}
               >
-                {kindLabel(kind)}
+                {kindLabel(kind, view.labels)}
                 {series.subscription_kind ? " · yours" : ""} ▾
               </button>
               <ProgressBar
@@ -197,6 +197,7 @@ export function SubscriptionsScreen() {
         series={kindFor?.series ?? null}
         kind={kindFor?.kind ?? null}
         onClose={() => setKindFor(null)}
+        onDone={setDone}
       />
       <Sheet
         open={cancelling !== null}

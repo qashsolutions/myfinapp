@@ -18,8 +18,10 @@ export function kindColour(rows: KindRow[], index: number): string {
 }
 
 /** "Video streaming $33.49 a month, Music $12.99 a month" for screen readers. */
-export function kindBarText(rows: KindRow[]): string {
-  return rows.map((r) => `${kindLabel(r.kind)} ${formatCents(r.monthly_cents)} a month`).join(", ");
+export function kindBarText(rows: KindRow[], labels?: ReadonlyMap<string, string>): string {
+  return rows
+    .map((r) => `${kindLabel(r.kind, labels)} ${formatCents(r.monthly_cents)} a month`)
+    .join(", ");
 }
 
 /**
@@ -27,7 +29,16 @@ export function kindBarText(rows: KindRow[]): string {
  * `recurring.subscription_check`'s `by_kind`. The widths are only a picture of the engine's
  * monthly amounts; every number shown comes from the rule.
  */
-export function KindBar({ rows, height = 16 }: { rows: KindRow[]; height?: number }) {
+export function KindBar({
+  rows,
+  height = 16,
+  labels,
+}: {
+  rows: KindRow[];
+  height?: number;
+  /** The person's own kinds, id → name. */
+  labels?: ReadonlyMap<string, string>;
+}) {
   const [box, width] = useBoxWidth(320, 120);
   const total = rows.reduce((s, r) => s + r.monthly_cents, 0);
   const usable = Math.max(0, width - GAP * Math.max(0, rows.length - 1));
@@ -45,7 +56,7 @@ export function KindBar({ rows, height = 16 }: { rows: KindRow[]; height?: numbe
         height={height}
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label={`Where it goes each month: ${kindBarText(rows)}`}
+        aria-label={`Where it goes each month: ${kindBarText(rows, labels)}`}
       >
         <rect x={0} y={0} width={width} height={height} rx={height / 2} fill="var(--c-line)" />
         {segments.map((s) => (
@@ -65,14 +76,20 @@ export function KindBar({ rows, height = 16 }: { rows: KindRow[]; height?: numbe
 }
 
 /** The legend under the bar: each kind's swatch, how many, and what it costs a month. */
-export function KindLegend({ rows }: { rows: KindRow[] }) {
+export function KindLegend({
+  rows,
+  labels,
+}: {
+  rows: KindRow[];
+  labels?: ReadonlyMap<string, string>;
+}) {
   return (
     <ul className="subs__legend" aria-label="By kind">
       {rows.map((r, i) => (
         <li key={r.kind ?? "none"}>
           <span className="subs__swatch" style={{ background: kindColour(rows, i) }} aria-hidden />
           <span className="subs__legend-name">
-            {kindLabel(r.kind)}
+            {kindLabel(r.kind, labels)}
             {r.count > 1 ? ` · ${r.count}` : ""}
           </span>
           <span className="subs__legend-value">{formatCents(r.monthly_cents)} a month</span>

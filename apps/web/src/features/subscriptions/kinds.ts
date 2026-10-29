@@ -19,15 +19,24 @@ export const OTHER_KIND = "other";
 
 const NAMES = new Map(KIND_NAMES.map((k) => [k.kind, k] as const));
 
-/** "video" → "Video streaming"; null → "No kind". A kind no longer in the list reads as is. */
-export function kindLabel(kind: string | null): string {
+/**
+ * "video" → "Video streaming"; null → "No kind"; one of the person's own kinds → its name (from
+ * `own`, their kind id → name). A kind no longer in either list reads as is.
+ */
+export function kindLabel(kind: string | null, own?: ReadonlyMap<string, string>): string {
   if (kind === null) return "No kind";
-  return NAMES.get(kind)?.label ?? kind;
+  return NAMES.get(kind)?.label ?? own?.get(kind) ?? kind;
 }
 
-/** "video" → "video services", for "3 video services · $47 a month together". */
-export function kindMany(kind: string): string {
-  return NAMES.get(kind)?.many ?? `${kind} services`;
+/**
+ * "video" → "video services", for "3 video services · $47 a month together"; an own kind reads
+ * "subscriptions in Kids" ("2 subscriptions in Kids · $25 a month together").
+ */
+export function kindMany(kind: string, own?: ReadonlyMap<string, string>): string {
+  const builtIn = NAMES.get(kind)?.many;
+  if (builtIn) return builtIn;
+  const mine = own?.get(kind);
+  return mine ? `subscriptions in ${mine}` : `${kind} services`;
 }
 
 /** The person's own kind on a subscription: a kind, "other" (none), or null (from the name). */

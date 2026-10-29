@@ -147,6 +147,29 @@ export interface MerchantName {
   updated_at: string;
 }
 
+/**
+ * The person's own subscription kind (October 29, 2026; docs/spec.md "Subscriptions"): picked like
+ * a built-in kind. `id` starts with `own-` so it never meets a kind of the table.
+ */
+export interface OwnSubscriptionKind {
+  id: string;
+  label: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * "When a charge says NETFLIX, it's Video streaming" (October 29, 2026): `match` is upper-case
+ * like the table's words, `kind` a built-in kind or an own kind's id. Tried before the table.
+ */
+export interface OwnSubscriptionWord {
+  id: string;
+  match: string;
+  kind: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface MerchantRule {
   id: string;
   match: string;
@@ -478,6 +501,8 @@ export class StackdDb extends Dexie {
   balance_anchors!: EntityTable<BalanceAnchor, "id">;
   merchant_rules!: EntityTable<MerchantRule, "id">;
   merchant_names!: EntityTable<MerchantName, "id">;
+  own_subscription_kinds!: EntityTable<OwnSubscriptionKind, "id">;
+  own_subscription_words!: EntityTable<OwnSubscriptionWord, "id">;
   files!: EntityTable<StoredFile, "id">;
   computed_results!: EntityTable<ComputedResult, "id">;
   budgets!: EntityTable<Budget, "id">;
@@ -580,6 +605,11 @@ export class StackdDb extends Dexie {
     this.version(16).stores({ merchant_names: "id, &match" });
     // Credit habits (October 28, 2026): linked cards' due dates as they were seen.
     this.version(17).stores({ card_due_dates: "id, account_id" });
+    // Own subscription kinds and words (October 29, 2026): a word once, found by its kind.
+    this.version(18).stores({
+      own_subscription_kinds: "id",
+      own_subscription_words: "id, &match, kind",
+    });
   }
 }
 
