@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
+from app.config import get_settings
 from app.db import get_db
 from app.security.audit import AuditAction, record
 from app.services import native_billing
@@ -29,6 +30,8 @@ class Ack(BaseModel):
 
 @router.post("/google")
 async def google_webhook(request: Request, db: Annotated[DbSession, Depends(get_db)]) -> Ack:
+    if not get_settings().store_billing:  # web-only billing: nothing here grants a plan
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="not_found")
     try:
         body: Any = await request.json()
     except ValueError as exc:

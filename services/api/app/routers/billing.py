@@ -860,6 +860,8 @@ def native_sync(
     transaction / verified token is stronger proof than a passkey check (the store already
     authenticated the buyer, and a stolen session cannot fabricate one); the app still asks for
     step-up before starting a purchase, like the web checkout."""
+    if not get_settings().store_billing:  # web-only billing (owner decision, October 13, 2026)
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="billing_unavailable")
     try:
         if body.platform == "ios":
             if not body.jws:
