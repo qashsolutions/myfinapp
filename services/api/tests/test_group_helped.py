@@ -1,4 +1,4 @@
-"""'What helped' in challenges: fixed choices only, up to 3, once a member reached their target
+"""'What helped' in challenges: fixed choices only, up to 5, once a member reached their target
 or the challenge ended; the group sees totals only, and a caller only once at least 2 members
 other than the caller answered; the person's own answer is in their export; deletion, leaving
 and removal take it out of the totals."""
@@ -55,11 +55,18 @@ def test_choices_are_fixed_counted_and_never_attributed() -> None:
 
     for c in (maya, dev):
         assert c.put(f"/api/groups/{gid}/progress", json={"progress_bps": 10000}).status_code == 200
-    # Unknown ids, free text and more than three are refused
+    # Unknown ids, free text and more than five are refused
     for bad in (
         ["packed_lunch", "free text"],
         ["skipped coffee"],
-        ["packed_lunch", "cooked_home", "no_spend_days", "shopping_list"],
+        [
+            "packed_lunch",
+            "cooked_home",
+            "no_spend_days",
+            "shopping_list",
+            "waited_a_day",
+            "cash_for_treats",
+        ],
     ):
         r = maya.put(f"/api/groups/{gid}/helped", json={"choices": bad})
         assert r.status_code == 422, bad
@@ -104,6 +111,34 @@ def test_choices_are_fixed_counted_and_never_attributed() -> None:
     assert sam.get(f"/api/groups/{gid}").json()["helped"]["answered"] == 2
     assert dev.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
     assert sam.get(f"/api/groups/{gid}").json()["helped"] is None
+
+
+def test_five_choices_fit_and_changes_are_limited_to_eight_an_hour() -> None:
+    maya, _ = member("maya")
+    dev, _ = member("dev")
+    gid = _group(maya, dev)
+    assert maya.put(f"/api/groups/{gid}/progress", json={"progress_bps": 10000}).status_code == 200
+    five = ["shopping_list", "packed_lunch", "waited_a_day", "cooked_home", "cut_subscription"]
+    r = maya.put(f"/api/groups/{gid}/helped", json={"choices": five})
+    assert r.status_code == 200, r.text
+    # Stored in the list's own order: the longest answer the column and its check must take
+    assert r.json()["my_helped"] == [
+        "packed_lunch",
+        "cooked_home",
+        "cut_subscription",
+        "waited_a_day",
+        "shopping_list",
+    ]
+    # Rate scope group_helped: 8 changes an hour per signed-in device; the 9th is refused
+    for _ in range(7):
+        r = maya.put(f"/api/groups/{gid}/helped", json={"choices": ["packed_lunch"]})
+        assert r.status_code == 200, r.text
+    r = maya.put(f"/api/groups/{gid}/helped", json={"choices": ["cooked_home"]})
+    assert r.status_code == 429
+    assert maya.get(f"/api/groups/{gid}").json()["my_helped"] == ["packed_lunch"]
+    # Another signed-in device keeps its own count
+    assert dev.put(f"/api/groups/{gid}/progress", json={"progress_bps": 10000}).status_code == 200
+    assert dev.put(f"/api/groups/{gid}/helped", json={"choices": five}).status_code == 200
 
 
 def test_an_ended_challenge_opens_it_for_everyone() -> None:

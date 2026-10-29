@@ -1,0 +1,89 @@
+{
+  "as_of": "2026-10-29",
+  "subscriptions": [
+    {
+      "id": "s1",
+      "label": "Gymboree",
+      "payee": "GYMBOREE PLAY",
+      "interval": "monthly",
+      "expected_cents": 1000,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": []
+    },
+    {
+      "id": "s2",
+      "label": "Golds Gym",
+      "payee": "golds gym-24",
+      "interval": "monthly",
+      "expected_cents": 2000,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": []
+    },
+    {
+      "id": "s3",
+      "label": "Springfield Water",
+      "payee": "SPRINGFIELD WATER",
+      "interval": "monthly",
+      "expected_cents": 3000,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": []
+    },
+    {
+      "id": "s4",
+      "label": "Ring",
+      "payee": "RINGTONES RING.COM",
+      "interval": "monthly",
+      "expected_cents": 400,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": []
+    },
+    {
+      "id": "s5",
+      "label": "Tidalwave",
+      "payee": "TIDALWAVE WASH",
+      "interval": "monthly",
+      "expected_cents": 2500,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": []
+    },
+    {
+      "id": "s6",
+      "label": "Yoga Studio",
+      "payee": "YOGA 9",
+      "interval": "monthly",
+      "expected_cents": 1500,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": []
+    }
+  ],
+  "kinds": [
+    {
+      "match": "GYM",
+      "kind": "fitness"
+    },
+    {
+      "match": "RING",
+      "kind": "home"
+    },
+    {
+      "match": "TIDAL",
+      "kind": "music"
+    },
+    {
+      "match": "YOGA",
+      "kind": "fitness"
+    }
+  ],
+  "thresholds": {
+    "subscription_ask_days": 90,
+    "subscription_renewal_days": 15,
+    "trial_max_cents": 100,
+    "trial_window_days": 45
+  }
+}

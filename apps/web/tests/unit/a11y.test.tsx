@@ -200,6 +200,43 @@ describe("accessibility (axe-core)", () => {
     resetEntitlements();
   });
 
+  it("/subscriptions with its Adjust and kind sheets open has no axe violations", async () => {
+    await seed();
+    await openDb("u1").recurring_series.add({
+      id: "s-net",
+      payee: "NETFLIX",
+      label: "Netflix",
+      kind: "bill",
+      expected_cents: 1549,
+      interval: "monthly",
+      next_date: "2026-10-20",
+      status: "confirmed",
+      source: "detected",
+      account_id: null,
+      subscription: true,
+      created_at: "2026-10-01T00:00:00Z",
+      updated_at: "2026-10-01T00:00:00Z",
+    });
+    installFakeApi({ session: readySession() });
+    const sheets = async (): Promise<string[]> => {
+      const results = await axe.run(document.body, {
+        rules: { "color-contrast": { enabled: false } },
+      });
+      return results.violations.map((v) => `${v.id}: ${v.help}`);
+    };
+    renderApp("/subscriptions");
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    await screen.findByRole("list", { name: "By kind" });
+    await user.click(screen.getByRole("button", { name: "Adjust" }));
+    await screen.findByRole("dialog", { name: "Adjust subscription check" });
+    expect(await sheets()).toEqual([]);
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    await user.click(screen.getByRole("button", { name: /Change the kind of Netflix/ }));
+    await screen.findByRole("dialog", { name: "What kind is Netflix?" });
+    expect(await sheets()).toEqual([]);
+  });
+
   it("/welcome for a returning person (Welcome back) has no axe violations", async () => {
     localStorage.setItem(
       "stackd.last_account",

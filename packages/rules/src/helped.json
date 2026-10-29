@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "max_choices": 3,
+  "max_choices": 5,
   "min_answers": 2,
   "choices": [
     {

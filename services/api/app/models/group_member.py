@@ -5,10 +5,10 @@ itself never leaves the device. reached_at is the first time the member hit 100%
 tie-break). A row with left_at set is a former member; a deleted user's row stays so the group
 can show "Former member".
 
-helped is the member's own "What helped" answer: up to 3 ids from the one fixed list
-(stackd_rules/config/helped.yaml), comma separated, never free text. Other members only ever see
-totals across the group, and only once at least min_answers members other than the viewer answered
-(invariant 29). Leaving or being removed clears it.
+helped is the member's own "What helped" answer: up to 5 ids (3 until October 29, 2026) from the
+one fixed list (stackd_rules/config/helped.yaml), comma separated, never free text. Other members
+only ever see totals across the group, and only once at least min_answers members other than the
+viewer answered (invariant 29). Leaving or being removed clears it.
 """
 
 from __future__ import annotations
@@ -21,8 +21,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, StackdRow
 
-# Lower-case ids, one to three, comma separated (the list itself is checked by the router).
-HELPED_CHECK = "helped IS NULL OR helped ~ '^[a-z_]{2,32}(,[a-z_]{2,32}){0,2}$'"
+# Lower-case ids, one to five, comma separated (the list itself is checked by the router).
+HELPED_CHECK = "helped IS NULL OR helped ~ '^[a-z_]{2,32}(,[a-z_]{2,32}){0,4}$'"
 
 
 class GroupMember(Base, StackdRow):
@@ -44,4 +44,4 @@ class GroupMember(Base, StackdRow):
     progress_bps: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     progress_updated_at: Mapped[datetime | None]
     reached_at: Mapped[datetime | None]
-    helped: Mapped[str | None] = mapped_column(String(100))
+    helped: Mapped[str | None] = mapped_column(String(200))

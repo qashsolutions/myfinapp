@@ -1,4 +1,3 @@
-import keywordsConfig from "@stackd/rules/keywords";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
@@ -14,11 +13,7 @@ import {
   yearlyCost,
 } from "../../engine/bridge.ts";
 import { compareText } from "../../lib/order.ts";
-import { THRESHOLDS } from "../insights/thresholds.ts";
-
-/** The hand-edited subscription kinds (config/keywords.yaml `subscription_kinds`). */
-const KINDS = (keywordsConfig as { subscription_kinds: Array<{ match: string; kind: string }> })
-  .subscription_kinds;
+import { checkThresholds, KIND_TABLE, useCheckIntervals } from "./kinds.ts";
 
 /** The built-in Subscriptions category (data/defaults.ts); renaming it keeps the id. */
 export const SUBSCRIPTIONS_CATEGORY = "cat-subscriptions";
@@ -30,6 +25,8 @@ export interface SubscriptionsView {
     yearly_cents: number;
     monthly_cents: number;
     days: number;
+    /** Its kind: the person's own, else the name's, else null (from the subscription check). */
+    kind: string | null;
   }>;
   /** Other confirmed bills, which the person can count as a subscription. */
   others: RecurringSeries[];
@@ -99,9 +96,10 @@ export function useSubscriptions(today: string): SubscriptionsView | undefined {
         .toArray(),
     [db],
   );
+  const intervals = useCheckIntervals();
   const [view, setView] = useState<SubscriptionsView | undefined>(undefined);
   useEffect(() => {
-    if (!bills) return;
+    if (!bills || !intervals) return;
     let alive = true;
     void (async () => {
       const { subs, others, charges } = await splitBills(db, bills);
@@ -113,17 +111,6 @@ export function useSubscriptions(today: string): SubscriptionsView | undefined {
           expected_cents: s.expected_cents,
         })),
       );
-      const byId = new Map(subs.map((s) => [s.id, s]));
-      const subscriptions = [];
-      for (const item of totals.items) {
-        const series = byId.get(item.id) as RecurringSeries;
-        subscriptions.push({
-          series,
-          yearly_cents: item.yearly_cents,
-          monthly_cents: item.monthly_cents,
-          days: await daysUntil(today, series.next_date),
-        });
-      }
       await db.computed_results.put({
         id: `subscriptions:${today}`,
         kind: "subscriptions",
@@ -144,11 +131,25 @@ export function useSubscriptions(today: string): SubscriptionsView | undefined {
             next_date: s.next_date,
             checked_at: s.checked_at ?? null,
             charges: charges.get(s.payee) ?? [],
+            own_kind: s.subscription_kind ?? null,
           }),
         ),
-        KINDS,
-        THRESHOLDS,
+        KIND_TABLE,
+        checkThresholds(intervals),
       );
+      const byId = new Map(subs.map((s) => [s.id, s]));
+      const kindOf = new Map(check.items.map((i) => [i.id, i.kind] as const));
+      const subscriptions = [];
+      for (const item of totals.items) {
+        const series = byId.get(item.id) as RecurringSeries;
+        subscriptions.push({
+          series,
+          yearly_cents: item.yearly_cents,
+          monthly_cents: item.monthly_cents,
+          days: await daysUntil(today, series.next_date),
+          kind: kindOf.get(item.id) ?? null,
+        });
+      }
       await db.computed_results.put({
         id: `subscription_check:${today}`,
         kind: "subscription_check",
@@ -162,7 +163,7 @@ export function useSubscriptions(today: string): SubscriptionsView | undefined {
     return () => {
       alive = false;
     };
-  }, [db, bills, today]);
+  }, [db, bills, today, intervals]);
   return view;
 }
 

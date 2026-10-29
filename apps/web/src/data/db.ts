@@ -334,6 +334,12 @@ export interface RecurringSeries {
   subscription?: boolean | null;
   /** The last "Keep it" on the subscription check (October 28, 2026), a date; unset = never. */
   checked_at?: string | null;
+  /**
+   * The person's own kind for a subscription (October 29, 2026): one of the fixed kinds in
+   * keywords.yaml `subscription_kind_names`, or "other" (no kind); unset = from the payee's
+   * name. Synced with the row (newer `updated_at` wins), no index, so no new Dexie version.
+   */
+  subscription_kind?: string | null;
   created_at: string;
   updated_at: string;
 }

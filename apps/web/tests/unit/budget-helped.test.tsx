@@ -149,7 +149,7 @@ describe("What helped", () => {
     vi.useRealTimers();
   });
 
-  it("a member who reached the target picks up to three; only the ids leave; totals come back", async () => {
+  it("a member who reached the target picks up to five; only the ids leave; totals come back as a ranked chart", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const group = {
       ...mayasGroup(),
@@ -164,14 +164,23 @@ describe("What helped", () => {
     await user.click(within(card).getByRole("checkbox", { name: "Packed lunch" }));
     await user.click(within(card).getByRole("checkbox", { name: "Cooked at home" }));
     await user.click(within(card).getByRole("checkbox", { name: "No-spend days" }));
+    await user.click(within(card).getByRole("checkbox", { name: "Waited a day before buying" }));
+    await user.click(within(card).getByRole("checkbox", { name: "Used cash for treats" }));
+    // Five picked (October 29, 2026; was three): the rest wait
     expect(within(card).getByRole("checkbox", { name: "Shopped with a list" })).toBeDisabled();
-    await user.click(within(card).getByRole("checkbox", { name: "No-spend days" }));
+    for (const name of ["No-spend days", "Waited a day before buying", "Used cash for treats"])
+      await user.click(within(card).getByRole("checkbox", { name }));
     await user.click(within(card).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(card).toHaveTextContent("Saved."));
     const put = api.calls.find((c) => c.method === "PUT" && c.path === "/api/groups/g-done/helped");
     expect(put?.body).toEqual({ choices: ["packed_lunch", "cooked_home"] });
-    await waitFor(() => expect(card).toHaveTextContent("2 of 2 said Packed lunch"));
-    expect(card).toHaveTextContent("1 of 2 said Cooked at home");
+    // Ranked: most said first; my own picks are marked
+    const chart = await within(card).findByRole("img", { name: /What helped the group/ });
+    expect(chart).toHaveAccessibleName(
+      "What helped the group: 2 of 2 said Packed lunch (your pick), 1 of 2 said Cooked at home (your pick)",
+    );
+    expect(card).toHaveTextContent("✓ Your picks");
+    expect(card).toHaveTextContent("2 answered. Pick up to 5 of your own.");
     // Nothing names who chose what
     expect(card).not.toHaveTextContent(/Dev|Nia/);
   });

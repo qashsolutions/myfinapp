@@ -1,0 +1,83 @@
+{
+  "as_of": "2026-10-29",
+  "subscriptions": [
+    {
+      "id": "a",
+      "label": "Netflix",
+      "payee": "NETFLIX.COM",
+      "interval": "monthly",
+      "expected_cents": 1549,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": [],
+      "own_kind": null
+    },
+    {
+      "id": "b",
+      "label": "Hulu",
+      "payee": "HULU",
+      "interval": "monthly",
+      "expected_cents": 1800,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": [],
+      "own_kind": "music"
+    },
+    {
+      "id": "c",
+      "label": "Spotify",
+      "payee": "SPOTIFY",
+      "interval": "monthly",
+      "expected_cents": 1199,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": []
+    },
+    {
+      "id": "d",
+      "label": "Cinema Club",
+      "payee": "CINEMA CLUB",
+      "interval": "monthly",
+      "expected_cents": 999,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": [],
+      "own_kind": "video"
+    },
+    {
+      "id": "e",
+      "label": "Disney",
+      "payee": "DISNEY PLUS",
+      "interval": "monthly",
+      "expected_cents": 1399,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": [],
+      "own_kind": "other"
+    }
+  ],
+  "kinds": [
+    {
+      "match": "NETFLIX",
+      "kind": "video"
+    },
+    {
+      "match": "HULU",
+      "kind": "video"
+    },
+    {
+      "match": "SPOTIFY",
+      "kind": "music"
+    },
+    {
+      "match": "DISNEY PLUS",
+      "kind": "video"
+    }
+  ],
+  "thresholds": {
+    "subscription_ask_days": 90,
+    "subscription_renewal_days": 15,
+    "trial_max_cents": 100,
+    "trial_window_days": 45
+  }
+}

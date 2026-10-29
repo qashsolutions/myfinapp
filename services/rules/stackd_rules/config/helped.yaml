@@ -1,4 +1,7 @@
-# "What helped" in challenges (October 28, 2026; proposed, awaiting owner sign-off): one fixed
+# "What helped" in challenges (October 28, 2026; the list, the totals from 2 other members and
+# opening at the target or the challenge's end signed off by the owner, October 29, 2026, with up
+# to 5 choices (was 3); owner decision the same day: What helped is the only community feature at
+# launch, no open forum, no tips, no polls): one fixed
 # list of choices a member can pick (up to `max_choices`) once they reached their target or the
 # challenge ended. No free text, by design: instead of a forum. The group sees only totals, and
 # a member sees them only once `min_answers` members OTHER than themselves answered (so no
@@ -6,7 +9,7 @@
 # the app (labels).
 # Edit, then: uv run python scripts/build_helped.py
 version: 1
-max_choices: 3
+max_choices: 5
 min_answers: 2
 choices:
   - id: packed_lunch
