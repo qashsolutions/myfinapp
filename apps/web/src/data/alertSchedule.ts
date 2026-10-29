@@ -15,7 +15,12 @@ import {
   payInFull,
   type Upcoming,
 } from "../engine/bridge.ts";
-import { alertLevels, paceLines } from "../features/budget/pace.ts";
+import {
+  ALERT_OFF_SETTING,
+  alertLevels,
+  alertLines,
+  readAlertOff,
+} from "../features/budget/pace.ts";
 import { compareText } from "../lib/order.ts";
 import { backgroundApi, failureOf, type NotificationSettingsOut } from "./api.ts";
 import type { Goal, StackdDb } from "./db.ts";
@@ -104,12 +109,11 @@ async function budgetItems(db: StackdDb, sources: ScheduleSources): Promise<Aler
   if (!summary || !pref?.enabled) return [];
   const month = summary.start.slice(0, 7);
   if (month !== sources.asOf.slice(0, 7)) return [];
-  const pace = await budgetPace(
-    month,
-    sources.asOf,
-    paceLines(summary),
-    alertLevels(pref.threshold),
-  );
+  // A line the person turned off ("Don't alert me for this one") makes no item at all.
+  const off = readAlertOff((await db.settings.get(ALERT_OFF_SETTING))?.value);
+  const lines = alertLines(summary, off);
+  if (!lines.length) return [];
+  const pace = await budgetPace(month, sources.asOf, lines, alertLevels(pref.threshold));
   if (!pace.items.length) return [];
   const salt = await tagSalt(db);
   const items: AlertInputs["budget"] = [];

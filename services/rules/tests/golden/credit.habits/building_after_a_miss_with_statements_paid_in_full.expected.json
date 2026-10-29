@@ -11,5 +11,19 @@
   "next_due_date": "2026-10-25",
   "paid_in_full_streak": 2,
   "utilization_bps": 3000,
-  "under_guide": true
+  "under_guide": true,
+  "dues": [
+    {
+      "due_date": "2026-07-25",
+      "result": "missed"
+    },
+    {
+      "due_date": "2026-08-25",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-09-25",
+      "result": "on_time"
+    }
+  ]
 }
