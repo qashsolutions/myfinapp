@@ -45,7 +45,7 @@ describe("useGroup", () => {
     await act(async () => {
       pending[0]?.(detail(2));
     });
-    expect((result.current.group?.helped as { answered: number }).answered).toBe(3);
+    expect(result.current.group?.helped?.answered).toBe(3);
   });
 
   it("a save's answer is the newest, even with a read still out", async () => {
@@ -55,6 +55,6 @@ describe("useGroup", () => {
     await act(async () => {
       pending[0]?.(detail(2));
     });
-    expect((result.current.group?.helped as { answered: number }).answered).toBe(3);
+    expect(result.current.group?.helped?.answered).toBe(3);
   });
 });
