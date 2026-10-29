@@ -290,6 +290,25 @@ written against both.
     not as an error. Found when deployment 85 migrated to 0036, Lightsail gave up waiting, and the
     old API crashed at every restart until the deploy was re-run.
     `test_health.py` "a newer database keeps this build ready and starting"
+32. **A count or a single use holds when requests arrive at once** (October 29, 2026). A code's
+    wrong attempts, its consumption, and a passkey challenge's consumption are read under a row
+    lock (`SELECT … FOR UPDATE`) and written in the same transaction, so twelve guesses sent
+    together lock the address after the fifth, the `CODES_LOCKED` alert goes once, and one code
+    or one signed passkey answer passes once. The public deletion page checks codes with no
+    passkey, so a lost count there was an account deleted by guessing. A new attempt counter or
+    one-time token is read with the lock, and its test sends the requests in parallel.
+    `test_otp_concurrency.py`
+33. **What was sent is recorded as it goes** (October 29, 2026). A job that sends (the alert
+    dispatcher's pushes and emails, the weekly recap, the plan-lifecycle emails and pushes)
+    commits each send with its log row or stamp at once and handles each person on their own:
+    a failure later in the run, or for someone else, is reported (`ops_alerts`) and never makes
+    the next run send it again. Found when one failure rolled back a whole minute's log rows.
+    `test_alert_delivery_once.py` · `test_founding_reminders.py`
+34. **An alert that was skipped can come back; one that was sent never does** (October 29, 2026).
+    A key skipped while its type was off (or alerts were paused) is scheduled again when the
+    device or the server registers it for a time still ahead; a key in `notification_log` is
+    never scheduled again.
+    `test_alert_delivery_once.py` "a skipped alert comes back…"
 
 ## Working to these rules
 

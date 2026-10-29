@@ -79,6 +79,22 @@ def store_products() -> dict[str, dict[str, str]]:
 # --- Apple: signed JWS, chain pinned to Apple's root ------------------------------------------
 
 
+# Apple's markers (as Apple's own App Store Server Library checks them): the leaf that signs App
+# Store JWS carries 1.2.840.113635.100.6.11.1 and its issuer, the Worldwide Developer Relations
+# intermediate, 1.2.840.113635.100.6.2.1. Without them any certificate Apple's root vouches for
+# (a developer's own, say) could sign a fake purchase (October 29, 2026).
+APPLE_LEAF_OID = x509.ObjectIdentifier("1.2.840.113635.100.6.11.1")
+APPLE_INTERMEDIATE_OID = x509.ObjectIdentifier("1.2.840.113635.100.6.2.1")
+
+
+def _has_marker(cert: x509.Certificate, oid: x509.ObjectIdentifier) -> bool:
+    try:
+        cert.extensions.get_extension_for_oid(oid)
+    except x509.ExtensionNotFound:
+        return False
+    return True
+
+
 def _apple_roots() -> list[x509.Certificate]:
     pem = get_settings().apple_root_ca
     data = pem.encode() if pem else APPLE_ROOT_PATH.read_bytes()
@@ -104,7 +120,8 @@ def _b64url_decode(text: str) -> bytes:
 
 
 def verify_apple_jws(jws: str, *, now: datetime | None = None) -> dict[str, Any]:
-    """The payload of an Apple-signed JWS whose x5c chain ends at the pinned root."""
+    """The payload of an Apple-signed JWS whose x5c chain (leaf, intermediate, root) ends at the
+    pinned root, with Apple's App Store markers on the leaf and the intermediate."""
     now = now or datetime.now(UTC)
     try:
         head_b64, payload_b64, signature_b64 = jws.split(".")
@@ -114,7 +131,7 @@ def verify_apple_jws(jws: str, *, now: datetime | None = None) -> dict[str, Any]
         ]
     except Exception as exc:  # noqa: BLE001 - any malformed input is the same refusal
         raise BillingError("bad_signature") from exc
-    if header.get("alg") != "ES256" or not chain:
+    if header.get("alg") != "ES256" or len(chain) != 3:  # leaf, intermediate, root
         raise BillingError("bad_signature")
     roots = {
         root.public_key().public_bytes(
@@ -126,6 +143,10 @@ def verify_apple_jws(jws: str, *, now: datetime | None = None) -> dict[str, Any]
         for cert in chain:
             if not (cert.not_valid_before_utc <= now <= cert.not_valid_after_utc):
                 raise BillingError("bad_signature")
+        if not _has_marker(chain[0], APPLE_LEAF_OID):
+            raise BillingError("bad_signature")
+        if not _has_marker(chain[1], APPLE_INTERMEDIATE_OID):
+            raise BillingError("bad_signature")
         for cert, issuer in zip(chain, chain[1:], strict=False):
             _verify_cert_signature(cert, issuer.public_key())
         anchor = (

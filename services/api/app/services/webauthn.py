@@ -85,6 +85,10 @@ def _take_challenge(
         )
         .order_by(WebauthnChallenge.created_at.desc())
         .limit(1)
+        # Locked, so one signed answer sent several times at once is checked once (invariant
+        # 32): a synced passkey's sign count stays 0 and cannot catch the replay.
+        .with_for_update()
+        .execution_options(populate_existing=True)
     )
     row = db.scalars(stmt).first()
     if row is None or row.expires_at <= now:
