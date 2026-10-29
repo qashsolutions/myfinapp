@@ -1452,6 +1452,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       const rest = groupPath[2];
       if (method === "GET" && !rest) return json(detail(g));
       if (method === "PUT" && rest === "progress") {
+        if (g.ended) return json({ detail: "ended" }, 409); // invariant 71: the board is final
         me.progress_bps = Number(b.progress_bps);
         me.has_events = true;
         if (me.progress_bps >= 10000 && !me.reached_at) me.reached_at = "2026-10-10T12:00:00Z";

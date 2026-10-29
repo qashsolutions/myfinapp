@@ -482,8 +482,31 @@ written against both.
 56. **An ended challenge is over** (October 29, 2026). Past its last day nobody new can look it
     up or join (409 `ended`), its screen says Ended with the final board and no deposit,
     check-in or invite, and its jar no longer holds a place on the plan. One helper on the
-    device (`challengeEnded`) answers the cap, the jar's screen and the lists.
+    device (`challengeEnded`) answers the cap, the jar's screen and the lists. Its final board
+    never changes after that either (invariant 71).
     `test_group_ended.py` (all five types) · `challenge-ended.test.tsx`
+71. **A challenge counts only its own period, and its final board never changes** (October 29,
+    2026; the owner opened an October dining diet on November 3: the device measured November's
+    spending as "this month", posted a near-100% figure to the board and could stamp
+    `reached_at` after the end, and Move money was still live on the ended jar). The server
+    takes a percentage only from the moment the first day begins anywhere until the last day is
+    over everywhere (409 `not_started` / `ended` otherwise, nothing on the board changed). On
+    the device one helper, `challengeOpen` (first day through last, `challengeWindow.ts`),
+    answers the screen, the posts and every write: progress is measured over the challenge's
+    own dates, nothing is posted outside them, a 409 drops the queued post, and `addGoalEvent`
+    refuses a challenge jar's event outside them (the goal screen, Move money both ways, Home's
+    set aside and catch-up).
+    `test_group_matrix.py` (five types × five moments) · `challenge-window.test.tsx` (the same
+    on the device, and Home's set-aside tap)
+72. **A connection being removed stays removed until it is revoked** (October 29, 2026; a bank
+    disconnected while Plaid was down came back when its next ITEM webhook set the status, rejoined
+    the list and `bank_links_max`, and its token was never revoked, since `revoke-links` retries
+    only `revoke_pending`). `revoke_pending` is terminal for webhooks, sync, card reads and
+    relink; only a revoke that succeeds ends it, by deleting the row. Every status change once a
+    connection exists goes through `linking/status.set_status`, a conditional update, so a write
+    that started before a Disconnect committed can't undo it either.
+    `test_linking_states.py` (every status × every webhook code, sync, cards, relink and
+    Disconnect, then the job; a sync under way when the Disconnect lands)
 60. **A webhook that fails on our side is delivered again, and someone hears of it** (October
     29, 2026; a won dispute's closing event answered 400 when Stripe refused the first resume
     of collection, the plan stayed paused, nobody was told, and the same event sent again

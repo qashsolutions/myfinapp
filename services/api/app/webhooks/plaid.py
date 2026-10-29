@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.db import get_db
 from app.linking import plaid, webhook_verify
+from app.linking.status import BEING_REMOVED, set_status
 from app.models.linking import BankConnection
 from app.webhooks.failures import failed
 
@@ -55,6 +56,10 @@ def _apply(db: DbSession, payload: dict) -> Ack:
     row = db.scalar(select(BankConnection).where(BankConnection.item_id == item_id))
     if row is None:
         return Ack(received=True, outcome="unknown_item")
+    if row.status == BEING_REMOVED:
+        # Invariant 72: we are removing it; only a revoke that succeeds changes that, so the
+        # bank's news never brings it back into the list or the plan's count.
+        return Ack(received=True, outcome="being_removed")
     if kind in UPDATES:
         row.updates_available_at = datetime.now(UTC)
         outcome = "updates_available"
@@ -62,13 +67,13 @@ def _apply(db: DbSession, payload: dict) -> Ack:
         error = payload.get("error") or {}
         login = kind != ("ITEM", "ERROR") or error.get("error_code") == "ITEM_LOGIN_REQUIRED"
         if login:
-            row.status = "login_required"
+            set_status(db, row, "login_required")
         outcome = "login_required" if login else "ignored"
     elif kind in REVOKED:
-        row.status = "revoked"
+        set_status(db, row, "revoked")
         outcome = "revoked"
     elif kind == ("ITEM", "LOGIN_REPAIRED"):
-        row.status = "ok"
+        set_status(db, row, "ok")
         outcome = "repaired"
     else:
         outcome = "ignored"

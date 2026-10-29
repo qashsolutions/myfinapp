@@ -53,8 +53,10 @@ async function pass(db: StackdDb): Promise<void> {
           params: { path: { group_id: item.payload.group_id } },
           body: { progress_bps: item.payload.progress_bps },
         });
-        // 404: no longer a member. Drop it rather than retry forever.
-        if (!response.ok && response.status !== 404) throw new Error(String(response.status));
+        // 404: no longer a member; 409: the challenge is over everywhere (or not begun), so
+        // the board keeps what it had (invariant 71). Drop it rather than retry forever.
+        if (!response.ok && response.status !== 404 && response.status !== 409)
+          throw new Error(String(response.status));
       }
       await settle(db, item);
     } catch {

@@ -30,6 +30,7 @@ import { usePlanDebts } from "../bills/debtPlan.ts";
 import { payScheduleOf } from "../budget/payDays.ts";
 import { type BudgetView, useBudget } from "../budget/useBudget.ts";
 import { type ForecastView, useForecast } from "../forecast/useForecast.ts";
+import { challengeOpen } from "../goals/challengeWindow.ts";
 import { addGoalEvent, newMoneyIn, useGoals } from "../goals/useGoals.ts";
 import { useGroups } from "../groups/useGroups.ts";
 import { type MonthView, useMonthTotals } from "../money/useMonthTotals.ts";
@@ -110,6 +111,9 @@ export function useHome(asOf: string): HomeView & { logSetAside: () => Promise<b
     [goals],
   );
   const emergencyJar = useMemo(() => jars.find(isEmergencyJar) ?? null, [jars]);
+  // The jars Home may put money in or nudge about: never a challenge's jar outside its own
+  // period (invariant 71), so the set-aside tap and "Catch up" never land in an ended one.
+  const openJars = useMemo(() => jars.filter((g) => challengeOpen(g, asOf)), [jars, asOf]);
   const totals = month.totals;
   const budgetSummary = budget.summary;
   const budgetLoaded = budget.budget !== undefined;
@@ -192,7 +196,7 @@ export function useHome(asOf: string): HomeView & { logSetAside: () => Promise<b
       }
       // The top-priority jar behind its pace (fast-follow 3): expected by now against saved.
       let behindGoal: NextMoveFacts["behind_goal"] = null;
-      for (const g of jars) {
+      for (const g of openJars) {
         if (g.paused_at || g.is_ongoing || g.grow || !g.cadence || !g.target_cents) continue;
         if (!g.end_date && !g.per_period_cents) continue;
         if (g.cadence === "payday" && !schedule) continue;
@@ -284,6 +288,7 @@ export function useHome(asOf: string): HomeView & { logSetAside: () => Promise<b
     jarEvents,
     goals,
     jars,
+    openJars,
     emergencyJar,
     debts,
     fund,
@@ -294,7 +299,10 @@ export function useHome(asOf: string): HomeView & { logSetAside: () => Promise<b
   async function logSetAside(): Promise<boolean> {
     const amount =
       computed.move?.id === "payday_set_aside" ? Number(computed.move.params.amount_cents) : 0;
-    const jar = emergencyJar ?? jars[0] ?? null;
+    const jar =
+      (emergencyJar && challengeOpen(emergencyJar, asOf) ? emergencyJar : null) ??
+      openJars[0] ??
+      null;
     if (!jar || amount <= 0) return false;
     const ev = await addGoalEvent(db, jar.id, "deposit", asOf, amount);
     emitMoment("jar_deposit", { jar: jar.title, amount: formatCents(amount) }, ev.id);

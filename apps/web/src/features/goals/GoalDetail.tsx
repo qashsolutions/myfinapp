@@ -20,7 +20,7 @@ import { useHouseholdCloseSync, useHouseholdStatus } from "../household/useHouse
 import { goalSentence } from "./GoalCard.tsx";
 import { GoalExtras } from "./GoalExtras.tsx";
 import { GrowCard, useGrowMonthly } from "./GrowCard.tsx";
-import { challengeEnded, useGoalCaps } from "./useGoalCaps.ts";
+import { challengeEnded, challengeNotStarted, challengeOpen, useGoalCaps } from "./useGoalCaps.ts";
 import {
   addGoalEvent,
   moveMoney,
@@ -75,9 +75,11 @@ export function GoalDetail() {
   const p = view.progress;
   const pct = p ? Math.round(p.display_bps / 100) : 0;
   // A challenge past its last day takes no more deposits or check-ins (invariant 56).
+  // Before its first day it takes none yet either (invariant 71).
   const ended = challengeEnded(goal, today);
+  const notStarted = challengeNotStarted(goal, today);
   const overCap = !ended && caps.readOnly.has(goal.id);
-  const readOnly = overCap || ended;
+  const readOnly = overCap || ended || notStarted;
 
   async function log(cents: number) {
     setError(null);
@@ -214,14 +216,25 @@ export function GoalDetail() {
           navigate("/goals", { replace: true });
         }}
         jars={(allGoals ?? []).filter(
-          (g) => g.id !== goal.id && g.kind === "save" && g.status !== "archived",
+          (g) =>
+            g.id !== goal.id &&
+            g.kind === "save" &&
+            g.status !== "archived" &&
+            challengeOpen(g, today),
         )}
+        closed={!challengeOpen(goal, today)}
       />
 
       {ended ? (
         <Card as="section" aria-label="Challenge ended">
           <Word>Ended</Word>
           <p>This challenge has ended. Everything here is kept, and it no longer uses a place.</p>
+        </Card>
+      ) : null}
+      {notStarted ? (
+        <Card as="section" aria-label="Challenge not started">
+          <Word>Start</Word>
+          <p>This challenge starts {formatDay(goal.start_date)}. Log from then.</p>
         </Card>
       ) : null}
       {overCap ? (

@@ -320,6 +320,25 @@ def _refuse_ended(group: Group) -> None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="ended")
 
 
+def _started(group: Group, now: datetime | None = None) -> bool:
+    """A challenge has started once its first day (`start_date`, a local date) has begun
+    somewhere: from 10:00 UTC the day before, when it starts at UTC+14 (invariant 71)."""
+    now = now or _now()
+    begins = datetime.combine(group.start_date, datetime.min.time(), tzinfo=UTC)
+    return now >= begins - timedelta(hours=14)
+
+
+def _refuse_outside(group: Group, now: datetime) -> None:
+    """Progress counts only while the challenge runs somewhere (invariant 71): before its first
+    day has begun anywhere (409 `not_started`) or once its last day is over everywhere (409
+    `ended`), a post changes nothing on the board, `reached_at` included. A device sends nothing
+    after its own last day, so a late post the server takes is the last day's."""
+    if not _started(group, now):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="not_started")
+    if _ended(group, now):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="ended")
+
+
 def _helped_open(group: Group, me: GroupMember) -> bool:
     return me.reached_at is not None or me.progress_bps >= 10000 or _now().date() > group.end_date
 
@@ -500,6 +519,7 @@ def update_progress(
     """The one number a device sends: percent of the member's own target. Never an amount."""
     group, me = _active_member(db, group_id, caller)
     now = _now()
+    _refuse_outside(group, now)
     me.progress_bps = body.progress_bps
     me.progress_updated_at = now
     if body.progress_bps >= 10000 and me.reached_at is None:

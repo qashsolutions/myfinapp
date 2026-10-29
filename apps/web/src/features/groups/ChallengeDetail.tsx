@@ -85,6 +85,8 @@ export function ChallengeDetail() {
   const p = view?.progress ?? null;
   // Past its last day (invariant 56): the final board, and nothing more to log or invite to.
   const ended = compareText(group.end_date, today) < 0;
+  // Before its first day nothing counts yet (invariant 71).
+  const notStarted = compareText(group.start_date, today) > 0;
 
   return (
     <>
@@ -147,6 +149,8 @@ export function ChallengeDetail() {
                   ? "You reached your target. Here's how everyone finished."
                   : "Here's how everyone finished."}
               </p>
+            ) : notStarted ? (
+              <p>Starts {formatDay(group.start_date)}. Log from then.</p>
             ) : (
               <Link to={`/goals/${goal.id}`} className="auth__link" style={{ color: "inherit" }}>
                 {goal.kind === "habit"

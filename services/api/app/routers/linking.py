@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session as DbSession
 from app.config import get_settings
 from app.db import get_db
 from app.linking import plaid, token_vault
+from app.linking.status import set_status
 from app.models.linking import BankConnection, LinkSession
 from app.models.user import User
 from app.rules_server.entitlements import check_limit, entitlements
@@ -292,7 +293,7 @@ def _finish_relink(db: DbSession, link_session: LinkSession, now: datetime) -> F
         if exc.code in ("item_login_required", "pending_expiration"):
             return FinishOut(status="cancelled", connections=[])
         raise _bad_gateway(exc) from exc
-    row.status = "ok"
+    set_status(db, row, "ok")
     row.last_used_at = now
     db.commit()
     return FinishOut(
@@ -473,7 +474,7 @@ def sync(
         result = plaid.transactions_sync(token_vault.open_(row.access_token_encrypted), body.cursor)
     except plaid.LinkError as exc:
         if exc.code in ("item_login_required", "pending_expiration"):
-            row.status = "login_required"
+            set_status(db, row, "login_required")
             row.last_used_at = datetime.now(UTC)  # the app was opened all the same
             db.commit()
             raise HTTPException(status.HTTP_409_CONFLICT, detail="login_required") from exc
@@ -484,7 +485,7 @@ def sync(
     if not result.has_more:
         row.updates_available_at = None
     if row.status == "login_required":
-        row.status = "ok"
+        set_status(db, row, "ok")
     db.commit()
     return SyncOut(
         added=[SyncTxn(**t) for t in result.added],
@@ -511,7 +512,7 @@ def cards(
         found = plaid.card_details(token_vault.open_(row.access_token_encrypted))
     except plaid.LinkError as exc:
         if exc.code in ("item_login_required", "pending_expiration"):
-            row.status = "login_required"
+            set_status(db, row, "login_required")
             row.last_used_at = datetime.now(UTC)  # the app was opened all the same
             db.commit()
             raise HTTPException(status.HTTP_409_CONFLICT, detail="login_required") from exc
