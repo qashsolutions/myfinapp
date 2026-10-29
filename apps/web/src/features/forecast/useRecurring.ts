@@ -1,4 +1,5 @@
 import { daysInMonthOf } from "@stackd/rules/dates";
+import insightsConfig from "@stackd/rules/insights";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
 import { recordDeletion } from "../../data/backup/snapshot.ts";
@@ -41,6 +42,38 @@ export function suggestionInterval(interval: DetectedSeries["interval"]): string
 export interface Suggestion extends DetectedSeries {
   /** The merchant text as the user saw it on the latest entry. */
   label: string;
+  /** Everyday spending found on a schedule (invariant 52): shown, never offered as a bill. */
+  regular: boolean;
+}
+
+/**
+ * Regular spending (invariant 52, October 29, 2026; config/insights.yaml `regular_spending`,
+ * proposed): a weekly or every-2-weeks run of money out whose charges are mostly (more than
+ * half) in an everyday category (groceries, dining, transport, shopping) is everyday spending on
+ * a schedule, not a bill. It is shown for information and never confirmed, so its charges never
+ * become fixed or leave typical daily spending. Money in is always offered.
+ */
+const REGULAR = (
+  insightsConfig as unknown as { regular_spending: { intervals: string[]; categories: string[] } }
+).regular_spending;
+const REGULAR_INTERVALS = new Set<string>(REGULAR.intervals);
+const EVERYDAY_CATEGORIES = new Set<string>(REGULAR.categories);
+
+export function isRegularSpending(
+  s: Pick<DetectedSeries, "kind" | "interval" | "entry_ids">,
+  byId: Map<string, Pick<Entry, "category_id">>,
+): boolean {
+  if (s.kind !== "bill" || !REGULAR_INTERVALS.has(s.interval)) return false;
+  const everyday = s.entry_ids.filter((id) => {
+    const category = byId.get(id)?.category_id;
+    return typeof category === "string" && EVERYDAY_CATEGORIES.has(category);
+  }).length;
+  return everyday * 2 > s.entry_ids.length;
+}
+
+/** Home's "Confirm all" takes only bills due monthly or less often (invariant 52). */
+export function inConfirmAll(s: Pick<Suggestion, "kind" | "interval" | "regular">): boolean {
+  return s.kind === "bill" && !s.regular && MONTH_BASED.has(s.interval as RecurringInterval);
 }
 
 export function toRecurringEntry(e: Entry) {
@@ -74,14 +107,22 @@ export function seriesInput(s: RecurringSeries): SeriesInput {
 }
 
 /**
- * "Looks recurring, found in your history": the recurring rule over every entry, minus the
- * payees the user has already confirmed or dismissed. Live with the database.
+ * "Looks recurring, found in your history": bills and income to confirm, the recurring rule
+ * over every entry minus the payees the user has already confirmed or dismissed, and minus
+ * regular spending (invariant 52), which `useFoundRuns` lists apart. Live with the database.
  */
 export function useRecurringSuggestions(asOf: string): Suggestion[] | undefined {
+  return useFoundRuns(asOf)?.offered;
+}
+
+/** Everything the recurring rule found: what is offered, and regular spending shown apart. */
+export function useFoundRuns(
+  asOf: string,
+): { offered: Suggestion[]; regular: Suggestion[] } | undefined {
   const { db } = useDb();
   const entries = useLiveQuery(() => db.entries.toArray(), [db]);
   const known = useLiveQuery(() => db.recurring_series.toArray(), [db]);
-  const [suggestions, setSuggestions] = useState<Suggestion[] | undefined>(undefined);
+  const [found, setFound] = useState<{ offered: Suggestion[]; regular: Suggestion[] }>();
   useEffect(() => {
     if (!entries || !known) return;
     let alive = true;
@@ -95,15 +136,19 @@ export function useRecurringSuggestions(asOf: string): Suggestion[] | undefined 
         .filter((s) => !seen.has(`${s.payee}\u0000${s.kind}`))
         .map((s) => {
           const latest = byId.get(s.entry_ids[s.entry_ids.length - 1] ?? "");
-          return { ...s, label: latest?.merchant || s.payee };
+          return { ...s, label: latest?.merchant || s.payee, regular: isRegularSpending(s, byId) };
         });
-      if (alive) setSuggestions(fresh);
+      if (alive)
+        setFound({
+          offered: fresh.filter((s) => !s.regular),
+          regular: fresh.filter((s) => s.regular),
+        });
     })().catch(ignoreClosed);
     return () => {
       alive = false;
     };
   }, [entries, known, asOf]);
-  return suggestions;
+  return found;
 }
 
 export function useRecurringSeries(
@@ -156,6 +201,8 @@ async function rowsFor(
 }
 
 export async function confirmSuggestion(db: StackdDb, s: Suggestion): Promise<RecurringSeries> {
+  // Regular spending is never a bill (invariant 52): no series, no is_recurring marks.
+  if (s.regular) throw new Error("regular_spending_is_not_a_bill");
   const rows = await rowsFor(s, "confirmed", new Date().toISOString());
   await db.recurring_series.bulkAdd(rows);
   await markRecurring(db, s.entry_ids, true);

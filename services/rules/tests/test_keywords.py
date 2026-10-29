@@ -219,6 +219,11 @@ def test_common_payees_get_their_category() -> None:
         ("TRADER JOES #552", "out"): "cat-groceries",
         ("MCDONALDS F1234", "out"): "cat-dining",
         ("JUNE RENT", "out"): "cat-rent",
+        ("CITY POWER & LIGHT", "out"): "cat-utilities",
+        ("METRO LIGHT & POWER 0042", "out"): "cat-utilities",
+        ("PACIFIC GAS & ELECTRIC", "out"): "cat-utilities",
+        ("SPRINGFIELD UTILITIES", "out"): "cat-utilities",
+        ("CITY WATER DEPT", "out"): "cat-utilities",
     }
     for (payee, direction), category in cases.items():
         assert _category_of(payee, direction) == category, payee

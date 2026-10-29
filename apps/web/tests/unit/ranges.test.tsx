@@ -59,8 +59,9 @@ describe("time ranges on Money in & out (October 20, 2026)", () => {
     await waitFor(() => expect(stats).toHaveTextContent("+$3,000.00"));
     expect(stats).toHaveTextContent("−$530.00");
     expect(stats).toHaveTextContent("$2,470.00");
-    // 2,470 ÷ 3 months with entries, half-even
-    expect(screen.getByText(/About \$823\.33 a month kept/)).toBeInTheDocument();
+    // The first month starts on the 10th: shown, never averaged (invariant 51), so
+    // (3,000 − 500 − 10) ÷ the 2 whole months = $1,245.00 a month
+    expect(screen.getByText(/About \$1,245\.00 a month kept/)).toBeInTheDocument();
     expect(
       screen.getByText(/not enough history yet to compare with the 3 months before/),
     ).toBeInTheDocument();

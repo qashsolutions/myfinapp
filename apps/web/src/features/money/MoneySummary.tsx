@@ -7,12 +7,15 @@ export function MoneySummary({
   previous,
   delta,
   previousStart,
+  previousPartial = false,
   transferNote,
 }: {
   totals: MonthTotals | null;
   previous: MonthTotals | null;
   delta: number | null;
   previousStart: string | null;
+  /** The month before is only partly here (invariant 51): said plainly, never compared. */
+  previousPartial?: boolean;
   transferNote: string | null;
 }) {
   const net = totals?.net_cents ?? 0;
@@ -41,6 +44,8 @@ export function MoneySummary({
               {formatCents(Math.abs(delta))} {delta >= 0 ? "more" : "less"}
             </strong>
           </>
+        ) : previousPartial ? (
+          <>First full month here, nothing to compare yet</>
         ) : previousStart ? (
           <>No entries in {formatMonth(previousStart).split(" ")[0]} to compare</>
         ) : null}

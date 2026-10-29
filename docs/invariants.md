@@ -259,6 +259,37 @@ written against both.
     `merchant-matching.test.tsx` "an import sorts UBER EATS…" · goldens `categorize.match`,
     `recurring.subscription_check` "longest_kind_word_wins_ties_by_order",
     "longest_own_word_wins_and_own_words_come_first"
+51. **Only a whole month is history** (owner decision, October 29, 2026). Statements rarely
+    start on the 1st: two days of September are September's own numbers, never "September".
+    The coverage start (`data/coverage.ts`: the earliest statement period start or first entry,
+    over all accounts) must be on or before a month's 1st for that month to be the month before,
+    part of an average a month, "usual" or a seasonal month, and on or before a week's first day
+    for the recap's week before; a partial month is shown and never compared ("First full month
+    here, nothing to compare yet"). Every reader takes the same helper: `useMonthTotals`
+    (`previousPartial`), `useRangeTotals` (`average`, the period before), `useFixedFlexible`
+    (`compared`, the kept-rate bars), Budget's Start from last month, `useWeekTotals`, and the
+    rules `insights.vs_usual` / `insights.seasonal` (`history_from`).
+    `money.test.tsx` "never compares with a month the data only partly covers…",
+    `insights.test.tsx` "two days of a first month are never usual…", `ranges.test.tsx`,
+    `month-review.test.tsx` "never sets October against two days of September…",
+    `recap.test.tsx` "never compares with a week the data only partly covers…" · goldens
+    `insights.vs_usual` "two_days_of_a_month_are_not_usual", "a_partial_first_month_never_lowers_usual",
+    `insights.seasonal` "a_partly_covered_month_is_not_history"
+52. **Everyday spending on a schedule is never a bill** (owner decision, October 29, 2026). A
+    weekly or every-2-weeks run of money out mostly in an everyday category (config/insights.yaml
+    `regular_spending`) is shown as regular spending and never offered or confirmed as a bill
+    (`useRecurring.isRegularSpending`; `confirmSuggestion` refuses one), so its charges never
+    become `is_recurring`, fixed or left out of typical daily spending; Home's Confirm all takes
+    monthly-or-longer bills only (`inConfirmAll`). Income runs are always offered.
+    `home-visual.test.tsx` "weekly groceries, takeout and gas are regular spending…"
+53. **Safe to spend looks through the next whole pay period** (owner decision, October 29,
+    2026). With two paydays ahead, the window ends the day before the payday after next, so a
+    payday two days away never makes the whole balance spendable in two days; one payday known
+    keeps the day before it, none keeps the forecast's days. The rule picks the window
+    (`insights.safe_to_spend` `paydays`, out `window` and `payday`) and every screen's words follow
+    it (`SafeToSpendLine.safeWindowText`, Home, Insights). `insights.test.tsx` "shows safe to
+    spend through the next pay period…" · goldens `insights.safe_to_spend`
+    "payday_in_two_days_looks_through_the_next_pay_period", "one_payday_known_ends_the_day_before_it"
 
 ## Accounts and money on the server
 

@@ -77,6 +77,29 @@ describe("Your month", () => {
     vi.useRealTimers();
   });
 
+  it("never sets October against two days of September, in words or bars (invariant 51)", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await db.entries.bulkAdd([
+      // The statement starts Sep 29: September is only two days here
+      entry("pay-sep", "2026-09-29", 300000, "in", "cat-paycheck"),
+      entry("dining-sep", "2026-09-30", 7000, "out", "cat-dining"),
+      entry("pay-oct", "2026-10-01", 300000, "in", "cat-paycheck"),
+      entry("rent-oct", "2026-10-01", 150000, "out", "cat-rent"),
+      entry("dining-oct", "2026-10-10", 31000, "out", "cat-dining"),
+    ]);
+    installFakeApi({ session: readySession() });
+    renderApp("/month-review");
+    const how = await screen.findByRole("region", { name: "How it went" });
+    await waitFor(() => expect(how).toHaveTextContent("40% of what came in"));
+    // No month before to compare with: Kept, not Down against September's 98%
+    expect(how).toHaveTextContent("Kept");
+    expect(how).not.toHaveTextContent("Down");
+    expect(how).not.toHaveTextContent("September 2026");
+    // October alone: no kept-rate bars with a partial September in them
+    expect(within(how).queryByRole("img")).toBeNull();
+  });
+
   it("shows how October went, the budget, jars and the one change", async () => {
     const db = await seedMonths();
     await db.goals.add({

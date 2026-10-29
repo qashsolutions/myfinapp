@@ -1,0 +1,17 @@
+{
+  "months_used": 1,
+  "flagged": [
+    {
+      "category_id": "cat-rent",
+      "current_cents": 180000,
+      "usual_cents": 0,
+      "increase_cents": 180000
+    },
+    {
+      "category_id": "cat-dining",
+      "current_cents": 4000,
+      "usual_cents": 0,
+      "increase_cents": 4000
+    }
+  ]
+}

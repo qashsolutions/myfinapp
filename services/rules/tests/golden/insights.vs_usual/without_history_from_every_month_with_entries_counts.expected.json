@@ -1,0 +1,11 @@
+{
+  "months_used": 3,
+  "flagged": [
+    {
+      "category_id": "cat-rent",
+      "current_cents": 180000,
+      "usual_cents": 120000,
+      "increase_cents": 60000
+    }
+  ]
+}

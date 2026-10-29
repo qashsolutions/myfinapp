@@ -218,6 +218,41 @@
       "direction": "out"
     },
     {
+      "match": "POWER & LIGHT",
+      "category_id": "cat-utilities",
+      "direction": "out"
+    },
+    {
+      "match": "LIGHT & POWER",
+      "category_id": "cat-utilities",
+      "direction": "out"
+    },
+    {
+      "match": "GAS & ELECTRIC",
+      "category_id": "cat-utilities",
+      "direction": "out"
+    },
+    {
+      "match": "UTILITIES",
+      "category_id": "cat-utilities",
+      "direction": "out"
+    },
+    {
+      "match": "UTILITY",
+      "category_id": "cat-utilities",
+      "direction": "out"
+    },
+    {
+      "match": "WATER DEPT",
+      "category_id": "cat-utilities",
+      "direction": "out"
+    },
+    {
+      "match": "SEWER",
+      "category_id": "cat-utilities",
+      "direction": "out"
+    },
+    {
       "match": "TRANSIT",
       "category_id": "cat-transport",
       "direction": "out"

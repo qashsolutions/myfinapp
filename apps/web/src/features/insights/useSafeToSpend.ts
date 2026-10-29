@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react";
 import { ignoreClosed } from "../../data/db.ts";
-import { addDays, type SafeToSpend, safeToSpend } from "../../engine/bridge.ts";
+import { type SafeToSpend, safeToSpend } from "../../engine/bridge.ts";
 import type { ForecastView } from "../forecast/useForecast.ts";
 
 /**
- * Safe to spend until payday (fast-follow 8): the forecast's lowest balance between today and
- * the day before the next expected income, minus the buffer. The forecast already subtracts
- * usual daily spending, so this is room beyond that. No forecast or no balance → null.
+ * Safe to spend (fast-follow 8; the window since October 29, 2026, invariant 53): the forecast's
+ * lowest balance from today through the day before the payday after next (the next whole pay
+ * period), minus the cushion; with one payday known, through the day before it; with none, the
+ * forecast's days. The forecast already subtracts usual daily spending, so this is room beyond
+ * that. No forecast or no balance → null.
  */
-export function useSafeToSpend(
-  view: ForecastView,
-  asOf: string,
-): (SafeToSpend & { payday: string | null }) | null {
-  const [result, setResult] = useState<(SafeToSpend & { payday: string | null }) | null>(null);
+export function useSafeToSpend(view: ForecastView, asOf: string): SafeToSpend | null {
+  const [result, setResult] = useState<SafeToSpend | null>(null);
   const projection = view.projection;
   const items = view.upcoming?.items;
   const buffer = view.bufferCents;
@@ -23,16 +22,13 @@ export function useSafeToSpend(
     }
     let alive = true;
     void (async () => {
-      const payday =
-        (items ?? [])
-          .filter((i) => i.kind === "income" && !i.matched && i.date > asOf)
-          .map((i) => i.date)
-          .sort()[0] ?? null;
-      const until = payday
-        ? await addDays(payday, -1)
-        : (projection.days[projection.days.length - 1]?.date ?? asOf);
-      const out = await safeToSpend(projection.days, buffer, asOf, until);
-      if (alive) setResult({ ...out, payday });
+      // Expected paydays ahead: the rule keeps those after today, once each, earliest first.
+      const paydays = (items ?? [])
+        .filter((i) => i.kind === "income" && !i.matched)
+        .map((i) => i.date);
+      const until = projection.days[projection.days.length - 1]?.date ?? asOf;
+      const out = await safeToSpend(projection.days, buffer, asOf, until, paydays);
+      if (alive) setResult(out);
     })().catch((err) => {
       ignoreClosed(err);
       if (alive) setResult(null);

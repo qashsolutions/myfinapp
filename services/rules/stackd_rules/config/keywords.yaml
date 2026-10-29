@@ -70,6 +70,15 @@ keywords:
   - { match: AT&T, category_id: cat-utilities, direction: out }
   - { match: T-MOBILE, category_id: cat-utilities, direction: out }
   - { match: INTERNET, category_id: cat-utilities, direction: out }
+  # More utility words (October 29, 2026; proposed, awaiting owner sign-off): CITY POWER & LIGHT
+  # was uncategorized because the table had POWER CO only.
+  - { match: POWER & LIGHT, category_id: cat-utilities, direction: out }
+  - { match: LIGHT & POWER, category_id: cat-utilities, direction: out }
+  - { match: GAS & ELECTRIC, category_id: cat-utilities, direction: out }
+  - { match: UTILITIES, category_id: cat-utilities, direction: out }
+  - { match: UTILITY, category_id: cat-utilities, direction: out }
+  - { match: WATER DEPT, category_id: cat-utilities, direction: out }
+  - { match: SEWER, category_id: cat-utilities, direction: out }
   # transport
   - { match: TRANSIT, category_id: cat-transport, direction: out }
   - { match: METRO, category_id: cat-transport, direction: out }

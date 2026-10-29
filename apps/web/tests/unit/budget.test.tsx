@@ -256,7 +256,7 @@ describe("Budget", () => {
     const db = openDb("u1");
     await seedDefaults(db);
     await db.entries.bulkAdd([
-      entry("s1", "2026-09-05", 30000, "out", "cat-dining", "Bistro"),
+      entry("s1", "2026-09-01", 30000, "out", "cat-dining", "Bistro"), // a whole September (invariant 51)
       entry("s2", "2026-09-10", 120000, "out", "cat-rent", "Rent"),
       entry("o1", "2026-10-03", 45000, "out", "cat-dining", "Bistro"),
     ]);

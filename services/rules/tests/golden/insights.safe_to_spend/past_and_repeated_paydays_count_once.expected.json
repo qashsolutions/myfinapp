@@ -1,0 +1,10 @@
+{
+  "safe_cents": 60000,
+  "per_day_cents": 15000,
+  "until": "2026-10-14",
+  "days": 4,
+  "lowest_cents": 70000,
+  "lowest_date": "2026-10-13",
+  "payday": "2026-10-20",
+  "window": "pay_period"
+}

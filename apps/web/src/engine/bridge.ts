@@ -1491,19 +1491,29 @@ export interface SafeToSpend {
   days: number;
   lowest_cents: number;
   lowest_date: string;
+  /** The payday the window ends the day before; null for the `until` window. */
+  payday: string | null;
+  /**
+   * pay_period: through the day before the payday after next (two paydays known, October 29,
+   * 2026); payday: through the day before the next payday (one known); until: no payday known.
+   */
+  window: "pay_period" | "payday" | "until";
 }
 
+/** `paydays`: the expected paydays ahead (the rule keeps those after `asOf`, once each). */
 export async function safeToSpend(
   days: Array<{ date: string; balance_cents: number }>,
   bufferCents: number,
   asOf: string,
   until: string,
+  paydays: string[] | null = null,
 ): Promise<SafeToSpend> {
   return engine.call<SafeToSpend>("insights.safe_to_spend", {
     days,
     buffer_cents: bufferCents,
     as_of: asOf,
     until,
+    paydays,
   });
 }
 
@@ -1519,8 +1529,15 @@ export async function vsUsual(
   entries: RuleEntry[],
   thresholds: Record<string, number>,
   months: number,
+  historyFrom: string | null = null,
 ): Promise<{ months_used: number; flagged: UsualFlag[] }> {
-  return engine.call("insights.vs_usual", { as_of: asOf, entries, thresholds, months });
+  return engine.call("insights.vs_usual", {
+    as_of: asOf,
+    entries,
+    thresholds,
+    months,
+    history_from: historyFrom,
+  });
 }
 
 export interface LumpyBill {
@@ -1569,8 +1586,14 @@ export async function seasonalSpikes(
   asOf: string,
   entries: RuleEntry[],
   thresholds: Record<string, number>,
+  historyFrom: string | null = null,
 ): Promise<{ months_of_history: number; flagged: SeasonalFlag[] }> {
-  return engine.call("insights.seasonal", { as_of: asOf, entries, thresholds });
+  return engine.call("insights.seasonal", {
+    as_of: asOf,
+    entries,
+    thresholds,
+    history_from: historyFrom,
+  });
 }
 
 export interface ConsolidationOffer {

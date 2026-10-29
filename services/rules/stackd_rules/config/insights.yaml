@@ -31,3 +31,10 @@ month_review:
   show_days: 7
   debt_add_cents: 5000
   one_change_order: [over_plan, subscription_check, debt_interest]
+# Regular spending (October 29, 2026; proposed, awaiting owner sign-off): a run of money out found
+# at one of these intervals whose charges are mostly (more than half) in one of these everyday
+# categories is shown as regular spending, for information, and never offered as a bill (Trader
+# Joe's every week is groceries, not a bill). Money in is always offered.
+regular_spending:
+  intervals: [weekly, biweekly]
+  categories: [cat-groceries, cat-dining, cat-transport, cat-shopping]

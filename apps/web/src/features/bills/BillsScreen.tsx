@@ -19,8 +19,8 @@ import {
   dismissSuggestion,
   INTERVAL_LABELS,
   suggestionInterval,
+  useFoundRuns,
   useRecurringSeries,
-  useRecurringSuggestions,
 } from "../forecast/useRecurring.ts";
 import { useSubscriptions } from "../subscriptions/useSubscriptions.ts";
 import { BillSheet } from "./BillSheet.tsx";
@@ -42,7 +42,9 @@ export function BillsScreen() {
   // Home's Debt-free card opens the Debt payoff tab (`/bills?tab=debt`).
   const [params] = useSearchParams();
   const [tab, setTab] = useState<"bills" | "debt">(params.get("tab") === "debt" ? "debt" : "bills");
-  const suggestions = useRecurringSuggestions(today);
+  const found = useFoundRuns(today);
+  const suggestions = found?.offered;
+  const regular = found?.regular ?? [];
   const series = useRecurringSeries("confirmed");
   // At a glance (October 23, 2026): the next 30 days from the forecast, and each bill's countdown.
   const forecast = useForecast(today);
@@ -137,6 +139,26 @@ export function BillsScreen() {
               </div>
             </Card>
           ))}
+          {regular.length > 0 ? (
+            <Card as="section" aria-labelledby="bills-regular">
+              <p className="sk-card__eyebrow">Found in your history</p>
+              <Word>Regular</Word>
+              <h2 className="sk-card__title" id="bills-regular">
+                Regular spending, not bills
+              </h2>
+              <p>Everyday spending on a schedule. It stays in your usual spending.</p>
+              <List aria-label="Regular spending">
+                {regular.map((s) => (
+                  <ListRow
+                    key={`${s.payee}:${s.kind}`}
+                    label={s.label}
+                    sublabel={suggestionInterval(s.interval)}
+                    value={formatCents(s.expected_cents, "out")}
+                  />
+                ))}
+              </List>
+            </Card>
+          ) : null}
           {series && series.length === 0 ? (
             <Card>
               <Illustration name="calendar" tone="a1" />

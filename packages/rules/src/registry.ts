@@ -136,22 +136,20 @@ const BARE: Record<string, Rule> = {
     return { ...categorize.match(description, direction, user_rules, keywords) };
   },
   "insights.safe_to_spend": (input) => {
-    const { days, buffer_cents, as_of, until } = args(input, [
-      "days",
-      "buffer_cents",
-      "as_of",
-      "until",
-    ]);
-    return { ...insights.safeToSpend(days, buffer_cents, as_of, until) };
+    const { days, buffer_cents, as_of, until, paydays } = args(
+      input,
+      ["days", "buffer_cents", "as_of", "until"],
+      ["paydays"],
+    );
+    return { ...insights.safeToSpend(days, buffer_cents, as_of, until, paydays ?? null) };
   },
   "insights.vs_usual": (input) => {
-    const { as_of, entries, thresholds, months } = args(input, [
-      "as_of",
-      "entries",
-      "thresholds",
-      "months",
-    ]);
-    return { ...insights.vsUsual(as_of, entries, thresholds, months) };
+    const { as_of, entries, thresholds, months, history_from } = args(
+      input,
+      ["as_of", "entries", "thresholds", "months"],
+      ["history_from"],
+    );
+    return { ...insights.vsUsual(as_of, entries, thresholds, months, history_from ?? null) };
   },
   "insights.lumpy_bills": (input) => {
     const { as_of, series, thresholds, months } = args(input, [
@@ -163,8 +161,12 @@ const BARE: Record<string, Rule> = {
     return { ...insights.lumpyBills(as_of, series, thresholds, months) };
   },
   "insights.seasonal": (input) => {
-    const { as_of, entries, thresholds } = args(input, ["as_of", "entries", "thresholds"]);
-    return { ...insights.seasonal(as_of, entries, thresholds) };
+    const { as_of, entries, thresholds, history_from } = args(
+      input,
+      ["as_of", "entries", "thresholds"],
+      ["history_from"],
+    );
+    return { ...insights.seasonal(as_of, entries, thresholds, history_from ?? null) };
   },
   "insights.top_spending": (input) => {
     const { start, end, entries, limit } = args(input, ["start", "end", "entries", "limit"]);

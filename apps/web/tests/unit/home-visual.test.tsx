@@ -117,6 +117,51 @@ describe("Home, visual (October 19, 2026)", () => {
     );
   });
 
+  it("weekly groceries, takeout and gas are regular spending, never offered as bills (invariant 52)", async () => {
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    await seedDefaults(db);
+    const rows: Entry[] = [];
+    const weeks = ["2026-09-21", "2026-09-28", "2026-10-05", "2026-10-12"];
+    for (const [i, d] of weeks.entries()) {
+      rows.push(entry(`tj${i}`, d, 8400 + i * 10, "TRADER JOE'S", "out", "cat-groceries"));
+      rows.push(entry(`ch${i}`, d, 1450, "CHIPOTLE 1234", "out", "cat-dining"));
+      rows.push(entry(`sh${i}`, d, 4500, "SHELL OIL 57444", "out", "cat-transport"));
+      rows.push(entry(`ue${i}`, d, 3200, "UBER EATS", "out", "cat-dining"));
+      // A weekly charge outside the everyday categories is still a bill to look at
+      rows.push(entry(`sit${i}`, d, 30000, "SITTER CO", "out", null));
+    }
+    for (const m of ["08", "09", "10"])
+      rows.push(
+        entry(`rent${m}`, `2026-${m}-01`, 165000, "MAPLE GROVE APTS RENT", "out", "cat-rent"),
+      );
+    await db.entries.bulkAdd(rows);
+    installFakeApi({ session: readySession() });
+    renderApp("/");
+
+    const found = await screen.findByRole("region", { name: "Confirm to see what's coming" });
+    await waitFor(() => expect(found).toHaveTextContent("2bills"));
+    expect(found).not.toHaveTextContent(/TRADER JOE|CHIPOTLE|SHELL|UBER EATS/);
+    // Confirm all takes the monthly rent only; the weekly sitter is reviewed on Bills
+    await user.click(within(found).getByRole("button", { name: "Confirm 1 monthly" }));
+    await waitFor(async () =>
+      expect(await db.recurring_series.where("status").equals("confirmed").count()).toBe(1),
+    );
+    const [rent] = await db.recurring_series.toArray();
+    expect(rent).toMatchObject({ payee: "MAPLE GROVE APTS RENT", interval: "monthly" });
+    // No grocery, takeout or gas charge became a bill's charge
+    const marked = (await db.entries.toArray()).filter((e) => e.is_recurring).map((e) => e.id);
+    expect(marked.sort()).toEqual(["rent08", "rent09", "rent10"]);
+
+    renderApp("/bills");
+    const regular = await screen.findByRole("region", { name: "Regular spending, not bills" });
+    for (const name of ["TRADER JOE'S", "CHIPOTLE 1234", "SHELL OIL 57444", "UBER EATS"])
+      expect(regular).toHaveTextContent(name);
+    expect(within(regular).queryByRole("button")).toBeNull();
+    expect(screen.getByRole("region", { name: "Suggestion: SITTER CO" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /Suggestion: TRADER JOE/ })).toBeNull();
+  });
+
   it("says only transfers so far when that's all the month has", async () => {
     const db = openDb("u1");
     await seedDefaults(db);

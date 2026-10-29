@@ -31,6 +31,10 @@ def compile_config() -> dict:
             "debt_add_cents": int(data["month_review"]["debt_add_cents"]),
             "one_change_order": [str(k) for k in data["month_review"]["one_change_order"]],
         },
+        "regular_spending": {
+            "intervals": [str(k) for k in data["regular_spending"]["intervals"]],
+            "categories": [str(k) for k in data["regular_spending"]["categories"]],
+        },
     }
 
 
