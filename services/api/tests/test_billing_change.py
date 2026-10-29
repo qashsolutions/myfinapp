@@ -393,6 +393,7 @@ def test_deleting_keeps_this_month_and_refunds_the_rest() -> None:
     assert (shown["credit_cents"], shown["refund_if_deleted_cents"]) == (1500, owed - fee(owed))
     assert (shown["refund_fee_bps"], shown["refund_fee_fixed_cents"]) == (290, 30)
     assert shown["refund_before_fee_cents"] == owed
+    assert shown["refund_kind"] == "unused"  # the yearly plan's unused months, plus credit
     assert shown["kept_until"] is not None
     r = client.post("/api/account/delete", json={"confirm": "DELETE"})
     assert r.status_code == 204, r.text
@@ -412,7 +413,9 @@ def test_a_monthly_plan_keeps_its_month_and_refunds_only_credit() -> None:
         {"id": "ch_a", "created": 1, "amount": 3000, "amount_refunded": 0},
         {"id": "ch_b", "created": 2, "amount": 2000, "amount_refunded": 500},
     ]
-    assert client.get("/api/billing/credit").json()["refund_if_deleted_cents"] == 4000 - 146
+    shown = client.get("/api/billing/credit").json()
+    assert shown["refund_if_deleted_cents"] == 4000 - 146
+    assert shown["refund_kind"] == "credit"  # a monthly plan: only the credit comes back
     assert client.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
     assert [(c, a) for c, a, _ in stripe.refunds()] == [("ch_b", 1500), ("ch_a", 2354)]
     assert stripe.balance == 0  # the whole credit is settled, the fee included
@@ -461,7 +464,9 @@ def test_founding_keeps_this_month_and_refunds_the_rest_of_its_years() -> None:
         db.commit()
     stripe = FakeStripe("price_founding")
     stripe_billing.transport_override = stripe.transport()
-    preview = client.get("/api/billing/credit").json()["refund_if_deleted_cents"]
+    shown = client.get("/api/billing/credit").json()
+    preview = shown["refund_if_deleted_cents"]
+    assert shown["refund_kind"] == "founding"
     assert 10900 - 350 <= preview <= 11250 - 340  # three years less this month, less the fee
     assert client.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
     [(target, amount, key)] = stripe.refunds()
@@ -487,6 +492,7 @@ def test_change_needs_a_subscription_and_consent() -> None:
         "refund_if_deleted_cents": 0,
         "kept_until": None,
         "refund_before_fee_cents": 0,
+        "refund_kind": "none",
         "refund_fee_bps": 290,
         "refund_fee_fixed_cents": 30,
         "refund_fee_method": "card",

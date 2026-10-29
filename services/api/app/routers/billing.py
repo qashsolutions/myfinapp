@@ -187,6 +187,9 @@ class CreditOut(BaseModel):
     kept_until: datetime | None = None
     # Stripe's card fee taken off a refund (plans.yaml `refunds`), for the screen to explain.
     refund_before_fee_cents: int = 0  # the unused part and credit, before Stripe's fee
+    # What the refund is made of, so the screen says only what is true of it (invariant 61):
+    # clearing = a first bank payment still clearing, all of it back once it clears, no fee.
+    refund_kind: deletion.RefundKind = "none"
     # The fee rule comes from plans.yaml `refunds` only (`_fee_rule`), never a literal here
     # (October 28, 2026).
     refund_fee_bps: int
@@ -699,7 +702,7 @@ def credit(
         return CreditOut(credit_cents=0, refund_if_deleted_cents=0, **_fee_rule())
     try:
         held = sum(stripe_billing.customer_credit(c) for c in sorted(customers))
-        refund, gross, kept = deletion.refund_preview(db, caller.user.id)
+        refund, gross, kept, kind = deletion.refund_preview(db, caller.user.id)
         method = (
             stripe_billing.payment_method_of_customer(sorted(customers)[0])
             if customers and gross
@@ -711,6 +714,7 @@ def credit(
         credit_cents=held,
         refund_if_deleted_cents=refund,
         refund_before_fee_cents=gross,
+        refund_kind=kind,
         kept_until=kept,
         refund_fee_method=method,
         **_fee_rule(),

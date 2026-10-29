@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 from sqlalchemy import and_, delete, or_, select, update
 from sqlalchemy.exc import DBAPIError
@@ -192,16 +193,24 @@ def cancel_billing(
     return ended
 
 
+# What the refund on deletion is made of, so the screen says only what is true of it (invariant
+# 61, October 29, 2026): "clearing" a first bank payment still clearing, all of it back with no
+# fee; "founding" the rest of a Founding term; "unused" the unused months of a yearly plan (and
+# any credit); "credit" only the credit on the account; "mixed" more than one of those; "none".
+RefundKind = Literal["none", "clearing", "founding", "unused", "credit", "mixed"]
+
+
 def refund_preview(
     db: DbSession, user_id: uuid.UUID, *, now: datetime | None = None
-) -> tuple[int, int, datetime | None]:
+) -> tuple[int, int, datetime | None, RefundKind]:
     """What `cancel_billing` would refund if the account were deleted now, in cents, after
-    Stripe's fee for how it was paid (card or bank); the amount before the fee; and the end of
-    the month that is kept (None without a live plan)."""
+    Stripe's fee for how it was paid (card or bank); the amount before the fee; the end of
+    the month that is kept (None without a live plan); and what the refund is made of."""
     from app.services import stripe_billing  # noqa: PLC0415
 
     now = now or datetime.now(UTC)
     total, gross, kept = 0, 0, None
+    parts: set[str] = set()
     customers = {
         s.customer_id
         for s in db.scalars(
@@ -220,6 +229,8 @@ def refund_preview(
             # comes back once it clears, with no fee (owner decision, October 29, 2026).
             total += cents
             gross += cents
+            if cents:
+                parts.add("clearing")
             continue
         if sub.interval is None:  # Founding: its own refund, its own fee
             method = (
@@ -229,6 +240,8 @@ def refund_preview(
             )
             total += cents - stripe_billing.refund_fee_cents(cents, method)
             gross += cents
+            if cents:
+                parts.add("founding")
         elif sub.customer_id:
             by_customer[sub.customer_id] = by_customer.get(sub.customer_id, 0) + cents
     for sub in db.scalars(
@@ -245,6 +258,8 @@ def refund_preview(
         cents = stripe_billing.clearing_refund(sub)
         total += cents
         gross += cents
+        if cents:
+            parts.add("clearing")
     disputed = _disputed(
         db.scalars(
             select(Subscription).where(
@@ -255,11 +270,21 @@ def refund_preview(
     for customer_id, due in sorted(by_customer.items()):
         if customer_id in disputed:
             continue  # as cancel_billing: nothing comes back while a payment is disputed
-        owed = due + stripe_billing.customer_credit(customer_id)
+        held = stripe_billing.customer_credit(customer_id)
+        owed = due + held
         method = stripe_billing.payment_method_of_customer(customer_id) if owed else "card"
         total += owed - stripe_billing.refund_fee_cents(owed, method)
         gross += owed
-    return total, gross, kept
+        if due:
+            parts.add("unused")
+        elif held:
+            parts.add("credit")
+    if total <= 0:
+        return total, gross, kept, "none"
+    if len(parts) != 1:
+        return total, gross, kept, "mixed" if parts else "none"
+    kind: RefundKind = next(iter(parts))  # type: ignore[assignment]
+    return total, gross, kept, kind
 
 
 def soft_delete(

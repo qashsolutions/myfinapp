@@ -1271,6 +1271,19 @@
           "refund_if_deleted_cents": {
             "title": "Refund If Deleted Cents",
             "type": "integer"
+          },
+          "refund_kind": {
+            "default": "none",
+            "enum": [
+              "none",
+              "clearing",
+              "founding",
+              "unused",
+              "credit",
+              "mixed"
+            ],
+            "title": "Refund Kind",
+            "type": "string"
           }
         },
         "required": [

@@ -18,7 +18,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.security.audit import AuditAction, record
 from app.services import native_billing
-from app.services.stripe_billing import BillingError
+from app.webhooks.failures import failed
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
@@ -38,15 +38,21 @@ async def google_webhook(request: Request, db: Annotated[DbSession, Depends(get_
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="bad_payload") from exc
     if not isinstance(body, dict):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="bad_payload")
+    message = body.get("message")
+    message_id = str(message.get("messageId") or "") if isinstance(message, dict) else ""
     try:
         outcome = native_billing.handle_google_rtdn(db, body)
-    except BillingError as exc:
-        if exc.code == "play_api":
-            raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=exc.code) from exc
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=exc.code) from exc
-    if outcome not in ("ignored", "duplicate"):
-        record(
-            db, actor_id=None, action=AuditAction.PLAN_CHANGED, target=f"google:{outcome}", ip=None
-        )
-    db.commit()
+        if outcome not in ("ignored", "duplicate"):
+            record(
+                db,
+                actor_id=None,
+                action=AuditAction.PLAN_CHANGED,
+                target=f"google:{outcome}",
+                ip=None,
+            )
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 - answered, logged and reported (invariant 60)
+        # A Play API outage (502) or our own failure (5xx) has Pub/Sub deliver it again.
+        db.rollback()
+        raise failed("google", exc, event_id=message_id) from exc
     return Ack(received=True, outcome=outcome)

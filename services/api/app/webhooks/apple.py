@@ -17,7 +17,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.security.audit import AuditAction, record
 from app.services import native_billing
-from app.services.stripe_billing import BillingError
+from app.webhooks.failures import failed
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
@@ -37,11 +37,16 @@ def apple_webhook(body: SignedPayloadIn, db: Annotated[DbSession, Depends(get_db
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="not_found")
     try:
         outcome = native_billing.handle_apple_notification(db, body.signedPayload)
-    except BillingError as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=exc.code) from exc
-    if outcome not in ("ignored", "duplicate"):
-        record(
-            db, actor_id=None, action=AuditAction.PLAN_CHANGED, target=f"apple:{outcome}", ip=None
-        )
-    db.commit()
+        if outcome not in ("ignored", "duplicate"):
+            record(
+                db,
+                actor_id=None,
+                action=AuditAction.PLAN_CHANGED,
+                target=f"apple:{outcome}",
+                ip=None,
+            )
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 - answered, logged and reported (invariant 60)
+        db.rollback()
+        raise failed("apple", exc) from exc
     return Ack(received=True, outcome=outcome)

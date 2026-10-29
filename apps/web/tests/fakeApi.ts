@@ -171,6 +171,8 @@ export interface FakeBilling {
   /** GET /api/billing/credit: credit on the account, and what deleting it would refund. */
   credit_cents?: number;
   refund_cents?: number;
+  /** What the refund is made of (invariant 61); "unused" (a yearly plan) unless set. */
+  refund_kind?: "none" | "clearing" | "founding" | "unused" | "credit" | "mixed";
   /** GET /api/billing/history, oldest first here; cancel and resume add to it. */
   history?: Array<{
     kind: "trial_started" | "subscribed" | "switched" | "cancelled" | "resumed" | "ended";
@@ -1245,11 +1247,15 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       return json(billingOut());
     }
     if (method === "GET" && path === "/api/billing/credit") {
+      const refund = state.billing.refund_cents ?? 0;
+      const kind = refund ? (state.billing.refund_kind ?? "unused") : "none";
+      const clearing = kind === "clearing"; // all of it, no fee, no month kept
       return json({
         credit_cents: state.billing.credit_cents ?? 0,
-        refund_if_deleted_cents: state.billing.refund_cents ?? 0,
-        kept_until: state.billing.refund_cents ? "2026-11-09T18:00:00Z" : null,
-        refund_before_fee_cents: state.billing.refund_cents ? state.billing.refund_cents + 195 : 0,
+        refund_if_deleted_cents: refund,
+        kept_until: refund && !clearing ? "2026-11-09T18:00:00Z" : null,
+        refund_before_fee_cents: refund ? refund + (clearing ? 0 : 195) : 0,
+        refund_kind: kind,
         refund_fee_bps: 290,
         refund_fee_fixed_cents: 30,
         refund_fee_method: state.billing.paid_by_bank ? "bank" : "card",

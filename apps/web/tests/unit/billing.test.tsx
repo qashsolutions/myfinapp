@@ -6,6 +6,7 @@ import { billingState } from "../../src/features/billing/billing.ts";
 import { FREE_ENTITLEMENTS, resetEntitlements } from "../../src/features/billing/entitlements.ts";
 import { createGoal } from "../../src/features/goals/useGoals.ts";
 import {
+  type FakeBilling,
   fakeMember,
   foundingBilling,
   freeBilling,
@@ -495,7 +496,7 @@ describe("Plans & billing", () => {
     expect(within(card).getByRole("status")).toHaveTextContent("$55.00");
     expect(card).toHaveTextContent("Back to the card you paid with, not as credit.");
     expect(card).toHaveTextContent(
-      "We keep this month (it runs to Nov 9, 2026). On a yearly plan the months used, this one included, cost the monthly price and the rest of the year comes back",
+      "We keep this month (it runs to Nov 9, 2026). The months used, this one included, cost the monthly price and the rest of the year comes back",
     );
     expect(card).toHaveTextContent("$56.95 unused − $1.95 Stripe card fee = $55.00");
     expect(card).toHaveTextContent(
@@ -516,6 +517,63 @@ describe("Plans & billing", () => {
       "Stripe keeps its bank fee (0.8%, at most $5.00) when a payment is refunded",
     );
     expect(card).not.toHaveTextContent("card fee");
+  });
+
+  // Invariant 61 (October 29, 2026): each refund case says only what is true of it.
+  const refundCard = async (billing: Partial<FakeBilling>) => {
+    installFakeApi({
+      session: readySession(),
+      billing: { ...privateBilling(), plan: "connected", ...billing },
+    });
+    renderApp("/me/delete");
+    return screen.findByRole("region", { name: "Your refund" });
+  };
+
+  it("a first bank payment still clearing: all of it, no fee, no credit, no month kept", async () => {
+    const card = await refundCard({
+      refund_cents: 6500,
+      refund_kind: "clearing",
+      paid_by_bank: true,
+    });
+    expect(within(card).getByRole("status")).toHaveTextContent("$65.00");
+    expect(card).toHaveTextContent("All of it, once your bank payment clears.");
+    expect(card).not.toHaveTextContent(/fee comes off the refund|Stripe bank fee|card fee/);
+    expect(card).not.toHaveTextContent(/credit/i);
+    expect(card).not.toHaveTextContent("We keep this month");
+    expect(card).toHaveTextContent("no fee comes off");
+  });
+
+  it("a clearing refund names the bank account even when the method reads as card", async () => {
+    const card = await refundCard({ refund_cents: 6500, refund_kind: "clearing" });
+    expect(card).toHaveTextContent("bank account you paid with");
+    expect(card).not.toHaveTextContent(/card/);
+  });
+
+  it("a monthly plan's refund is its credit, and says so without 'not as credit'", async () => {
+    const card = await refundCard({ refund_cents: 3854, refund_kind: "credit" });
+    expect(card).toHaveTextContent("Your credit, paid back to the card you paid with.");
+    expect(card).toHaveTextContent("What comes back is the credit on your account.");
+    expect(card).toHaveTextContent("$40.49 credit − $1.95 Stripe card fee = $38.54");
+    expect(card).not.toHaveTextContent(/not as credit|yearly|rest of the year/);
+  });
+
+  it("Founding's refund is the rest of its term, with the card fee", async () => {
+    const card = await refundCard({ refund_cents: 10_500, refund_kind: "founding" });
+    expect(card).toHaveTextContent("The rest of your Founding term comes back");
+    expect(card).toHaveTextContent("Stripe card fee");
+    expect(card).not.toHaveTextContent(/yearly|rest of the year|credit on your account/);
+  });
+
+  it("nothing to refund (a disputed payment, or no paid plan) shows no refund card", async () => {
+    installFakeApi({
+      session: readySession(),
+      billing: { ...privateBilling(), plan: "connected", refund_cents: 0 },
+    });
+    renderApp("/me/delete");
+    await screen.findByRole("heading", { name: "Delete account" });
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "Your refund" })).not.toBeInTheDocument(),
+    );
   });
 
   it("an inbox that may not buy again is told so and how to reach us", async () => {
