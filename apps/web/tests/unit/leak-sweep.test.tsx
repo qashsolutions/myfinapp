@@ -48,6 +48,8 @@ const SENTINELS = [
   "Kiwi note 7Z", // an entry's note (October 19, 2026)
   "Tahiti 7Z", // an entry's tag
   "Yacht 7Z", // a hand-added net worth item
+  "Puzzles 7Z", // an own subscription kind (October 29, 2026)
+  "ZEBRAWORD7Z", // an own subscription word
 ];
 
 function entry(id: string, merchant: string, cents: number): Entry {
@@ -212,6 +214,21 @@ describe("nothing about money leaves the device unencrypted", () => {
       source: "manual",
       ref_id: null,
       included: true,
+      created_at: "2026-10-10T00:00:00.000Z",
+      updated_at: "2026-10-10T00:00:00.000Z",
+    });
+
+    // 1a. An own subscription kind and word (October 29, 2026): device and backup only
+    await db.own_subscription_kinds.add({
+      id: "own-k7z",
+      label: "Puzzles 7Z",
+      created_at: "2026-10-10T00:00:00.000Z",
+      updated_at: "2026-10-10T00:00:00.000Z",
+    });
+    await db.own_subscription_words.add({
+      id: "w7z",
+      match: "ZEBRAWORD7Z",
+      kind: "own-k7z",
       created_at: "2026-10-10T00:00:00.000Z",
       updated_at: "2026-10-10T00:00:00.000Z",
     });

@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "id": "b",
+      "label": "Hulu",
+      "kind": "video",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 21600,
+      "monthly_cents": 1800
+    },
+    {
+      "id": "a",
+      "label": "Netflix",
+      "kind": "music",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 18588,
+      "monthly_cents": 1549
+    }
+  ],
+  "duplicates": [],
+  "by_kind": [
+    {
+      "kind": "video",
+      "count": 1,
+      "yearly_cents": 21600,
+      "monthly_cents": 1800,
+      "ids": [
+        "b"
+      ]
+    },
+    {
+      "kind": "music",
+      "count": 1,
+      "yearly_cents": 18588,
+      "monthly_cents": 1549,
+      "ids": [
+        "a"
+      ]
+    }
+  ]
+}

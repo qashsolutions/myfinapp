@@ -239,9 +239,16 @@ def _recurring_yearly_cost(series: list) -> dict:
 
 
 def _recurring_subscription_check(
-    as_of: str, subscriptions: list, kinds: list, thresholds: dict
+    as_of: str,
+    subscriptions: list,
+    kinds: list,
+    thresholds: dict,
+    own_words: object = None,
+    own_kinds: object = None,
 ) -> dict:
-    return recurring.subscription_check(as_of, subscriptions, kinds, thresholds)
+    return recurring.subscription_check(
+        as_of, subscriptions, kinds, thresholds, own_words, own_kinds
+    )
 
 
 def _next_move_pick(facts: dict, config: dict, as_of: str) -> dict:

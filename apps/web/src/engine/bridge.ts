@@ -825,12 +825,18 @@ export async function subscriptionCheck(
   subscriptions: SubscriptionCheckInput[],
   kinds: Array<{ match: string; kind: string }>,
   thresholds: Record<string, number>,
+  /** The person's own words, tried before `kinds` in this order (first match wins). */
+  ownWords: Array<{ match: string; kind: string }> = [],
+  /** The person's own kind ids (their names stay on the device). */
+  ownKinds: string[] = [],
 ): Promise<SubscriptionCheck> {
   return engine.call<SubscriptionCheck>("recurring.subscription_check", {
     as_of: asOf,
     subscriptions,
     kinds,
     thresholds,
+    own_words: ownWords,
+    own_kinds: ownKinds,
   });
 }
 

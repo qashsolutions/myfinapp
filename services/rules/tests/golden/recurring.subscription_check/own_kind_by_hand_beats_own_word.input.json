@@ -1,0 +1,73 @@
+{
+  "as_of": "2026-10-29",
+  "subscriptions": [
+    {
+      "id": "a",
+      "label": "Spotify",
+      "payee": "SPOTIFY USA",
+      "interval": "monthly",
+      "expected_cents": 1199,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": []
+    },
+    {
+      "id": "b",
+      "label": "Netflix",
+      "payee": "NETFLIX",
+      "interval": "monthly",
+      "expected_cents": 1549,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": [],
+      "own_kind": "own-family"
+    },
+    {
+      "id": "c",
+      "label": "Spotify Duo",
+      "payee": "SPOTIFY DUO",
+      "interval": "monthly",
+      "expected_cents": 1499,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": [],
+      "own_kind": "music"
+    },
+    {
+      "id": "d",
+      "label": "Spotify Kids",
+      "payee": "SPOTIFY KIDS",
+      "interval": "monthly",
+      "expected_cents": 599,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-29",
+      "charges": [],
+      "own_kind": "other"
+    }
+  ],
+  "kinds": [
+    {
+      "match": "SPOTIFY",
+      "kind": "music"
+    },
+    {
+      "match": "NETFLIX",
+      "kind": "video"
+    }
+  ],
+  "thresholds": {
+    "subscription_ask_days": 90,
+    "subscription_renewal_days": 15,
+    "trial_max_cents": 100,
+    "trial_window_days": 45
+  },
+  "own_words": [
+    {
+      "match": "SPOTIFY",
+      "kind": "own-family"
+    }
+  ],
+  "own_kinds": [
+    "own-family"
+  ]
+}

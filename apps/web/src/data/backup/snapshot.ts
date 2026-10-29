@@ -53,6 +53,9 @@ export const SYNCED_TABLES: Array<{
   // Credit habits (October 28, 2026): a linked card's due dates as each sync saw them, so the
   // on-time history follows to a new device; the latest facts for a due date win.
   { name: "card_due_dates", key: "id", updatedAt: "updated_at" },
+  // The person's own subscription kinds and words (October 29, 2026): the newer edit wins.
+  { name: "own_subscription_kinds", key: "id", updatedAt: "updated_at" },
+  { name: "own_subscription_words", key: "id", updatedAt: "updated_at" },
 ];
 
 export type SyncedTable =
@@ -76,7 +79,9 @@ export type SyncedTable =
   | "emergency_fund"
   | "net_worth_items"
   | "net_worth_snapshots"
-  | "card_due_dates";
+  | "card_due_dates"
+  | "own_subscription_kinds"
+  | "own_subscription_words";
 
 /** How long a removal is remembered before it may be pruned (docs/spec.md chunk 1.16). */
 export const TOMBSTONE_HORIZON_DAYS = 180;

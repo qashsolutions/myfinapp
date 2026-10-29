@@ -287,10 +287,42 @@ export function containsWord(text: string, word: string): boolean {
 /** The person's "Other": no kind, whatever the table says. */
 export const OTHER_KIND = "other";
 
-function ownKind(raw: unknown): string | null {
+function ownKind(raw: unknown, known: Set<string>): string | null {
   if (raw === null || raw === undefined) return null;
   if (typeof raw !== "string" || raw === "") throw new RuleError("invalid_kind");
+  if (raw !== OTHER_KIND && !known.has(raw)) throw new RuleError("invalid_kind");
   return raw;
+}
+
+/** Port of recurring._own_kinds: the person's own kind ids (their names stay on the device). */
+function ownKinds(raw: unknown, builtin: Set<string>): Set<string> {
+  const out = new Set<string>();
+  if (raw === null || raw === undefined) return out;
+  if (!Array.isArray(raw)) throw new RuleError("invalid_own_kinds");
+  for (const kind of raw) {
+    if (typeof kind !== "string" || kind === "" || kind === OTHER_KIND)
+      throw new RuleError("invalid_own_kinds");
+    if (builtin.has(kind) || out.has(kind)) throw new RuleError("invalid_own_kinds");
+    out.add(kind);
+  }
+  return out;
+}
+
+/** Port of recurring._own_words: cleaned like the table's, each naming a known kind. */
+function ownWords(raw: unknown, known: Set<string>): Array<[string, string]> {
+  if (raw === null || raw === undefined) return [];
+  if (!Array.isArray(raw)) throw new RuleError("invalid_own_words");
+  return raw.map((row) => {
+    if (typeof row !== "object" || row === null || Array.isArray(row))
+      throw new RuleError("invalid_own_words");
+    const { match, kind } = row as Record<string, unknown>;
+    if (typeof match !== "string" || typeof kind !== "string")
+      throw new RuleError("invalid_own_words");
+    const cleaned = cleanDescription(match);
+    if (cleaned === "") throw new RuleError("invalid_own_words");
+    if (!known.has(kind)) throw new RuleError("invalid_kind");
+    return [cleaned, kind] as [string, string];
+  });
 }
 
 function charges(raw: unknown): Array<[Day, number]> {
@@ -339,10 +371,16 @@ export function subscriptionCheck(
   subscriptions: unknown,
   kinds: unknown,
   thresholds: unknown,
+  ownWordsRaw: unknown = null,
+  ownKindsRaw: unknown = null,
 ): SubscriptionCheck {
   const today = parseDate(asOf);
   const limits = checkThresholds(thresholds);
   const table = kindTable(kinds);
+  const builtin = new Set(table.map(([, k]) => k));
+  const known = new Set([...builtin, ...ownKinds(ownKindsRaw, builtin)]);
+  // The person's words first, so their call wins over the table; a kind set by hand wins over both.
+  const words = [...ownWords(ownWordsRaw, known), ...table];
   if (!Array.isArray(subscriptions)) throw new RuleError("invalid_series");
   const items: SubscriptionCheckItem[] = [];
   for (const raw of subscriptions) {
@@ -410,12 +448,12 @@ export function subscriptionCheck(
       (renewal !== null && lastCharge !== null && !answeredSince(checked, lastCharge)) ||
       rise !== null ||
       trial !== null;
-    const own = ownKind(r.own_kind);
+    const own = ownKind(r.own_kind, known);
     let kind: string | null;
     if (own !== null) kind = own === OTHER_KIND ? null : own;
     else {
       const clean = cleanDescription(r.payee);
-      kind = table.find(([word]) => containsWord(clean, word))?.[1] ?? null;
+      kind = words.find(([word]) => containsWord(clean, word))?.[1] ?? null;
     }
     items.push({
       id: r.id,

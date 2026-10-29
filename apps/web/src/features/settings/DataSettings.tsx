@@ -31,6 +31,12 @@ export function DataSettings() {
           onClick={go("/me/categories")}
         />
         <ListRow
+          label="Subscription words"
+          sublabel="Your own words and kinds"
+          href="/me/subscription-words"
+          onClick={go("/me/subscription-words")}
+        />
+        <ListRow
           label="Linked banks & cards"
           sublabel="Read-only, optional, disconnect any time"
           href="/me/linking"
