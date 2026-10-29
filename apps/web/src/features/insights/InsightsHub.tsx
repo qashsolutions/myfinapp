@@ -40,6 +40,7 @@ export const INSIGHT_CARDS = [
   ["budget", "Budget & jars", "Your plan and jars"],
   ["worth", "Net worth", "Own minus owe"],
   ["later", "Later", "Savings by the age you choose"],
+  ["whatif", "What if", "Move one thing, see what changes"],
 ] as const;
 type InsightId = (typeof INSIGHT_CARDS)[number][0];
 
@@ -315,6 +316,15 @@ export function InsightsHub() {
           >
             {later ? <LaterChart p={later} /> : null}
           </InsightCard>
+        );
+      case "whatif":
+        return (
+          <InsightCard
+            title="What if"
+            to="/what-if"
+            word="Try"
+            line="More on a loan, less on one thing"
+          />
         );
     }
   };

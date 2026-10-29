@@ -1,0 +1,8 @@
+{
+  "today_cost_cents": 100000,
+  "cost_rise_bps": 300,
+  "return_bps": 500,
+  "saved_cents": 0,
+  "as_of": "2026-10-28",
+  "target_date": "2026-10-27"
+}

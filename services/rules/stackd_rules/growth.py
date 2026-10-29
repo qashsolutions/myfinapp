@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from fractions import Fraction
 
+from .dates import parse_date
 from .errors import RuleError
 from .money import _int
 
@@ -109,3 +110,90 @@ def projection(
         "reaches_target": reaches,
         "monthly_needed_cents": needed,
     }
+
+
+# Goals that grow (October 28, 2026; proposed, awaiting owner sign-off): a save jar whose cost
+# rises each year while the money put aside grows at the person's own rate.
+MAX_GOAL_MONTHS = 1200  # a hundred years: past this a date is a typo, not a plan
+
+
+def months_between(start: str, end: str) -> int:
+    """Calendar months from start's month to end's month (days ignored): Oct → next Oct = 12."""
+    a, b = parse_date(start), parse_date(end)
+    return (b.year - a.year) * 12 + (b.month - a.month)
+
+
+def goal_plan(
+    today_cost_cents: int,
+    cost_rise_bps: int,
+    return_bps: int,
+    saved_cents: int,
+    as_of: str,
+    target_date: str,
+    priced_on: str | None = None,
+) -> dict:
+    """A goal that grows (docs/spec.md "Calculation rules", growth.goal_plan).
+
+    The cost T, priced on `priced_on` (default as_of), rises monthly at c ÷ 12 for m months
+    (priced_on's month to the target's month): F = T × (1 + c/12)^m. What is saved grows at
+    i = r ÷ 12 for n months (as_of's month to the target's month): g = (1 + i)^n. The monthly
+    amount P, put in at each month's end, solves F = S × g + P × (g − 1) ÷ i (i = 0 →
+    F = S + P × n); P = max(0, …). Exact fractions, each output rounded half-even once.
+    An illustration at the rates the person sets: not a prediction, not advice."""
+    today = _int(today_cost_cents)
+    rise = _int(cost_rise_bps)
+    rate = _int(return_bps)
+    saved = _int(saved_cents)
+    if today <= 0 or saved < 0:
+        raise RuleError("invalid_amount")
+    if not 0 <= rise <= MAX_RATE_BPS or not 0 <= rate <= MAX_RATE_BPS:
+        raise RuleError("invalid_rate")
+    priced = as_of if priced_on is None else priced_on
+    if parse_date(priced) > parse_date(as_of):
+        raise RuleError("invalid_date")
+    if parse_date(target_date) < parse_date(as_of):
+        raise RuleError("deadline_in_past")
+    months = months_between(as_of, target_date)
+    if months == 0:
+        raise RuleError("too_soon")
+    cost_months = months_between(priced, target_date)
+    if cost_months > MAX_GOAL_MONTHS:
+        raise RuleError("too_far")
+    future = today * (1 + Fraction(rise, MONTHS_BPS)) ** cost_months
+    i = Fraction(rate, MONTHS_BPS)
+    grown = (1 + i) ** months
+    saved_grows = saved * grown
+    raw = Fraction(future - saved, months) if i == 0 else (future - saved_grows) * i / (grown - 1)
+    out = {
+        "months": months,
+        "cost_months": cost_months,
+        "future_cost_cents": round(future),
+        "saved_grows_to_cents": round(saved_grows),
+        "monthly_needed_cents": max(0, round(raw)),
+        "already_enough": saved_grows >= future,
+    }
+    _fits(out["future_cost_cents"], out["saved_grows_to_cents"], out["monthly_needed_cents"])
+    return out
+
+
+def goal_pace(plan_monthly_cents: int, deposited_cents: int, start_date: str, as_of: str) -> dict:
+    """Ahead, on track or behind a grows-over-time plan (docs/spec.md, growth.goal_pace): the
+    plan asks P a month from the start month, this month included, so by now it asked
+    expected = P × (k + 1), k = months from the start's month to as_of's month. A month's worth
+    or more over is ahead; more than a month's worth under is behind; between is on track."""
+    plan = _int(plan_monthly_cents)
+    deposited = _int(deposited_cents)
+    if plan < 0:
+        raise RuleError("invalid_amount")
+    if parse_date(start_date) > parse_date(as_of):
+        raise RuleError("invalid_date")
+    months_in = months_between(start_date, as_of) + 1
+    expected = plan * months_in
+    _fits(expected)
+    if deposited >= expected + plan:
+        status = "ahead"
+    elif deposited < expected - plan:
+        status = "behind"
+    else:
+        status = "on_track"
+    return {"months_in": months_in, "expected_cents": expected, "status": status}
