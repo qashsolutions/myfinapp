@@ -106,6 +106,7 @@ export function MoneyScreen() {
             previous={view.previous}
             delta={view.delta}
             previousStart={view.previous?.start ?? null}
+            previousPartial={view.previousPartial}
             transferNote={transferNote}
           />
         );

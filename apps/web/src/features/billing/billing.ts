@@ -11,7 +11,7 @@ import type { components } from "@stackd/api-client";
 import { useCallback, useEffect, useState } from "react";
 import { type ApiFailure, api, failureOf } from "../../data/api.ts";
 import { formatCents, formatDate } from "../../lib/format.ts";
-import { describeLimits, parseEntitlements } from "./entitlements.ts";
+import { lockedLine, parseEntitlements, planLine } from "./entitlements.ts";
 
 export type BillingOut = components["schemas"]["BillingOut"];
 export type ChangePreview = components["schemas"]["ChangePreviewOut"];
@@ -220,6 +220,9 @@ export function summaryLine(b: BillingOut): string {
     return `Free trial until ${formatDate(access.trial_ends_at)}`;
   if (access?.state === "lapsed" && access.delete_at)
     return `Wrapped up · open until ${formatDate(access.delete_at)}`;
+  // Locked to the plan screen: say so, never a price or limits nothing can use now.
+  const locked = lockedLine(access);
+  if (locked) return locked;
   if (b.plan === "founding")
     return `Connected until ${b.ends_at ? formatDate(b.ends_at) : "the end of the term"} · ${formatCents(Number(b.founding.one_time_cents ?? 0))} once`;
   if (b.plan === "private" || b.plan === "connected") {
@@ -230,7 +233,7 @@ export function summaryLine(b: BillingOut): string {
     return `${b.cancel_at_period_end ? "Ends" : "Renews"} ${formatDate(b.renews_at)} · ${price}`;
   }
   const limits = parseEntitlements(b.entitlements);
-  return limits ? describeLimits(limits) : "No plan yet";
+  return limits ? planLine(limits) : "No plan yet";
 }
 
 /** "yearly" → "$20.00 a year", "monthly" → "$3.00 a month", from the server's prices. */

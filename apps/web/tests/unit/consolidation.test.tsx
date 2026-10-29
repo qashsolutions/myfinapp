@@ -78,7 +78,8 @@ describe("one place for each thing (October 23, 2026)", () => {
     const db = openDb("u1");
     await seedDefaults(db);
     await db.entries.bulkAdd([
-      entry("pay1", monthsAgo(1, 2), 300000, { direction: "in", category_id: "cat-paycheck" }),
+      // From the 1st: a month the data covers whole is averaged (invariant 51)
+      entry("pay1", monthsAgo(1, 1), 300000, { direction: "in", category_id: "cat-paycheck" }),
       entry("rent1", monthsAgo(1, 3), 100000),
       entry("pay0", monthsAgo(0, 1), 300000, { direction: "in", category_id: "cat-paycheck" }),
       entry("rent0", monthsAgo(0, 1), 100000),

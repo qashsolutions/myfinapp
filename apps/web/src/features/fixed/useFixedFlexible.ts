@@ -1,5 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
+import { covers, useCoverageStart } from "../../data/coverage.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import {
   type Category,
@@ -37,7 +38,12 @@ export interface FixedFlexibleView {
   current: FixedFlexible;
   /** The same days of the month before (the whole month before when this one is past). */
   before: FixedFlexible;
-  /** The kept rate for the `monthsBack` whole months before and this one, oldest first. */
+  /** Whether the data covers the whole month before: only then is it compared (invariant 51). */
+  compared: boolean;
+  /**
+   * The kept rate for the `monthsBack` whole months before and this one, oldest first; a month
+   * the data covers only part of is left out (invariant 51).
+   */
   months: Array<{ start: string; result: FixedFlexible }>;
   word: FixedWord;
 }
@@ -49,10 +55,14 @@ export type FixedWord = "Up" | "Down" | "Steady" | "Kept" | "Over" | "Start";
  * of last month; without money in on either side, Kept / Over by the sign of Kept; Start when
  * the month has nothing.
  */
-export function fixedWord(current: FixedFlexible, before: FixedFlexible): FixedWord {
+export function fixedWord(
+  current: FixedFlexible,
+  before: FixedFlexible,
+  compared = true,
+): FixedWord {
   if (current.in_cents === 0 && current.out_cents === 0) return "Start";
   const now = current.kept_rate_bps;
-  const then = before.kept_rate_bps;
+  const then = compared ? before.kept_rate_bps : null;
   if (now === null || then === null) return current.kept_cents < 0 ? "Over" : "Kept";
   return now > then ? "Up" : now < then ? "Down" : "Steady";
 }
@@ -102,6 +112,7 @@ export function useFixedFlexible(
   const { db } = useDb();
   const lookups = useLookups();
   const overrides = useFixedOverrides();
+  const coverage = useCoverageStart();
   const [span, setSpan] = useState<{
     start: string;
     end: string;
@@ -139,7 +150,7 @@ export function useFixedFlexible(
   );
   const [view, setView] = useState<FixedFlexibleView | undefined>(undefined);
   useEffect(() => {
-    if (!span || !entries || !lookups || !overrides) return;
+    if (!span || !entries || !lookups || !overrides || coverage === undefined) return;
     let alive = true;
     void (async () => {
       const rows = counted(entries).map((e) => toFlexEntry(e, lookups.categories));
@@ -147,10 +158,12 @@ export function useFixedFlexible(
       const before = await fixedFlexible(span.beforeStart, span.beforeEnd, rows, overrides);
       const months = [];
       for (const m of span.months)
-        months.push({
-          start: m.start,
-          result: await fixedFlexible(m.start, m.end, rows, overrides),
-        });
+        if (m.start === span.start || covers(coverage, m.start))
+          months.push({
+            start: m.start,
+            result: await fixedFlexible(m.start, m.end, rows, overrides),
+          });
+      const compared = covers(coverage, span.beforeStart);
       await db.computed_results.put({
         id: `fixed_flexible:${span.end}`,
         kind: "fixed_flexible",
@@ -159,11 +172,18 @@ export function useFixedFlexible(
         payload: current,
         computed_at: new Date().toISOString(),
       });
-      if (alive) setView({ current, before, months, word: fixedWord(current, before) });
+      if (alive)
+        setView({
+          current,
+          before,
+          compared,
+          months,
+          word: fixedWord(current, before, compared),
+        });
     })().catch(ignoreClosed);
     return () => {
       alive = false;
     };
-  }, [db, span, entries, lookups, overrides]);
+  }, [db, span, entries, lookups, overrides, coverage]);
   return view;
 }

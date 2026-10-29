@@ -30,14 +30,15 @@ export function RangeMoney({
   categories: Map<string, Category>;
   onOpenMonth: (step: SeriesStep) => void;
 }) {
-  const { bounds, series, delta } = view;
+  const { bounds, series, delta, average } = view;
   const [averages, setAverages] = useState<Map<string | null, number> | undefined>();
   useEffect(() => {
-    if (!series || series.active_months < 2) return setAverages(undefined);
+    // Averages a month only over months the data covers whole (invariant 51).
+    if (!average || average.active_months < 2) return setAverages(undefined);
     let alive = true;
     void Promise.all(
-      series.by_category.map(
-        async (r) => [r.category_id, await roundDiv(r.out_cents, series.active_months)] as const,
+      average.by_category.map(
+        async (r) => [r.category_id, await roundDiv(r.out_cents, average.active_months)] as const,
       ),
     ).then((pairs) => {
       if (alive) setAverages(new Map(pairs));
@@ -45,7 +46,7 @@ export function RangeMoney({
     return () => {
       alive = false;
     };
-  }, [series]);
+  }, [average]);
 
   if (!bounds || !series) return <p className="range-note">Adding it up…</p>;
   if (series.count === 0)
@@ -79,10 +80,10 @@ export function RangeMoney({
         </div>
       </fieldset>
       <p className="compare">
-        {series.avg_net_cents !== null ? (
+        {average && average.avg_net_cents !== null ? (
           <>
-            About {formatCents(Math.abs(series.avg_net_cents))} a month{" "}
-            {series.avg_net_cents >= 0 ? "kept" : "over"}
+            About {formatCents(Math.abs(average.avg_net_cents))} a month{" "}
+            {average.avg_net_cents >= 0 ? "kept" : "over"}
           </>
         ) : null}
         {delta !== null && before ? (

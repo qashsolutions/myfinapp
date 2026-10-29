@@ -72,7 +72,7 @@ async function seedOctober() {
     entry("e15", "2026-10-13", 10700, "out", "cat-other", "acct-card", false, "Misc"),
     entry("e16", "2026-10-06", 120000, "out", null, "acct-cash", true, "Card payment"),
     entry("e17", "2026-10-06", 120000, "in", null, "acct-card", true, "Payment - thank you"),
-    entry("s01", "2026-09-02", 100000, "in", "cat-paycheck", "acct-cash", false, "Paycheck"),
+    entry("s01", "2026-09-01", 100000, "in", "cat-paycheck", "acct-cash", false, "Paycheck"),
     entry("s02", "2026-09-05", 68400, "out", "cat-rent", "acct-cash", false, "Rent"),
   ]);
   return db;
@@ -113,6 +113,22 @@ describe("Money in & out", () => {
     const stored = await db.computed_results.get("month_totals:2026-10-01");
     expect(stored).toMatchObject({ kind: "month_totals", rules_version: RULES_VERSION });
     expect(stored?.payload).toMatchObject({ net_cents: 41200 });
+  });
+
+  it("never compares with a month the data only partly covers: two days of September (invariant 51)", async () => {
+    const db = await seedOctober();
+    // The statement starts Sep 29: September's two days are its own numbers, never "September".
+    await db.entries.bulkUpdate([
+      { key: "s01", changes: { date: "2026-09-29" } },
+      { key: "s02", changes: { date: "2026-09-30" } },
+    ]);
+    await renderSignedIn("/money");
+    const stats = await screen.findByRole("group", { name: "This month" });
+    await waitFor(() => expect(within(stats).getByText("$412.00")).toBeInTheDocument());
+    expect(
+      await screen.findByText(/First full month here, nothing to compare yet/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/vs September/)).not.toBeInTheDocument();
   });
 
   it("lists transactions, and marking one as a transfer changes the totals", async () => {

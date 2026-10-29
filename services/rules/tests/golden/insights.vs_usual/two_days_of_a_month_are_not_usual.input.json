@@ -1,0 +1,47 @@
+{
+  "as_of": "2026-10-15",
+  "months": 3,
+  "thresholds": {
+    "usual_increase_cents": 2500,
+    "usual_increase_bps": 2500
+  },
+  "entries": [
+    {
+      "id": "s1",
+      "date": "2026-09-29",
+      "amount_cents": 2000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense"
+    },
+    {
+      "id": "s2",
+      "date": "2026-09-30",
+      "amount_cents": 3000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense"
+    },
+    {
+      "id": "o1",
+      "date": "2026-10-01",
+      "amount_cents": 180000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-rent",
+      "category_kind": "expense"
+    },
+    {
+      "id": "o2",
+      "date": "2026-10-05",
+      "amount_cents": 4000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense"
+    }
+  ],
+  "history_from": "2026-09-29"
+}

@@ -4,7 +4,7 @@
  * cents, UTC day numbers, every rounding through roundDiv.
  */
 
-import { addMonths, type Day, daysInMonth, iso, parseDate } from "./dates.ts";
+import { addDays, addMonths, type Day, daysInMonth, iso, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { cleanDescription } from "./fingerprint.ts";
 import { assertInt, mul, roundDiv } from "./money.ts";
@@ -53,17 +53,51 @@ export interface SafeToSpend {
   days: number;
   lowest_cents: number;
   lowest_date: string;
+  /** The payday the window ends the day before, or null for the `until` window. */
+  payday: string | null;
+  /** pay_period: through the next whole pay period; payday: to the next payday; until. */
+  window: "pay_period" | "payday" | "until";
 }
 
+/** The paydays after today, once each, earliest first. */
+function paydaysAhead(raw: unknown, today: Day): Day[] {
+  if (!Array.isArray(raw)) throw new RuleError("invalid_paydays");
+  const seen = new Map<string, Day>();
+  for (const p of raw) {
+    const day = parseDate(p);
+    if (cmp(day, today) > 0) seen.set(key(day), day);
+  }
+  return [...seen.values()].sort(cmp);
+}
+
+/**
+ * The window runs from today through the day before the payday after next when two paydays are
+ * known (the next whole pay period, October 29, 2026), the day before the next payday when one
+ * is known, else through `until`. `paydays` null keeps the `until` window.
+ */
 export function safeToSpend(
   days: unknown,
   bufferCents: unknown,
   asOf: unknown,
   until: unknown,
+  paydays: unknown = null,
 ): SafeToSpend {
   const today = parseDate(asOf);
-  const last = parseDate(until);
+  let last = parseDate(until);
   const buffer = assertInt(bufferCents);
+  let payday: Day | null = null;
+  let kind: SafeToSpend["window"] = "until";
+  if (paydays !== null && paydays !== undefined) {
+    const ahead = paydaysAhead(paydays, today);
+    if (ahead.length >= 2) {
+      payday = ahead[1] as Day;
+      kind = "pay_period";
+    } else if (ahead.length === 1) {
+      payday = ahead[0] as Day;
+      kind = "payday";
+    }
+    if (payday) last = addDays(payday, -1);
+  }
   if (!Array.isArray(days)) throw new RuleError("invalid_days");
   const window: Array<[Day, number]> = [];
   for (const raw of days) {
@@ -91,6 +125,8 @@ export function safeToSpend(
     days: window.length,
     lowest_cents: lowest,
     lowest_date: key(lowestDay),
+    payday: payday ? key(payday) : null,
+    window: kind,
   };
 }
 
@@ -137,13 +173,27 @@ export interface UsualFlag {
   increase_cents: number;
 }
 
+/**
+ * The first day the person's data covers (October 29, 2026): a month is history only when this is
+ * on or before its 1st. Null: every month with entries counts.
+ */
+function coveredFrom(historyFrom: unknown): Day | null {
+  return historyFrom === null || historyFrom === undefined ? null : parseDate(historyFrom);
+}
+
+function covered(start: Day, since: Day | null): boolean {
+  return since === null || cmp(since, start) <= 0;
+}
+
 export function vsUsual(
   asOf: unknown,
   entries: unknown,
   thresholds: unknown,
   months: unknown,
+  historyFrom: unknown = null,
 ): { months_used: number; flagged: UsualFlag[] } {
   const today = parseDate(asOf);
+  const since = coveredFrom(historyFrom);
   const floorCents = threshold(thresholds, "usual_increase_cents");
   const floorBps = threshold(thresholds, "usual_increase_bps");
   const lookback = assertInt(months);
@@ -162,6 +212,7 @@ export function vsUsual(
     const end = withDay(start, Math.min(today.d, daysInMonth(start)));
     const monthEnd = withDay(start, daysInMonth(start));
     if (!rows.some((r) => between(r.date, start, monthEnd))) continue;
+    if (!covered(start, since)) continue; // partly covered is not "usual" (October 29, 2026)
     used += 1;
     for (const r of rows) {
       if (between(r.date, start, end) && r.category_id !== null && r.net)
@@ -273,8 +324,10 @@ export function seasonal(
   asOf: unknown,
   entries: unknown,
   thresholds: unknown,
+  historyFrom: unknown = null,
 ): { months_of_history: number; flagged: SeasonalFlag[] } {
   const today = parseDate(asOf);
+  const since = coveredFrom(historyFrom);
   const floorCents = threshold(thresholds, "seasonal_increase_cents");
   const floorBps = threshold(thresholds, "seasonal_increase_bps");
   const rows = spendRows(entries);
@@ -286,10 +339,11 @@ export function seasonal(
     withEntries.add(k);
     byMonth.set(k, (byMonth.get(k) ?? 0) + r.net);
   }
+  const counts = (month: Day): boolean => withEntries.has(monthKey(month)) && covered(month, since);
   const history: string[] = [];
   for (let back = 1; back <= 12; back++) {
-    const k = monthKey(addMonths(thisMonth, -back));
-    if (withEntries.has(k)) history.push(k);
+    const month = addMonths(thisMonth, -back);
+    if (counts(month)) history.push(monthKey(month));
   }
   const flagged: SeasonalFlag[] = [];
   if (history.length >= 6) {
@@ -300,7 +354,7 @@ export function seasonal(
     for (const ahead of [1, 2]) {
       const month = addMonths(thisMonth, ahead);
       const lastYear = monthKey(addMonths(month, -12));
-      if (!withEntries.has(lastYear)) continue;
+      if (!counts(addMonths(month, -12))) continue;
       const spent = byMonth.get(lastYear) ?? 0;
       const increase = spent - usual;
       if (increase >= floorCents && mul(spent, 10000) >= mul(usual, 10000 + floorBps)) {

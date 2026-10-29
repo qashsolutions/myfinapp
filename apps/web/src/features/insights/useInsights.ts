@@ -1,5 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
+import { useCoverageStart } from "../../data/coverage.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { counted, entriesBetween, ignoreClosed } from "../../data/db.ts";
 import {
@@ -17,13 +18,17 @@ import { useLookups } from "../entries/useEntries.ts";
 import { toRuleEntry } from "../money/ruleEntries.ts";
 import { THRESHOLDS } from "./thresholds.ts";
 
-/** Categories running above the same days of the last 3 months (fast-follow 8). */
+/**
+ * Categories running above the same days of the last 3 months (fast-follow 8). Only months the
+ * data covers from their 1st count as usual (invariant 51).
+ */
 export function useMoreThanUsual(asOf: string): {
   months_used: number;
   flagged: UsualFlag[];
 } | null {
   const { db } = useDb();
   const lookups = useLookups();
+  const coverage = useCoverageStart();
   const [start, setStart] = useState<string | null>(null);
   const [result, setResult] = useState<{ months_used: number; flagged: UsualFlag[] } | null>(null);
   useEffect(() => {
@@ -42,7 +47,7 @@ export function useMoreThanUsual(asOf: string): {
     [db, start, asOf],
   );
   useEffect(() => {
-    if (!entries || !lookups) return;
+    if (!entries || !lookups || coverage === undefined) return;
     let alive = true;
     void (async () => {
       const out = await vsUsual(
@@ -50,6 +55,7 @@ export function useMoreThanUsual(asOf: string): {
         counted(entries).map((e) => toRuleEntry(e, lookups.categories)),
         THRESHOLDS,
         3,
+        coverage,
       );
       if (!alive) return;
       setResult(out);
@@ -65,7 +71,7 @@ export function useMoreThanUsual(asOf: string): {
     return () => {
       alive = false;
     };
-  }, [db, entries, lookups, asOf]);
+  }, [db, entries, lookups, asOf, coverage]);
   return result;
 }
 
@@ -76,6 +82,7 @@ export function useBiggerMonths(asOf: string): {
 } {
   const { db } = useDb();
   const lookups = useLookups();
+  const coverage = useCoverageStart();
   const series = useLiveQuery(
     () => db.recurring_series.where("status").equals("confirmed").toArray(),
     [db],
@@ -124,19 +131,20 @@ export function useBiggerMonths(asOf: string): {
     };
   }, [series, asOf]);
   useEffect(() => {
-    if (!entries || !lookups) return;
+    if (!entries || !lookups || coverage === undefined) return;
     let alive = true;
     void (async () => {
       const out = await seasonalSpikes(
         asOf,
         counted(entries).map((e) => toRuleEntry(e, lookups.categories)),
         THRESHOLDS,
+        coverage,
       );
       if (alive) setSeasonal(out);
     })().catch(ignoreClosed);
     return () => {
       alive = false;
     };
-  }, [entries, lookups, asOf]);
+  }, [entries, lookups, asOf, coverage]);
   return { lumpy, seasonal };
 }

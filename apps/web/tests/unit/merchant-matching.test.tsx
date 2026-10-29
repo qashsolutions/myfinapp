@@ -76,6 +76,7 @@ async function suggestionsOf(db: StackdDb, asOf: string) {
   return (await detectRecurring(all.map(toRecurringEntry), asOf)).map((s) => ({
     ...s,
     label: s.payee,
+    regular: false,
   }));
 }
 

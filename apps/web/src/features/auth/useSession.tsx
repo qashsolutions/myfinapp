@@ -28,8 +28,13 @@ import {
 } from "react";
 import { api, backgroundApi, onAuthSignal, type SessionInfo } from "../../data/api.ts";
 import { closeDb, deleteDb } from "../../data/db.ts";
-import { currentHashFor, rememberCurrent, rememberKept } from "../../lib/keptAccount.ts";
-import { rememberAccount } from "../../lib/lastAccount.ts";
+import {
+  currentHashFor,
+  keptAccount,
+  rememberCurrent,
+  rememberKept,
+} from "../../lib/keptAccount.ts";
+import { forgetAccount, rememberAccount } from "../../lib/lastAccount.ts";
 import {
   forgetSession,
   markSignOutPending,
@@ -60,10 +65,15 @@ async function wipeDevice(userId: string): Promise<void> {
 /** Keep this device's copy of an account whose plan ended, and show where it is. */
 async function keepDevice(userId: string): Promise<void> {
   forgetSession();
+  // The account is closed: Welcome must not offer its passkey again (invariant 57). The kept
+  // record says who it was; a second report of the same closure keeps the first date.
+  forgetAccount();
+  const known = keptAccount();
   rememberKept({
     user_id: userId,
-    closed_at: new Date().toISOString(),
-    email_hash: currentHashFor(userId),
+    closed_at:
+      known?.user_id === userId && known.closed_at ? known.closed_at : new Date().toISOString(),
+    email_hash: currentHashFor(userId) ?? (known?.user_id === userId ? known.email_hash : null),
   });
   if (typeof window !== "undefined" && window.location.pathname !== "/kept")
     window.location.replace("/kept");

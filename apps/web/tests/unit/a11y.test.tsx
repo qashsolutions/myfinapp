@@ -205,6 +205,28 @@ describe("accessibility (axe-core)", () => {
     forgetKept();
   });
 
+  it("/welcome after a plan ended (the account closed, data kept) has no axe violations", async () => {
+    rememberKept({ user_id: "u1", closed_at: "2026-10-20T00:00:00Z", email_hash: null });
+    installFakeApi({});
+    await check("/welcome", async () => {
+      await screen.findByRole("link", { name: "See my data" });
+    });
+    forgetKept();
+  });
+
+  it("Home with the keep-it-safe card (an iPhone browser tab) has no axe violations", async () => {
+    const ua = vi
+      .spyOn(navigator, "userAgent", "get")
+      .mockReturnValue(
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+      );
+    installFakeApi({ session: readySession() });
+    await check("/", async () => {
+      await screen.findByRole("region", { name: "Keep your data safe" });
+    });
+    ua.mockRestore();
+  });
+
   it("an ended plan (/me/plan locked) has no axe violations", async () => {
     resetEntitlements();
     const api = installFakeApi({ session: readySession() });
@@ -354,6 +376,40 @@ describe("accessibility of the Adjust sheets (axe-core)", () => {
     const sheet = await screen.findByRole("dialog", { name: "Adjust payoff plan" });
     await within(sheet).findByRole("img", { name: /Total balance falls/ });
     await checkBody("Adjust payoff plan");
+  });
+
+  it("Adjust bills and regular spending on Bills", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const db = openDb("u1");
+    await seedDefaults(db);
+    const rows = ["2026-09-21", "2026-09-28", "2026-10-05", "2026-10-12"].map((date, i) => ({
+      id: `tj${i}`,
+      date,
+      amount_cents: 8400,
+      direction: "out" as const,
+      merchant: "TRADER JOE'S",
+      clean_description: "TRADER JOE'S",
+      raw_description: null,
+      category_id: "cat-groceries",
+      account_id: "acct-cash",
+      source: "import" as const,
+      receipt_id: null,
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      split_parent_id: null,
+      is_recurring: false,
+      created_at: `${date}T00:00:00Z`,
+      updated_at: `${date}T00:00:00Z`,
+    }));
+    await db.entries.bulkAdd(rows);
+    installFakeApi({ session: readySession() });
+    renderApp("/bills");
+    await screen.findByRole("region", { name: "Regular spending, not bills" });
+    await checkBody("Bills with regular spending");
+    await user.click(screen.getByRole("button", { name: "Adjust bills" }));
+    await screen.findByRole("dialog", { name: "Adjust bills" });
+    await checkBody("Adjust bills");
   });
 
   it("Adjust credit habits, over the dot strip", async () => {

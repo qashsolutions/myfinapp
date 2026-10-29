@@ -25,6 +25,7 @@ import { BalanceRunway } from "../insights/InsightCard.tsx";
 import { useSafeToSpend } from "../insights/useSafeToSpend.ts";
 import { MonthReviewHomeCard } from "../monthreview/MonthReviewCards.tsx";
 import { useSetup } from "../onboarding/useSetup.ts";
+import { StorageCard } from "../pwa/StorageCard.tsx";
 import { RestoreOffer } from "../security/RestoreOffer.tsx";
 import { SubCheckHomeCard } from "../subscriptions/SubscriptionCheckCard.tsx";
 import { CustomizeHome } from "./CustomizeHome.tsx";
@@ -257,9 +258,11 @@ export function HomeScreen() {
                 <span className="home__big-unit"> a day to spend</span>
               </p>
               <p className="sk-card__eyebrow">
-                {safe.payday
-                  ? `Until payday, ${formatDay(safe.payday)}, after bills`
-                  : "After the bills coming up"}
+                {safe.window === "pay_period" && safe.payday
+                  ? `Through next pay period, to ${formatDay(safe.payday)}, after bills`
+                  : safe.window === "payday" && safe.payday
+                    ? `Until payday, ${formatDay(safe.payday)}, after bills`
+                    : "After the bills coming up"}
               </p>
             </>
           ) : null}
@@ -425,6 +428,7 @@ export function HomeScreen() {
         <div className="pane pane--main">
           <TrialCard />
           <RestoreOffer />
+          <StorageCard />
           {homeCards}
           <Button
             variant="ghost"

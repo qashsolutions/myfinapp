@@ -1,5 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
+import { covers, useCoverageStart } from "../../data/coverage.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { counted, type Entry, entriesBetween, ignoreClosed } from "../../data/db.ts";
 import {
@@ -18,8 +19,13 @@ export interface MonthView {
   entries: Entry[] | undefined;
   totals: MonthTotals | null;
   previous: MonthTotals | null;
-  /** net − previous net, null until both months are known */
+  /** net − previous net; null until both months are known, or when the month before is partial */
   delta: number | null;
+  /**
+   * The month before is only partly in the data (it starts after its 1st): never compared
+   * (invariant 51). False while loading.
+   */
+  previousPartial: boolean;
   rulesVersion: string | null;
 }
 
@@ -30,6 +36,7 @@ export interface MonthView {
 export function useMonthTotals(asOf: string): MonthView {
   const { db } = useDb();
   const lookups = useLookups();
+  const coverage = useCoverageStart();
   const [bounds, setBounds] = useState<{ start: string; end: string } | null>(null);
   const [prevBounds, setPrevBounds] = useState<{ start: string; end: string } | null>(null);
   const [totals, setTotals] = useState<MonthTotals | null>(null);
@@ -64,7 +71,8 @@ export function useMonthTotals(asOf: string): MonthView {
   );
 
   useEffect(() => {
-    if (!bounds || !prevBounds || !entries || !prevEntries || !lookups) return;
+    if (!bounds || !prevBounds || !entries || !prevEntries || !lookups || coverage === undefined)
+      return;
     let alive = true;
     void (async () => {
       const current = await monthTotals(
@@ -75,7 +83,10 @@ export function useMonthTotals(asOf: string): MonthView {
         prevBounds.start,
         counted(prevEntries).map((e) => toRuleEntry(e, lookups.categories)),
       );
-      const change = await netChange(current.net_cents, prior.net_cents);
+      // Compared only when the data covers the whole month before (invariant 51).
+      const change = covers(coverage, prevBounds.start)
+        ? await netChange(current.net_cents, prior.net_cents)
+        : null;
       if (!alive) return;
       setTotals(current);
       setPrevious(prior);
@@ -93,7 +104,21 @@ export function useMonthTotals(asOf: string): MonthView {
     return () => {
       alive = false;
     };
-  }, [db, bounds, prevBounds, entries, prevEntries, lookups]);
+  }, [db, bounds, prevBounds, entries, prevEntries, lookups, coverage]);
 
-  return { bounds, entries, totals, previous, delta, rulesVersion: engine.rulesVersion };
+  const previousPartial =
+    coverage !== undefined &&
+    prevBounds !== null &&
+    previous !== null &&
+    previous.count > 0 &&
+    !covers(coverage, prevBounds.start);
+  return {
+    bounds,
+    entries,
+    totals,
+    previous,
+    delta,
+    previousPartial,
+    rulesVersion: engine.rulesVersion,
+  };
 }

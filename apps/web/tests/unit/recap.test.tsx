@@ -48,6 +48,20 @@ describe("Weekly recap", () => {
     vi.useRealTimers();
   });
 
+  it("never compares with a week the data only partly covers (invariant 51)", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    // The first entry is Oct 2: the week before (Sep 27 – Oct 3) is only partly here.
+    await db.entries.bulkAdd([
+      entry("e-prev", "2026-10-02", 9999, "Last week", "out", "cat-dining"),
+      entry("e-pay", "2026-10-04", 150000, "Paycheck", "in"),
+    ]);
+    renderApp("/recap");
+    const week = await screen.findByRole("region", { name: "The last 7 days" });
+    await waitFor(() => expect(week).toHaveTextContent("Got $1,500.00"));
+    expect(week).not.toHaveTextContent("vs the week before");
+  });
+
   it("sums the last 7 days on the device, compares with the week before, and lists jar deposits", async () => {
     const db = openDb("u1");
     await seedDefaults(db);
@@ -59,6 +73,23 @@ describe("Weekly recap", () => {
       entry("e-xfer", "2026-10-10", 20000, "To savings", "out", "cat-groceries", true),
       entry("e-next", "2026-10-11", 999, "Tomorrow", "out", "cat-dining"), // not yet
     ]);
+    // A statement covering September onwards: the week before is whole (invariant 51).
+    await db.statement_imports.add({
+      id: "imp-1",
+      account_id: "acct-cash",
+      format: "csv",
+      template_key: null,
+      file_name: "september.csv",
+      period_start: "2026-09-01",
+      period_end: "2026-10-10",
+      ending_balance_cents: null,
+      rows_found: 1,
+      rows_added: 1,
+      rows_skipped: 0,
+      file_key: null,
+      status: "done",
+      created_at: "2026-10-01T00:00:00Z",
+    });
     await db.goals.add({
       id: "jar-trip",
       kind: "save",

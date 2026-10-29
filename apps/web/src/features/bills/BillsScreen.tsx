@@ -15,14 +15,18 @@ import type { Debt, RecurringSeries } from "../../data/db.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { CardSpending, CreditHabitsCard } from "../credit/CreditHabits.tsx";
 import {
+  canBeRegular,
   confirmSuggestion,
   dismissSuggestion,
   INTERVAL_LABELS,
+  markAsBill,
+  markAsRegular,
   suggestionInterval,
+  useFoundRuns,
   useRecurringSeries,
-  useRecurringSuggestions,
 } from "../forecast/useRecurring.ts";
 import { useSubscriptions } from "../subscriptions/useSubscriptions.ts";
+import { AdjustBillsSheet } from "./AdjustBillsSheet.tsx";
 import { BillSheet } from "./BillSheet.tsx";
 import { ConsolidationCalc } from "./ConsolidationCalc.tsx";
 import { DebtList } from "./DebtList.tsx";
@@ -42,7 +46,9 @@ export function BillsScreen() {
   // Home's Debt-free card opens the Debt payoff tab (`/bills?tab=debt`).
   const [params] = useSearchParams();
   const [tab, setTab] = useState<"bills" | "debt">(params.get("tab") === "debt" ? "debt" : "bills");
-  const suggestions = useRecurringSuggestions(today);
+  const found = useFoundRuns(today);
+  const suggestions = found?.offered;
+  const regular = found?.regular ?? [];
   const series = useRecurringSeries("confirmed");
   // At a glance (October 23, 2026): the next 30 days from the forecast, and each bill's countdown.
   const forecast = useForecast(today);
@@ -60,6 +66,7 @@ export function BillsScreen() {
     };
   }, [series, today]);
   const [editing, setEditing] = useState<RecurringSeries | "new" | null>(null);
+  const [adjusting, setAdjusting] = useState(false);
   const [editingDebt, setEditingDebt] = useState<Debt | "new" | null>(null);
 
   return (
@@ -134,9 +141,42 @@ export function BillsScreen() {
                 <Button variant="secondary" onClick={() => dismissSuggestion(db, s)}>
                   {s.kind === "income" ? "Not income" : "Not a bill"}
                 </Button>
+                {canBeRegular(s) ? (
+                  <Button variant="secondary" onClick={() => markAsRegular(db, s)}>
+                    This is regular spending
+                  </Button>
+                ) : null}
               </div>
             </Card>
           ))}
+          {regular.length > 0 ? (
+            <Card as="section" aria-labelledby="bills-regular">
+              <p className="sk-card__eyebrow">Found in your history</p>
+              <Word>Regular</Word>
+              <h2 className="sk-card__title" id="bills-regular">
+                Regular spending, not bills
+              </h2>
+              <p>Everyday spending on a schedule. It stays in your usual spending.</p>
+              <ul className="regular-list" aria-label="Regular spending">
+                {regular.map((s) => (
+                  <li key={`${s.payee}:${s.kind}`} className="regular-row">
+                    <span>
+                      <strong>{s.label}</strong> · {formatCents(s.expected_cents)}{" "}
+                      {suggestionInterval(s.interval).toLowerCase()}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      aria-label={`${s.label}: this is a bill`}
+                      onClick={() => markAsBill(db, s)}
+                    >
+                      This is a bill
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
           {series && series.length === 0 ? (
             <Card>
               <Illustration name="calendar" tone="a1" />
@@ -175,11 +215,15 @@ export function BillsScreen() {
               ))}
             </List>
           ) : null}
+          <Button variant="secondary" size="sm" onClick={() => setAdjusting(true)}>
+            Adjust bills
+          </Button>
           <p className="auth__fineprint">
             Bills feed your upcoming-expense alerts and 30-day forecast.
           </p>
         </>
       )}
+      <AdjustBillsSheet open={adjusting} onClose={() => setAdjusting(false)} />
       <BillSheet
         open={editing !== null}
         series={editing === "new" ? null : editing}

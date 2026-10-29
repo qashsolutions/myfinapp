@@ -253,6 +253,33 @@ export function useEntitlements(): EntitlementsView {
   };
 }
 
+/**
+ * While the app is locked to the plan screen (no plan picked, a plan that ended, a payment in
+ * dispute or returned), nothing a plan allows is usable, so the plan screen and the Me row say
+ * what is open instead of a plan's limits (defect round 3, October 29, 2026). Null otherwise.
+ */
+export function lockedLine(access: Access | null | undefined): string | null {
+  switch (access?.state) {
+    case "choose":
+      return access.trial_used
+        ? "Locked until you pick a plan · download still works"
+        : "Pick your free trial to start";
+    case "lapsed":
+      return "Locked until you pick a plan · download still works";
+    case "paused":
+      return "Locked while the payment is checked · download still works";
+    case "ended":
+      return "Locked · download still works";
+    default:
+      return null;
+  }
+}
+
+/** The plan's limits, or what is open while the app is locked. */
+export function planLine(e: Entitlements): string {
+  return lockedLine(e.access) ?? describeLimits(e);
+}
+
 /** One line for the plan screen and the Me row: what the plan allows, in plain words. */
 export function describeLimits(e: Entitlements): string {
   const n = (v: number | null, one: string, many: string) =>

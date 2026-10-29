@@ -86,7 +86,7 @@ describe("insights (fast-follow 8)", () => {
     vi.useRealTimers();
   });
 
-  it("shows safe to spend until payday and the bigger months ahead", async () => {
+  it("shows safe to spend through the next pay period and the bigger months ahead", async () => {
     const db = openDb("u1");
     await seedDefaults(db);
     await db.entries.add(entry("Corner Market", "2026-10-08", 4500, "cat-groceries"));
@@ -106,9 +106,11 @@ describe("insights (fast-follow 8)", () => {
 
     renderApp("/forecast");
     const chart = await screen.findByRole("region", { name: "Estimated balance" });
+    // Paid Oct 16 and Oct 30: the window runs through the day before the payday after next, so
+    // rent on Oct 25 is inside it (invariant 53): 2,100 − 45 = 2,055 today is the lowest point.
     await waitFor(() =>
       expect(chart).toHaveTextContent(
-        /Safe to spend until payday \(Oct 16\): \$[\d,]+\.\d\d, about \$[\d,]+\.\d\d a day/,
+        "Safe to spend through your next pay period (to Oct 30): $2,055.00, about $102.75 a day",
       ),
     );
     expect(chart).toHaveTextContent("after your usual spending. An estimate.");
@@ -122,8 +124,29 @@ describe("insights (fast-follow 8)", () => {
     renderApp("/");
     const home = await screen.findByRole("region", { name: "Next 30 days" });
     await waitFor(() => expect(home).toHaveTextContent(/\$[\d,]+\.\d\d a day to spend/));
-    expect(home).toHaveTextContent("Until payday, Oct 16, after bills");
+    expect(home).toHaveTextContent("Through next pay period, to Oct 30, after bills");
     noMoneyLeft(api);
+  });
+
+  it("two days of a first month are never usual: rent is not running higher than $0 (invariant 51)", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await db.entries.bulkAdd([
+      entry("Dining Sep", "2026-09-29", 2000, "cat-dining"),
+      entry("Groceries Sep", "2026-09-30", 3000, "cat-groceries"),
+      entry("Rent Oct", "2026-10-01", 180000, "cat-rent"),
+      entry("Dining Oct", "2026-10-05", 4000, "cat-dining"),
+    ]);
+    renderApp("/money");
+    await screen.findByRole("group", { name: "This month" });
+    await screen.findByText(/First full month here, nothing to compare yet/);
+    expect(screen.queryByRole("region", { name: "Running higher than usual" })).toBeNull();
+    const stored = await waitFor(async () => {
+      const row = await db.computed_results.get("vs_usual:2026-10-10");
+      expect(row).toBeDefined();
+      return row;
+    });
+    expect(stored?.payload).toEqual({ months_used: 0, flagged: [] });
   });
 
   it("flags categories running higher than usual and splits spending by account", async () => {
@@ -142,7 +165,7 @@ describe("insights (fast-follow 8)", () => {
       entry("Dining Oct", "2026-10-03", 9000, "cat-dining", "acct-card"),
       entry("Groceries Oct", "2026-10-04", 5000, "cat-groceries"),
       entry("Dining Sep", "2026-09-05", 2000, "cat-dining"),
-      entry("Dining Aug", "2026-08-06", 2000, "cat-dining"),
+      entry("Dining Aug", "2026-08-01", 2000, "cat-dining"), // August is whole (invariant 51)
     ]);
     renderApp("/money");
     const higher = await screen.findByRole("region", { name: "Running higher than usual" });

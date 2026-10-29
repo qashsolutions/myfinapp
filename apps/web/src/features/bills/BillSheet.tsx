@@ -9,6 +9,8 @@ import { parseAmount } from "../../engine/bridge.ts";
 import { todayIso } from "../../lib/format.ts";
 import {
   addSeries,
+  billToRegular,
+  canBeRegular,
   INTERVAL_LABELS,
   removeSeries,
   updateSeries,
@@ -138,6 +140,18 @@ export function BillSheet({
       <Button block onClick={save}>
         {series ? "Save" : "Add"}
       </Button>
+      {series && series.kind === "bill" && canBeRegular(series) ? (
+        <Button
+          block
+          variant="secondary"
+          onClick={async () => {
+            await billToRegular(db, series);
+            onClose();
+          }}
+        >
+          This is regular spending
+        </Button>
+      ) : null}
       {series ? (
         <Button
           block

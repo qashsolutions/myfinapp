@@ -1899,7 +1899,7 @@ dev = [
 
 [[package]]
 name = "stackd-rules"
-version = "0.41.0"
+version = "0.42.0"
 source = { directory = "../rules" }
 
 [package.metadata]

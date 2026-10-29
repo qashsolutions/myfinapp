@@ -37,7 +37,7 @@ import {
   startCheckout,
   useBilling,
 } from "./billing.ts";
-import { type Access, describeLimits, parseEntitlements, useEntitlements } from "./entitlements.ts";
+import { type Access, parseEntitlements, planLine, useEntitlements } from "./entitlements.ts";
 import { PlanHistory } from "./PlanHistory.tsx";
 
 /** Whole-percent saving of yearly over twelve monthly payments, for the picker label only. */
@@ -574,7 +574,7 @@ export function PlanScreen() {
         {billing.tester_plan ? (
           <p>Testing for free: not billed. Your real plan is unchanged.</p>
         ) : null}
-        {limits ? <p className="sk-card__eyebrow">{describeLimits(limits)}</p> : null}
+        {limits ? <p className="sk-card__eyebrow">{planLine(limits)}</p> : null}
       </Card>
 
       {billing.tester ? (

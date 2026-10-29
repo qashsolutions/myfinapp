@@ -89,7 +89,7 @@ function HowItWent({ review }: { review: MonthReview }) {
   const now = how.current;
   const before = how.before;
   const compare =
-    before.in_cents > 0 || before.out_cents > 0
+    how.compared && (before.in_cents > 0 || before.out_cents > 0)
       ? `${formatMonth(before.start)}: ${keptRateText(before)}`
       : null;
   return (
