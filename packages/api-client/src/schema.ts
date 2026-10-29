@@ -823,7 +823,7 @@ export interface paths {
         get?: never;
         /**
          * Update Helped
-         * @description The member's own "What helped": up to 3 ids from the fixed list; [] clears it. Open once
+         * @description The member's own "What helped": up to 5 ids from the fixed list; [] clears it. Open once
          *     they reached their target or the challenge ended (409 not_yet before).
          */
         put: operations["update_helped_api_groups__group_id__helped_put"];

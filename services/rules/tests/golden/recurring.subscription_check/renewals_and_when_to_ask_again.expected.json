@@ -51,5 +51,19 @@
       "monthly_cents": 417
     }
   ],
-  "duplicates": []
+  "duplicates": [],
+  "by_kind": [
+    {
+      "kind": null,
+      "count": 4,
+      "yearly_cents": 32900,
+      "monthly_cents": 2742,
+      "ids": [
+        "s-b",
+        "s-a",
+        "s-d",
+        "s-c"
+      ]
+    }
+  ]
 }

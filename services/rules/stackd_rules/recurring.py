@@ -235,6 +235,36 @@ def _kinds(raw: object) -> list[tuple[str, str]]:
     return table
 
 
+def _is_word_char(ch: str) -> bool:
+    return ("A" <= ch <= "Z") or ("0" <= ch <= "9")
+
+
+def contains_word(text: str, word: str) -> bool:
+    """`word` inside `text` as a whole word: the characters just before and after it, when there
+    are any, are not A-Z or 0-9 (the cleaned payee is upper-case ASCII), so GYM is in "GOLDS GYM"
+    and "GYM-24" but never in "GYMBOREE". Every place the word appears is tried."""
+    start = text.find(word)
+    while start != -1:
+        end = start + len(word)
+        before_ok = start == 0 or not _is_word_char(text[start - 1])
+        after_ok = end == len(text) or not _is_word_char(text[end])
+        if before_ok and after_ok:
+            return True
+        start = text.find(word, start + 1)
+    return False
+
+
+OTHER_KIND = "other"  # the person's "Other": no kind, whatever the table says
+
+
+def _own_kind(raw: object) -> str | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, str) or not raw:
+        raise RuleError("invalid_kind")
+    return raw
+
+
 def _charges(raw: object) -> list[tuple[date, int]]:
     if not isinstance(raw, list):
         raise RuleError("invalid_charges")
@@ -337,8 +367,12 @@ def subscription_check(
             or rise is not None
             or trial is not None
         )
-        clean = clean_description(payee)
-        kind = next((k for word, k in table if word in clean), None)
+        own = _own_kind(raw.get("own_kind"))
+        if own is not None:
+            kind = None if own == OTHER_KIND else own
+        else:
+            clean = clean_description(payee)
+            kind = next((k for word, k in table if contains_word(clean, word)), None)
         items.append(
             {
                 "id": sid,
@@ -373,4 +407,24 @@ def subscription_check(
             }
         )
     duplicates.sort(key=lambda d: (-d["monthly_total_cents"], d["kind"]))
-    return {"items": items, "duplicates": duplicates}
+    # Where the money goes, by kind (October 29, 2026): every kind held, and the subscriptions
+    # with no kind as one row (kind null), by yearly cost; ties by kind, the no-kind row last.
+    held: dict[str | None, list[dict]] = {}
+    for i in items:
+        held.setdefault(i["kind"], []).append(i)
+    by_kind = []
+    for kind, members in held.items():
+        total = sum(m["yearly_cents"] for m in members)
+        if total > MAX_SAFE_CENTS:
+            raise RuleError("invalid_amount")
+        by_kind.append(
+            {
+                "kind": kind,
+                "count": len(members),
+                "yearly_cents": total,
+                "monthly_cents": money.round_div(total, 12),
+                "ids": [m["id"] for m in members],
+            }
+        )
+    by_kind.sort(key=lambda k: (-k["yearly_cents"], k["kind"] is None, k["kind"] or ""))
+    return {"items": items, "duplicates": duplicates, "by_kind": by_kind}

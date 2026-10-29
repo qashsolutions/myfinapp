@@ -1423,7 +1423,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       }
       if (method === "PUT" && rest === "helped") {
         const choices = (b.choices as unknown as string[] | undefined) ?? [];
-        if (choices.length > 3) return json({ detail: "invalid_choices" }, 422);
+        if (choices.length > 5) return json({ detail: "invalid_choices" }, 422);
         if (!(g.ended || me.reached_at)) return json({ detail: "not_yet" }, 409);
         g.answers = { ...(g.answers ?? {}), [ME]: choices };
         return json(detail(g));

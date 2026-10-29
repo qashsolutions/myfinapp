@@ -10,7 +10,7 @@
     "credit_habits_months": 12,
     "credit_guide_bps": 3000,
     "subscription_ask_days": 90,
-    "subscription_renewal_days": 14,
+    "subscription_renewal_days": 15,
     "trial_max_cents": 100,
     "trial_window_days": 45
   },

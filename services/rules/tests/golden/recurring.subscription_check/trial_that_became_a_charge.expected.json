@@ -27,5 +27,17 @@
       "monthly_cents": 1499
     }
   ],
-  "duplicates": []
+  "duplicates": [],
+  "by_kind": [
+    {
+      "kind": null,
+      "count": 2,
+      "yearly_cents": 35976,
+      "monthly_cents": 2998,
+      "ids": [
+        "s-fit",
+        "s-gym"
+      ]
+    }
+  ]
 }

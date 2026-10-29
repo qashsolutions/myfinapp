@@ -88,14 +88,17 @@ describe("Subscriptions", () => {
     const hero = await screen.findByRole("region", { name: "A year of subscriptions" });
     // Netflix 1549 × 12 = 18588, Cloud 999 × 1 = 999: 19587 a year, 19587 ÷ 12 = 1632.25 → 1632
     await waitFor(() => expect(hero).toHaveTextContent("$195.87 a year"));
-    expect(hero).toHaveTextContent("Yearly");
-    expect(hero).toHaveTextContent("$16.32 a month across 2 subscriptions");
+    expect(hero).not.toHaveTextContent("Yearly");
+    expect(hero).toHaveTextContent("2 subscriptions · $16.32 a month");
     const list = screen.getByRole("region", { name: "Netflix" });
     expect(list).toHaveTextContent("$185.88 a year");
-    expect(list).toHaveTextContent("$15.49 monthly · $15.49 a month · Renews in 10 days, Oct 20");
-    expect(screen.getByRole("region", { name: "Cloud" })).toHaveTextContent(
-      "Renews tomorrow, Oct 11",
-    );
+    expect(list).toHaveTextContent("$15.49 a month · $185.88 a year");
+    expect(list).toHaveTextContent("Renews Oct 20");
+    expect(screen.getByRole("region", { name: "Cloud" })).toHaveTextContent("Renews Oct 11");
+    expect(list).not.toHaveTextContent("monthly");
+    expect(list).toHaveTextContent("In 10 days");
+    expect(list).toHaveTextContent("Video streaming");
+    expect(screen.getByRole("region", { name: "Cloud" })).toHaveTextContent("CloudTomorrow");
     expect(screen.getAllByRole("region").map((r) => r.getAttribute("aria-label"))).toEqual(
       expect.arrayContaining(["Netflix", "Cloud"]),
     );

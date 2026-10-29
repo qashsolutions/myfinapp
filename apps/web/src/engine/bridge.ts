@@ -791,6 +791,8 @@ export interface SubscriptionCheckInput {
   next_date: string;
   checked_at: string | null;
   charges: Array<{ date: string; cents: number }>;
+  /** The person's own kind (October 29, 2026): wins over the table; "other" = no kind. */
+  own_kind?: string | null;
 }
 
 export interface SubscriptionCheckItem {
@@ -808,6 +810,14 @@ export interface SubscriptionCheckItem {
 export interface SubscriptionCheck {
   items: SubscriptionCheckItem[];
   duplicates: Array<{ kind: string; count: number; monthly_total_cents: number; ids: string[] }>;
+  /** Where the money goes by kind; kind null = the subscriptions with no kind. */
+  by_kind: Array<{
+    kind: string | null;
+    count: number;
+    yearly_cents: number;
+    monthly_cents: number;
+    ids: string[];
+  }>;
 }
 
 export async function subscriptionCheck(
