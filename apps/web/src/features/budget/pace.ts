@@ -1,7 +1,8 @@
 /**
  * A budget alert in the moment (docs/spec.md "Budgeting"): which budget lines have reached a
  * level of their plan this month, from the `budget.pace` rule. One reading for the Budget
- * screen's "Close" / "Over" words and for the alert schedule, so both always agree.
+ * screen's "Close" / "Over" words and for the alert schedule: the same lines (`paceLines`) at
+ * the same levels (`alertLevels` of the person's "Tell me at"), so both agree.
  *
  * Zero-based budgets are read per category line with something planned. The bucket method
  * (50/30/20 or the person's own split) plans no categories, so it is read per bucket. The save
@@ -57,10 +58,14 @@ export function alertLevels(thresholdPct: number | null | undefined): number[] {
 
 export type PaceWord = "Close" | "Over";
 
-/** Each line's word: "Over" once spent passes the plan, "Close" from the first level. */
+/**
+ * Each line's word: "Over" once spent passes the plan, "Close" from the first level, at the
+ * person's own "Tell me at" (`thresholdPct`, the budget alert's setting) when they set one.
+ */
 export function useBudgetPace(
   summary: BudgetSummary | null,
   asOf: string,
+  thresholdPct: number | null = null,
 ): Map<string, PaceWord> | null {
   const [words, setWords] = useState<Map<string, PaceWord> | null>(null);
   useEffect(() => {
@@ -70,7 +75,7 @@ export function useBudgetPace(
     }
     let alive = true;
     const lines = paceLines(summary);
-    void budgetPace(summary.start.slice(0, 7), asOf, lines, BUDGET_LEVELS)
+    void budgetPace(summary.start.slice(0, 7), asOf, lines, alertLevels(thresholdPct))
       .then((pace) => {
         if (!alive) return;
         const planned = new Map(lines.map((l) => [l.category_id, l] as const));
@@ -88,6 +93,6 @@ export function useBudgetPace(
     return () => {
       alive = false;
     };
-  }, [summary, asOf]);
+  }, [summary, asOf, thresholdPct]);
   return words;
 }

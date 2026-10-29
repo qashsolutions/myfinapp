@@ -123,9 +123,12 @@ export function PayoffPlan() {
         </>
       ) : (
         <>
-          <Word>Debt-free</Word>
+          {/* The month leads as the value; "Debt-free" is what it means, at this pace. */}
           <p className="sk-card__hero sk-card__hero--empty" role="status">
-            by {monthText(plan)}
+            {plan.debt_free_month ? monthText(plan) : "Now"}
+          </p>
+          <p className="sk-card__eyebrow">
+            {plan.debt_free_month ? "Debt-free at this pace" : "No balance left"}
           </p>
           <p>
             {monthsText(plan.months ?? 0)} at {formatCents(plan.monthly_budget_cents)} a month ·{" "}

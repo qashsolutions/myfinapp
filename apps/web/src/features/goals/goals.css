@@ -168,6 +168,15 @@
 }
 
 /* Goals that grow: today's cost against the cost by the date (October 28, 2026). */
+/* GrowCard's two ends (today's cost → the cost then) above the bar, so it never reads as progress. */
+.grow-ends {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
 .grow-bars {
   position: relative;
   height: 12px;

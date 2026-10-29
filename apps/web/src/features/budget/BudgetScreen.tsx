@@ -13,6 +13,7 @@ import { formatCents, formatMonth, todayIso } from "../../lib/format.ts";
 import { cardText } from "../../moments/catalog.ts";
 import { useLookups } from "../entries/useEntries.ts";
 import { MonthPicker } from "../money/MonthPicker.tsx";
+import { useNotificationSettings } from "../notifications/useNotifications.ts";
 import { BudgetSetup } from "./BudgetSetup.tsx";
 import { useBudgetPace } from "./pace.ts";
 import { BUCKET_LABELS, RuleView } from "./RuleView.tsx";
@@ -24,7 +25,9 @@ export function BudgetScreen() {
   const [asOf, setAsOf] = useState(todayIso());
   const isCurrentMonth = monthKey(asOf) === monthKey(todayIso());
   const view = useBudget(asOf, isCurrentMonth);
-  const pace = useBudgetPace(view.summary, asOf);
+  // "Close" at the person's own "Tell me at" when they set one, the level their alert uses.
+  const alertPrefs = useNotificationSettings({ background: true }).data?.prefs;
+  const pace = useBudgetPace(view.summary, asOf, alertPrefs?.budget_pace?.threshold ?? null);
   // Last month's totals, for zero-based's "Start from last month" (October 23, 2026).
   const lastMonth = useMonthTotals(asOf).previous;
   const lookups = useLookups();

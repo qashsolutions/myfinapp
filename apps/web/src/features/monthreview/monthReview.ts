@@ -2,6 +2,7 @@ import insightsConfig from "@stackd/rules/insights";
 import type { Bucket, StackdDb } from "../../data/db.ts";
 import type { BudgetSummary, OneChangeCandidate, OneChangePick } from "../../engine/bridge.ts";
 import { compareText } from "../../lib/order.ts";
+import { paceLines } from "../budget/pace.ts";
 
 /**
  * Your month, the once-a-month review (October 28, 2026; docs/spec.md "Your month"). The values
@@ -52,15 +53,19 @@ export interface OverPlan {
   whatif_category: string | null;
 }
 
-/** Zero-based: the expense lines over their plan, most over first (ties keep the summary's order). */
+/**
+ * Zero-based: the expense lines over their plan, most over first (ties keep the summary's order).
+ * The lines are Budget's own (`paceLines`, which the budget alert reads too): something planned,
+ * never the save bucket. A line with nothing planned is waiting for its job, not over.
+ */
 export function linesOver(
   summary: BudgetSummary,
 ): Array<{ category_id: string; over_cents: number }> {
-  return summary.categories
-    .filter((c) => c.planned_cents !== null && c.spent_cents > c.planned_cents)
+  return paceLines({ ...summary, method: "zero_based" })
+    .filter((c) => c.spent_cents > c.planned_cents)
     .map((c) => ({
       category_id: c.category_id,
-      over_cents: c.spent_cents - (c.planned_cents ?? 0),
+      over_cents: c.spent_cents - c.planned_cents,
     }))
     .map((c, i) => ({ ...c, i }))
     .sort((a, b) => b.over_cents - a.over_cents || a.i - b.i)
@@ -71,7 +76,10 @@ export function linesOver(
 export function bucketsOver(summary: BudgetSummary): Array<{ bucket: Bucket; over_cents: number }> {
   const rank: Record<string, number> = { need: 0, want: 1 };
   return summary.buckets
-    .filter((b) => (b.bucket === "need" || b.bucket === "want") && b.left_cents < 0)
+    .filter(
+      (b) =>
+        (b.bucket === "need" || b.bucket === "want") && b.planned_cents > 0 && b.left_cents < 0,
+    )
     .map((b) => ({ bucket: b.bucket, over_cents: -b.left_cents }))
     .sort((a, b) => b.over_cents - a.over_cents || (rank[a.bucket] ?? 2) - (rank[b.bucket] ?? 2));
 }

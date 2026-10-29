@@ -7,7 +7,14 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Entry, openDb, seedDefaults } from "../../src/data/db.ts";
 import { createBudget } from "../../src/features/budget/useBudget.ts";
-import { fakeMember, installFakeApi, ME, mayasGroup, readySession } from "../fakeApi.ts";
+import {
+  defaultNotifications,
+  fakeMember,
+  installFakeApi,
+  ME,
+  mayasGroup,
+  readySession,
+} from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 
 const TODAY = new Date("2026-10-21T12:00:00");
@@ -66,6 +73,32 @@ describe("Budget alert in the moment", () => {
     await waitFor(() => expect(lineOf("Dining")).toHaveTextContent(/^Close/));
     expect(lineOf("Fun")).toHaveTextContent(/^Over/);
     expect(lineOf("Groceries")).not.toHaveTextContent(/Close|Over/);
+  });
+
+  it("Close follows the person's own Tell me at, the same level the alert uses", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await db.entries.bulkAdd([spend("d1", 17000, "cat-dining")]); // 85% of $200
+    await createBudget(db, "2026-10", "zero_based", 400000, [
+      { category_id: "cat-dining", planned_cents: 20000 },
+    ]);
+    const notifications = defaultNotifications();
+    notifications.prefs.budget_pace = { ...notifications.prefs.budget_pace, threshold: 80 };
+    installFakeApi({ session: readySession(), notifications });
+    renderApp("/budget");
+    const planned = await screen.findByRole("region", { name: "Planned by category" });
+    const dining = () =>
+      within(planned).getByRole("button", { name: "Move money to or from Dining" })
+        .parentElement as HTMLElement;
+    await waitFor(() => expect(dining()).toHaveTextContent(/^Close/));
+  });
+
+  it("Alerts says budget line, which fits a category and a bucket", async () => {
+    installFakeApi({ session: readySession() });
+    renderApp("/me/notifications");
+    const list = await screen.findByRole("list", { name: "Alert types" });
+    await waitFor(() => expect(list).toHaveTextContent("At 90% and 100% of a budget line's plan"));
+    expect(list).not.toHaveTextContent("category's plan");
   });
 
   it("the bucket method reads per bucket: Wants is Close at 90% of its share", async () => {
