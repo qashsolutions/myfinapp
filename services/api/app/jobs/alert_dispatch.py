@@ -3,7 +3,9 @@
 For every due row: the shared `notify.decide` rule says send, skip, defer (quiet hours), or
 roll into a summary (daily max). A send goes to each of the user's live push subscriptions
 with a fixed title, the generic label and the dedupe key as tag, and is logged so it never
-repeats. Gone subscriptions (404 / 410) are revoked. Run by `stackd-api dispatch-alerts`.
+repeats: each send is committed with its log row and status as it goes, and each person is
+handled on their own, so a failure later in the run never sends anything again the next minute
+(invariant 33). Gone subscriptions (404 / 410) are revoked. Run by `stackd-api dispatch-alerts`.
 
 The weekly recap can also go by email (fast-follow 6; `jobs/weekly_recap.py`). The email is
 sent at the chosen time whenever the rule would send, defer or summarise the push: quiet hours
@@ -118,119 +120,148 @@ def dispatch_due(db: DbSession, *, now: datetime | None = None) -> dict[str, int
             for r in user_rows:
                 r.status = "skipped"
             counts["skipped"] += len(user_rows)
+            db.commit()
             continue
-        settings = ensure_settings(db, user_id)
-        prefs = prefs_for(db, user_id)
-        enabled = {kind: bool(p["enabled"]) for kind, p in prefs.items()}
-        channel = recap_channel(prefs)
-        digest = digest_times(prefs)
-        tz = settings.timezone
-        now_local = notify_rules.to_local(now, tz)
-        sent_today = _sent_today(db, user_id, now, tz)
-        keys = set(
-            db.scalars(
-                select(NotificationLog.dedupe_key).where(
-                    NotificationLog.user_id == user_id,
-                    NotificationLog.dedupe_key.in_([r.dedupe_key for r in user_rows]),
-                )
+        # Each person on their own (invariant 33, October 29, 2026): a failure for one rolls back
+        # only what was not yet sent for them, is reported, and the run goes on. Every push or
+        # email is committed with its log row and status the moment it goes, so a failure later
+        # in the run (or the next person's) never makes the next minute send it again.
+        try:
+            _dispatch_user(db, user_id, user_rows, now, counts)
+            db.commit()
+        except Exception as exc:  # noqa: BLE001 - reported, and the run goes on
+            db.rollback()
+            ops_alerts.report("alert_dispatch_failed", "alert_dispatch.dispatch_due", exc)
+    return counts
+
+
+def _dispatch_user(
+    db: DbSession,
+    user_id: uuid.UUID,
+    user_rows: list[AlertSchedule],
+    now: datetime,
+    counts: dict[str, int],
+) -> None:
+    settings = ensure_settings(db, user_id)
+    prefs = prefs_for(db, user_id)
+    enabled = {kind: bool(p["enabled"]) for kind, p in prefs.items()}
+    channel = recap_channel(prefs)
+    digest = digest_times(prefs)
+    tz = settings.timezone
+    now_local = notify_rules.to_local(now, tz)
+    sent_today = _sent_today(db, user_id, now, tz)
+    keys = set(
+        db.scalars(
+            select(NotificationLog.dedupe_key).where(
+                NotificationLog.user_id == user_id,
+                NotificationLog.dedupe_key.in_([r.dedupe_key for r in user_rows]),
             )
         )
-        # Rows already rolled into a summary go out together as one push.
-        summary_rows = [r for r in user_rows if r.status == "summary"]
-        if summary_rows and not notify_rules.notify.in_quiet_hours(
-            notify_rules.notify.parse_clock(now_local[11:16]),
-            notify_rules.notify.parse_clock(settings.quiet_start),
-            notify_rules.notify.parse_clock(settings.quiet_end),
-        ):
-            payload = {
-                "title": TITLE,
-                "body": SUMMARY_LABEL_ONE
-                if len(summary_rows) == 1
-                else SUMMARY_LABEL.format(n=len(summary_rows)),
-                "tag": f"summary:{now_local[:10]}",
-                "url": "/",
-            }
-            _deliver(db, user_id, payload, now)
-            for r in summary_rows:
-                r.status = "sent"
-                db.add(
-                    NotificationLog(
-                        user_id=user_id,
-                        type=r.type,
-                        dedupe_key=r.dedupe_key,
-                        sent_at=now,
-                        channel="summary",
-                    )
+    )
+    # Rows already rolled into a summary go out together as one push. One whose key was
+    # already sent (logged) is done: logging it again would fail the commit after the push.
+    summary_rows = []
+    for r in user_rows:
+        if r.status == "summary" and r.dedupe_key in keys:
+            r.status = "sent"
+        elif r.status == "summary":
+            summary_rows.append(r)
+    if summary_rows and not notify_rules.notify.in_quiet_hours(
+        notify_rules.notify.parse_clock(now_local[11:16]),
+        notify_rules.notify.parse_clock(settings.quiet_start),
+        notify_rules.notify.parse_clock(settings.quiet_end),
+    ):
+        payload = {
+            "title": TITLE,
+            "body": SUMMARY_LABEL_ONE
+            if len(summary_rows) == 1
+            else SUMMARY_LABEL.format(n=len(summary_rows)),
+            "tag": f"summary:{now_local[:10]}",
+            "url": "/",
+        }
+        _deliver(db, user_id, payload, now)
+        for r in summary_rows:
+            r.status = "sent"
+            db.add(
+                NotificationLog(
+                    user_id=user_id,
+                    type=r.type,
+                    dedupe_key=r.dedupe_key,
+                    sent_at=now,
+                    channel="summary",
                 )
-            counts["summary"] += len(summary_rows)
-            sent_today += 1
-            user_rows = [r for r in user_rows if r.status != "sent"]
-        for row in user_rows:
-            if row.status == "summary":
-                continue
-            decision = notify_rules.decide(
-                {
-                    "type": row.type,
-                    "dedupe_key": row.dedupe_key,
-                    "due_local": notify_rules.to_local(row.due_at, tz),
-                },
-                _settings_dict(settings, digest),
-                enabled,
-                {"keys": sorted(keys), "today": sent_today},
-                now_local,
             )
-            action = decision["action"]
-            if row.type == "weekly_recap" and channel in ("email", "both"):
-                # The email part: at the chosen time, whatever the push limits say.
-                if action in ("send", "defer", "summary"):
-                    email_key = row.dedupe_key if channel == "email" else f"{row.dedupe_key}:email"
-                    if weekly_recap.send_email(db, user_id, email_key, now):
-                        keys.add(email_key)
-                        counts["email"] += 1
-                    if channel == "email":
-                        row.status = "sent"
-                        continue
-                elif action == "skip" and channel == "email":
-                    row.status = "skipped"
-                    counts["skipped"] += 1
+        db.commit()  # sent: recorded at once, whatever happens next (invariant 33)
+        counts["summary"] += len(summary_rows)
+        sent_today += 1
+        user_rows = [r for r in user_rows if r.status != "sent"]
+    for row in user_rows:
+        if row.status in ("summary", "sent"):
+            continue
+        decision = notify_rules.decide(
+            {
+                "type": row.type,
+                "dedupe_key": row.dedupe_key,
+                "due_local": notify_rules.to_local(row.due_at, tz),
+            },
+            _settings_dict(settings, digest),
+            enabled,
+            {"keys": sorted(keys), "today": sent_today},
+            now_local,
+        )
+        action = decision["action"]
+        if row.type == "weekly_recap" and channel in ("email", "both"):
+            # The email part: at the chosen time, whatever the push limits say.
+            if action in ("send", "defer", "summary"):
+                email_key = row.dedupe_key if channel == "email" else f"{row.dedupe_key}:email"
+                sent = weekly_recap.send_email(db, user_id, email_key, now)
+                if channel == "email":
+                    row.status = "sent"
+                if sent:
+                    db.commit()  # the email went: its log row is kept at once (invariant 33)
+                    keys.add(email_key)
+                    counts["email"] += 1
+                if channel == "email":
                     continue
-            if action == "send":
-                payload = {
-                    "title": TITLE,
-                    "body": row.generic_label,
-                    "tag": row.dedupe_key,
-                    "url": URLS.get(row.type, "/"),
-                }
-                _deliver(db, user_id, payload, now)
-                db.add(
-                    NotificationLog(
-                        user_id=user_id,
-                        type=row.type,
-                        dedupe_key=row.dedupe_key,
-                        sent_at=now,
-                        channel="push",
-                    )
-                )
-                keys.add(row.dedupe_key)
-                row.status = "sent"
-                sent_today += 1
-                counts["sent"] += 1
-            elif action == "skip":
+            elif action == "skip" and channel == "email":
                 row.status = "skipped"
                 counts["skipped"] += 1
-            elif action == "defer":
-                row.status = "deferred"
-                row.due_at = notify_rules.from_local(decision["send_at_local"], tz)
-                counts["deferred"] += 1
-            elif action == "summary":
-                row.status = "summary"
-                row.due_at = notify_rules.from_local(decision["send_at_local"], tz)
-                counts["summary"] += 1
-            else:
-                counts["waiting"] += 1
-        db.flush()
-    db.commit()
-    return counts
+                continue
+        if action == "send":
+            payload = {
+                "title": TITLE,
+                "body": row.generic_label,
+                "tag": row.dedupe_key,
+                "url": URLS.get(row.type, "/"),
+            }
+            _deliver(db, user_id, payload, now)
+            db.add(
+                NotificationLog(
+                    user_id=user_id,
+                    type=row.type,
+                    dedupe_key=row.dedupe_key,
+                    sent_at=now,
+                    channel="push",
+                )
+            )
+            row.status = "sent"
+            db.commit()  # sent: recorded at once, whatever happens next (invariant 33)
+            keys.add(row.dedupe_key)
+            sent_today += 1
+            counts["sent"] += 1
+        elif action == "skip":
+            row.status = "skipped"
+            counts["skipped"] += 1
+        elif action == "defer":
+            row.status = "deferred"
+            row.due_at = notify_rules.from_local(decision["send_at_local"], tz)
+            counts["deferred"] += 1
+        elif action == "summary":
+            row.status = "summary"
+            row.due_at = notify_rules.from_local(decision["send_at_local"], tz)
+            counts["summary"] += 1
+        else:
+            counts["waiting"] += 1
 
 
 def retention_cutoff(now: datetime) -> datetime:

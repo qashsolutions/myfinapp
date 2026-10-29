@@ -106,6 +106,7 @@ os.environ["STACKD_FCM_SERVICE_ACCOUNT"] = json.dumps(
 from tests.apple_fake import ROOT_PEM  # noqa: E402
 
 os.environ["STACKD_APPLE_ROOT_CA"] = ROOT_PEM
+os.environ["STACKD_STORE_BILLING"] = "true"  # the store paths are tested; off is tested too
 os.environ["STACKD_PLAY_SERVICE_ACCOUNT"] = json.dumps(
     {
         "type": "service_account",
