@@ -138,9 +138,12 @@ describe("Subscription check", () => {
     const db = await seed();
     installFakeApi({ session: readySession() });
     const { unmount } = renderApp("/");
-    expect(
-      await screen.findByRole("link", { name: /Subscription check: Still using Hulu\?/ }),
-    ).toHaveAttribute("href", "/subscriptions");
+    const link = await screen.findByRole("link", {
+      name: /Subscription check: Still using Hulu\?/,
+    });
+    expect(link).toHaveAttribute("href", "/subscriptions");
+    // A title like every other Home card.
+    expect(within(link).getByRole("heading", { level: 2, name: "Subscriptions" })).toBeVisible();
     unmount();
     await db.recurring_series.update("s-hulu", { checked_at: "2026-10-28" });
     await db.recurring_series.update("s-spot", { checked_at: "2026-10-28" });

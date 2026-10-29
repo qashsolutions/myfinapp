@@ -39,23 +39,35 @@ export interface SubscriptionsView {
 }
 
 /**
+ * The payee each entry text cleans to (`fingerprint.clean_description`), kept for the session:
+ * the rule is pure, so a text always cleans the same way, and Home, the month review and
+ * Subscriptions each read every charge out. Only texts not seen yet go to the engine, together.
+ */
+const CLEANED = new Map<string, string>();
+
+async function payeesOf(texts: Iterable<string>): Promise<Map<string, string>> {
+  const missing = [...new Set(texts)].filter((t) => !CLEANED.has(t));
+  const done = await Promise.all(missing.map(async (t) => [t, await cleanDescription(t)] as const));
+  for (const [t, payee] of done) CLEANED.set(t, payee);
+  return CLEANED;
+}
+
+/**
  * Which confirmed bills are subscriptions: the person's own call when they made one, else
  * whether the payee's latest recurring entry sits in the Subscriptions category.
  */
 async function splitBills(db: StackdDb, bills: RecurringSeries[]) {
   const latest = new Map<string, { date: string; category: string | null }>();
   // Every counted charge out by payee, recurring or not: a price rise or the end of a trial is
-  // often the charge the ±10% run left out. One engine call per distinct text, not per entry.
+  // often the charge the ±10% run left out. Only the bills' own payees are kept.
   const charges = new Map<string, Array<{ date: string; cents: number }>>();
-  const cleaned = new Map<string, string>();
+  if (bills.length === 0) return { subs: [], others: [], charges };
+  const wanted = new Set(bills.map((s) => s.payee));
   const out = await db.entries.filter((e) => e.direction === "out").toArray();
+  const cleaned = await payeesOf(out.map((e) => e.merchant || e.clean_description));
   for (const e of out) {
-    const text = e.merchant || e.clean_description;
-    let payee = cleaned.get(text);
-    if (payee === undefined) {
-      payee = await cleanDescription(text);
-      cleaned.set(text, payee);
-    }
+    const payee = cleaned.get(e.merchant || e.clean_description) as string;
+    if (!wanted.has(payee)) continue;
     if (!e.is_transfer && !e.not_counted) {
       const list = charges.get(payee);
       if (list) list.push({ date: e.date, cents: e.amount_cents });

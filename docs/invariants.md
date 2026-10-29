@@ -166,6 +166,17 @@ written against both.
     golden `alerts.schedule/budget_tag_must_be_letters` · `notifications.test.tsx` "a budget
     alert carries a month, a tag and a level…" · `test_budget_alerts.py` · `leak-sweep.test.tsx` ·
     `test_group_helped.py` · `budget-helped.test.tsx` "What helped"
+30. **One reading, said once, wherever it appears** (October 28, 2026). Where two screens show
+    the same thing they read it through one helper: Budget's "Close" / "Over", the budget alert
+    and the month review's lines over all use `paceLines` (something planned, never the save
+    bucket) at `alertLevels` of the person's own "Tell me at". A jar that grows over time is
+    read only by `growth.goal_plan` / `goal_pace`: no flat weekly pace on its screen, list row
+    or quick chip, no behind-pace alert or Home move, no What if months-to-fill. A screen that
+    gathers other cards (the month review) never repeats the word or the number another of its
+    cards already leads with.
+    `month-review.test.tsx` "builds over_plan…" · `budget-helped.test.tsx` "Close follows the
+    person's own Tell me at…" · `grow-whatif.test.tsx` "a grows jar shows one monthly amount…",
+    "never feeds the flat behind-pace alert", "Spend less never fills a grows jar"
 
 ## Accounts and money on the server
 

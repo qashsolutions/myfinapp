@@ -112,6 +112,7 @@ export function SubCheckHomeCard({ today }: { today: string }) {
       aria-label={`Subscription check: ${questionText(question)}, open Subscriptions`}
     >
       <Card as="div">
+        <h2 className="sk-card__title">Subscriptions</h2>
         <Word>Check</Word>
         <p className="subs__question">{questionText(question)}</p>
       </Card>

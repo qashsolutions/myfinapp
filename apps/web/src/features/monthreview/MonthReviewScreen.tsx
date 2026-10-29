@@ -16,7 +16,13 @@ import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type Category, ignoreClosed } from "../../data/db.ts";
 import { addMonths } from "../../engine/bridge.ts";
-import { formatCents, formatMonth, todayIso } from "../../lib/format.ts";
+import {
+  formatCents,
+  formatCentsTidy,
+  formatMonth,
+  formatMonthShort,
+  todayIso,
+} from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
 import { BUCKET_LABELS } from "../budget/RuleView.tsx";
 import { useLookups } from "../entries/useEntries.ts";
@@ -186,10 +192,14 @@ function DebtSection({ review }: { review: MonthReview }) {
   const cards = review.cards;
   if (!plan && cards.length === 0) return null;
   const first = cards[0]?.month;
+  // The month leads as the value (like Home's "$X kept"); "Debt-free" is the line, so the green
+  // word never reads as a claim about today.
   const word = plan
     ? plan.stalled
       ? "Stalled"
-      : "Debt-free"
+      : plan.debt_free_month
+        ? formatMonthShort(plan.debt_free_month)
+        : "Clear"
     : first && first.net_cents > 0
       ? "Growing"
       : first && first.net_cents < 0
@@ -198,7 +208,9 @@ function DebtSection({ review }: { review: MonthReview }) {
   const line = plan
     ? plan.stalled
       ? "Payments don't catch the interest yet"
-      : `At today's plan: by ${plan.debt_free_month ? formatMonth(`${plan.debt_free_month}-01`) : "now"}`
+      : plan.debt_free_month
+        ? "Debt-free at this pace"
+        : "No balance left"
     : "Card spending against payments";
   return (
     <Section id="debt" title="Debt" word={word} line={line}>
@@ -248,24 +260,27 @@ function SubscriptionsSection({ review }: { review: MonthReview }) {
   );
 }
 
-/** "Trim Dining by $120 a month → $1,440 a year": an option from their own numbers. */
+/**
+ * "Dining $120 less a month → $1,440 a year": a fact from their own numbers, never an
+ * instruction. Whole dollars where the cents add nothing.
+ */
 export function changeText(
   change: PickedChange,
   categories: Map<string, Category> | undefined,
 ): string {
   const { option, pick } = change;
-  const yearly = formatCents(pick.yearly_cents);
+  const yearly = formatCentsTidy(pick.yearly_cents);
   if (pick.kind === "over_plan" && option.over) {
     const what = option.over.bucket
       ? BUCKET_LABELS[option.over.bucket][0]
       : categoryName(option.over.category_id, categories);
-    return `Trim ${what} by ${formatCents(option.over.over_cents)} a month → ${yearly} a year`;
+    return `${what} ${formatCentsTidy(option.over.over_cents)} less a month → ${yearly} a year`;
   }
   if (pick.kind === "subscription_check") {
     const n = option.count ?? 0;
     return `Check ${n === 1 ? "1 subscription" : `${n} subscriptions`} → ${yearly} a year`;
   }
-  return `Put ${formatCents(option.addCents ?? 0)} a month on your debts → about ${yearly} a year less interest`;
+  return `${formatCentsTidy(option.addCents ?? 0)} more a month on debts → about ${yearly} less interest a year`;
 }
 
 function OneChange({
@@ -371,7 +386,7 @@ export function MonthReviewScreen() {
         <>
           <HowItWent review={review} />
           <BudgetSection review={review} categories={lookups?.categories} />
-          <FixedFlexibleMonthCard asOf={review.span.start} today={today} />
+          <FixedFlexibleMonthCard asOf={review.span.start} today={today} inReview />
           <JarsSection review={review} />
           <DebtSection review={review} />
           <SubscriptionsSection review={review} />

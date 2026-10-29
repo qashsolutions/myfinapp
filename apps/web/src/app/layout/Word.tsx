@@ -26,7 +26,6 @@ export const GOOD_WORDS: ReadonlySet<string> = new Set([
   "Found",
   "Done",
   "Clear",
-  "Debt-free",
   "Shrinking",
   "Building",
   "All good",

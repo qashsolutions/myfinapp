@@ -11,6 +11,7 @@ import { createBudget } from "../../src/features/budget/useBudget.ts";
 import {
   buildOptions,
   doneKey,
+  linesOver,
   mostOver,
   whatIfLink,
 } from "../../src/features/monthreview/monthReview.ts";
@@ -118,6 +119,13 @@ describe("Your month", () => {
     await waitFor(() => expect(budget).toHaveTextContent("1 line over · Dining $120.00 over"));
     expect(budget).toHaveTextContent("Over");
 
+    // Fixed vs flexible inside the review: the bar and the room line only; the word and the
+    // kept rate are How it went's, said once.
+    const fixed = await screen.findByRole("region", { name: "Fixed vs flexible" });
+    await waitFor(() => expect(fixed).toHaveTextContent(/^Fixed vs flexibleFixed \$/));
+    expect(fixed).not.toHaveTextContent("kept");
+    expect(fixed.querySelector(".word")).toBeNull();
+
     const jars = await screen.findByRole("region", { name: "Jars" });
     await waitFor(() => expect(jars).toHaveTextContent("Reached"));
     expect(jars).toHaveTextContent("$500.00 new money into 1 jar");
@@ -129,7 +137,7 @@ describe("Your month", () => {
 
     const change = await screen.findByRole("region", { name: "One change" });
     await waitFor(() =>
-      expect(change).toHaveTextContent("Trim Dining by $120.00 a month → $1,440.00 a year"),
+      expect(change).toHaveTextContent("Dining $120 less a month → $1,440 a year"),
     );
     expect(change).toHaveTextContent("not advice");
     expect(within(change).getByRole("link", { name: "Try it in What if" })).toHaveAttribute(
@@ -205,14 +213,18 @@ describe("Your month", () => {
     // 300 + 153 + 5 = $4.58. Saved $1.56 over today's 4 months = $4.68 a year.
     await waitFor(() =>
       expect(change).toHaveTextContent(
-        "Put $50.00 a month on your debts → about $4.68 a year less interest",
+        "$50 more a month on debts → about $4.68 less interest a year",
       ),
     );
     expect(within(change).getByRole("link", { name: "Try it in What if" })).toHaveAttribute(
       "href",
       "/what-if?lever=debts&amount=5000",
     );
-    expect(await screen.findByRole("region", { name: "Debt" })).toHaveTextContent("Debt-free");
+    const debt = await screen.findByRole("region", { name: "Debt" });
+    // The month leads as the value; "Debt-free" is the line, never a green word about today.
+    await waitFor(() => expect(debt).toHaveTextContent(/[A-Z][a-z]{2} \d{4}/));
+    expect(debt).toHaveTextContent("Debt-free at this pace");
+    expect(within(debt).getByText(/^[A-Z][a-z]{2} \d{4}$/)).toHaveClass("word--plain");
     expect(screen.queryByRole("region", { name: "Budget" })).toBeNull();
   });
 
@@ -247,7 +259,7 @@ describe("Your month", () => {
     // 607 × 12 ÷ 7 = 1040.57 → $10.41 a year (highest rate first would say $11.09).
     await waitFor(() =>
       expect(change).toHaveTextContent(
-        "Put $50.00 a month on your debts → about $10.41 a year less interest",
+        "$50 more a month on debts → about $10.41 less interest a year",
       ),
     );
   });
@@ -275,7 +287,7 @@ describe("Your month", () => {
     const subs = await screen.findByRole("region", { name: "Subscriptions" });
     await waitFor(() => expect(subs).toHaveTextContent("1 to check · $216.00 a year"));
     const change = await screen.findByRole("region", { name: "One change" });
-    await waitFor(() => expect(change).toHaveTextContent("Check 1 subscription → $216.00 a year"));
+    await waitFor(() => expect(change).toHaveTextContent("Check 1 subscription → $216 a year"));
     await user.click(screen.getByRole("button", { name: "‹ Earlier" }));
     await waitFor(() =>
       expect(screen.getByRole("region", { name: "How it went" })).toHaveTextContent("67% kept"),
@@ -358,10 +370,24 @@ describe("Your month", () => {
             { category_id: "a", bucket: "want", planned_cents: 100, spent_cents: 150 },
             { category_id: "b", bucket: "want", planned_cents: 100, spent_cents: 150 },
             { category_id: "c", bucket: "need", planned_cents: null, spent_cents: 999 },
+            // Nothing planned is a line still waiting for its job, never "over" (as on Budget
+            // and in the budget alert); nor is putting more aside on a save line.
+            { category_id: "d", bucket: "need", planned_cents: 0, spent_cents: 5000 },
+            { category_id: "e", bucket: "save", planned_cents: 100, spent_cents: 9000 },
           ],
         }),
       ),
     ).toEqual({ category_id: "a", bucket: null, over_cents: 50, whatif_category: "a" });
+    expect(
+      linesOver(
+        summary({
+          categories: [
+            { category_id: "d", bucket: "need", planned_cents: 0, spent_cents: 5000 },
+            { category_id: "e", bucket: "save", planned_cents: 100, spent_cents: 9000 },
+          ],
+        }),
+      ),
+    ).toEqual([]);
     // 50/30/20: needs before wants on a tie; What if opens on the bucket's largest spending
     const bucket = mostOver(
       summary({

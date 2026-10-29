@@ -61,7 +61,7 @@ test("@phone the month review shows last month over plan and opens What if with 
   await expect(page.getByText("ACME PAYROLL")).toBeVisible();
 
   // That month's budget, zero-based: Dining planned $20, spent $120 → $100 over (Groceries,
-  // with nothing planned, is $42.17 over).
+  // with nothing planned, is waiting for its job, not over: as on Budget and in the alert).
   await page.goto("/budget");
   await page
     .getByLabel(/paycheck/i)
@@ -89,10 +89,10 @@ test("@phone the month review shows last month over plan and opens What if with 
   await expect(page.getByRole("heading", { level: 1, name: "Your month" })).toBeVisible();
   await expect(page.getByRole("region", { name: "How it went" })).toContainText("Kept $2,237.83");
   const budget = page.getByRole("region", { name: "Budget" });
-  await expect(budget).toContainText("2 lines over · Dining $100.00 over");
+  await expect(budget).toContainText("1 line over · Dining $100.00 over");
   await expect(page.getByRole("button", { name: "Later ›" })).toBeDisabled();
   const change = page.getByRole("region", { name: "One change" });
-  await expect(change).toContainText("Trim Dining by $100.00 a month → $1,200.00 a year");
+  await expect(change).toContainText("Dining $100 less a month → $1,200 a year");
   await expect(change).not.toContainText(/you should/i);
   await page.screenshot({ path: test.info().outputPath("month-review.png"), fullPage: true });
 

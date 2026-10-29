@@ -1,6 +1,5 @@
 import { Card } from "@stackd/ui";
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
 import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type Goal, ignoreClosed } from "../../data/db.ts";
@@ -11,7 +10,7 @@ import {
   growGoalPace,
   growGoalPlan,
 } from "../../engine/bridge.ts";
-import { formatCents } from "../../lib/format.ts";
+import { formatCents, formatMonth } from "../../lib/format.ts";
 import { percentText } from "../../lib/ownValues.ts";
 import { growLineOf, growMessage } from "./grow.ts";
 
@@ -20,6 +19,47 @@ const PACE_WORD: Record<GrowPace["status"], string> = {
   on_track: "On track",
   behind: "Behind",
 };
+
+/**
+ * A grows jar's one monthly amount from now (`growth.goal_plan`, the figure GrowCard shows), for
+ * the goal list and the quick deposit chip; null while working it out, when the jar doesn't grow
+ * or the plan can't be made. A grows jar never shows the flat weekly pace beside it.
+ */
+export function useGrowMonthly(
+  goal: Goal,
+  savedCents: number | null,
+  today: string,
+): number | null {
+  const grow = goal.grow;
+  const end = goal.end_date;
+  const [monthly, setMonthly] = useState<number | null>(null);
+  useEffect(() => {
+    if (!grow || !end || savedCents === null) {
+      setMonthly(null);
+      return;
+    }
+    let alive = true;
+    void growGoalPlan({
+      today_cost_cents: grow.today_cents,
+      cost_rise_bps: grow.cost_rise_bps,
+      return_bps: grow.return_bps,
+      target_date: end,
+      priced_on: grow.priced_on,
+      saved_cents: Math.max(0, savedCents),
+      as_of: today,
+    })
+      .then((plan) => {
+        if (alive) setMonthly(plan.already_enough ? 0 : plan.monthly_needed_cents);
+      })
+      .catch(() => {
+        if (alive) setMonthly(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [grow, end, savedCents, today]);
+  return monthly;
+}
 
 /**
  * A jar that grows over time (October 28, 2026): the monthly amount from now through
@@ -105,11 +145,15 @@ export function GrowCard({
                   goal.end_date,
                 )}
           </p>
-          <div
-            className="grow-bars"
-            role="img"
-            aria-label={`Costs ${formatCents(grow.today_cents)} today, ${formatCents(state.plan.future_cost_cents)} then`}
-          >
+          {/* Two labelled ends, so the bar reads as a cost rising, never as progress. */}
+          <p className="grow-ends">
+            <span>{formatCents(grow.today_cents)} today</span>
+            <span aria-hidden="true"> → </span>
+            <span>
+              {formatCents(state.plan.future_cost_cents)} by {formatMonth(goal.end_date)}
+            </span>
+          </p>
+          <div className="grow-bars" aria-hidden="true">
             <span
               className="grow-bars__now"
               style={{ width: `${barPct(grow.today_cents, state.plan.future_cost_cents)}%` }}
@@ -128,8 +172,7 @@ export function GrowCard({
         </p>
       )}
       <p className="sk-card__eyebrow">
-        An illustration at the rates you chose, not a prediction or advice.{" "}
-        <Link to={`/what-if?goal=${encodeURIComponent(goal.id)}`}>What if I put in more?</Link>
+        An illustration at the rates you chose, not a prediction or advice.
       </p>
     </Card>
   );

@@ -69,8 +69,12 @@ export function FixedKey() {
   );
 }
 
+function splitText(result: FixedFlexible, fixed = "fixed"): string {
+  return `${fixed} ${formatCents(result.fixed_cents)} · flexible ${formatCents(result.flexible_cents)}`;
+}
+
 function line(result: FixedFlexible): string {
-  return `${keptRateText(result)} · fixed ${formatCents(result.fixed_cents)} · flexible ${formatCents(result.flexible_cents)}`;
+  return `${keptRateText(result)} · ${splitText(result)}`;
 }
 
 /** The Insights card (INSIGHT_CARDS "fixed"). */
@@ -108,8 +112,20 @@ function FixedVisual({
   );
 }
 
-/** Money in & out's month card (MONEY_CARDS "fixed"), for the month on screen. */
-export function FixedFlexibleMonthCard({ asOf, today }: { asOf: string; today: string }) {
+/**
+ * Money in & out's month card (MONEY_CARDS "fixed"), for the month on screen. Inside the month
+ * review (`inReview`) How it went already leads with the word and the kept rate, so this card
+ * keeps to the split: fixed and flexible, the bar and the room line.
+ */
+export function FixedFlexibleMonthCard({
+  asOf,
+  today,
+  inReview = false,
+}: {
+  asOf: string;
+  today: string;
+  inReview?: boolean;
+}) {
   const view = useFixedFlexible(asOf, today);
   const lookups = useLookups();
   if (!view || view.word === "Start") return null;
@@ -118,8 +134,10 @@ export function FixedFlexibleMonthCard({ asOf, today }: { asOf: string; today: s
       <h2 className="sk-card__title" id="money-fixed">
         Fixed vs flexible
       </h2>
-      <Word>{view.word}</Word>
-      <p className="fixed-line">{line(view.current)}</p>
+      {inReview ? null : <Word>{view.word}</Word>}
+      <p className="fixed-line">
+        {inReview ? splitText(view.current, "Fixed") : line(view.current)}
+      </p>
       <FixedVisual view={view} categories={lookups?.categories} />
       <p className="fixed-more">
         <Link to={`${FIXED_PATH}?month=${asOf}`} className="auth__link">

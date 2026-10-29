@@ -2,7 +2,7 @@ import "../groups/groups.css";
 
 import { Card, Illustration } from "@stackd/ui";
 import { useEffect, useState } from "react";
-import type { Debt } from "../../data/db.ts";
+import { type Debt, ignoreClosed } from "../../data/db.ts";
 import { type AvalancheOrder, avalancheOrder, payoffPlan } from "../../engine/bridge.ts";
 import { formatCents, todayIso } from "../../lib/format.ts";
 import { debtInputs, useDebtSettings } from "./debtPlan.ts";
@@ -33,7 +33,7 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
         });
       }
       if (alive) setOrder(totals);
-    })();
+    })().catch(ignoreClosed);
     return () => {
       alive = false;
     };

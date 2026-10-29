@@ -191,7 +191,7 @@ export function useHome(asOf: string): HomeView & { logSetAside: () => Promise<b
       // The top-priority jar behind its pace (fast-follow 3): expected by now against saved.
       let behindGoal: NextMoveFacts["behind_goal"] = null;
       for (const g of jars) {
-        if (g.paused_at || g.is_ongoing || !g.cadence || !g.target_cents) continue;
+        if (g.paused_at || g.is_ongoing || g.grow || !g.cadence || !g.target_cents) continue;
         if (!g.end_date && !g.per_period_cents) continue;
         if (g.cadence === "payday" && !schedule) continue;
         const events = jarEvents
