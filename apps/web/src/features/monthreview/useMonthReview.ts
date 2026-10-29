@@ -64,6 +64,8 @@ export interface JarsMonth {
   reached: Goal[];
   /** Grows-over-time jars and their pace at the month's end. */
   grows: Array<{ goal: Goal; pace: GrowPace["status"] }>;
+  /** Each jar with a target: how far along it was at the month's end, in bps (capped at 100%). */
+  progressBps: Map<string, number>;
 }
 
 function asOfEvents(events: GoalEvent[], goalId: string, asOf: string) {
@@ -103,6 +105,7 @@ export function useJarsMonth(span: MonthSpan | null): JarsMonth | undefined {
         .sort((a, b) => b.cents - a.cents);
       const reached: Goal[] = [];
       const grows: JarsMonth["grows"] = [];
+      const progressBps = new Map<string, number>();
       for (const g of jars) {
         if (g.is_ongoing || !(g.target_cents && g.target_cents > 0)) continue;
         const rule = {
@@ -112,6 +115,7 @@ export function useJarsMonth(span: MonthSpan | null): JarsMonth | undefined {
           end_date: g.end_date,
         };
         const atEnd = await goalProgress(rule, asOfEvents(events, g.id, span.end), span.end);
+        progressBps.set(g.id, atEnd.display_bps);
         if (atEnd.status === "reached") {
           const before = await goalProgress(rule, asOfEvents(events, g.id, dayBefore), dayBefore);
           if (before.status !== "reached") reached.push(g);
@@ -140,7 +144,7 @@ export function useJarsMonth(span: MonthSpan | null): JarsMonth | undefined {
           }
         }
       }
-      if (alive) setView({ count: jars.length, deposits, totalCents, reached, grows });
+      if (alive) setView({ count: jars.length, deposits, totalCents, reached, grows, progressBps });
     })().catch(ignoreClosed);
     return () => {
       alive = false;
@@ -167,7 +171,8 @@ export function useMonthReview(span: MonthSpan | null, today: string): MonthRevi
   // Hooks need a date before the span is known; today's month is harmless until then.
   const start = span?.start ?? today;
   const end = span?.end ?? today;
-  const how = useFixedFlexible(start, today);
+  // Five whole months before it, so the summary's kept-rate bars show six months.
+  const how = useFixedFlexible(start, today, 5);
   const budget = useBudget(end, false);
   const jars = useJarsMonth(span);
   const plan = useDebtFreePlan(today);
@@ -186,9 +191,9 @@ export function useMonthReview(span: MonthSpan | null, today: string): MonthRevi
     let alive = true;
     void (async () => {
       const over = mostOver(summary);
-      const askedYearly = justEnded
-        ? subs.check.items.filter((i) => i.ask).map((i) => i.yearly_cents)
-        : [];
+      const asked = justEnded ? subs.check.items.filter((i) => i.ask) : [];
+      const askedYearly = asked.map((i) => i.yearly_cents);
+      const askedNames = asked.map((i) => i.label);
       let debt = null;
       if (debtSettings.debts.length > 0) {
         const add = over?.over_cents ?? DEBT_ADD_CENTS;
@@ -203,9 +208,12 @@ export function useMonthReview(span: MonthSpan | null, today: string): MonthRevi
           interest_saved_cents: r.interest_saved_cents,
           months: r.before.months,
           add_cents: add,
+          months_after: r.after.months,
+          month_before: r.before.debt_free_month,
+          month_after: r.after.debt_free_month,
         };
       }
-      const options = buildOptions({ over, askedYearly, debt });
+      const options = buildOptions({ over, askedYearly, askedNames, debt });
       const { pick } = await oneChange(
         options.map((o) => o.candidate),
         ONE_CHANGE_ORDER,

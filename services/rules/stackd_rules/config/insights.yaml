@@ -21,7 +21,7 @@ thresholds:
 # "Close" at the first level and alerts once per level per month (`budget.pace`).
 budget_alerts:
   levels_bps: [9000, 10000]
-# Your month, the once-a-month review (October 28, 2026; proposed, awaiting owner sign-off):
+# Your month, the once-a-month review (October 28, 2026; signed off by the owner, October 29, 2026):
 # Home shows its card during the first `show_days` days of a month; with nothing over plan, the
 # debt candidate puts `debt_add_cents` a month more on the debts; ties between the one-change
 # candidates go by `one_change_order` (insights.one_change).

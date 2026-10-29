@@ -287,9 +287,18 @@ export async function fixedFlexible(
   start: string,
   end: string,
   entries: FlexRuleEntry[],
+  overrides: FixedOverrides = {},
 ): Promise<FixedFlexible> {
-  return engine.call<FixedFlexible>("cashflow.fixed_flexible", { start, end, entries });
+  return engine.call<FixedFlexible>("cashflow.fixed_flexible", {
+    start,
+    end,
+    entries,
+    overrides,
+  });
 }
+
+/** The person's own call per category (`settings` `fixed.override`; October 29, 2026). */
+export type FixedOverrides = Record<string, "fixed" | "flexible">;
 
 // Time ranges (October 20, 2026): a range split into weeks, months or quarters.
 export type SeriesStepKind = "week" | "month" | "quarter";

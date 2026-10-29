@@ -1,4 +1,7 @@
 import insightsConfig from "@stackd/rules/insights";
+import { useLiveQuery } from "dexie-react-hooks";
+import type { CardSpec } from "../../app/layout/cardLayout.ts";
+import { useDb } from "../../data/DbProvider.tsx";
 import type { Bucket, StackdDb } from "../../data/db.ts";
 import type { BudgetSummary, OneChangeCandidate, OneChangePick } from "../../engine/bridge.ts";
 import { compareText } from "../../lib/order.ts";
@@ -6,7 +9,7 @@ import { paceLines } from "../budget/pace.ts";
 
 /**
  * Your month, the once-a-month review (October 28, 2026; docs/spec.md "Your month"). The values
- * live in config/insights.yaml `month_review` (proposed, awaiting owner sign-off).
+ * live in config/insights.yaml `month_review` (signed off by the owner, October 29, 2026).
  */
 const CONFIG = (
   insightsConfig as {
@@ -27,6 +30,58 @@ export const MONTH_REVIEW_PATH = "/month-review";
 export function doneKey(month: string): string {
   return `month_review.done.${month}`;
 }
+
+/**
+ * The person's own Home card choices (October 29, 2026; the Adjust sheet): whether the card
+ * shows at all, and for how many days of a month (1 to 28; the config's 7 until they pick).
+ */
+export const HOME_CARD_KEY = "month_review.home_card";
+export const SHOW_DAYS_KEY = "month_review.show_days";
+export const SHOW_DAYS_MAX = 28;
+export const SHOW_DAYS_CHOICES = [3, 7, 14];
+
+export function readShowDays(raw: unknown): number {
+  return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 && raw <= SHOW_DAYS_MAX
+    ? raw
+    : SHOW_DAYS;
+}
+
+export interface MonthReviewPrefs {
+  homeCard: boolean;
+  showDays: number;
+}
+
+/** The Home card choices, live; undefined while reading. */
+export function useMonthReviewPrefs(): MonthReviewPrefs | undefined {
+  const { db } = useDb();
+  return useLiveQuery(async () => {
+    const [card, days] = await Promise.all([
+      db.settings.get(HOME_CARD_KEY),
+      db.settings.get(SHOW_DAYS_KEY),
+    ]);
+    return { homeCard: card?.value !== false, showDays: readShowDays(days?.value) };
+  }, [db]);
+}
+
+export async function saveReviewPref(db: StackdDb, key: string, value: unknown): Promise<void> {
+  await db.settings.put({ key, value, updated_at: new Date().toISOString() });
+}
+
+/** Whether Home shows the card on `day` of the month with these choices. */
+export function homeCardDue(prefs: MonthReviewPrefs, day: number): boolean {
+  return prefs.homeCard && day <= prefs.showDays;
+}
+
+/** The sections below the summary, in the person's order (Customize Your month). */
+export type ReviewSection = "budget" | "fixed" | "jars" | "debt" | "subs" | "change";
+export const REVIEW_SECTIONS: readonly CardSpec<ReviewSection>[] = [
+  ["budget", "Budget", "Spending against your plan"],
+  ["fixed", "Fixed vs flexible", "Bills against everything else"],
+  ["jars", "Jars", "New money into your jars"],
+  ["debt", "Debt", "Debt-free date and cards"],
+  ["subs", "Subscriptions", "What there is to check"],
+  ["change", "One change", "One idea from your own numbers"],
+];
 
 export async function markReviewDone(db: StackdDb, month: string): Promise<void> {
   await db.settings.put({ key: doneKey(month), value: true, updated_at: new Date().toISOString() });
@@ -117,15 +172,33 @@ export interface ChangeOption {
   /** over_plan: the line or bucket; debt_interest: the amount a month put on the debts. */
   over?: OverPlan;
   addCents?: number;
-  /** subscription_check: how many are asked about. */
+  /** subscription_check: how many are asked about, and their names (same order). */
   count?: number;
+  names?: string[];
+  /** debt_interest: the payoff time today and with the amount added, for the picture. */
+  sooner?: DebtSooner;
+}
+
+export interface DebtSooner {
+  months_before: number;
+  months_after: number | null;
+  month_before: string | null;
+  month_after: string | null;
 }
 
 /** The candidates in a fixed order (the rule breaks ties by config, then by this order). */
 export function buildOptions(input: {
   over: OverPlan | null;
   askedYearly: number[];
-  debt: { interest_saved_cents: number | null; months: number | null; add_cents: number } | null;
+  askedNames?: string[];
+  debt: {
+    interest_saved_cents: number | null;
+    months: number | null;
+    add_cents: number;
+    months_after?: number | null;
+    month_before?: string | null;
+    month_after?: string | null;
+  } | null;
 }): ChangeOption[] {
   const out: ChangeOption[] = [];
   if (input.over && input.over.over_cents > 0)
@@ -137,6 +210,7 @@ export function buildOptions(input: {
     out.push({
       candidate: { kind: "subscription_check", amounts_cents: input.askedYearly, months: 12 },
       count: input.askedYearly.length,
+      names: input.askedNames,
     });
   const d = input.debt;
   if (d && d.interest_saved_cents !== null && d.months !== null && d.months >= 1)
@@ -147,6 +221,12 @@ export function buildOptions(input: {
         months: d.months,
       },
       addCents: d.add_cents,
+      sooner: {
+        months_before: d.months,
+        months_after: d.months_after ?? null,
+        month_before: d.month_before ?? null,
+        month_after: d.month_after ?? null,
+      },
     });
   return out;
 }

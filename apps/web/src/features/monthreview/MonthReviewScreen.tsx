@@ -5,12 +5,14 @@ import "../home/home.css";
 import "../insights/insights.css";
 import "../pwa/pwa.css";
 import "../ranges/ranges.css";
+import "../fixed/fixed.css";
 import "./monthreview.css";
 
 import { Button, Card } from "@stackd/ui";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
+import { Arranged } from "../../app/layout/Arranged.tsx";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
@@ -27,16 +29,22 @@ import { compareText } from "../../lib/order.ts";
 import { BUCKET_LABELS } from "../budget/RuleView.tsx";
 import { useLookups } from "../entries/useEntries.ts";
 import { categoryName, FixedFlexibleMonthCard, keptRateText } from "../fixed/FixedFlexibleCard.tsx";
+import { activeMonths, KeptTrend, ratePct } from "../fixed/FixedVisuals.tsx";
 import { HeroBars } from "../home/HomeVisuals.tsx";
-import { BucketBars } from "../insights/InsightCard.tsx";
+import { BucketBars, Ring } from "../insights/InsightCard.tsx";
+import { MonthReviewAdjust } from "./MonthReviewAdjust.tsx";
 import {
   bucketsOver,
   linesOver,
   markReviewDone,
   monthParam,
   type PickedChange,
+  REVIEW_SECTIONS,
+  type ReviewSection,
+  useMonthReviewPrefs,
   whatIfLink,
 } from "./monthReview.ts";
+import { BeforeAfterBars, CountChip, DebtLine } from "./ReviewVisuals.tsx";
 import { type MonthReview, useMonthReview, useMonthSpan } from "./useMonthReview.ts";
 
 const DISCLAIMER = "An illustration from your own numbers, not advice.";
@@ -67,6 +75,10 @@ function Section({
   );
 }
 
+/**
+ * The one-glance summary that opens the screen: Kept as the hero, in against out, and the kept
+ * rate for this month and the five before it, this month drawn full strength.
+ */
 function HowItWent({ review }: { review: MonthReview }) {
   const how = review.how;
   if (!how || how.word === "Start") return null;
@@ -77,17 +89,32 @@ function HowItWent({ review }: { review: MonthReview }) {
       ? `${formatMonth(before.start)}: ${keptRateText(before)}`
       : null;
   return (
-    <Section id="how" title="How it went" word={how.word} line={keptRateText(now)}>
-      <HeroBars inCents={now.in_cents} outCents={now.out_cents} />
-      <p className="home__numbers">
-        <span>In {formatCents(now.in_cents)}</span>
-        <span aria-hidden="true">·</span>
-        <span>Out {formatCents(now.out_cents)}</span>
-        <span aria-hidden="true">·</span>
-        <span>Kept {formatCents(now.kept_cents)}</span>
+    <Card as="section" aria-labelledby="review-how">
+      <h2 className="sk-card__title" id="review-how">
+        How it went
+      </h2>
+      <Word>{how.word}</Word>
+      <p className="sk-card__hero review-month__hero">
+        {formatCents(Math.abs(now.kept_cents))}{" "}
+        <span className="sk-card__hero-unit">{now.kept_cents < 0 ? "over" : "kept"}</span>
       </p>
-      {compare ? <p className="sk-card__eyebrow">{compare}</p> : null}
-    </Section>
+      {/* The hero already says Kept: the line says what share of what came in, then the month
+          before, so "kept" is never said three times over. */}
+      {now.kept_rate_bps !== null || compare ? (
+        <p className="review-month__line">
+          {now.kept_rate_bps !== null ? `${ratePct(now.kept_rate_bps)} of what came in` : null}
+          {now.kept_rate_bps !== null && compare ? " · " : null}
+          {compare ? <span className="review-month__compare">{compare}</span> : null}
+        </p>
+      ) : null}
+      <HeroBars inCents={now.in_cents} outCents={now.out_cents} />
+      {activeMonths(how.months, now.start).length > 1 ? (
+        <>
+          <p className="sk-card__eyebrow review-month__trend-h">Kept rate by month</p>
+          <KeptTrend months={how.months} highlight={now.start} />
+        </>
+      ) : null}
+    </Card>
   );
 }
 
@@ -103,9 +130,14 @@ function BudgetSection({
   if (summary.method === "zero_based") {
     const over = linesOver(summary);
     const top = over[0];
-    const bars = (over.length ? over : [])
-      .slice(0, 3)
-      .map((o) => summary.categories.find((c) => c.category_id === o.category_id))
+    // The lines most over, else the three biggest lines, each against its plan.
+    const shown = over.length
+      ? over.slice(0, 3).map((o) => summary.categories.find((c) => c.category_id === o.category_id))
+      : summary.categories
+          .filter((c) => (c.planned_cents ?? 0) > 0)
+          .sort((a, b) => b.spent_cents - a.spent_cents)
+          .slice(0, 3);
+    const bars = shown
       .filter((c) => c !== undefined)
       .map((c) => ({
         bucket: categoryName(c.category_id, categories),
@@ -152,27 +184,31 @@ function JarsSection({ review }: { review: MonthReview }) {
     jars.totalCents > 0
       ? `${formatCents(jars.totalCents)} new money into ${jars.deposits.length === 1 ? "1 jar" : `${jars.deposits.length} jars`}`
       : "No new money into jars this month";
-  const biggest = Math.max(1, ...jars.deposits.map((d) => d.cents));
   return (
     <Section id="jars" title="Jars" word={word} line={line}>
       {jars.deposits.length ? (
-        <ul className="recap__list">
-          {jars.deposits.map((d) => (
-            <li key={d.goal.id} className="recap__jar">
-              <span className="hero-split">
-                <Link to={`/goals/${d.goal.id}`} className="auth__link">
-                  {d.goal.title}
-                </Link>
-                <span>{formatCents(d.cents)}</span>
-              </span>
-              <span className="goal-row__bar" aria-hidden="true">
-                <span
-                  className="goal-row__fill goal-row__fill--done"
-                  style={{ width: `${Math.max(4, (d.cents / biggest) * 100)}%` }}
-                />
-              </span>
-            </li>
-          ))}
+        <ul className="review-jars">
+          {jars.deposits.map((d) => {
+            const bps = jars.progressBps.get(d.goal.id);
+            return (
+              <li key={d.goal.id} className="review-jars__row">
+                {bps !== undefined ? (
+                  <Ring pct={bps / 100} />
+                ) : (
+                  <span className="review-jars__dot" aria-hidden="true" />
+                )}
+                <span className="review-jars__text">
+                  <Link to={`/goals/${d.goal.id}`} className="auth__link">
+                    {d.goal.title}
+                  </Link>
+                  <span className="review-jars__new">+{formatCents(d.cents)} new</span>
+                  {bps !== undefined ? (
+                    <span className="sr-only">{Math.round(bps / 100)}% of its target</span>
+                  ) : null}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
       {jars.reached.map((g) => (
@@ -214,16 +250,29 @@ function DebtSection({ review }: { review: MonthReview }) {
     : "Card spending against payments";
   return (
     <Section id="debt" title="Debt" word={word} line={line}>
-      {cards.length ? (
-        <ul className="review-month__list" aria-label="Cards this month">
-          {cards.map((c) => (
-            <li key={c.view.account.id}>
-              {c.view.account.label}: spent {formatCents(c.month.spent_cents)}, paid{" "}
-              {formatCents(c.month.paid_cents)}
-            </li>
-          ))}
-        </ul>
+      {plan && !plan.stalled && plan.debt_free_month && plan.series_cents.length > 1 ? (
+        <DebtLine series={plan.series_cents} endMonth={plan.debt_free_month} />
       ) : null}
+      {cards.map((c) => (
+        <BeforeAfterBars
+          key={c.view.account.id}
+          label={`${c.view.account.label} this month`}
+          rows={[
+            {
+              label: `${c.view.account.label} spent`,
+              size: c.month.spent_cents,
+              text: formatCents(c.month.spent_cents),
+              tone: "out",
+            },
+            {
+              label: "Paid",
+              size: c.month.paid_cents,
+              text: formatCents(c.month.paid_cents),
+              tone: "in",
+            },
+          ]}
+        />
+      ))}
       {plan ? (
         <p>
           <Link to="/bills?tab=debt" className="auth__link">
@@ -251,6 +300,10 @@ function SubscriptionsSection({ review }: { review: MonthReview }) {
           : `${subs.subscriptions.length === 1 ? "1 subscription" : `${subs.subscriptions.length} subscriptions`}, nothing to check`
       }
     >
+      <CountChip
+        count={asked.length}
+        label={`to check of ${subs.subscriptions.length === 1 ? "1 subscription" : `${subs.subscriptions.length} subscriptions`}`}
+      />
       <p>
         <Link to="/subscriptions" className="auth__link">
           Open Subscriptions
@@ -283,6 +336,66 @@ export function changeText(
   return `${formatCentsTidy(option.addCents ?? 0)} more a month on debts → about ${yearly} less interest a year`;
 }
 
+/** The one change's before and after: a month against a year, or the debt-free date sooner. */
+function ChangePicture({ change }: { change: PickedChange }) {
+  const { option, pick } = change;
+  if (pick.kind === "over_plan" && option.over) {
+    return (
+      <BeforeAfterBars
+        label="A month against a year"
+        rows={[
+          {
+            label: "A month",
+            size: option.over.over_cents,
+            text: formatCentsTidy(option.over.over_cents),
+            tone: "now",
+          },
+          {
+            label: "A year",
+            size: pick.yearly_cents,
+            text: formatCentsTidy(pick.yearly_cents),
+            tone: "after",
+          },
+        ]}
+      />
+    );
+  }
+  if (pick.kind === "subscription_check") {
+    return (
+      <BeforeAfterBars
+        label="Each subscription to check, a year"
+        rows={option.candidate.amounts_cents.map((cents, i) => ({
+          label: option.names?.[i] ?? `Subscription ${i + 1}`,
+          size: cents,
+          text: formatCentsTidy(cents),
+          tone: "out" as const,
+        }))}
+      />
+    );
+  }
+  const s = option.sooner;
+  if (!s || s.months_after === null || !s.month_before || !s.month_after) return null;
+  return (
+    <BeforeAfterBars
+      label="Debt-free date, now and with the extra"
+      rows={[
+        {
+          label: "Now",
+          size: s.months_before,
+          text: formatMonthShort(s.month_before),
+          tone: "now",
+        },
+        {
+          label: `+${formatCentsTidy(option.addCents ?? 0)} a month`,
+          size: s.months_after,
+          text: formatMonthShort(s.month_after),
+          tone: "after",
+        },
+      ]}
+    />
+  );
+}
+
 function OneChange({
   review,
   categories,
@@ -302,6 +415,7 @@ function OneChange({
       <p className="review-month__line" role="status">
         {changeText(change, categories)}
       </p>
+      <ChangePicture change={change} />
       <p>
         {link ? (
           <Link to={link} className="auth__link">
@@ -321,7 +435,9 @@ function OneChange({
 /**
  * Your month (October 28, 2026; docs/spec.md "Your month"): one whole month's pieces side by
  * side, each from the hook its own screen uses, and one change picked by `insights.one_change`.
- * Sections with nothing for the month are left out. Nothing leaves the device.
+ * Since October 29, 2026 it opens with a one-glance summary, every section leads with its own
+ * picture, the sections can be reordered and hidden (Customize Your month), and Adjust sets the
+ * Home card. Sections with nothing for the month are left out. Nothing leaves the device.
  */
 export function MonthReviewScreen() {
   const { db } = useDb();
@@ -331,6 +447,8 @@ export function MonthReviewScreen() {
   const span = useMonthSpan(monthParam(params.get("month")), today);
   const review = useMonthReview(span, today);
   const lookups = useLookups();
+  const prefs = useMonthReviewPrefs();
+  const [adjust, setAdjust] = useState(params.get("adjust") === "1");
   const firstMonth = useLiveQuery(
     async () => (await db.entries.orderBy("date").first())?.date.slice(0, 7) ?? null,
     [db],
@@ -357,10 +475,43 @@ export function MonthReviewScreen() {
   const canEarlier =
     month !== null && typeof firstMonth === "string" && compareText(firstMonth, month) < 0;
   const go = (m: string) => setParams({ month: m }, { replace: true });
+  const closeAdjust = () => {
+    setAdjust(false);
+    if (params.has("adjust")) {
+      params.delete("adjust");
+      setParams(params, { replace: true });
+    }
+  };
+
+  const render = (id: ReviewSection) => {
+    if (!review) return null;
+    switch (id) {
+      case "budget":
+        return <BudgetSection review={review} categories={lookups?.categories} />;
+      case "fixed":
+        return <FixedFlexibleMonthCard asOf={review.span.start} today={today} inReview />;
+      case "jars":
+        return <JarsSection review={review} />;
+      case "debt":
+        return <DebtSection review={review} />;
+      case "subs":
+        return <SubscriptionsSection review={review} />;
+      case "change":
+        return <OneChange review={review} categories={lookups?.categories} />;
+    }
+  };
 
   return (
     <>
-      <ScreenHeader title="Your month" back="/insights" actions={null} />
+      <ScreenHeader
+        title="Your month"
+        back="/insights"
+        actions={
+          <Button size="sm" variant="secondary" onClick={() => setAdjust(true)}>
+            Adjust
+          </Button>
+        }
+      />
       <div className="range-stepper">
         <button
           type="button"
@@ -385,18 +536,18 @@ export function MonthReviewScreen() {
       {review ? (
         <>
           <HowItWent review={review} />
-          <BudgetSection review={review} categories={lookups?.categories} />
-          <FixedFlexibleMonthCard asOf={review.span.start} today={today} inReview />
-          <JarsSection review={review} />
-          <DebtSection review={review} />
-          <SubscriptionsSection review={review} />
-          <OneChange review={review} categories={lookups?.categories} />
           {review.how?.word === "Start" ? (
             <Card as="section" aria-label="Nothing this month">
               <Word>Start</Word>
               <p>Nothing logged in {formatMonth(review.span.start)}.</p>
             </Card>
           ) : null}
+          <Arranged
+            screen="month_review"
+            name="Your month"
+            cards={REVIEW_SECTIONS}
+            render={render}
+          />
           <div className="install-actions">
             <Button
               onClick={() => {
@@ -417,6 +568,7 @@ export function MonthReviewScreen() {
           Loading
         </p>
       )}
+      <MonthReviewAdjust open={adjust} onClose={closeAdjust} prefs={prefs} />
     </>
   );
 }

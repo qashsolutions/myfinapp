@@ -190,8 +190,12 @@ const BARE: Record<string, Rule> = {
     return { ...cashflow.series(start, end, step, entries) };
   },
   "cashflow.fixed_flexible": (input) => {
-    const { start, end, entries } = args(input, ["start", "end", "entries"]);
-    return { ...cashflow.fixedFlexible(start, end, entries) };
+    const { start, end, entries, overrides } = args(
+      input,
+      ["start", "end", "entries"],
+      ["overrides"],
+    );
+    return { ...cashflow.fixedFlexible(start, end, entries, overrides ?? null) };
   },
   "cashflow.net_change": (input) => {
     const { net_cents, previous_net_cents } = args(input, ["net_cents", "previous_net_cents"]);

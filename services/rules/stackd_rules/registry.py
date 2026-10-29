@@ -151,8 +151,8 @@ def _cashflow_series(start: str, end: str, step: str, entries: list) -> dict:
     return cashflow.series(start, end, step, entries)
 
 
-def _cashflow_fixed_flexible(start: str, end: str, entries: list) -> dict:
-    return cashflow.fixed_flexible(start, end, entries)
+def _cashflow_fixed_flexible(start: str, end: str, entries: list, overrides: object = None) -> dict:
+    return cashflow.fixed_flexible(start, end, entries, overrides)
 
 
 def _cashflow_net_change(net_cents: int, previous_net_cents: int) -> dict:

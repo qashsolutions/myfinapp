@@ -4,6 +4,7 @@
  * last month. Every number comes from `cashflow.fixed_flexible` through the engine.
  */
 import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { type Entry, openDb, seedDefaults } from "../../src/data/db.ts";
 import type { FixedFlexible } from "../../src/engine/bridge.ts";
 import { fixedWord } from "../../src/features/fixed/useFixedFlexible.ts";
@@ -100,10 +101,67 @@ describe("Fixed vs flexible", () => {
       "Dining$0.00$310.00",
     );
     const months = screen.getByRole("region", { name: "Kept rate by month" });
-    // July and August have nothing; September whole: (3,000 − 1,500 − 1,000 − 400) ÷ 3,000 = 3.33%
-    expect(months).toHaveTextContent("September 20263%");
-    expect(months).toHaveTextContent("October 202633%");
-    expect(months).toHaveTextContent("July 2026No money in");
+    // July and August have nothing and are left off; September whole:
+    // (3,000 − 1,500 − 1,000 − 400) ÷ 3,000 = 3.33%
+    const bars = within(months).getByRole("img", { name: /^Kept rate by month/ });
+    expect(bars).toHaveAccessibleName("Kept rate by month: September 2026 3%, October 2026 33%");
+    // The month as a ring with the kept rate in the middle and each part's amount beside it
+    expect(
+      screen.getByRole("img", {
+        name: "October 2026: 33% kept. Fixed $1,515.99, Flexible $0.00, Wants (room) $500.00.",
+      }),
+    ).toBeVisible();
+  });
+
+  it("opens What if on a room category, prefilled with an amount that fits", async () => {
+    await seed();
+    installFakeApi({ session: readySession() });
+    renderApp("/insights/fixed-flexible");
+    const room = await screen.findByRole("region", { name: "Most room" });
+    // Dining $310: the largest of What if's suggestions inside it is $100
+    const dining = await within(room).findByRole("link", { name: /^Dining \$310\.00/ });
+    expect(dining).toHaveAttribute("href", "/what-if?lever=spend&category=cat-dining&amount=10000");
+    // Two at most (signed off October 29, 2026)
+    expect(within(room).getAllByRole("link")).toHaveLength(2);
+  });
+
+  it("takes the person's own call: Adjust treats Dining as fixed and Rent as flexible", async () => {
+    const db = await seed();
+    const user = userEvent.setup();
+    installFakeApi({ session: readySession() });
+    renderApp("/insights/fixed-flexible");
+    await screen.findByRole("region", { name: "Each category" });
+    await user.click(screen.getByRole("button", { name: "Adjust" }));
+    const sheet = await screen.findByRole("dialog", { name: "Adjust fixed vs flexible" });
+    const pick = (where: HTMLElement, group: string, name: string) =>
+      user.click(
+        within(within(where).getByRole("group", { name: group })).getByRole("radio", { name }),
+      );
+    await pick(sheet, "Dining", "Fixed");
+    await pick(sheet, "Rent", "Flexible");
+    await waitFor(async () =>
+      expect((await db.settings.get("fixed.override"))?.value).toEqual({
+        "cat-dining": "fixed",
+        "cat-rent": "flexible",
+      }),
+    );
+    await user.click(within(sheet).getByRole("button", { name: "Done" }));
+    const categories = screen.getByRole("region", { name: "Each category" });
+    await waitFor(() =>
+      expect(within(categories).getByRole("row", { name: /Dining/ })).toHaveTextContent(
+        "Dining$310.00$0.00",
+      ),
+    );
+    expect(within(categories).getByRole("row", { name: /Rent/ })).toHaveTextContent(
+      "Rent$0.00$1,500.00",
+    );
+    // Back to what the bills say
+    await user.click(screen.getByRole("button", { name: "Adjust" }));
+    const again = await screen.findByRole("dialog", { name: "Adjust fixed vs flexible" });
+    await pick(again, "Rent", "From bills");
+    await waitFor(async () =>
+      expect((await db.settings.get("fixed.override"))?.value).toEqual({ "cat-dining": "fixed" }),
+    );
   });
 
   it("joins Money in & out's month view", async () => {
@@ -115,6 +173,11 @@ describe("Fixed vs flexible", () => {
     expect(within(card).getByRole("link", { name: /Each category/ })).toHaveAttribute(
       "href",
       "/insights/fixed-flexible?month=2026-10-28",
+    );
+    // Each room category opens What if
+    expect(within(card).getByRole("link", { name: "Shopping $190.00" })).toHaveAttribute(
+      "href",
+      "/what-if?lever=spend&category=cat-shopping&amount=10000",
     );
   });
 

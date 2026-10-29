@@ -1,0 +1,58 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-31",
+  "in_cents": 200000,
+  "out_cents": 156500,
+  "fixed_cents": 121500,
+  "flexible_cents": 35000,
+  "fixed_by_bucket": {
+    "need": 120000,
+    "want": 1500,
+    "save": 0,
+    "none": 0
+  },
+  "flexible_by_bucket": {
+    "need": 5000,
+    "want": 30000,
+    "save": 0,
+    "none": 0
+  },
+  "kept_cents": 43500,
+  "kept_rate_bps": 2175,
+  "by_category": [
+    {
+      "category_id": "cat-rent",
+      "bucket": "need",
+      "fixed_cents": 120000,
+      "flexible_cents": 0,
+      "out_cents": 120000
+    },
+    {
+      "category_id": "cat-dining",
+      "bucket": "want",
+      "fixed_cents": 0,
+      "flexible_cents": 30000,
+      "out_cents": 30000
+    },
+    {
+      "category_id": "cat-phone",
+      "bucket": "need",
+      "fixed_cents": 0,
+      "flexible_cents": 5000,
+      "out_cents": 5000
+    },
+    {
+      "category_id": "cat-streaming",
+      "bucket": "want",
+      "fixed_cents": 1500,
+      "flexible_cents": 0,
+      "out_cents": 1500
+    }
+  ],
+  "room": [
+    {
+      "category_id": "cat-dining",
+      "flexible_cents": 30000
+    }
+  ]
+}

@@ -1,11 +1,19 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
-import { type Category, counted, type Entry, entriesBetween, ignoreClosed } from "../../data/db.ts";
+import {
+  type Category,
+  counted,
+  type Entry,
+  entriesBetween,
+  ignoreClosed,
+  type StackdDb,
+} from "../../data/db.ts";
 import {
   addMonths,
   engine,
   type FixedFlexible,
+  type FixedOverrides,
   type FlexRuleEntry,
   fixedFlexible,
   monthBounds,
@@ -29,7 +37,7 @@ export interface FixedFlexibleView {
   current: FixedFlexible;
   /** The same days of the month before (the whole month before when this one is past). */
   before: FixedFlexible;
-  /** The kept rate for the 3 whole months before and this one, oldest first. */
+  /** The kept rate for the `monthsBack` whole months before and this one, oldest first. */
   months: Array<{ start: string; result: FixedFlexible }>;
   word: FixedWord;
 }
@@ -49,10 +57,51 @@ export function fixedWord(current: FixedFlexible, before: FixedFlexible): FixedW
   return now > then ? "Up" : now < then ? "Down" : "Steady";
 }
 
-/** Fixed vs flexible for the month containing `asOf`, from the engine, live with the database. */
-export function useFixedFlexible(asOf: string, today: string): FixedFlexibleView | undefined {
+/** `settings` key of the person's own fixed / flexible call per category (October 29, 2026). */
+export const OVERRIDE_KEY = "fixed.override";
+
+/** A saved override map made safe: only "fixed" / "flexible" values survive. */
+export function readOverrides(raw: unknown): FixedOverrides {
+  const out: FixedOverrides = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const [id, call] of Object.entries(raw as Record<string, unknown>))
+    if (call === "fixed" || call === "flexible") out[id] = call;
+  return out;
+}
+
+/** The person's overrides, live; undefined while reading. */
+export function useFixedOverrides(): FixedOverrides | undefined {
+  const { db } = useDb();
+  return useLiveQuery(
+    async () => readOverrides((await db.settings.get(OVERRIDE_KEY))?.value),
+    [db],
+  );
+}
+
+/** Sets one category's call, or clears it (`null`: back to what the bills say). */
+export async function setOverride(
+  db: StackdDb,
+  categoryId: string,
+  call: "fixed" | "flexible" | null,
+): Promise<void> {
+  const now = readOverrides((await db.settings.get(OVERRIDE_KEY))?.value);
+  if (call === null) delete now[categoryId];
+  else now[categoryId] = call;
+  await db.settings.put({ key: OVERRIDE_KEY, value: now, updated_at: new Date().toISOString() });
+}
+
+/**
+ * Fixed vs flexible for the month containing `asOf`, from the engine, live with the database.
+ * `monthsBack` whole months before it join the kept-rate bars (3 on the screen, 5 on Your month).
+ */
+export function useFixedFlexible(
+  asOf: string,
+  today: string,
+  monthsBack = 3,
+): FixedFlexibleView | undefined {
   const { db } = useDb();
   const lookups = useLookups();
+  const overrides = useFixedOverrides();
   const [span, setSpan] = useState<{
     start: string;
     end: string;
@@ -69,7 +118,7 @@ export function useFixedFlexible(asOf: string, today: string): FixedFlexibleView
       const beforeStart = await addMonths(month.start, -1);
       const beforeEnd = past ? (await monthBounds(beforeStart)).end : await addMonths(end, -1);
       const months = [];
-      for (const k of [3, 2, 1]) {
+      for (let k = monthsBack; k >= 1; k--) {
         const start = await addMonths(month.start, -k);
         months.push({ start, end: (await monthBounds(start)).end });
       }
@@ -79,7 +128,7 @@ export function useFixedFlexible(asOf: string, today: string): FixedFlexibleView
     return () => {
       alive = false;
     };
-  }, [asOf, today]);
+  }, [asOf, today, monthsBack]);
 
   const entries = useLiveQuery(
     () =>
@@ -90,15 +139,18 @@ export function useFixedFlexible(asOf: string, today: string): FixedFlexibleView
   );
   const [view, setView] = useState<FixedFlexibleView | undefined>(undefined);
   useEffect(() => {
-    if (!span || !entries || !lookups) return;
+    if (!span || !entries || !lookups || !overrides) return;
     let alive = true;
     void (async () => {
       const rows = counted(entries).map((e) => toFlexEntry(e, lookups.categories));
-      const current = await fixedFlexible(span.start, span.end, rows);
-      const before = await fixedFlexible(span.beforeStart, span.beforeEnd, rows);
+      const current = await fixedFlexible(span.start, span.end, rows, overrides);
+      const before = await fixedFlexible(span.beforeStart, span.beforeEnd, rows, overrides);
       const months = [];
       for (const m of span.months)
-        months.push({ start: m.start, result: await fixedFlexible(m.start, m.end, rows) });
+        months.push({
+          start: m.start,
+          result: await fixedFlexible(m.start, m.end, rows, overrides),
+        });
       await db.computed_results.put({
         id: `fixed_flexible:${span.end}`,
         kind: "fixed_flexible",
@@ -112,6 +164,6 @@ export function useFixedFlexible(asOf: string, today: string): FixedFlexibleView
     return () => {
       alive = false;
     };
-  }, [db, span, entries, lookups]);
+  }, [db, span, entries, lookups, overrides]);
   return view;
 }

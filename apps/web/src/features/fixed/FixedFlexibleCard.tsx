@@ -8,6 +8,7 @@ import type { FixedFlexible } from "../../engine/bridge.ts";
 import { formatCents } from "../../lib/format.ts";
 import { useLookups } from "../entries/useEntries.ts";
 import { InsightCard } from "../insights/InsightCard.tsx";
+import { roomWhatIfLink } from "./room.ts";
 import { type FixedFlexibleView, useFixedFlexible } from "./useFixedFlexible.ts";
 
 export const FIXED_PATH = "/insights/fixed-flexible";
@@ -98,16 +99,38 @@ export function FixedFlexibleInsight({ today }: { today: string }) {
 function FixedVisual({
   view,
   categories,
+  linkRoom = false,
 }: {
   view: FixedFlexibleView;
   categories: Map<string, Category> | undefined;
+  /** Each room category opens What if (never inside a card that is itself a link). */
+  linkRoom?: boolean;
 }) {
   const room = roomText(view.current, categories);
+  const top = view.current.room.slice(0, 2);
   return (
     <>
       <FixedBar result={view.current} />
       <FixedKey />
-      {room ? <span className="fixed-room">{room}</span> : null}
+      {room && linkRoom ? (
+        <span className="fixed-room">
+          Most room:{" "}
+          {top.map((r, i) => (
+            <span key={r.category_id ?? "none"}>
+              {i > 0 ? ", " : null}
+              {r.category_id ? (
+                <Link to={roomWhatIfLink(r.category_id, r.flexible_cents)} className="auth__link">
+                  {categoryName(r.category_id, categories)} {formatCents(r.flexible_cents)}
+                </Link>
+              ) : (
+                `${categoryName(r.category_id, categories)} ${formatCents(r.flexible_cents)}`
+              )}
+            </span>
+          ))}
+        </span>
+      ) : room ? (
+        <span className="fixed-room">{room}</span>
+      ) : null}
     </>
   );
 }
@@ -138,7 +161,7 @@ export function FixedFlexibleMonthCard({
       <p className="fixed-line">
         {inReview ? splitText(view.current, "Fixed") : line(view.current)}
       </p>
-      <FixedVisual view={view} categories={lookups?.categories} />
+      <FixedVisual view={view} categories={lookups?.categories} linkRoom />
       <p className="fixed-more">
         <Link to={`${FIXED_PATH}?month=${asOf}`} className="auth__link">
           Each category, fixed and flexible

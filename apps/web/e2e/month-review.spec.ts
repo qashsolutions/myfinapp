@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { readyAccount } from "./helpers.ts";
 
 const MONTHS = [
@@ -32,6 +32,21 @@ const day = (d: number) => iso(new Date(lastMonth.getFullYear(), lastMonth.getMo
 const BUDGET_DAY = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 15, 12);
 const REVIEW_DAY = new Date(now.getFullYear(), now.getMonth(), 3, 12);
 const MONTH_NAME = `${MONTHS[lastMonth.getMonth()]} ${lastMonth.getFullYear()}`;
+
+/** With SHOTS_PREFIX set (a local run only), full-page shots in light and dark for review. */
+async function shots(page: Page, name: string) {
+  const prefix = process.env.SHOTS_PREFIX;
+  if (!prefix) return;
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.waitForTimeout(400);
+    await page.screenshot({
+      path: `${prefix}${name}-${test.info().project.name}-${colorScheme}.png`,
+      fullPage: true,
+    });
+  }
+  await page.emulateMedia({ colorScheme: "light" });
+}
 
 function lastMonthStatement() {
   const rows = [
@@ -87,14 +102,40 @@ test("@phone the month review shows last month over plan and opens What if with 
   await card.click();
 
   await expect(page.getByRole("heading", { level: 1, name: "Your month" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "How it went" })).toContainText("Kept $2,237.83");
+  // The summary picture first: Kept as the hero, then in against out (the kept rate by month
+  // joins once there are two months to compare; this account has one)
+  const how = page.getByRole("region", { name: "How it went" });
+  await expect(how.locator(".sk-card__hero")).toContainText("$2,237.83 kept");
+  await expect(how).toContainText("93% of what came in");
+  await expect(how.getByRole("img", { name: /^Kept rate by month/ })).toHaveCount(0);
   const budget = page.getByRole("region", { name: "Budget" });
   await expect(budget).toContainText("1 line over · Dining $100.00 over");
   await expect(page.getByRole("button", { name: "Later ›" })).toBeDisabled();
   const change = page.getByRole("region", { name: "One change" });
   await expect(change).toContainText("Dining $100 less a month → $1,200 a year");
   await expect(change).not.toContainText(/you should/i);
+  await expect(change.getByRole("list", { name: "A month against a year" })).toContainText(
+    "A year$1,200",
+  );
   await page.screenshot({ path: test.info().outputPath("month-review.png"), fullPage: true });
+  await shots(page, "month-review");
+
+  // Customize: hide Fixed vs flexible, and it is gone from the review
+  await page.getByRole("button", { name: "Customize Your month" }).click();
+  const customize = page.getByRole("dialog", { name: "Customize Your month" });
+  await customize.getByText("Fixed vs flexible", { exact: true }).click();
+  await expect(customize.getByRole("switch", { name: /Fixed vs flexible/ })).not.toBeChecked();
+  await customize.getByRole("button", { name: "Done" }).click();
+  await expect(page.getByRole("region", { name: "Fixed vs flexible" })).toHaveCount(0);
+
+  // Adjust: the Home card for 14 days of the month
+  await page.getByRole("button", { name: "Adjust" }).click();
+  const adjust = page.getByRole("dialog", { name: "Adjust Your month" });
+  await expect(adjust.getByRole("radio", { name: "7 days" })).toBeChecked();
+  await adjust.getByText("14 days", { exact: true }).click();
+  await expect(adjust.getByRole("radio", { name: "14 days" })).toBeChecked();
+  await shots(page, "month-review-adjust");
+  await adjust.getByRole("button", { name: "Done" }).click();
 
   await change.getByRole("link", { name: "Try it in What if" }).click();
   await expect(page).toHaveURL(/\/what-if\?lever=spend&amount=10000&category=cat-dining$/);
