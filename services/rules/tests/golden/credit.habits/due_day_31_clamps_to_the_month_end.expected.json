@@ -1,0 +1,25 @@
+{
+  "status": "building",
+  "checked": 2,
+  "unknown": 0,
+  "on_time": 1,
+  "on_time_streak": 1,
+  "missed": [
+    "2026-01-31"
+  ],
+  "latest_due_date": "2026-02-28",
+  "next_due_date": "2026-03-31",
+  "paid_in_full_streak": null,
+  "utilization_bps": null,
+  "under_guide": null,
+  "dues": [
+    {
+      "due_date": "2026-01-31",
+      "result": "missed"
+    },
+    {
+      "due_date": "2026-02-28",
+      "result": "on_time"
+    }
+  ]
+}

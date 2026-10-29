@@ -315,3 +315,52 @@ def top_spending(start: str, end: str, entries: list, limit: int) -> dict:
         )
     merchants.sort(key=lambda m: (-m["count"], -m["total_cents"], m["key"]))
     return {"largest": largest, "merchants": merchants[:n], "count": len(rows)}
+
+
+# --- one change (the month review, October 28, 2026) --------------------------------------
+
+
+def _order(order: object) -> list[str]:
+    if (
+        not isinstance(order, list)
+        or not order
+        or not all(isinstance(k, str) for k in order)
+        or len(set(order)) != len(order)
+    ):
+        raise RuleError("invalid_order")
+    return order
+
+
+def one_change(candidates: object, order: object) -> dict:
+    """The month review's one change: the candidate worth the most a year.
+
+    Each candidate is {kind, amounts_cents, months}: yearly = round_div(sum(amounts) x 12, months).
+    Yearly <= 0 is skipped; the largest wins, ties by the kind's place in `order`, then the
+    earlier candidate. Returns {"pick": {index, kind, yearly_cents}} or {"pick": None}.
+    """
+    kinds = _order(order)
+    if not isinstance(candidates, list):
+        raise RuleError("invalid_candidates")
+    best: tuple[int, int, int] | None = None  # (-yearly, rank, index): smallest wins
+    pick = None
+    for index, raw in enumerate(candidates):
+        if not isinstance(raw, dict):
+            raise RuleError("invalid_candidates")
+        kind = raw.get("kind")
+        if not isinstance(kind, str) or kind not in kinds:
+            raise RuleError("invalid_kind")
+        amounts = raw.get("amounts_cents")
+        if not isinstance(amounts, list) or not amounts:
+            raise RuleError("invalid_amount")
+        total = sum(_int(a, "invalid_amount") for a in amounts)
+        months = raw.get("months")
+        if isinstance(months, bool) or not isinstance(months, int) or months < 1:
+            raise RuleError("invalid_months")
+        yearly = money.round_div(total * 12, _int(months, "invalid_months"))
+        if yearly <= 0:
+            continue
+        key = (-yearly, kinds.index(kind), index)
+        if best is None or key < best:
+            best = key
+            pick = {"index": index, "kind": kind, "yearly_cents": yearly}
+    return {"pick": pick}

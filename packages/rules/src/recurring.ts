@@ -1,6 +1,6 @@
 /** Port of stackd_rules/recurring.py: recurring series detection (bills and income). */
 
-import { addDays, addMonths, type Day, daysUntil, iso, parseDate } from "./dates.ts";
+import { addDays, addMonths, type Day, daysInMonth, daysUntil, iso, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { cleanDescription } from "./fingerprint.ts";
 import { assertInt, mul, roundDiv } from "./money.ts";
@@ -66,6 +66,20 @@ export function intervalOf(gapDays: number): Interval | null {
     if (lo <= gapDays && gapDays <= hi) return name;
   }
   return null;
+}
+
+/**
+ * One step on, back on the series' own day of the month (1-31, clamped) when it has one, so a
+ * short month never drifts it earlier (see Python's step_keeping_day).
+ */
+export function stepKeepingDay(day: Day, interval: unknown, keep: number | null): Day {
+  const stepped = step(day, interval);
+  if (
+    keep === null ||
+    !(interval === "monthly" || interval === "quarterly" || interval === "yearly")
+  )
+    return stepped;
+  return { ...stepped, d: Math.min(keep, daysInMonth(stepped)) };
 }
 
 export function step(day: Day, interval: unknown): Day {
@@ -212,4 +226,259 @@ export function yearlyCost(raw: unknown): {
   const total = items.reduce((sum, i) => sum + i.yearly_cents, 0);
   if (!Number.isSafeInteger(total)) throw new RuleError("invalid_amount");
   return { items, yearly_cents: total, monthly_cents: roundDiv(total, 12) };
+}
+
+const CHECK_THRESHOLDS = [
+  "subscription_ask_days",
+  "subscription_renewal_days",
+  "trial_max_cents",
+  "trial_window_days",
+] as const;
+type CheckThresholds = Record<(typeof CHECK_THRESHOLDS)[number], number>;
+
+function checkThresholds(raw: unknown): CheckThresholds {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+    throw new RuleError("invalid_thresholds");
+  const out = {} as CheckThresholds;
+  for (const key of CHECK_THRESHOLDS) {
+    const value = (raw as Record<string, unknown>)[key];
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 0)
+      throw new RuleError("invalid_thresholds");
+    out[key] = value;
+  }
+  return out;
+}
+
+function kindTable(raw: unknown): Array<[string, string]> {
+  if (!Array.isArray(raw)) throw new RuleError("invalid_kinds");
+  return raw.map((row) => {
+    if (typeof row !== "object" || row === null || Array.isArray(row))
+      throw new RuleError("invalid_kinds");
+    const { match, kind } = row as Record<string, unknown>;
+    if (typeof match !== "string" || typeof kind !== "string" || kind === "")
+      throw new RuleError("invalid_kinds");
+    const cleaned = cleanDescription(match);
+    if (cleaned === "") throw new RuleError("invalid_kinds");
+    return [cleaned, kind] as [string, string];
+  });
+}
+
+function isWordChar(ch: string): boolean {
+  return (ch >= "A" && ch <= "Z") || (ch >= "0" && ch <= "9");
+}
+
+/**
+ * Port of recurring.contains_word: `word` inside `text` as a whole word (the characters just
+ * before and after it, when there are any, are not A-Z or 0-9). Only ASCII is ever compared, so
+ * UTF-16 positions give the same answer as Python's code points.
+ */
+export function containsWord(text: string, word: string): boolean {
+  let start = text.indexOf(word);
+  while (start !== -1) {
+    const end = start + word.length;
+    const beforeOk = start === 0 || !isWordChar(text.charAt(start - 1));
+    const afterOk = end === text.length || !isWordChar(text.charAt(end));
+    if (beforeOk && afterOk) return true;
+    start = text.indexOf(word, start + 1);
+  }
+  return false;
+}
+
+/** The person's "Other": no kind, whatever the table says. */
+export const OTHER_KIND = "other";
+
+function ownKind(raw: unknown): string | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== "string" || raw === "") throw new RuleError("invalid_kind");
+  return raw;
+}
+
+function charges(raw: unknown): Array<[Day, number]> {
+  if (!Array.isArray(raw)) throw new RuleError("invalid_charges");
+  return raw.map((c) => {
+    if (typeof c !== "object" || c === null || Array.isArray(c))
+      throw new RuleError("invalid_charges");
+    const r = c as Record<string, unknown>;
+    const cents = assertInt(r.cents, "invalid_amount");
+    if (cents < 0) throw new RuleError("invalid_amount");
+    return [parseDate(r.date), cents] as [Day, number];
+  });
+}
+
+function answeredSince(checked: Day | null, day: Day): boolean {
+  return checked !== null && daysUntil(day, checked) >= 0;
+}
+
+export interface SubscriptionCheckItem {
+  id: string;
+  label: string;
+  kind: string | null;
+  ask: boolean;
+  price_rise: { from_cents: number; to_cents: number; date: string } | null;
+  renewal: { date: string; cents: number } | null;
+  trial_turned_charge: { trial_cents: number; cents: number; date: string } | null;
+  yearly_cents: number;
+  monthly_cents: number;
+}
+
+export interface SubscriptionCheck {
+  items: SubscriptionCheckItem[];
+  duplicates: Array<{ kind: string; count: number; monthly_total_cents: number; ids: string[] }>;
+  by_kind: Array<{
+    kind: string | null;
+    count: number;
+    yearly_cents: number;
+    monthly_cents: number;
+    ids: string[];
+  }>;
+}
+
+/** Port of recurring.subscription_check: facts from the person's own charges, and when to ask. */
+export function subscriptionCheck(
+  asOf: unknown,
+  subscriptions: unknown,
+  kinds: unknown,
+  thresholds: unknown,
+): SubscriptionCheck {
+  const today = parseDate(asOf);
+  const limits = checkThresholds(thresholds);
+  const table = kindTable(kinds);
+  if (!Array.isArray(subscriptions)) throw new RuleError("invalid_series");
+  const items: SubscriptionCheckItem[] = [];
+  for (const raw of subscriptions) {
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw))
+      throw new RuleError("invalid_series");
+    const r = raw as Record<string, unknown>;
+    if (typeof r.id !== "string" || typeof r.label !== "string" || typeof r.payee !== "string")
+      throw new RuleError("invalid_series");
+    if (typeof r.interval !== "string" || !Object.hasOwn(PER_YEAR, r.interval))
+      throw new RuleError("invalid_interval");
+    const interval = r.interval as Interval;
+    const expected = assertInt(r.expected_cents, "invalid_amount");
+    if (expected < 0) throw new RuleError("invalid_amount");
+    const yearly = expected * PER_YEAR[interval];
+    if (!Number.isSafeInteger(yearly)) throw new RuleError("invalid_amount");
+    const nextDate = parseDate(r.next_date);
+    const checked =
+      r.checked_at === null || r.checked_at === undefined ? null : parseDate(r.checked_at);
+    // Python sorts the (date, cents) tuples.
+    const list = charges(r.charges)
+      .filter(([d]) => daysUntil(d, today) >= 0)
+      .sort((a, b) => compareText(iso(a[0]), iso(b[0])) || a[1] - b[1]);
+
+    // A trial: the first charge is at most trial_max_cents and the next one, larger, follows
+    // within trial_window_days. That step up is the trial ending, never a price rise.
+    const [c0, c1] = list;
+    const trialPair =
+      c0 !== undefined &&
+      c1 !== undefined &&
+      c0[1] <= limits.trial_max_cents &&
+      c1[1] > c0[1] &&
+      daysUntil(c0[0], c1[0]) <= limits.trial_window_days;
+    const trial =
+      trialPair && c0 && c1 && !answeredSince(checked, c1[0])
+        ? { trial_cents: c0[1], cents: c1[1], date: iso(c1[0]) }
+        : null;
+    // A price rise: the most recent charge above the one before it, shown while every charge
+    // since is at that new price and no Keep came on or after the day it went up (see Python).
+    let rise: SubscriptionCheckItem["price_rise"] = null;
+    let up = -1;
+    for (let i = list.length - 1; i > 0; i -= 1) {
+      if ((list[i] as [Day, number])[1] > (list[i - 1] as [Day, number])[1]) {
+        up = i;
+        break;
+      }
+    }
+    if (up > 0 && !(trialPair && up === 1)) {
+      const before = list[up - 1] as [Day, number];
+      const raised = list[up] as [Day, number];
+      const latest = list[list.length - 1] as [Day, number];
+      if (latest[1] === raised[1] && !answeredSince(checked, raised[0]))
+        rise = { from_cents: before[1], to_cents: latest[1], date: iso(raised[0]) };
+    }
+    let renewal: SubscriptionCheckItem["renewal"] = null;
+    if (interval === "quarterly" || interval === "yearly") {
+      let due = nextDate;
+      while (daysUntil(due, today) > 0) due = stepKeepingDay(due, interval, nextDate.d);
+      if (daysUntil(today, due) <= limits.subscription_renewal_days)
+        renewal = { date: iso(due), cents: expected };
+    }
+    const lastCharge = list.length ? (list[list.length - 1] as [Day, number])[0] : null;
+    const ask =
+      checked === null ||
+      daysUntil(checked, today) >= limits.subscription_ask_days ||
+      (renewal !== null && lastCharge !== null && !answeredSince(checked, lastCharge)) ||
+      rise !== null ||
+      trial !== null;
+    const own = ownKind(r.own_kind);
+    let kind: string | null;
+    if (own !== null) kind = own === OTHER_KIND ? null : own;
+    else {
+      const clean = cleanDescription(r.payee);
+      kind = table.find(([word]) => containsWord(clean, word))?.[1] ?? null;
+    }
+    items.push({
+      id: r.id,
+      label: r.label,
+      kind,
+      ask,
+      price_rise: rise,
+      renewal,
+      trial_turned_charge: trial,
+      yearly_cents: yearly,
+      monthly_cents: roundDiv(yearly, 12),
+    });
+  }
+  items.sort(
+    (a, b) =>
+      b.yearly_cents - a.yearly_cents || compareText(a.label, b.label) || compareText(a.id, b.id),
+  );
+  const groups = new Map<string, SubscriptionCheckItem[]>();
+  for (const i of items) {
+    if (i.kind === null) continue;
+    const g = groups.get(i.kind);
+    if (g) g.push(i);
+    else groups.set(i.kind, [i]);
+  }
+  const duplicates: SubscriptionCheck["duplicates"] = [];
+  for (const [kind, members] of groups) {
+    if (members.length < 2) continue;
+    const total = members.reduce((s, m) => s + m.yearly_cents, 0);
+    if (!Number.isSafeInteger(total)) throw new RuleError("invalid_amount");
+    duplicates.push({
+      kind,
+      count: members.length,
+      monthly_total_cents: roundDiv(total, 12),
+      ids: members.map((m) => m.id),
+    });
+  }
+  duplicates.sort(
+    (a, b) => b.monthly_total_cents - a.monthly_total_cents || compareText(a.kind, b.kind),
+  );
+  // Where the money goes, by kind (see Python): the no-kind row is kind null, last on a tie.
+  const held = new Map<string | null, SubscriptionCheckItem[]>();
+  for (const i of items) {
+    const g = held.get(i.kind);
+    if (g) g.push(i);
+    else held.set(i.kind, [i]);
+  }
+  const byKind: SubscriptionCheck["by_kind"] = [];
+  for (const [kind, members] of held) {
+    const total = members.reduce((s, m) => s + m.yearly_cents, 0);
+    if (!Number.isSafeInteger(total)) throw new RuleError("invalid_amount");
+    byKind.push({
+      kind,
+      count: members.length,
+      yearly_cents: total,
+      monthly_cents: roundDiv(total, 12),
+      ids: members.map((m) => m.id),
+    });
+  }
+  byKind.sort(
+    (a, b) =>
+      b.yearly_cents - a.yearly_cents ||
+      Number(a.kind === null) - Number(b.kind === null) ||
+      compareText(a.kind ?? "", b.kind ?? ""),
+  );
+  return { items, duplicates, by_kind: byKind };
 }

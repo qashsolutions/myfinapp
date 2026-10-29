@@ -1,0 +1,41 @@
+{
+  "entries": [
+    {
+      "date": "2026-05-10",
+      "direction": "out",
+      "amount_cents": 50000
+    },
+    {
+      "date": "2026-07-02",
+      "direction": "in",
+      "amount_cents": 20000
+    },
+    {
+      "date": "2026-07-09",
+      "direction": "out",
+      "amount_cents": 5000
+    },
+    {
+      "date": "2026-08-02",
+      "direction": "in",
+      "amount_cents": 20000
+    },
+    {
+      "date": "2026-09-02",
+      "direction": "in",
+      "amount_cents": 10000
+    },
+    {
+      "date": "2026-09-09",
+      "direction": "out",
+      "amount_cents": 9999
+    },
+    {
+      "date": "2026-10-01",
+      "direction": "in",
+      "amount_cents": 1
+    }
+  ],
+  "as_of": "2026-10-01",
+  "months": 3
+}

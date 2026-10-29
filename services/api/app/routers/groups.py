@@ -10,10 +10,12 @@ display names and initials only, never emails or amounts. The leaderboard order 
 from __future__ import annotations
 
 import calendar
+import json
 import re
 import secrets
 import uuid
 from datetime import UTC, date, datetime, timedelta
+from importlib import resources
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -31,7 +33,7 @@ from app.security.authz import not_found
 from app.security.client import client_ip
 from app.security.csrf import same_site_only
 from app.security.principal import Caller, require_unlocked
-from app.security.rate_limit import rate_limited
+from app.security.rate_limit import rate_limited, session_or_ip
 from app.services import alerts as alerts_svc
 
 router = APIRouter(prefix="/api/groups", tags=["groups"], dependencies=[Depends(same_site_only)])
@@ -54,6 +56,17 @@ DEFAULT_NAMES = {
 }
 MAX_START_AHEAD_DAYS = 31  # a challenge starts today or within a month (signed off Oct 27, 2026)
 
+# "What helped" (October 28, 2026; signed off October 29, 2026): the one fixed list, shared with
+# the app.
+_HELPED = json.loads(
+    resources.files("stackd_rules").joinpath("config/helped.json").read_text(encoding="utf-8")
+)
+HELPED_IDS: tuple[str, ...] = tuple(c["id"] for c in _HELPED["choices"])
+HELPED_MAX: int = _HELPED["max_choices"]
+# Answers from members other than the caller needed before the caller sees totals (invariant 29):
+# counting the caller's own would let one of two answerers take hers away and read the other's.
+HELPED_MIN_ANSWERS: int = _HELPED["min_answers"]
+
 
 class CreateGroupRequest(BaseModel):
     name: str = Field(default="", max_length=60)  # empty: the template's own name
@@ -68,6 +81,17 @@ class CodeRequest(BaseModel):
 
 class ProgressRequest(BaseModel):
     progress_bps: int = Field(ge=0, le=MAX_PROGRESS_BPS)
+
+
+class HelpedRequest(BaseModel):
+    choices: list[str] = Field(max_length=8)
+
+
+class HelpedTotals(BaseModel):
+    """How many members answered and how many picked each choice: never who picked what."""
+
+    answered: int
+    counts: dict[str, int]
 
 
 class MemberOut(BaseModel):
@@ -92,10 +116,13 @@ class GroupSummary(BaseModel):
     is_owner: bool
     member_count: int
     my_progress_bps: int
+    my_helped: list[str]  # the caller's own "What helped" answer (also in their export)
 
 
 class GroupDetail(GroupSummary):
     members: list[MemberOut]
+    helped_open: bool  # the caller may answer: reached their target, or the challenge ended
+    helped: HelpedTotals | None  # once HELPED_MIN_ANSWERS members other than the caller answered
 
 
 class GroupPreview(BaseModel):
@@ -242,14 +269,35 @@ def _summary(db: DbSession, group: Group, me: GroupMember, caller: Caller) -> Gr
         is_owner=group.owner_id == caller.user.id,
         member_count=_member_count(db, group),
         my_progress_bps=me.progress_bps,
+        my_helped=_helped_list(me),
     )
+
+
+def _helped_list(member: GroupMember) -> list[str]:
+    return member.helped.split(",") if member.helped else []
+
+
+def _helped_open(group: Group, me: GroupMember) -> bool:
+    return me.reached_at is not None or me.progress_bps >= 10000 or _now().date() > group.end_date
+
+
+def _helped_totals(members: list[tuple[GroupMember, User]], me: GroupMember) -> HelpedTotals | None:
+    answers = [_helped_list(m) for m, _ in members if m.helped]
+    others = sum(1 for m, _ in members if m.helped and m.user_id != me.user_id)
+    if others < HELPED_MIN_ANSWERS:
+        return None
+    counts = {cid: sum(cid in a for a in answers) for cid in HELPED_IDS}
+    return HelpedTotals(answered=len(answers), counts={k: v for k, v in counts.items() if v})
 
 
 def _detail(db: DbSession, group: Group, me: GroupMember, caller: Caller) -> GroupDetail:
     summary = _summary(db, group, me, caller)
+    members = _members(db, group)
     return GroupDetail(
         **summary.model_dump(),
-        members=[_member_out(m, u, group, caller) for m, u in _members(db, group)],
+        members=[_member_out(m, u, group, caller) for m, u in members],
+        helped_open=_helped_open(group, me),
+        helped=_helped_totals(members, me),
     )
 
 
@@ -261,6 +309,7 @@ def _join(db: DbSession, group: Group, caller: Caller, request: Request) -> Grou
     elif member.left_at is not None:
         member.left_at = None
         member.joined_at = _now()
+        member.helped = None  # a fresh start: an answer from before leaving never comes back
     else:
         return member
     record(
@@ -405,6 +454,30 @@ def update_progress(
     return _member_out(me, caller.user, group, caller)
 
 
+@router.put(
+    "/{group_id}/helped",
+    dependencies=[Depends(rate_limited("group_helped", key=session_or_ip))],
+)
+def update_helped(
+    group_id: uuid.UUID,
+    body: HelpedRequest,
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    db: Annotated[DbSession, Depends(get_db)],
+) -> GroupDetail:
+    """The member's own "What helped": up to 5 ids from the fixed list; [] clears it. Open once
+    they reached their target or the challenge ended (409 not_yet before)."""
+    group, me = _active_member(db, group_id, caller)
+    choices = list(dict.fromkeys(body.choices))
+    if len(choices) > HELPED_MAX or any(c not in HELPED_IDS for c in choices):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="invalid_choices")
+    if not _helped_open(group, me):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="not_yet")
+    # Stored in the list's own order, so the same answer is the same row whatever order it came.
+    me.helped = ",".join(c for c in HELPED_IDS if c in choices) or None
+    db.commit()
+    return _detail(db, group, me, caller)
+
+
 @router.post("/{group_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
 def leave_group(
     group_id: uuid.UUID,
@@ -418,6 +491,7 @@ def leave_group(
         # regenerate the code).
         raise HTTPException(status.HTTP_409_CONFLICT, detail="owner_cannot_leave")
     me.left_at = _now()
+    me.helped = None  # a former member's answer leaves the totals and never comes back on rejoin
     record(
         db,
         actor_id=caller.user.id,
@@ -446,6 +520,7 @@ def remove_member(
     if member is None or member.left_at is not None:
         raise not_found()
     member.left_at = _now()
+    member.helped = None  # as on leaving
     record(
         db,
         actor_id=caller.user.id,

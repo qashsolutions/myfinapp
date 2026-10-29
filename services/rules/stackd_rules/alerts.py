@@ -11,16 +11,21 @@ and a dedupe key. Nothing here carries an amount or a merchant.
                     weeks in the goal); keyed by the goal and the week
 - milestone_reached as the device reports them (keyed by goal and milestone)
 - weekly_recap      the chosen weekday and time, next occurrence
+- budget_pace       each crossed budget level (from `budget.pace`), at `time` today or now if
+                    that passed; keyed by month, a 16-letter tag (never the category) and level
 """
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, timedelta
 
 from . import dates, money
 from .errors import RuleError
+from .fingerprint import fnv1a_64
 from .money import _int
 from .notify import fmt_local, parse_clock, parse_local
+from .text import utf8
 
 HORIZON_DAYS = 30
 SEND_TIME = "09:00"  # dated alerts, unless the person picks their own time (`time`)
@@ -29,6 +34,18 @@ SEND_TIME = "09:00"  # dated alerts, unless the person picks their own time (`ti
 def _at(day: date, clock: str) -> datetime:
     minutes = parse_clock(clock)
     return datetime(day.year, day.month, day.day, minutes // 60, minutes % 60)
+
+
+_TAG = re.compile(r"[a-p]{16}")
+
+
+def tag(value: object, salt: object) -> str:
+    """16 letters a-p from FNV-1a 64 of `salt:value`: a key can name a category without the
+    server learning which one (the salt is a random value kept on the device)."""
+    if not isinstance(value, str) or not value or not isinstance(salt, str) or not salt:
+        raise RuleError("invalid_inputs")
+    digest = fnv1a_64(utf8(f"{salt}:{value}", "invalid_inputs"))
+    return "".join(chr(ord("a") + int(c, 16)) for c in f"{digest:016x}")
 
 
 def _pref(prefs: dict, name: str) -> dict:
@@ -144,6 +161,21 @@ def schedule(inputs: object) -> dict:
             if not isinstance(m.get("key"), str):
                 raise RuleError("invalid_inputs")
             add("milestone_reached", now, f"milestone:{m['goal_id']}:{m['key']}")
+
+    budget = _pref(prefs, "budget_pace")
+    if budget["enabled"]:
+        due = max(_at(today, budget.get("time", SEND_TIME)), now)
+        month = today.isoformat()[:7]
+        for item in _list(inputs.get("budget")):
+            if not isinstance(item, dict):
+                raise RuleError("invalid_inputs")
+            label = item.get("tag")
+            if not isinstance(label, str) or not _TAG.fullmatch(label):
+                raise RuleError("invalid_inputs")
+            level = _int(item.get("level_bps"))
+            if level <= 0:
+                raise RuleError("invalid_inputs")
+            add("budget_pace", due, f"budget:{month}:{label}:{level}")
 
     recap = _pref(prefs, "weekly_recap")
     if recap["enabled"]:

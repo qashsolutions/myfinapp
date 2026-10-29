@@ -1,0 +1,308 @@
+/* Fixed vs flexible (October 28, 2026): token variables only, the same in every look. */
+.fixed-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--c-line);
+}
+.fixed-bar__seg {
+  display: block;
+  height: 100%;
+}
+.fixed-bar__seg--fixed {
+  background: var(--c-sub);
+}
+.fixed-bar__seg--flex {
+  background: var(--c-a2);
+}
+.fixed-bar__seg--room {
+  background: var(--c-a1);
+}
+.fixed-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}
+.fixed-key > span::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  margin-right: 4px;
+}
+.fixed-key__fixed::before {
+  background: var(--c-sub);
+}
+.fixed-key__flex::before {
+  background: var(--c-a2);
+}
+.fixed-key__room::before {
+  background: var(--c-a1);
+}
+.fixed-room {
+  display: block;
+  margin: 6px 0 0;
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--c-ink);
+}
+.fixed-line {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.fixed-more {
+  margin: 8px 0 0;
+  font-size: var(--fs-small);
+}
+.fixed-totals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.fixed-totals dt {
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}
+.fixed-totals dd {
+  margin: 0;
+  font-weight: 700;
+}
+.fixed-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-small);
+}
+.fixed-table th,
+.fixed-table td {
+  padding: 6px 0;
+  text-align: right;
+  border-bottom: 1px solid var(--c-line);
+}
+.fixed-table th:first-child {
+  text-align: left;
+  font-weight: 600;
+}
+.fixed-table thead th {
+  color: var(--c-sub);
+  font-weight: 600;
+}
+.fixed-months {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.fixed-months__row {
+  display: grid;
+  grid-template-columns: 9em 1fr 6em;
+  gap: 8px;
+  align-items: center;
+  font-size: var(--fs-small);
+}
+.fixed-months__track {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--c-line);
+  overflow: hidden;
+}
+.fixed-months__fill {
+  display: block;
+  height: 100%;
+  background: var(--c-success);
+}
+.fixed-months__fill--neg {
+  background: var(--c-danger);
+}
+.fixed-months__value {
+  text-align: right;
+  font-weight: 600;
+}
+
+/* The month as a ring and the kept-rate bars (October 29, 2026). */
+.fixed-donut {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin: 4px 0 8px;
+}
+.fixed-donut__ring {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  flex: none;
+}
+.fixed-donut__ring svg {
+  display: block;
+}
+.fixed-donut__track {
+  stroke: var(--c-line);
+}
+.fixed-donut__seg--fixed {
+  stroke: var(--c-sub);
+}
+.fixed-donut__seg--flex {
+  stroke: var(--c-a2);
+}
+.fixed-donut__seg--room {
+  stroke: var(--c-a1);
+}
+.fixed-donut__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+.fixed-donut__value {
+  font-size: var(--fs-word);
+  font-weight: 800;
+  color: var(--c-ink);
+}
+.fixed-donut__value--small {
+  font-size: var(--fs-title);
+}
+.fixed-donut__unit {
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}
+.fixed-donut__key {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.fixed-donut__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--fs-small);
+}
+.fixed-donut__row dt::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+.fixed-donut__row--fixed dt::before {
+  background: var(--c-sub);
+}
+.fixed-donut__row--flex dt::before {
+  background: var(--c-a2);
+}
+.fixed-donut__row--room dt::before {
+  background: var(--c-a1);
+}
+.fixed-donut__row dd {
+  margin: 0;
+  font-weight: 700;
+}
+.kept-trend {
+  width: 100%;
+  margin: 4px 0 0;
+}
+.kept-trend svg {
+  display: block;
+}
+.kept-trend__zero {
+  stroke: var(--c-line);
+  stroke-width: 1;
+}
+.kept-trend__bar--pos {
+  fill: var(--c-success);
+  opacity: 0.4;
+}
+.kept-trend__bar--neg {
+  fill: var(--c-danger);
+  opacity: 0.4;
+}
+.kept-trend__bar--on {
+  opacity: 1;
+}
+.kept-trend__value,
+.kept-trend__month {
+  font-size: var(--fs-caption);
+  text-anchor: middle;
+  fill: var(--c-sub);
+}
+.kept-trend__value--on,
+.kept-trend__month--on {
+  fill: var(--c-ink);
+  font-weight: 700;
+}
+.fixed-room-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.fixed-room-list a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--c-line);
+  border-radius: 12px;
+  color: var(--c-ink);
+  text-decoration: none;
+  font-size: var(--fs-small);
+}
+.fixed-room-list a::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--c-a1);
+  flex: none;
+}
+.fixed-room-list__name {
+  flex: 1;
+  font-weight: 600;
+}
+.fixed-room-list__try {
+  color: var(--c-a1);
+  font-weight: 700;
+}
+.fixed-adjust__row {
+  margin: 0;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid var(--c-line);
+  min-width: 0;
+}
+.fixed-adjust__row > legend {
+  padding: 0;
+  float: left;
+  width: 100%;
+}
+.fixed-adjust__row > legend + * {
+  clear: both;
+}
+.fixed-adjust__row:last-child {
+  border-bottom: 0;
+}
+.fixed-adjust__name {
+  margin: 0;
+  font-weight: 600;
+}
+.fixed-adjust__auto {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}

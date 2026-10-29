@@ -1,0 +1,59 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-31",
+  "in_cents": 0,
+  "out_cents": 1500,
+  "fixed_cents": 0,
+  "flexible_cents": 1500,
+  "fixed_by_bucket": {
+    "need": 0,
+    "want": 0,
+    "save": 0,
+    "none": 0
+  },
+  "flexible_by_bucket": {
+    "need": 0,
+    "want": 1500,
+    "save": 0,
+    "none": 0
+  },
+  "kept_cents": -1500,
+  "kept_rate_bps": null,
+  "by_category": [
+    {
+      "category_id": "cat-a",
+      "bucket": "want",
+      "fixed_cents": 0,
+      "flexible_cents": 500,
+      "out_cents": 500
+    },
+    {
+      "category_id": "cat-b",
+      "bucket": "want",
+      "fixed_cents": 0,
+      "flexible_cents": 500,
+      "out_cents": 500
+    },
+    {
+      "category_id": null,
+      "bucket": "want",
+      "fixed_cents": 0,
+      "flexible_cents": 500,
+      "out_cents": 500
+    }
+  ],
+  "room": [
+    {
+      "category_id": "cat-a",
+      "flexible_cents": 500
+    },
+    {
+      "category_id": "cat-b",
+      "flexible_cents": 500
+    },
+    {
+      "category_id": null,
+      "flexible_cents": 500
+    }
+  ]
+}

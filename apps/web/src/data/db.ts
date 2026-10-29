@@ -25,6 +25,9 @@ export interface Account {
   created_at: string;
   /** Phase 3: set while the account is read through a bank connection; cleared on Disconnect. */
   linked?: LinkedRef | null;
+  /** A card's payment due day, 1-31 (31 = the month's last day), set by the person on a card
+   * that isn't linked; Credit habits derives its due dates from it (October 28, 2026). */
+  due_day?: number | null;
 }
 
 export interface LinkedRef {
@@ -241,9 +244,20 @@ export interface Goal {
   priority?: number | null; // the user's order; lower first
   why_text?: string | null; // the user's own reason, shown on the card
   milestones_bps?: number[]; // checkpoints as basis points of the target (2500 = 25%)
+  // October 28, 2026: a save jar that grows over time; target_cents is then its future cost
+  grow?: GoalGrow | null;
   status: GoalStatus;
   created_at: string;
   updated_at: string;
+}
+
+/** A goal that grows (growth.goal_plan): today's cost priced on a date, rising yearly, with the
+ * person's own yearly growth rate for what they save. */
+export interface GoalGrow {
+  today_cents: number;
+  cost_rise_bps: number;
+  return_bps: number;
+  priced_on: string; // the day today_cents was today's cost
 }
 
 export type GoalCadence = "weekly" | "biweekly" | "monthly" | "payday";
@@ -318,6 +332,14 @@ export interface RecurringSeries {
   account_id: string | null;
   /** The person's call (October 27, 2026): true / false; unset = from the payee's category. */
   subscription?: boolean | null;
+  /** The last "Keep it" on the subscription check (October 28, 2026), a date; unset = never. */
+  checked_at?: string | null;
+  /**
+   * The person's own kind for a subscription (October 29, 2026): one of the fixed kinds in
+   * keywords.yaml `subscription_kind_names`, or "other" (no kind); unset = from the payee's
+   * name. Synced with the row (newer `updated_at` wins), no index, so no new Dexie version.
+   */
+  subscription_kind?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -414,6 +436,21 @@ export interface CardDetail {
   updated_at: string;
 }
 
+/**
+ * Every distinct due date seen on a linked card's facts, with what that statement asked for
+ * (October 28, 2026; Dexie v17), so Credit habits can look back after `card_details` moves on.
+ * In the encrypted backup (newer `updated_at` wins) so the history follows to a new device,
+ * and in the export.
+ */
+export interface CardDueDate {
+  id: string; // `${account_id}:${due_date}`
+  account_id: string;
+  due_date: string;
+  statement_balance_cents: number | null;
+  minimum_cents: number | null;
+  updated_at: string;
+}
+
 /** docs/spec.md data model: emergency_fund. Saved comes from the jar; this is the rest. */
 export interface EmergencyFund {
   id: "me";
@@ -458,6 +495,7 @@ export class StackdDb extends Dexie {
   goal_milestones!: EntityTable<GoalMilestone, "id">;
   goal_templates!: EntityTable<GoalTemplate, "id">;
   card_details!: EntityTable<CardDetail, "account_id">;
+  card_due_dates!: EntityTable<CardDueDate, "id">;
   net_worth_items!: EntityTable<NetWorthItem, "id">;
   net_worth_snapshots!: EntityTable<NetWorthSnapshot, "month">;
 
@@ -540,6 +578,8 @@ export class StackdDb extends Dexie {
     });
     // Rename all like this (October 20, 2026): names by cleaned bank text.
     this.version(16).stores({ merchant_names: "id, &match" });
+    // Credit habits (October 28, 2026): linked cards' due dates as they were seen.
+    this.version(17).stores({ card_due_dates: "id, account_id" });
   }
 }
 

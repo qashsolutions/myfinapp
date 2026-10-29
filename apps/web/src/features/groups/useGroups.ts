@@ -1,5 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type ApiFailure,
   api,
@@ -47,12 +47,24 @@ export function useGroup(id: string | undefined): {
   group: GroupDetail | null;
   error: ApiFailure | null;
   refresh: () => Promise<void>;
+  /** Takes a group the server just answered with (a save's response) as the newest. */
+  accept: (detail: GroupDetail) => void;
 } {
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [error, setError] = useState<ApiFailure | null>(null);
+  // The newest request wins (October 29, 2026): two reads in flight can answer out of order, and
+  // an older answer (sent before a save landed) must never replace a newer one.
+  const latest = useRef(0);
+  const accept = useCallback((detail: GroupDetail) => {
+    latest.current += 1;
+    setGroup(detail);
+    setError(null);
+  }, []);
   const refresh = useCallback(async () => {
     if (!id) return;
+    const mine = ++latest.current;
     const r = await api.GET("/api/groups/{group_id}", { params: { path: { group_id: id } } });
+    if (mine !== latest.current) return;
     const failure = failureOf(r);
     if (failure) {
       setError(failure);
@@ -64,7 +76,7 @@ export function useGroup(id: string | undefined): {
   useEffect(() => {
     void refresh();
   }, [refresh]);
-  return { group, error, refresh };
+  return { group, error, refresh, accept };
 }
 
 /** The local goal that holds this member's private target for a group. */

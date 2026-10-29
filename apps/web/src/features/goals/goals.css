@@ -166,3 +166,33 @@
 .goal-row__fill--late {
   background: var(--c-warning);
 }
+
+/* GrowChart (October 29, 2026): the cost rising (dashed) and the savings at the chosen amount. */
+.grow__chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 4px 0;
+}
+.grow__label {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  fill: var(--c-ink);
+}
+.grow__label--end {
+  text-anchor: end;
+}
+.grow__key--cost {
+  border-radius: 0;
+  height: 0;
+  width: 14px;
+  border-top: 2px dashed var(--c-ink);
+  vertical-align: 3px;
+}
+.grow__key--saved {
+  background: var(--c-a1);
+}
+.grow__result {
+  margin: 4px 0 0;
+  font-weight: 600;
+}

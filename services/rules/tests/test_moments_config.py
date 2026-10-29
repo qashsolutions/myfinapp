@@ -22,6 +22,7 @@ PUSH_TYPES = {
     "milestone_reached",
     "group_activity",
     "weekly_recap",
+    "budget_pace",
 }
 
 

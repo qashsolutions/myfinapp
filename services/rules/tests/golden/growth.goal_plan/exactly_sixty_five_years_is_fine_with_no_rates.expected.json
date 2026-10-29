@@ -1,0 +1,8 @@
+{
+  "months": 780,
+  "cost_months": 780,
+  "future_cost_cents": 100000,
+  "saved_grows_to_cents": 0,
+  "monthly_needed_cents": 128,
+  "already_enough": false
+}

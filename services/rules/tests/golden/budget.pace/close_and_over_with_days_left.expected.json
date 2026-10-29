@@ -1,0 +1,21 @@
+{
+  "month": "2026-10",
+  "days_left": 10,
+  "items": [
+    {
+      "category_id": "dining",
+      "level_bps": 9000,
+      "spent_bps": 9000
+    },
+    {
+      "category_id": "fun",
+      "level_bps": 10000,
+      "spent_bps": 12500
+    },
+    {
+      "category_id": "rent",
+      "level_bps": 10000,
+      "spent_bps": 10000
+    }
+  ]
+}

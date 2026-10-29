@@ -44,6 +44,8 @@ LIMITS: dict[str, Limit] = {
     "passkey_options": Limit("passkey_options", 60, timedelta(minutes=15)),
     "invite_join": Limit("invite_join", 10, timedelta(hours=1)),
     "export": Limit("export", 5, timedelta(hours=24)),  # per signed-in device; each one emails
+    # "What helped" answers (owner sign-off, October 29, 2026): a few changes a visit, never a loop.
+    "group_helped": Limit("group_helped", 8, timedelta(hours=1)),  # per signed-in device
     # Billing routes that call Stripe live (October 27, 2026): credit, change preview, change,
     # checkout, portal, cancel, resume. Normal use is a handful a visit; a loop can't spend
     # Stripe's API allowance for everyone.

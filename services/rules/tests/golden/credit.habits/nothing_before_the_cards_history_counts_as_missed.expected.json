@@ -1,0 +1,31 @@
+{
+  "status": "steady",
+  "checked": 4,
+  "unknown": 0,
+  "on_time": 4,
+  "on_time_streak": 4,
+  "missed": [],
+  "latest_due_date": "2026-10-15",
+  "next_due_date": "2026-11-15",
+  "paid_in_full_streak": null,
+  "utilization_bps": null,
+  "under_guide": null,
+  "dues": [
+    {
+      "due_date": "2026-07-15",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-08-15",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-09-15",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-10-15",
+      "result": "on_time"
+    }
+  ]
+}

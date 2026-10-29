@@ -37,6 +37,23 @@ export function formatMonth(iso: string): string {
   return `${MONTHS[m - 1]} ${y}`;
 }
 
+/** "2029-03" or "2029-03-01" → "Mar 2029" (a date shown as a card's value). */
+export function formatMonthShort(iso: string): string {
+  const [y, m] = parts(iso);
+  return `${SHORT[m - 1]} ${y}`;
+}
+
+/** "2026-10-01" → "Oct" (a chart's month label). */
+export function formatMonthAbbr(iso: string): string {
+  const [, m] = parts(iso);
+  return SHORT[m - 1] ?? "";
+}
+
+/** "$120" when the cents add nothing, else "$120.50" (short lines that compare two amounts). */
+export function formatCentsTidy(cents: number): string {
+  return formatCents(cents).replace(/\.00$/, "");
+}
+
 /** "2026-10-09" → "Oct 9", with the year when it is not `now`'s. */
 export function formatDay(iso: string, now: Date = new Date()): string {
   const [y, m, d] = parts(iso);

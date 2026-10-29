@@ -55,18 +55,35 @@ def _month_label(as_of: str, months_ahead: int) -> str:
     return add_months(first, months_ahead).isoformat()[:7]  # strftime skips the zero pad on glibc
 
 
-def payoff_plan(debts: object, extra_cents: object, as_of: str) -> dict:
-    """The avalanche month by month (docs/spec.md "Rules added for the debt payoff planner").
+ORDERS = ("avalanche", "snowball")
+
+
+def snowball_order(debts: object) -> list[dict]:
+    """Smallest balance first; equal balances → APR descending, then label, then id."""
+    if not isinstance(debts, list):
+        raise RuleError("invalid_debts")
+    rows = [_debt(d) for d in debts]
+    rows.sort(key=lambda d: (d["balance_cents"], -d["apr_bps"], d["label"], d["id"]))
+    return [{**d, "rank": i + 1} for i, d in enumerate(rows)]
+
+
+def payoff_plan(debts: object, extra_cents: object, as_of: str, order: object = None) -> dict:
+    """The plan month by month (docs/spec.md "Rules added for the debt payoff planner").
 
     Each month every debt accrues round_div(balance × apr_bps, 120000) in interest, pays its
     minimum, and the rest of a fixed monthly budget (every minimum plus `extra_cents`, so a
-    paid-off debt's minimum rolls on) goes to the highest-APR balance, spilling to the next.
+    paid-off debt's minimum rolls on) goes to the first debt in the order, spilling to the next.
+    `order` is "avalanche" (highest APR first; the default, also for null) or "snowball"
+    (smallest starting balance first; the order is fixed at the start).
     """
     parse_date(as_of)  # invalid_date for a bad as_of
     extra = _int(extra_cents, "invalid_amount")
     if extra < 0:
         raise RuleError("invalid_amount")
-    order = avalanche_order(debts)["order"]
+    kind = "avalanche" if order is None else order
+    if kind not in ORDERS:
+        raise RuleError("invalid_order")
+    order = avalanche_order(debts)["order"] if kind == "avalanche" else snowball_order(debts)
     budget = sum(d["min_payment_cents"] for d in order) + extra
     balances = {d["id"]: d["balance_cents"] for d in order}
     interest = dict.fromkeys(balances, 0)
@@ -106,7 +123,7 @@ def payoff_plan(debts: object, extra_cents: object, as_of: str) -> dict:
             payment = min(d["min_payment_cents"], balances[d["id"]], remaining)
             balances[d["id"]] -= payment
             remaining -= payment
-        for d in order:  # highest APR first, the budget's remainder spills down the order
+        for d in order:  # the first in the order first, the budget's remainder spills down
             if d["id"] in paid_month or remaining <= 0:
                 continue
             payment = min(balances[d["id"]], remaining)

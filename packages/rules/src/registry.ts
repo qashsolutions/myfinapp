@@ -24,6 +24,7 @@ import * as networth from "./networth.ts";
 import * as nextMove from "./next_move.ts";
 import * as notify from "./notify.ts";
 import * as recurring from "./recurring.ts";
+import * as whatif from "./whatif.ts";
 
 export type JsonObject = Record<string, unknown>;
 export type Rule = (input: JsonObject) => JsonObject;
@@ -163,6 +164,10 @@ const BARE: Record<string, Rule> = {
     const { start, end, entries, limit } = args(input, ["start", "end", "entries", "limit"]);
     return { ...insights.topSpending(start, end, entries, limit) };
   },
+  "insights.one_change": (input) => {
+    const { candidates, order } = args(input, ["candidates", "order"]);
+    return { ...insights.oneChange(candidates, order) };
+  },
   "bills.consolidation": (input) => {
     const { debts, offer, payment_cents, as_of } = args(input, [
       "debts",
@@ -183,6 +188,14 @@ const BARE: Record<string, Rule> = {
   "cashflow.series": (input) => {
     const { start, end, step, entries } = args(input, ["start", "end", "step", "entries"]);
     return { ...cashflow.series(start, end, step, entries) };
+  },
+  "cashflow.fixed_flexible": (input) => {
+    const { start, end, entries, overrides } = args(
+      input,
+      ["start", "end", "entries"],
+      ["overrides"],
+    );
+    return { ...cashflow.fixedFlexible(start, end, entries, overrides ?? null) };
   },
   "cashflow.net_change": (input) => {
     const { net_cents, previous_net_cents } = args(input, ["net_cents", "previous_net_cents"]);
@@ -213,6 +226,15 @@ const BARE: Record<string, Rule> = {
     return {
       ...budget.summary(as_of, method, take_home_cents, lines, entries, split_bps ?? null),
     };
+  },
+  "budget.pace": (input) => {
+    const { month, as_of, lines, levels_bps } = args(input, [
+      "month",
+      "as_of",
+      "lines",
+      "levels_bps",
+    ]);
+    return { ...budget.pace(month, as_of, lines, levels_bps) };
   },
   "goals.progress": (input) => {
     const { goal, events, as_of } = args(input, ["goal", "events", "as_of"]);
@@ -321,13 +343,56 @@ const BARE: Record<string, Rule> = {
       ),
     };
   },
+  "credit.card_trend": (input) => {
+    const { entries, as_of, months } = args(input, ["entries", "as_of", "months"]);
+    return { ...credit.cardTrend(entries, as_of, months) };
+  },
+  "credit.habits": (input) => {
+    const a = args(
+      input,
+      ["due_dates", "payments", "as_of", "months", "guide_bps"],
+      [
+        "due_day",
+        "minimum_cents",
+        "statements",
+        "statement_balance_cents",
+        "current_balance_cents",
+        "limit_cents",
+        "since",
+        "balance_history",
+        "until",
+      ],
+    );
+    return {
+      ...credit.habits(
+        a.due_dates,
+        a.due_day ?? null,
+        a.payments,
+        a.minimum_cents ?? null,
+        a.statements ?? null,
+        a.statement_balance_cents ?? null,
+        a.current_balance_cents ?? null,
+        a.limit_cents ?? null,
+        a.as_of,
+        a.months,
+        a.guide_bps,
+        a.since ?? null,
+        a.balance_history ?? null,
+        a.until ?? null,
+      ),
+    };
+  },
   "bills.avalanche_order": (input) => {
     const { debts } = args(input, ["debts"]);
     return { ...bills.avalancheOrder(debts) };
   },
   "bills.payoff_plan": (input) => {
-    const { debts, extra_cents, as_of } = args(input, ["debts", "extra_cents", "as_of"]);
-    return { ...bills.payoffPlan(debts, extra_cents, as_of) };
+    const { debts, extra_cents, as_of, order } = args(
+      input,
+      ["debts", "extra_cents", "as_of"],
+      ["order"],
+    );
+    return { ...bills.payoffPlan(debts, extra_cents, as_of, order) };
   },
   "growth.projection": (input) => {
     const { age_now, retire_age, start_cents, monthly_cents, rates_bps, target_cents } = args(
@@ -345,6 +410,65 @@ const BARE: Record<string, Rule> = {
       ),
     };
   },
+  "growth.goal_plan": (input) => {
+    const a = args(
+      input,
+      ["today_cost_cents", "cost_rise_bps", "return_bps", "saved_cents", "as_of", "target_date"],
+      ["priced_on"],
+    );
+    return {
+      ...growth.goalPlan(
+        a.today_cost_cents,
+        a.cost_rise_bps,
+        a.return_bps,
+        a.saved_cents,
+        a.as_of,
+        a.target_date,
+        a.priced_on ?? null,
+      ),
+    };
+  },
+  "growth.goal_reach": (input) => {
+    const a = args(
+      input,
+      [
+        "today_cost_cents",
+        "cost_rise_bps",
+        "return_bps",
+        "saved_cents",
+        "monthly_cents",
+        "as_of",
+        "target_date",
+      ],
+      ["priced_on"],
+    );
+    return {
+      ...growth.goalReach(
+        a.today_cost_cents,
+        a.cost_rise_bps,
+        a.return_bps,
+        a.saved_cents,
+        a.monthly_cents,
+        a.as_of,
+        a.target_date,
+        a.priced_on ?? null,
+      ),
+    };
+  },
+  "growth.goal_pace": (input) => {
+    const a = args(input, ["plan_monthly_cents", "deposited_cents", "start_date", "as_of"]);
+    return {
+      ...growth.goalPace(a.plan_monthly_cents, a.deposited_cents, a.start_date, a.as_of),
+    };
+  },
+  "whatif.debt": (input) => {
+    const a = args(input, ["debts", "extra_cents", "add_cents", "as_of"], ["order"]);
+    return { ...whatif.debt(a.debts, a.extra_cents, a.add_cents, a.as_of, a.order) };
+  },
+  "whatif.goal": (input) => {
+    const a = args(input, ["remaining_cents", "per_month_cents", "add_cents", "as_of"]);
+    return { ...whatif.goal(a.remaining_cents, a.per_month_cents, a.add_cents, a.as_of) };
+  },
   "notify.decide": (input) => {
     const { candidate, settings, prefs, sent, now_local } = args(input, [
       "candidate",
@@ -358,6 +482,10 @@ const BARE: Record<string, Rule> = {
   "alerts.schedule": (input) => {
     const { inputs } = args(input, ["inputs"]);
     return { ...alerts.schedule(inputs) };
+  },
+  "alerts.tag": (input) => {
+    const { value, salt } = args(input, ["value", "salt"]);
+    return { tag: alerts.tag(value, salt) };
   },
   "next_move.pick": (input) => {
     const { facts, config, as_of } = args(input, ["facts", "config", "as_of"]);
@@ -390,6 +518,15 @@ const BARE: Record<string, Rule> = {
   "recurring.yearly_cost": (input) => {
     const { series } = args(input, ["series"]);
     return { ...recurring.yearlyCost(series) };
+  },
+  "recurring.subscription_check": (input) => {
+    const { as_of, subscriptions, kinds, thresholds } = args(input, [
+      "as_of",
+      "subscriptions",
+      "kinds",
+      "thresholds",
+    ]);
+    return { ...recurring.subscriptionCheck(as_of, subscriptions, kinds, thresholds) };
   },
   "forecast.typical_daily_spending": (input) => {
     const { entries, as_of, fallback_monthly_cents } = args(input, [

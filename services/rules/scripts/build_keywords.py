@@ -29,7 +29,19 @@ def compile_keywords() -> dict:
                 "direction": entry.get("direction", "any"),
             }
         )
-    return {"transfer": list(data["transfer"]), "keywords": keywords}
+    kinds = [
+        {"match": entry["match"], "kind": entry["kind"]} for entry in data["subscription_kinds"]
+    ]
+    names = [
+        {"kind": entry["kind"], "label": entry["label"], "many": entry["many"]}
+        for entry in data["subscription_kind_names"]
+    ]
+    return {
+        "transfer": list(data["transfer"]),
+        "keywords": keywords,
+        "subscription_kind_names": names,
+        "subscription_kinds": kinds,
+    }
 
 
 def render() -> str:

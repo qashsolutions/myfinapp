@@ -148,6 +148,41 @@ written against both.
     included, and entries carry what rebuilds their splits and pairs. A new table joins the
     export or that list.
     `settings-data.test.tsx` "the export holds everything the person made…"
+28. **Qash says only what the person's own data shows** (October 28, 2026). It cannot see
+    whether a service is used, so the subscription check asks ("Still using …?") and states
+    facts from the charges (a price rise, a trial that became a charge, a renewal, services of
+    one kind); it never says "unused", never pushes or emails about it, and nothing about it
+    leaves the device. Fixed vs flexible splits the same Month Out (fixed + flexible = Out) and
+    keeps the same Kept as Money in & out.
+    `subscription-check.test.tsx` · `fixed-flexible.test.tsx` · `money-month.test.tsx` "Fixed vs
+    flexible splits the same Out…"
+29. **An alert key never names a category or an amount** (October 28, 2026). A budget alert
+    leaves the device as a date, the type `budget_pace` and `budget:<YYYY-MM>:<tag>:<level>`,
+    where the tag is 16 letters a–p (`alerts.tag`: FNV-1a over a random value kept on the device
+    and the category's id, so the server cannot work back from it). `alerts.schedule` refuses any
+    other tag and the API refuses any other key shape; the push label is fixed text. "What
+    helped" answers leave as choice ids from the fixed list only, and the group sees totals only:
+    a member sees them once at least two members other than themselves answered (signed off by
+    the owner, October 29, 2026), so no one can take their own answer away and read another's; leaving
+    or being removed clears the answer, and rejoining starts without it
+    (`tests/test_group_helped.py`).
+    golden `alerts.schedule/budget_tag_must_be_letters` · `notifications.test.tsx` "a budget
+    alert carries a month, a tag and a level…" · `test_budget_alerts.py` · `leak-sweep.test.tsx` ·
+    `test_group_helped.py` · `budget-helped.test.tsx` "What helped"
+30. **One reading, said once, wherever it appears** (October 28, 2026). Where two screens show
+    the same thing they read it through one helper: Budget's "Close" / "Over", the budget alert
+    and the month review's lines over all use `paceLines` (something planned, never the save
+    bucket) at `alertLevels` of the person's own "Tell me at", and each bar's ticks sit at that
+    same level (`closeLevelBps`). A line the person switched off (`budget.alert_off`, October 29,
+    2026) leaves the alert only (`alertLines`), never the reading: its word and bar stay, and it
+    makes no schedule item at all (`adjust-visuals.test.tsx`). A jar that grows over time is
+    read only by `growth.goal_plan` / `goal_pace`: no flat weekly pace on its screen, list row
+    or quick chip, no behind-pace alert or Home move, no What if months-to-fill. A screen that
+    gathers other cards (the month review) never repeats the word or the number another of its
+    cards already leads with.
+    `month-review.test.tsx` "builds over_plan…" · `budget-helped.test.tsx` "Close follows the
+    person's own Tell me at…" · `grow-whatif.test.tsx` "a grows jar shows one monthly amount…",
+    "never feeds the flat behind-pace alert", "Spend less never fills a grows jar"
 
 ## Accounts and money on the server
 

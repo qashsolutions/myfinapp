@@ -1,0 +1,45 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-31",
+  "entries": [
+    {
+      "id": "e1",
+      "date": "2026-10-01",
+      "amount_cents": 100000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-paycheck",
+      "category_kind": "income",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": null
+    },
+    {
+      "id": "e2",
+      "date": "2026-10-01",
+      "amount_cents": 40000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-rent",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": true,
+      "bucket": "need"
+    },
+    {
+      "id": "e3",
+      "date": "2026-10-06",
+      "amount_cents": 10000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": "want"
+    }
+  ],
+  "overrides": {
+    "cat-rent": "always"
+  }
+}

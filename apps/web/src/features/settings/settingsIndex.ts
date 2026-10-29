@@ -55,6 +55,7 @@ const ALERT_WORDS: Record<string, string> = {
   shortfall_risk: "low balance shortfall forecast buffer cushion daily summary digest",
   challenge_checkin: "challenge check-in daily reminder",
   goal_behind_pace: "goal behind pace jar",
+  budget_pace: "budget category line bucket plan close over spending limit percent",
   milestone_reached: "milestone jar goal reached daily summary digest",
   group_activity: "group challenge joins members daily summary digest",
   weekly_recap: "weekly recap summary email",
@@ -126,11 +127,43 @@ export const ENTRIES: SettingEntry[] = [
     words: "accounts balances statements import upload csv ofx pdf",
   },
   {
+    label: "Card payment due day",
+    group: "data",
+    path: "/me/accounts",
+    words: "credit card due day due date payment on time habits",
+  },
+  {
+    label: "Credit habits guide",
+    group: "data",
+    path: "/credit-habits",
+    words: "credit card limit used utilization guide percent 30 due day adjust",
+  },
+  {
+    label: "Debt payoff extra and order",
+    group: "data",
+    path: "/bills?tab=debt",
+    words:
+      "debt payoff extra monthly order highest rate smallest balance avalanche snowball adjust",
+  },
+  {
+    label: "Budget alerts by line",
+    group: "data",
+    path: "/budget",
+    words: "budget alert line category bucket off tell me at close plan adjust",
+  },
+  {
     label: "Categories",
     group: "data",
     path: "/me/categories",
     words:
       "categories category rename add new own custom needs wants save hide remove rules names merchant",
+  },
+  {
+    label: "Subscription check",
+    group: "data",
+    path: "/subscriptions",
+    words:
+      "subscriptions still using ask again days renewal heads up reminder adjust interval kind streaming",
   },
   {
     label: "Linked banks & cards",
@@ -239,6 +272,18 @@ export const ENTRIES: SettingEntry[] = [
     group: "look",
     path: "/",
     words: "customize home dashboard cards order drag rearrange hide show layout",
+  },
+  {
+    label: "Your month on Home",
+    group: "look",
+    path: "/month-review?adjust=1",
+    words: "your month review monthly look back home card days show hide start of month",
+  },
+  {
+    label: "Fixed or flexible categories",
+    group: "data",
+    path: "/insights/fixed-flexible?adjust=1",
+    words: "fixed flexible bills category treat rent phone kept rate room nice to have",
   },
   {
     label: "Install Qash",

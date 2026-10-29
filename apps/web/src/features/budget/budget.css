@@ -120,6 +120,15 @@
   min-width: 0;
   padding: 8px 0;
 }
+.zb-line__word {
+  align-self: flex-start;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--c-sub);
+}
+.zb-line__word--bad {
+  color: var(--c-danger);
+}
 .zb-line__cover {
   align-self: flex-start;
   font-size: var(--fs-small);
@@ -234,4 +243,35 @@
 }
 .payday__pick legend {
   padding: 0;
+}
+
+/* A budget bar's ticks and their key (October 29, 2026). */
+.pace-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pace-bar__key {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px 12px;
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}
+.pace-bar__tick {
+  display: inline-block;
+  width: 2px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--c-ink);
+  vertical-align: -1px;
+}
+.alert-lines {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }

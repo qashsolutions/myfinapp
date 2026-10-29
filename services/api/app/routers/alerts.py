@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
@@ -18,7 +18,7 @@ from app.db import get_db
 from app.models.notification import AlertSchedule
 from app.security.csrf import same_site_only
 from app.security.principal import Caller, require_unlocked
-from app.services.alerts import MAX_SCHEDULE_ITEMS, replace_device_schedule
+from app.services.alerts import BUDGET_KEY, MAX_SCHEDULE_ITEMS, replace_device_schedule
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"], dependencies=[Depends(same_site_only)])
 
@@ -29,6 +29,7 @@ AlertType = Literal[
     "goal_behind_pace",
     "milestone_reached",
     "weekly_recap",
+    "budget_pace",
 ]
 
 
@@ -36,6 +37,14 @@ class ScheduleItem(BaseModel):
     due_at: datetime
     type: AlertType
     dedupe_key: str = Field(min_length=1, max_length=200, pattern=r"^[A-Za-z0-9:_.-]+$")
+
+    @model_validator(mode="after")
+    def _budget_key_names_nothing(self) -> ScheduleItem:
+        # A budget alert's key carries a month, a tag and a level only: a category id, a name or
+        # an amount in its place is refused (docs/invariants.md, invariant 29).
+        if self.type == "budget_pace" and not BUDGET_KEY.fullmatch(self.dedupe_key):
+            raise ValueError("budget_key_shape")
+        return self
 
 
 class ScheduleIn(BaseModel):

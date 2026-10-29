@@ -31,6 +31,7 @@ from . import (
     next_move,
     notify,
     recurring,
+    whatif,
 )
 from .errors import RuleError
 
@@ -130,6 +131,10 @@ def _insights_seasonal(as_of: str, entries: list, thresholds: dict) -> dict:
     return insights.seasonal(as_of, entries, thresholds)
 
 
+def _insights_one_change(candidates: list, order: list) -> dict:
+    return insights.one_change(candidates, order)
+
+
 def _bills_consolidation(debts: list, offer: dict, payment_cents: int, as_of: str) -> dict:
     return bills.consolidation(debts, offer, payment_cents, as_of)
 
@@ -144,6 +149,10 @@ def _cashflow_period_totals(start: str, end: str, entries: list) -> dict:
 
 def _cashflow_series(start: str, end: str, step: str, entries: list) -> dict:
     return cashflow.series(start, end, step, entries)
+
+
+def _cashflow_fixed_flexible(start: str, end: str, entries: list, overrides: object = None) -> dict:
+    return cashflow.fixed_flexible(start, end, entries, overrides)
 
 
 def _cashflow_net_change(net_cents: int, previous_net_cents: int) -> dict:
@@ -179,6 +188,10 @@ def _budget_summary(
     split_bps: dict | None = None,
 ) -> dict:
     return budget.summary(as_of, method, take_home_cents, lines, entries, split_bps)
+
+
+def _budget_pace(month: str, as_of: str, lines: list, levels_bps: list) -> dict:
+    return budget.pace(month, as_of, lines, levels_bps)
 
 
 def _goals_progress(goal: dict, events: list, as_of: str) -> dict:
@@ -225,6 +238,12 @@ def _recurring_yearly_cost(series: list) -> dict:
     return recurring.yearly_cost(series)
 
 
+def _recurring_subscription_check(
+    as_of: str, subscriptions: list, kinds: list, thresholds: dict
+) -> dict:
+    return recurring.subscription_check(as_of, subscriptions, kinds, thresholds)
+
+
 def _next_move_pick(facts: dict, config: dict, as_of: str) -> dict:
     return next_move.pick(facts, config, as_of)
 
@@ -269,12 +288,50 @@ def _credit_pay_in_full(
     )
 
 
+def _credit_card_trend(entries: list, as_of: str, months: int) -> dict:
+    return credit.card_trend(entries, as_of, months)
+
+
+def _credit_habits(
+    due_dates: list,
+    payments: list,
+    as_of: str,
+    months: int,
+    guide_bps: int,
+    due_day: int | None = None,
+    minimum_cents: int | None = None,
+    statements: list | None = None,
+    statement_balance_cents: int | None = None,
+    current_balance_cents: int | None = None,
+    limit_cents: int | None = None,
+    since: str | None = None,
+    balance_history: dict | None = None,
+    until: str | None = None,
+) -> dict:
+    return credit.habits(
+        due_dates,
+        due_day,
+        payments,
+        minimum_cents,
+        statements,
+        statement_balance_cents,
+        current_balance_cents,
+        limit_cents,
+        as_of,
+        months,
+        guide_bps,
+        since,
+        balance_history,
+        until,
+    )
+
+
 def _bills_avalanche_order(debts: list) -> dict:
     return bills.avalanche_order(debts)
 
 
-def _bills_payoff_plan(debts: list, extra_cents: int, as_of: str) -> dict:
-    return bills.payoff_plan(debts, extra_cents, as_of)
+def _bills_payoff_plan(debts: list, extra_cents: int, as_of: str, order: str | None = None) -> dict:
+    return bills.payoff_plan(debts, extra_cents, as_of, order)
 
 
 def _growth_projection(
@@ -290,6 +347,58 @@ def _growth_projection(
     )
 
 
+def _growth_goal_plan(
+    today_cost_cents: int,
+    cost_rise_bps: int,
+    return_bps: int,
+    saved_cents: int,
+    as_of: str,
+    target_date: str,
+    priced_on: str | None = None,
+) -> dict:
+    return growth.goal_plan(
+        today_cost_cents, cost_rise_bps, return_bps, saved_cents, as_of, target_date, priced_on
+    )
+
+
+def _growth_goal_reach(
+    today_cost_cents: int,
+    cost_rise_bps: int,
+    return_bps: int,
+    saved_cents: int,
+    monthly_cents: int,
+    as_of: str,
+    target_date: str,
+    priced_on: str | None = None,
+) -> dict:
+    return growth.goal_reach(
+        today_cost_cents,
+        cost_rise_bps,
+        return_bps,
+        saved_cents,
+        monthly_cents,
+        as_of,
+        target_date,
+        priced_on,
+    )
+
+
+def _growth_goal_pace(
+    plan_monthly_cents: int, deposited_cents: int, start_date: str, as_of: str
+) -> dict:
+    return growth.goal_pace(plan_monthly_cents, deposited_cents, start_date, as_of)
+
+
+def _whatif_debt(
+    debts: list, extra_cents: int, add_cents: int, as_of: str, order: str | None = None
+) -> dict:
+    return whatif.debt(debts, extra_cents, add_cents, as_of, order)
+
+
+def _whatif_goal(remaining_cents: int, per_month_cents: int, add_cents: int, as_of: str) -> dict:
+    return whatif.goal(remaining_cents, per_month_cents, add_cents, as_of)
+
+
 def _notify_decide(
     candidate: dict, settings: dict, prefs: dict, sent: dict, now_local: str
 ) -> dict:
@@ -298,6 +407,10 @@ def _notify_decide(
 
 def _alerts_schedule(inputs: dict) -> dict:
     return alerts.schedule(inputs)
+
+
+def _alerts_tag(value: str, salt: str) -> dict:
+    return {"tag": alerts.tag(value, salt)}
 
 
 def _next_move_set_aside(
@@ -361,16 +474,19 @@ _BARE: dict[str, Rule] = {
     "insights.lumpy_bills": _insights_lumpy_bills,
     "insights.seasonal": _insights_seasonal,
     "insights.top_spending": _insights_top_spending,
+    "insights.one_change": _insights_one_change,
     "bills.consolidation": _bills_consolidation,
     "cashflow.month_totals": _cashflow_month_totals,
     "cashflow.period_totals": _cashflow_period_totals,
     "cashflow.series": _cashflow_series,
+    "cashflow.fixed_flexible": _cashflow_fixed_flexible,
     "cashflow.net_change": _cashflow_net_change,
     "cashflow.match_transfers": _cashflow_match_transfers,
     "budget.targets_50_30_20": _budget_targets,
     "budget.targets_split": _budget_targets_split,
     "budget.monthly_take_home": _budget_monthly_take_home,
     "budget.summary": _budget_summary,
+    "budget.pace": _budget_pace,
     "goals.progress": _goals_progress,
     "goals.spend_less_baseline": _goals_spend_less_baseline,
     "goals_custom.jar": _goals_custom_jar,
@@ -382,6 +498,7 @@ _BARE: dict[str, Rule] = {
     "household.combine_totals": _household_combine_totals,
     "recurring.detect": _recurring_detect,
     "recurring.yearly_cost": _recurring_yearly_cost,
+    "recurring.subscription_check": _recurring_subscription_check,
     "next_move.pick": _next_move_pick,
     "emergency.summary": _emergency_summary,
     "networth.history": _networth_history,
@@ -390,9 +507,17 @@ _BARE: dict[str, Rule] = {
     "bills.payoff_plan": _bills_payoff_plan,
     "credit.utilization_bps": _credit_utilization_bps,
     "credit.pay_in_full": _credit_pay_in_full,
+    "credit.card_trend": _credit_card_trend,
+    "credit.habits": _credit_habits,
     "growth.projection": _growth_projection,
+    "growth.goal_plan": _growth_goal_plan,
+    "growth.goal_reach": _growth_goal_reach,
+    "growth.goal_pace": _growth_goal_pace,
+    "whatif.debt": _whatif_debt,
+    "whatif.goal": _whatif_goal,
     "notify.decide": _notify_decide,
     "alerts.schedule": _alerts_schedule,
+    "alerts.tag": _alerts_tag,
     "next_move.set_aside": _next_move_set_aside,
     "next_move.payday_nudge": _next_move_payday_nudge,
     "forecast.typical_daily_spending": _forecast_typical_daily_spending,

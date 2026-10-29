@@ -5,6 +5,28 @@
     "usual_increase_bps": 2500,
     "lumpy_month_cents": 30000,
     "seasonal_increase_cents": 10000,
-    "seasonal_increase_bps": 2000
+    "seasonal_increase_bps": 2000,
+    "card_trend_months": 6,
+    "credit_habits_months": 12,
+    "credit_guide_bps": 3000,
+    "subscription_ask_days": 90,
+    "subscription_renewal_days": 15,
+    "trial_max_cents": 100,
+    "trial_window_days": 45
+  },
+  "budget_alerts": {
+    "levels_bps": [
+      9000,
+      10000
+    ]
+  },
+  "month_review": {
+    "show_days": 7,
+    "debt_add_cents": 5000,
+    "one_change_order": [
+      "over_plan",
+      "subscription_check",
+      "debt_interest"
+    ]
   }
 }

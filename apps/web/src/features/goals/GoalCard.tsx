@@ -5,6 +5,7 @@ import { Word } from "../../app/layout/Word.tsx";
 import type { Goal } from "../../data/db.ts";
 import type { GoalProgress } from "../../engine/bridge.ts";
 import { formatCents, formatDay } from "../../lib/format.ts";
+import { useGrowMonthly } from "./GrowCard.tsx";
 import { useGoalProgress } from "./useGoals.ts";
 
 export const CADENCE_WORDS: Record<string, string> = {
@@ -29,8 +30,16 @@ export function goalSentence(goal: Goal): string {
   }
 }
 
-/** "$200 of $500" (or days for a habit) and the pace line, from the engine's progress. */
-function progressText(goal: Goal, p: GoalProgress | null): { amount: string; pace: string } {
+/**
+ * "$200 of $500" (or days for a habit) and the pace line, from the engine's progress. A grows
+ * jar's pace is its monthly amount from `growth.goal_plan` (`growMonthly`), never the flat
+ * weekly pace of the future cost.
+ */
+function progressText(
+  goal: Goal,
+  p: GoalProgress | null,
+  growMonthly: number | null,
+): { amount: string; pace: string } {
   if (!p) return { amount: "", pace: "" };
   const amount =
     goal.kind === "habit"
@@ -41,11 +50,15 @@ function progressText(goal: Goal, p: GoalProgress | null): { amount: string; pac
       ? "Reached"
       : p.status === "overdue"
         ? "Overdue"
-        : p.weekly_pace === null
-          ? "No deadline"
-          : goal.kind === "habit"
-            ? `${p.weekly_pace} ${p.weekly_pace === 1 ? "day" : "days"}/week to go`
-            : `${formatCents(p.weekly_pace)}/week`;
+        : goal.grow
+          ? growMonthly === null
+            ? ""
+            : `${formatCents(growMonthly)}/month`
+          : p.weekly_pace === null
+            ? "No deadline"
+            : goal.kind === "habit"
+              ? `${p.weekly_pace} ${p.weekly_pace === 1 ? "day" : "days"}/week to go`
+              : `${formatCents(p.weekly_pace)}/week`;
   return { amount, pace };
 }
 
@@ -55,7 +68,8 @@ export function GoalCard({ goal, asOf }: { goal: Goal; asOf: string }) {
   const view = useGoalProgress(goal, asOf);
   const p = view?.progress ?? null;
   const fraction = p ? p.display_bps / 10000 : 0;
-  const { amount, pace } = progressText(goal, p);
+  const growMonthly = useGrowMonthly(goal, goal.grow && p ? p.current : null, asOf);
+  const { amount, pace } = progressText(goal, p, growMonthly);
   return (
     <Card
       as="div"
@@ -126,7 +140,8 @@ export function GoalRow({ goal, asOf }: { goal: Goal; asOf: string }) {
   const navigate = useNavigate();
   const view = useGoalProgress(goal, asOf);
   const p = view?.progress ?? null;
-  const { amount, pace } = progressText(goal, p);
+  const growMonthly = useGrowMonthly(goal, goal.grow && p ? p.current : null, asOf);
+  const { amount, pace } = progressText(goal, p, growMonthly);
   const pct = goal.is_ongoing || !p ? null : Math.round(p.display_bps / 100);
   const state = goal.paused_at ? "Paused" : goal.is_ongoing ? "Ongoing" : pace;
   return (

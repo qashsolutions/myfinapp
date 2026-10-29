@@ -249,6 +249,57 @@ export async function periodTotals(
   return engine.call<MonthTotals>("cashflow.period_totals", { start, end, entries });
 }
 
+// Fixed vs flexible (October 28, 2026): a rule entry plus its run mark and its category's bucket.
+export interface FlexRuleEntry extends RuleEntry {
+  is_recurring: boolean;
+  bucket: "need" | "want" | "save" | null;
+}
+
+export interface BucketCents {
+  need: number;
+  want: number;
+  save: number;
+  none: number;
+}
+
+export interface FixedFlexible {
+  start: string;
+  end: string;
+  in_cents: number;
+  out_cents: number;
+  fixed_cents: number;
+  flexible_cents: number;
+  fixed_by_bucket: BucketCents;
+  flexible_by_bucket: BucketCents;
+  kept_cents: number;
+  kept_rate_bps: number | null;
+  by_category: Array<{
+    category_id: string | null;
+    bucket: "need" | "want" | "save" | null;
+    fixed_cents: number;
+    flexible_cents: number;
+    out_cents: number;
+  }>;
+  room: Array<{ category_id: string | null; flexible_cents: number }>;
+}
+
+export async function fixedFlexible(
+  start: string,
+  end: string,
+  entries: FlexRuleEntry[],
+  overrides: FixedOverrides = {},
+): Promise<FixedFlexible> {
+  return engine.call<FixedFlexible>("cashflow.fixed_flexible", {
+    start,
+    end,
+    entries,
+    overrides,
+  });
+}
+
+/** The person's own call per category (`settings` `fixed.override`; October 29, 2026). */
+export type FixedOverrides = Record<string, "fixed" | "flexible">;
+
 // Time ranges (October 20, 2026): a range split into weeks, months or quarters.
 export type SeriesStepKind = "week" | "month" | "quarter";
 
@@ -391,6 +442,33 @@ export async function budgetSummary(
     lines,
     entries,
     ...(splitBps ? { split_bps: splitBps } : {}),
+  });
+}
+
+export interface BudgetPaceLine {
+  category_id: string;
+  planned_cents: number;
+  spent_cents: number;
+}
+
+export interface BudgetPace {
+  month: string;
+  days_left: number;
+  items: Array<{ category_id: string; level_bps: number; spent_bps: number | null }>;
+}
+
+/** budget.pace: the highest level of its plan each line's spending reached this month. */
+export async function budgetPace(
+  month: string,
+  asOf: string,
+  lines: BudgetPaceLine[],
+  levelsBps: number[],
+): Promise<BudgetPace> {
+  return engine.call<BudgetPace>("budget.pace", {
+    month,
+    as_of: asOf,
+    lines,
+    levels_bps: levelsBps,
   });
 }
 
@@ -701,6 +779,59 @@ export async function yearlyCost(
   series: Array<{ id: string; label: string; interval: string; expected_cents: number }>,
 ): Promise<YearlyCost> {
   return engine.call<YearlyCost>("recurring.yearly_cost", { series });
+}
+
+// Subscription check (October 28, 2026): facts from the person's own charges, and when to ask.
+export interface SubscriptionCheckInput {
+  id: string;
+  label: string;
+  payee: string;
+  interval: string;
+  expected_cents: number;
+  next_date: string;
+  checked_at: string | null;
+  charges: Array<{ date: string; cents: number }>;
+  /** The person's own kind (October 29, 2026): wins over the table; "other" = no kind. */
+  own_kind?: string | null;
+}
+
+export interface SubscriptionCheckItem {
+  id: string;
+  label: string;
+  kind: string | null;
+  ask: boolean;
+  price_rise: { from_cents: number; to_cents: number; date: string } | null;
+  renewal: { date: string; cents: number } | null;
+  trial_turned_charge: { trial_cents: number; cents: number; date: string } | null;
+  yearly_cents: number;
+  monthly_cents: number;
+}
+
+export interface SubscriptionCheck {
+  items: SubscriptionCheckItem[];
+  duplicates: Array<{ kind: string; count: number; monthly_total_cents: number; ids: string[] }>;
+  /** Where the money goes by kind; kind null = the subscriptions with no kind. */
+  by_kind: Array<{
+    kind: string | null;
+    count: number;
+    yearly_cents: number;
+    monthly_cents: number;
+    ids: string[];
+  }>;
+}
+
+export async function subscriptionCheck(
+  asOf: string,
+  subscriptions: SubscriptionCheckInput[],
+  kinds: Array<{ match: string; kind: string }>,
+  thresholds: Record<string, number>,
+): Promise<SubscriptionCheck> {
+  return engine.call<SubscriptionCheck>("recurring.subscription_check", {
+    as_of: asOf,
+    subscriptions,
+    kinds,
+    thresholds,
+  });
 }
 
 export interface SpendingRuleEntry {
@@ -1064,16 +1195,22 @@ export interface PayoffPlan {
   order: PayoffDebt[];
 }
 
-/** The avalanche month by month with a fixed budget of every minimum plus `extraCents` (fast-follow 1). */
+/** "avalanche" = highest rate first (the default); "snowball" = smallest balance first. */
+export type PayoffOrder = "avalanche" | "snowball";
+
+/** The plan month by month with a fixed budget of every minimum plus `extraCents` (fast-follow
+ * 1), in the order the person picked (October 28, 2026). */
 export async function payoffPlan(
   debts: DebtInput[],
   extraCents: number,
   asOf: string,
+  order: PayoffOrder = "avalanche",
 ): Promise<PayoffPlan> {
   return engine.call<PayoffPlan>("bills.payoff_plan", {
     debts,
     extra_cents: extraCents,
     as_of: asOf,
+    order,
   });
 }
 
@@ -1099,6 +1236,156 @@ export async function growthProjection(input: {
   return engine.call<LaterProjection>("growth.projection", input);
 }
 
+export interface GrowPlan {
+  months: number;
+  cost_months: number;
+  future_cost_cents: number;
+  saved_grows_to_cents: number;
+  monthly_needed_cents: number;
+  already_enough: boolean;
+}
+
+/** growth.goal_plan: a jar whose cost rises while what's saved grows (October 28, 2026). */
+export async function growGoalPlan(input: {
+  today_cost_cents: number;
+  cost_rise_bps: number;
+  return_bps: number;
+  saved_cents: number;
+  as_of: string;
+  target_date: string;
+  priced_on?: string | null;
+}): Promise<GrowPlan> {
+  return engine.call<GrowPlan>("growth.goal_plan", input);
+}
+
+export interface GrowReachPoint {
+  month: string; // YYYY-MM
+  months: number;
+  cost_cents: number;
+  saved_cents: number;
+}
+
+export interface GrowReach {
+  months: number;
+  target_cost_cents: number;
+  at_target_cents: number;
+  short_by_cents: number;
+  reaches_by_target: boolean;
+  reach_months: number | null;
+  reach_month: string | null; // YYYY-MM
+  points: GrowReachPoint[];
+}
+
+/**
+ * growth.goal_reach (October 29, 2026): what a chosen monthly amount does for a goal that grows:
+ * the month it reaches the cost (within 65 years), how far short at the date, and yearly points
+ * of the cost and the savings for the chart.
+ */
+export async function growGoalReach(input: {
+  today_cost_cents: number;
+  cost_rise_bps: number;
+  return_bps: number;
+  saved_cents: number;
+  monthly_cents: number;
+  as_of: string;
+  target_date: string;
+  priced_on?: string | null;
+}): Promise<GrowReach> {
+  return engine.call<GrowReach>("growth.goal_reach", input);
+}
+
+export interface GrowPace {
+  months_in: number;
+  expected_cents: number;
+  status: "ahead" | "on_track" | "behind";
+}
+
+/** growth.goal_pace: deposits so far against the plan's monthly amount. */
+export async function growGoalPace(input: {
+  plan_monthly_cents: number;
+  deposited_cents: number;
+  start_date: string;
+  as_of: string;
+}): Promise<GrowPace> {
+  return engine.call<GrowPace>("growth.goal_pace", input);
+}
+
+export interface WhatIfSide {
+  months: number | null;
+  debt_free_month: string | null;
+  interest_cents: number | null;
+}
+
+export interface WhatIfDebt {
+  before: WhatIfSide;
+  after: WhatIfSide;
+  months_sooner: number | null;
+  interest_saved_cents: number | null;
+  status: "sooner" | "same" | "stalled";
+}
+
+/** whatif.debt: the payoff plan with today's extra, then with `addCents` more a month. */
+export async function whatIfDebt(
+  debts: DebtInput[],
+  extraCents: number,
+  addCents: number,
+  asOf: string,
+  order: PayoffOrder | null = null,
+): Promise<WhatIfDebt> {
+  return engine.call<WhatIfDebt>("whatif.debt", {
+    debts,
+    extra_cents: extraCents,
+    add_cents: addCents,
+    as_of: asOf,
+    ...(order ? { order } : {}),
+  });
+}
+
+export interface WhatIfGoal {
+  months_now: number | null;
+  months_new: number | null;
+  finish_now: string | null; // YYYY-MM
+  finish_new: string | null;
+  months_sooner: number | null;
+  status: "sooner" | "same" | "never";
+}
+
+/** whatif.goal: months to fill a jar at today's pace and with `addCents` more a month. */
+export async function whatIfGoal(
+  remainingCents: number,
+  perMonthCents: number,
+  addCents: number,
+  asOf: string,
+): Promise<WhatIfGoal> {
+  return engine.call<WhatIfGoal>("whatif.goal", {
+    remaining_cents: remainingCents,
+    per_month_cents: perMonthCents,
+    add_cents: addCents,
+    as_of: asOf,
+  });
+}
+
+/** A one-change candidate (the month review): amounts over `months` months, scaled to a year. */
+export interface OneChangeCandidate {
+  kind: "over_plan" | "subscription_check" | "debt_interest";
+  amounts_cents: number[];
+  months: number;
+}
+
+export interface OneChangePick {
+  index: number;
+  kind: OneChangeCandidate["kind"];
+  yearly_cents: number;
+}
+
+/** insights.one_change (October 28, 2026): the candidate worth the most a year, or null. */
+export async function oneChange(
+  candidates: OneChangeCandidate[],
+  order: string[],
+): Promise<{ pick: OneChangePick | null }> {
+  return engine.call<{ pick: OneChangePick | null }>("insights.one_change", { candidates, order });
+}
+
 export interface AlertInputs {
   now_local: string;
   upcoming: Array<{ series_id: string; date: string; kind: "bill" | "income"; matched: boolean }>;
@@ -1113,6 +1400,8 @@ export interface AlertInputs {
     current_cents: number;
   }>;
   milestones: Array<{ goal_id: string; key: string }>;
+  /** Crossed budget levels: a 16-letter tag (alerts.tag), never the category or an amount. */
+  budget: Array<{ tag: string; level_bps: number }>;
   prefs: Record<
     string,
     { enabled: boolean; lead_days?: number; time?: string; periods?: number; day?: number }
@@ -1128,6 +1417,12 @@ export interface ScheduledAlert {
 /** Which alerts are due in the next 30 days: dates, types and keys, nothing else. */
 export async function alertsSchedule(inputs: AlertInputs): Promise<{ alerts: ScheduledAlert[] }> {
   return engine.call<{ alerts: ScheduledAlert[] }>("alerts.schedule", { inputs });
+}
+
+/** alerts.tag: 16 letters from `salt:value`, so a key never names what it is about. */
+export async function alertsTag(value: string, salt: string): Promise<string> {
+  const { tag } = await engine.call<{ tag: string }>("alerts.tag", { value, salt });
+  return tag;
 }
 
 // insights (fast-follow 8): arithmetic over the device's own history; thresholds from config.
@@ -1300,5 +1595,88 @@ export async function payInFull(input: {
     last_payment_date: input.lastPaymentDate,
     due_date: input.dueDate,
     paydays: input.paydays,
+  });
+}
+
+/** credit.card_trend (October 28, 2026): one card's spent against paid per whole month. */
+export interface CardMonth {
+  month: string; // YYYY-MM
+  spent_cents: number;
+  paid_cents: number;
+  net_cents: number;
+}
+
+export interface CardTrend {
+  months: CardMonth[];
+  last_month: CardMonth | null;
+  trend: "growing" | "shrinking" | "steady" | null;
+}
+
+export async function cardTrend(
+  entries: Array<{ date: string; direction: "in" | "out"; amount_cents: number }>,
+  asOf: string,
+  months: number,
+): Promise<CardTrend> {
+  return engine.call<CardTrend>("credit.card_trend", { entries, as_of: asOf, months });
+}
+
+/** credit.habits (October 28, 2026): on-time payments, the limit used and paying in full. */
+export interface CreditHabits {
+  status: "steady" | "building" | "missed" | null;
+  checked: number;
+  unknown: number;
+  on_time: number;
+  on_time_streak: number;
+  missed: string[];
+  latest_due_date: string | null;
+  next_due_date: string | null;
+  paid_in_full_streak: number | null;
+  utilization_bps: number | null;
+  under_guide: boolean | null;
+  /** Every due date in the window, in date order (the dot strip; October 29, 2026). */
+  dues: Array<{ due_date: string; result: "on_time" | "missed" | "unknown" }>;
+}
+
+export async function creditHabits(input: {
+  dueDates: string[];
+  dueDay: number | null;
+  payments: Array<{ date: string; cents: number }>;
+  minimumCents: number | null;
+  statements: Array<{
+    due_date: string;
+    balance_cents: number | null;
+    minimum_cents: number | null;
+  }>;
+  statementBalanceCents: number | null;
+  currentBalanceCents: number | null;
+  limitCents: number | null;
+  asOf: string;
+  months: number;
+  guideBps: number;
+  /** The card's first entry: due dates before it are not checked. */
+  since: string | null;
+  /** The card's balances and entries: what was owed on each due date (unknown: not checked). */
+  balanceHistory: {
+    anchors: Array<{ as_of: string; balance_cents: number }>;
+    entries: Array<{ date: string; direction: "in" | "out"; amount_cents: number }>;
+  } | null;
+  /** The last day the card's data reaches: due dates after it are unknown, never missed. */
+  until: string | null;
+}): Promise<CreditHabits> {
+  return engine.call<CreditHabits>("credit.habits", {
+    due_dates: input.dueDates,
+    due_day: input.dueDay,
+    payments: input.payments,
+    minimum_cents: input.minimumCents,
+    statements: input.statements,
+    statement_balance_cents: input.statementBalanceCents,
+    current_balance_cents: input.currentBalanceCents,
+    limit_cents: input.limitCents,
+    as_of: input.asOf,
+    months: input.months,
+    guide_bps: input.guideBps,
+    since: input.since,
+    balance_history: input.balanceHistory,
+    until: input.until,
   });
 }

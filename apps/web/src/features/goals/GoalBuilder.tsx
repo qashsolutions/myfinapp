@@ -19,24 +19,40 @@ import {
   addMonths,
   customJar,
   EngineError,
+  type GrowReach,
   goalMilestones,
   goalPlan,
   goalProgress,
+  growGoalPlan,
+  growGoalReach,
   monthBounds,
   parseAmount,
   spendLessBaseline,
 } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
-import { checkpointsText, parseCheckpoints, parseWholeNumber } from "../../lib/ownValues.ts";
+import {
+  checkpointsText,
+  parseCheckpoints,
+  parsePercentBps,
+  parseWholeNumber,
+  percentText,
+} from "../../lib/ownValues.ts";
 import { PlanLimit } from "../billing/PlanLimit.tsx";
 import { payScheduleOf } from "../home/useHome.ts";
 import { useHouseholdLocal, useHouseholdStatus } from "../household/useHousehold.ts";
 import { ChipsOrOwn, CustomValueSheet } from "./CustomValueSheet.tsx";
 import { CADENCE_WORDS } from "./GoalCard.tsx";
+import { GrowChart } from "./GrowChart.tsx";
+import { GROW_MAX_MONTHS, growLineOf, growMessage } from "./grow.ts";
 import {
   AMOUNTS,
   DEADLINE_MONTHS,
   DEFAULT_MILESTONES_BPS,
+  DEFAULT_RETURN_BPS,
+  DEFAULT_RISE_BPS,
+  GROW_RETURN_BPS,
+  GROW_RISE_BPS,
+  GROWS_WHAT,
   HABIT_DAYS,
   HABIT_WHAT,
   KIND_LABELS,
@@ -120,6 +136,29 @@ export function GoalBuilder() {
   const [withMilestones, setWithMilestones] = useState(true);
   const [milestonesBps, setMilestonesBps] = useState<number[]>(DEFAULT_MILESTONES_BPS);
   const [planLine, setPlanLine] = useState<string | null>(null);
+  // October 28, 2026: a jar that grows over time (growth.goal_plan)
+  const [grow, setGrow] = useState(false);
+  const [riseBps, setRiseBps] = useState(DEFAULT_RISE_BPS);
+  const [returnBps, setReturnBps] = useState(DEFAULT_RETURN_BPS);
+  const [growLine, setGrowLine] = useState<string>("");
+  const [growPicture, setGrowPicture] = useState<{ reach: GrowReach; monthly: number } | null>(
+    null,
+  );
+  // The furthest date a grows jar takes: 65 years on, to that month's end (owner, October 29, 2026).
+  const [growMax, setGrowMax] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    void addMonths(today, GROW_MAX_MONTHS)
+      .then((d) => monthBounds(d))
+      .then((b) => {
+        if (alive) setGrowMax(b.end);
+      })
+      .catch(ignoreClosed);
+    return () => {
+      alive = false;
+    };
+  }, [today]);
+  const growing = kind === "save" && grow && !ongoing;
   const templates = useTemplates();
   const pay = useLiveQuery(
     async () => ((await db.settings.get("pay"))?.value as PaySettings | undefined) ?? null,
@@ -159,6 +198,49 @@ export function GoalBuilder() {
       alive = false;
     };
   }, [when, today]);
+
+  function pickWhat(next: string) {
+    setWhat(next);
+    const rise = GROWS_WHAT[next];
+    if (kind === "save" && rise !== undefined) {
+      setGrow(true);
+      setOngoing(false);
+      setRiseBps(rise);
+    }
+  }
+
+  useEffect(() => {
+    if (!growing) return;
+    if (!deadline) {
+      setGrowLine(growMessage(null));
+      setGrowPicture(null);
+      return;
+    }
+    let alive = true;
+    const base = {
+      today_cost_cents: amount,
+      cost_rise_bps: riseBps,
+      return_bps: returnBps,
+      saved_cents: 0,
+      as_of: today,
+      target_date: deadline,
+    };
+    void (async () => {
+      const g = await growGoalPlan(base);
+      if (!alive) return;
+      setGrowLine(growLineOf(g.monthly_needed_cents, g.future_cost_cents, deadline));
+      // The same picture as the goal screen, at the plan's own month (October 29, 2026).
+      const r = await growGoalReach({ ...base, monthly_cents: g.monthly_needed_cents });
+      if (alive) setGrowPicture({ reach: r, monthly: g.monthly_needed_cents });
+    })().catch((err) => {
+      if (!alive) return;
+      setGrowLine(growMessage(err));
+      setGrowPicture(null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [growing, amount, riseBps, returnBps, deadline, today]);
 
   useEffect(() => {
     if (kind !== "spend_less" || categoryId || !categories?.length) return;
@@ -222,8 +304,26 @@ export function GoalBuilder() {
 
   async function commitDate(text: string): Promise<string | null> {
     try {
-      const r = await customJar(what || "Jar", amount, text, today);
-      setWhen({ kind: "custom", date: r.goal.end_date ?? text });
+      // Only the date is checked here: a preset name longer than a custom one may be
+      // ("Kids' education") must not refuse the date as `invalid_name`.
+      const r = await customJar("Jar", amount, text, today);
+      const date = r.goal.end_date ?? text;
+      if (growing) {
+        // A grows jar's date goes through its own rule too: 65 years at most, next month on.
+        try {
+          await growGoalPlan({
+            today_cost_cents: amount,
+            cost_rise_bps: riseBps,
+            return_bps: returnBps,
+            saved_cents: 0,
+            as_of: today,
+            target_date: date,
+          });
+        } catch (err) {
+          return growMessage(err);
+        }
+      }
+      setWhen({ kind: "custom", date });
       return null;
     } catch (err) {
       return customMessage(err);
@@ -242,7 +342,7 @@ export function GoalBuilder() {
   }
 
   useEffect(() => {
-    if (kind !== "save" || !cadence || pay === undefined) {
+    if (kind !== "save" || !cadence || pay === undefined || growing) {
       setPlanLine(null);
       return;
     }
@@ -284,7 +384,7 @@ export function GoalBuilder() {
     return () => {
       alive = false;
     };
-  }, [kind, cadence, ongoing, amount, deadline, today, pay]);
+  }, [kind, cadence, ongoing, amount, deadline, today, pay, growing]);
 
   function applyTemplate(t: GoalTemplate) {
     const p = t.payload;
@@ -311,10 +411,29 @@ export function GoalBuilder() {
       setOpen("baseline");
       return;
     }
+    let target = amount;
+    if (growing) {
+      try {
+        if (!deadline) throw new EngineError("invalid_date");
+        target = (
+          await growGoalPlan({
+            today_cost_cents: amount,
+            cost_rise_bps: riseBps,
+            return_bps: returnBps,
+            saved_cents: 0,
+            as_of: today,
+            target_date: deadline,
+          })
+        ).future_cost_cents;
+      } catch (err) {
+        setError(growMessage(err));
+        return;
+      }
+    }
     const goal = await createGoal(db, {
       kind,
       title: what,
-      target_cents: kind === "habit" ? null : amount,
+      target_cents: kind === "habit" ? null : target,
       target_days: kind === "habit" ? days : null,
       label: kind === "habit" ? what : null,
       category_id: kind === "spend_less" ? categoryId : null,
@@ -323,7 +442,7 @@ export function GoalBuilder() {
       baseline_cents: kind === "spend_less" ? baseline : null,
       group_id: null,
       household_id: share && canShare ? household.householdId : null,
-      cadence: kind === "save" ? cadence : null,
+      cadence: kind === "save" && !growing ? cadence : null,
       per_period_cents: kind === "save" && ongoing ? amount : null,
       is_ongoing: kind === "save" && ongoing && !!cadence,
       paused_at: null,
@@ -331,6 +450,9 @@ export function GoalBuilder() {
       priority: null,
       why_text: why.trim() || null,
       milestones_bps: kind === "save" && !ongoing && withMilestones ? milestonesBps : [],
+      grow: growing
+        ? { today_cents: amount, cost_rise_bps: riseBps, return_bps: returnBps, priced_on: today }
+        : null,
     });
     if (goal.milestones_bps?.length && goal.target_cents)
       await ensureMilestones(
@@ -368,6 +490,15 @@ export function GoalBuilder() {
     };
     switch (kind) {
       case "save":
+        if (growing)
+          return [
+            "Save for ",
+            whatBlank,
+            ", costing ",
+            { ...amountBlank, label: `${formatCents(amount)} today` },
+            " by ",
+            whenBlank,
+          ];
         if (ongoing && cadence)
           return ["Save ", amountBlank, " for ", whatBlank, " ", cadenceBlank];
         return ["Save ", amountBlank, " for ", whatBlank, " by ", whenBlank, ", ", cadenceBlank];
@@ -450,7 +581,63 @@ export function GoalBuilder() {
       <SentenceBuilder parts={parts} />
       {kind === "save" ? (
         <Card as="section" aria-label="Jar options">
-          {cadence ? (
+          {!ongoing ? (
+            <Toggle
+              checked={grow}
+              onChange={setGrow}
+              label="Grows over time"
+              description="For goals years away: the cost goes up each year, and what you save can grow."
+            />
+          ) : null}
+          {growing ? (
+            <>
+              <ChipsOrOwn
+                name={`${ids}-rise`}
+                legend="The cost rises each year by"
+                options={GROW_RISE_BPS.map((b) => [String(b), percentText(b)])}
+                value={String(riseBps)}
+                display={(v) => percentText(Number(v))}
+                onPick={(v) => setRiseBps(Number(v))}
+                own={{
+                  label: "Your own yearly rise, in percent",
+                  placeholder: "Or your own, like 4.5",
+                  inputMode: "decimal",
+                  parse: (t) => {
+                    const bps = parsePercentBps(t);
+                    return bps === null
+                      ? { error: "A percent from 0 to 500, like 4.5." }
+                      : { value: String(bps) };
+                  },
+                }}
+              />
+              <ChipsOrOwn
+                name={`${ids}-return`}
+                legend="What you save grows each year by"
+                options={GROW_RETURN_BPS.map((b) => [String(b), percentText(b)])}
+                value={String(returnBps)}
+                display={(v) => percentText(Number(v))}
+                onPick={(v) => setReturnBps(Number(v))}
+                own={{
+                  label: "Your own yearly growth, in percent",
+                  placeholder: "Or your own, like 0 for cash",
+                  inputMode: "decimal",
+                  parse: (t) => {
+                    const bps = parsePercentBps(t);
+                    return bps === null
+                      ? { error: "A percent from 0 to 500, like 4.5." }
+                      : { value: String(bps) };
+                  },
+                }}
+              />
+              {growPicture ? (
+                <GrowChart reach={growPicture.reach} monthly={growPicture.monthly} compact />
+              ) : null}
+              <p className="auth__fineprint">
+                An illustration at the rates you chose, not a prediction or advice.
+              </p>
+            </>
+          ) : null}
+          {cadence && !growing ? (
             <Toggle
               checked={ongoing}
               onChange={setOngoing}
@@ -519,7 +706,7 @@ export function GoalBuilder() {
       <Card tone="accent" as="section" aria-label="Pace">
         <p className="sk-card__eyebrow">{kind === "save" ? `${what} jar` : KIND_LABELS[kind]}</p>
         <p className="sk-card__hero sk-card__hero--empty" role="status">
-          {paceLine}
+          {growing ? growLine : paceLine}
         </p>
         {kind === "spend_less" ? (
           <p>
@@ -561,7 +748,7 @@ export function GoalBuilder() {
         name={`${ids}-what`}
         options={whatPresets(kind).map((w) => [w, w])}
         value={what}
-        onPick={setWhat}
+        onPick={pickWhat}
         custom={{
           label: "Or name your own",
           placeholder: "e.g. New laptop",
@@ -597,7 +784,13 @@ export function GoalBuilder() {
         onPick={(v) =>
           setWhen(v === "none" ? { kind: "none" } : { kind: "months", months: Number(v) })
         }
-        custom={{ label: "Or pick a date", type: "date", min: today, commit: commitDate }}
+        custom={{
+          label: growing ? "Or pick a date, within 65 years" : "Or pick a date",
+          type: "date",
+          min: today,
+          max: growing ? growMax : undefined,
+          commit: commitDate,
+        }}
       />
       <CustomValueSheet
         open={open === "cadence"}

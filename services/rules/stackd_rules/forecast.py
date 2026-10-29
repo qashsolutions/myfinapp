@@ -135,10 +135,7 @@ def _series(raw: object) -> dict:
 
 def _next(day: date, s: dict) -> date:
     """One step on, back on the series' own day of the month when it has one (clamped)."""
-    day = recurring.step(day, s["interval"])
-    if s["day"] is not None:
-        day = day.replace(day=min(s["day"], dates.days_in_month(day)))
-    return day
+    return recurring.step_keeping_day(day, s["interval"], s["day"])
 
 
 def upcoming(series: list, entries: list, as_of: str, days: int) -> dict:

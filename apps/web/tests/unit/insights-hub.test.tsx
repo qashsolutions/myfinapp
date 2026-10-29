@@ -113,7 +113,7 @@ describe("arranging any screen (October 25, 2026)", () => {
     await user.click(screen.getByRole("button", { name: "Customize Insights" }));
     const sheet = await screen.findByRole("dialog", { name: "Customize Insights" });
     await user.click(within(sheet).getByRole("button", { name: "Move Net worth up" }));
-    expect(within(sheet).getByRole("status")).toHaveTextContent("Net worth moved to 6 of 8");
+    expect(within(sheet).getByRole("status")).toHaveTextContent("Net worth moved to 7 of 12");
     await user.click(within(sheet).getByRole("switch", { name: /Later/ }));
     await user.click(within(sheet).getByRole("button", { name: "Done" }));
     await waitFor(() => expect(screen.queryByRole("link", { name: "Later" })).toBeNull());

@@ -1,5 +1,37 @@
 /* Groups (mockups F4Challenge, F4Join). */
 
+/* "What helped": the group's totals as a ranked bar chart, my picks marked. */
+.helped-chart {
+  width: 100%;
+  margin-top: 8px;
+}
+.helped-chart svg {
+  display: block;
+}
+.helped-chart__label {
+  font: 600 var(--fs-small) var(--font-body);
+  fill: var(--c-ink);
+}
+.helped-chart__value {
+  font: 600 var(--fs-caption) var(--font-body);
+  fill: var(--c-sub);
+  font-variant-numeric: var(--numeric-data);
+}
+.helped-chart__key {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}
+.helped-chart__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--c-a1);
+}
+
 .group-actions {
   display: grid;
   gap: 8px;

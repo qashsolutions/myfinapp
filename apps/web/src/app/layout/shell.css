@@ -308,3 +308,35 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* AmountSlider (October 29, 2026): an amount tried again and again, the picture redrawn live. */
+.amount-slider {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0 4px;
+}
+.amount-slider__label {
+  font-size: var(--fs-body);
+}
+.amount-slider__label strong {
+  font-size: var(--fs-title);
+}
+.amount-slider input[type="range"] {
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  accent-color: var(--c-a1);
+}
+.amount-slider__ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}
+.amount-slider__own {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}

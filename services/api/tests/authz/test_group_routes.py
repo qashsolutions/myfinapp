@@ -25,6 +25,9 @@ def test_non_member_gets_404_everywhere() -> None:
 
     assert bob.get(f"/api/groups/{gid}").status_code == 404
     assert bob.put(f"/api/groups/{gid}/progress", json={"progress_bps": 100}).status_code == 404
+    assert (
+        bob.put(f"/api/groups/{gid}/helped", json={"choices": ["packed_lunch"]}).status_code == 404
+    )
     assert bob.post(f"/api/groups/{gid}/leave").status_code == 404
     assert bob.delete(f"/api/groups/{gid}/members/{alice_id}").status_code == 404
     assert bob.post(f"/api/groups/{gid}/code").status_code == 404

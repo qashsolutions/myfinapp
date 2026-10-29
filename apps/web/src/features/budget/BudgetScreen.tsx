@@ -13,8 +13,11 @@ import { formatCents, formatMonth, todayIso } from "../../lib/format.ts";
 import { cardText } from "../../moments/catalog.ts";
 import { useLookups } from "../entries/useEntries.ts";
 import { MonthPicker } from "../money/MonthPicker.tsx";
+import { AdjustBudgetAlerts } from "./BudgetAlertOptions.tsx";
 import { BudgetSetup } from "./BudgetSetup.tsx";
+import { paceLines, useBudgetPace } from "./pace.ts";
 import { BUCKET_LABELS, RuleView } from "./RuleView.tsx";
+import { useAlertMarks } from "./useAlertMarks.ts";
 import { monthKey, useBudget } from "./useBudget.ts";
 import { ZeroBasedView } from "./ZeroBasedView.tsx";
 
@@ -23,6 +26,15 @@ export function BudgetScreen() {
   const [asOf, setAsOf] = useState(todayIso());
   const isCurrentMonth = monthKey(asOf) === monthKey(todayIso());
   const view = useBudget(asOf, isCurrentMonth);
+  // The one reading of the alert marks, shared with Your month (invariant 30).
+  const marks = useAlertMarks();
+  const alerts = marks.settings;
+  const alertPrefs = alerts.data?.prefs;
+  const threshold = marks.threshold;
+  const pace = useBudgetPace(view.summary, asOf, threshold);
+  const alertOff = marks.off;
+  const alerting = marks.alerting;
+  const [adjusting, setAdjusting] = useState(false);
   // Last month's totals, for zero-based's "Start from last month" (October 23, 2026).
   const lastMonth = useMonthTotals(asOf).previous;
   const lookups = useLookups();
@@ -139,6 +151,9 @@ export function BudgetScreen() {
             summary={summary}
             categories={lookups.categories}
             split={budget.split_bps ?? null}
+            pace={pace}
+            levelBps={marks.levelBps}
+            alerting={alerting}
           />
         ) : (
           <ZeroBasedView
@@ -146,6 +161,9 @@ export function BudgetScreen() {
             lines={view.lines}
             categories={lookups.categories}
             lastMonth={lastMonth}
+            pace={pace}
+            levelBps={marks.levelBps}
+            alerting={alerting}
           />
         )
       ) : null}
@@ -177,6 +195,31 @@ export function BudgetScreen() {
           Change budget style
         </button>
       </div>
+      {summary && isCurrentMonth ? (
+        <>
+          <button
+            type="button"
+            className={buttonClass({ variant: "secondary", block: true })}
+            onClick={() => setAdjusting(true)}
+          >
+            Adjust budget alerts
+          </button>
+          <AdjustBudgetAlerts
+            open={adjusting}
+            onClose={() => setAdjusting(false)}
+            prefs={alertPrefs ?? null}
+            update={alerts.update}
+            off={alertOff ?? []}
+            lines={paceLines(summary).map((l) => ({
+              id: l.category_id,
+              name: l.category_id.startsWith("bucket:")
+                ? (BUCKET_LABELS[l.category_id.slice(7) as keyof typeof BUCKET_LABELS]?.[0] ??
+                  "A bucket")
+                : (lookups?.categories.get(l.category_id)?.name ?? "A category"),
+            }))}
+          />
+        </>
+      ) : null}
       {summary && summary.uncategorized_cents !== 0 ? (
         <p className="auth__hint">
           {formatCents(summary.uncategorized_cents)} spent without a category isn't in any bucket

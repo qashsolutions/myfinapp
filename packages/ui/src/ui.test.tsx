@@ -77,6 +77,27 @@ describe("ProgressBar", () => {
     expect(done).toHaveAttribute("aria-valuenow", "100");
     expect(done.className).toContain("sk-progress__track--success");
   });
+
+  it("draws marks as ticks, names them in the text equivalent, and labels them on request", () => {
+    render(
+      <ProgressBar
+        fraction={0.5}
+        label="Dining"
+        valueText="$100 of $200"
+        marks={[
+          { at: 0.9, label: "Tell me at 90%" },
+          { at: 1.2, label: "Plan" },
+        ]}
+        showMarkLabels
+      />,
+    );
+    const bar = screen.getByRole("progressbar", { name: "Dining" });
+    expect(bar).toHaveAttribute("aria-valuetext", "$100 of $200 · Tell me at 90% · Plan");
+    const ticks = bar.parentElement?.querySelectorAll<HTMLElement>(".sk-progress__mark") ?? [];
+    // Clamped to the track.
+    expect([...ticks].map((t) => t.style.left)).toEqual(["90%", "100%"]);
+    expect(screen.getByText("Tell me at 90%")).toHaveClass("sk-progress__mark-label--end");
+  });
 });
 
 describe("Toggle", () => {

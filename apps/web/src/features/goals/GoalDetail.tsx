@@ -4,7 +4,7 @@ import "../auth/auth.css";
 import { Button, Card, Chip } from "@stackd/ui";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router";
+import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
@@ -19,6 +19,7 @@ import { isEmergencyJar } from "../home/useHome.ts";
 import { useHouseholdStatus } from "../household/useHousehold.ts";
 import { goalSentence } from "./GoalCard.tsx";
 import { GoalExtras } from "./GoalExtras.tsx";
+import { GrowCard, useGrowMonthly } from "./GrowCard.tsx";
 import { useGoalCaps } from "./useGoalCaps.ts";
 import {
   addGoalEvent,
@@ -30,6 +31,9 @@ import {
   useGoalProgress,
   useGoals,
 } from "./useGoals.ts";
+
+/** A stand-in while the goal loads, so the hooks run in the same order every render. */
+const NO_GOAL = { end_date: null } as unknown as Goal;
 
 /** One goal (mockup F4Detail): progress, log a deposit / balance / check-in, recent events. */
 export function GoalDetail() {
@@ -50,6 +54,11 @@ export function GoalDetail() {
   const [custom, setCustom] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const growMonthly = useGrowMonthly(
+    goal ?? NO_GOAL,
+    goal?.grow && view?.progress ? view.progress.current : null,
+    today,
+  );
 
   if (goal === null) return <Navigate to="/goals" replace />;
   if (!goal || !view) {
@@ -128,8 +137,10 @@ export function GoalDetail() {
   }
 
   const checkedToday = view.events.some((e) => e.type === "checkin" && e.date === today);
-  const quick =
-    p?.weekly_pace && p.weekly_pace > 0 ? [p.weekly_pace, 10000, 20000] : [5000, 10000, 20000];
+  // A grows jar's chip is GrowCard's month; its flat weekly pace (the future cost over the
+  // weeks left) is never offered or shown.
+  const first = goal.grow ? growMonthly : p?.weekly_pace;
+  const quick = first && first > 0 ? [...new Set([first, 10000, 20000])] : [5000, 10000, 20000];
 
   return (
     <>
@@ -166,6 +177,10 @@ export function GoalDetail() {
       </Card>
 
       {isEmergencyJar(goal) && p ? <EmergencySection savedCents={p.current} /> : null}
+
+      {goal.kind === "save" && goal.grow && p ? (
+        <GrowCard goal={goal} savedCents={p.current} today={today} />
+      ) : null}
 
       <GoalExtras
         goal={goal}
@@ -272,7 +287,7 @@ export function GoalDetail() {
         </Card>
       ) : null}
 
-      {p ? (
+      {p && !goal.grow ? (
         <Card as="section" aria-label="Pace">
           <p className="sk-card__eyebrow">
             {p.status === "reached"
@@ -283,6 +298,13 @@ export function GoalDetail() {
                   ? `${p.weekly_pace} ${p.weekly_pace === 1 ? "day" : "days"} a week to finish`
                   : `${formatCents(p.weekly_pace)} a week to finish${p.end_date ? ` by ${formatDay(p.end_date)}` : ""}`}
           </p>
+          {goal.kind === "save" && p.status !== "reached" ? (
+            <p className="sk-card__eyebrow">
+              <Link to={`/what-if?goal=${encodeURIComponent(goal.id)}`}>
+                What if I spent less and put it here?
+              </Link>
+            </p>
+          ) : null}
         </Card>
       ) : null}
 

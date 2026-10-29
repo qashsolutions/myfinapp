@@ -13,7 +13,17 @@ export const KIND_LABELS: Record<GoalKind, string> = {
   habit: "Habit",
 };
 
-export const WHAT_FOR = ["Travel", "Kids' education", "Emergency fund", "New car"];
+export const WHAT_FOR = ["Travel", "Kids' education", "Emergency fund", "New car", "A home"];
+
+/**
+ * Goals that grow (October 28, 2026; signed off by the owner, October 29, 2026): how fast the cost rises
+ * and how fast savings grow, each a year. Kids' education and A home turn "Grows over time" on.
+ */
+export const GROW_RISE_BPS = [300, 500, 700];
+export const GROW_RETURN_BPS = [300, 500, 700];
+export const DEFAULT_RISE_BPS = 300;
+export const DEFAULT_RETURN_BPS = 500; // the same middle rate as Later
+export const GROWS_WHAT: Record<string, number> = { "Kids' education": 500, "A home": 300 };
 export const PAYOFF_WHAT = ["Credit card", "Car loan", "Student loan", "Other debt"];
 export const HABIT_WHAT = ["no eating out", "no takeout", "cooking at home", "no shopping"];
 export const AMOUNTS = [50000, 100000, 200000, 500000];

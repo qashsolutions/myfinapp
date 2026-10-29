@@ -175,6 +175,15 @@ events:
     push: "Your weekly recap is ready"
     settings: "Weekly recap"
 
+  budget_pace:
+    when: "A budget line (a category, or a bucket on 50/30/20) reaches the chosen share of its plan this month"
+    vars: []
+    push: "A budget line is close to its plan. Open Qash to see which."
+    settings: "Budget alert"
+
+# The budget alert's label once a category reaches its whole plan (the level is 100% or more;
+# proposed October 28, 2026). Fixed words: never the category, an amount or a percent.
+push_budget_reached: "A budget line has reached its plan."
 # Several pushes rolled into one at the end of quiet hours or past the daily maximum.
 push_summary: "You have {n} updates waiting"
 # The same summary when it holds one alert (a daily summary often does).

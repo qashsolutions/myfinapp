@@ -1,32 +1,47 @@
 import "../groups/groups.css";
 
 import { Card, Illustration } from "@stackd/ui";
-import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
-import { useDb } from "../../data/DbProvider.tsx";
-import type { Debt } from "../../data/db.ts";
-import { type AvalancheOrder, avalancheOrder } from "../../engine/bridge.ts";
-import { formatCents } from "../../lib/format.ts";
+import { type Debt, ignoreClosed } from "../../data/db.ts";
+import { type AvalancheOrder, avalancheOrder, payoffPlan } from "../../engine/bridge.ts";
+import { formatCents, todayIso } from "../../lib/format.ts";
+import { debtInputs, useDebtSettings } from "./debtPlan.ts";
 
 export function aprText(bps: number): string {
   return `${(bps / 100).toFixed(2)}% APR`;
 }
 
-/** Cards and loans in avalanche order (mockup F5Bills): the top one is where extra payments go. */
+/** Cards and loans in the order the person picked (mockup F5Bills; highest rate first unless
+ * they chose smallest balance first): the top one is where extra payments go. */
 export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
-  const { db } = useDb();
-  const debts = useLiveQuery(() => db.debts.toArray(), [db]);
-  const [order, setOrder] = useState<AvalancheOrder | null>(null);
+  const settings = useDebtSettings();
+  const debts = settings?.debts;
+  const kind = settings?.order ?? "avalanche";
+  // The rows and the order they were worked out in, set together: the list's name and note
+  // follow the rows on screen, never a newer choice whose rows are still being worked out.
+  const [state, setState] = useState<{ order: AvalancheOrder; kind: typeof kind } | null>(null);
+  const order = state?.order ?? null;
+  const shown = state?.kind ?? kind;
   useEffect(() => {
     if (!debts) return;
     let alive = true;
-    void avalancheOrder(debts).then((o) => {
-      if (alive) setOrder(o);
-    });
+    void (async () => {
+      const totals = await avalancheOrder(debts);
+      if (kind === "snowball" && debts.length > 0) {
+        // The same rule's own order, so the list and the plan never disagree.
+        const plan = await payoffPlan(debtInputs(debts), 0, todayIso(), "snowball");
+        const byId = new Map(totals.order.map((d) => [d.id, d]));
+        totals.order = plan.order.flatMap((p) => {
+          const d = byId.get(p.id);
+          return d ? [{ ...d, rank: p.rank }] : [];
+        });
+      }
+      if (alive) setState({ order: totals, kind });
+    })().catch(ignoreClosed);
     return () => {
       alive = false;
     };
-  }, [debts]);
+  }, [debts, kind]);
   const byId = new Map((debts ?? []).map((d) => [d.id, d]));
   return (
     <>
@@ -35,8 +50,8 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
           <Illustration name="card" tone="a3" />
           <p>
             No cards or loans yet. Add each one with its balance, APR and minimum payment, and the
-            app orders them by highest APR: pay minimums on all, extra on the first. Nothing is
-            moved for you.
+            app orders them the way you pick in the payoff plan: pay minimums on all, extra on the
+            first. Nothing is moved for you.
           </p>
         </Card>
       ) : null}
@@ -46,7 +61,12 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
           {formatCents(order.total_min_payment_cents)} a month
         </p>
       ) : null}
-      <ol className="lb" aria-label="Debts, highest APR first">
+      <ol
+        className="lb"
+        aria-label={
+          shown === "snowball" ? "Debts, smallest balance first" : "Debts, highest rate first"
+        }
+      >
         {order?.order.map((d) => (
           <li key={d.id}>
             <button
@@ -86,7 +106,9 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
       </ol>
       {order && order.order.length > 0 ? (
         <p className="auth__fineprint">
-          Avalanche order: highest APR first, so interest costs the least. Education, not advice.
+          {shown === "snowball"
+            ? "Smallest balance first: a debt clears sooner. Education, not advice."
+            : "Highest rate first: interest costs the least. Education, not advice."}
         </p>
       ) : null}
     </>

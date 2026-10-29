@@ -339,6 +339,13 @@ export function defaultNotifications(): FakeApi["notifications"] {
         threshold: null,
         channel: "push",
       },
+      budget_pace: {
+        enabled: true,
+        time_of_day: "09:00",
+        days: null,
+        lead_days: null,
+        threshold: null,
+      },
     },
     settings: {
       quiet_start: "21:00",
@@ -352,8 +359,15 @@ export function defaultNotifications(): FakeApi["notifications"] {
 }
 
 export interface FakeGroup
-  extends Omit<GroupDetail, "is_owner" | "member_count" | "my_progress_bps"> {
+  extends Omit<
+    GroupDetail,
+    "is_owner" | "member_count" | "my_progress_bps" | "my_helped" | "helped" | "helped_open"
+  > {
   owner_id: string;
+  /** "What helped" answers by member id (the server shows totals only, from 2 answers). */
+  answers?: Record<string, string[]>;
+  /** The challenge has ended (the server reads its end date). */
+  ended?: boolean;
 }
 
 export const ME = "u1";
@@ -467,6 +481,13 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     return `${month}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0")}`;
   };
   const activeMembers = (g: FakeGroup) => g.members.filter((m) => !m.former);
+  const helpedTotals = (g: FakeGroup) => {
+    const answers = Object.values(g.answers ?? {}).filter((a) => a.length > 0);
+    if (answers.length < 2) return null;
+    const counts: Record<string, number> = {};
+    for (const a of answers) for (const id of a) counts[id] = (counts[id] ?? 0) + 1;
+    return { answered: answers.length, counts };
+  };
   const detail = (g: FakeGroup): GroupDetail => {
     const me = g.members.find((m) => m.user_id === ME);
     return {
@@ -479,6 +500,9 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       is_owner: g.owner_id === ME,
       member_count: activeMembers(g).length,
       my_progress_bps: me?.progress_bps ?? 0,
+      my_helped: g.answers?.[ME] ?? [],
+      helped_open: Boolean(g.ended || me?.reached_at || (me?.progress_bps ?? 0) >= 10000),
+      helped: helpedTotals(g),
       members: g.members.map((m) => ({
         ...m,
         is_me: m.user_id === ME,
@@ -487,7 +511,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     };
   };
   const summary = (g: FakeGroup) => {
-    const { members: _members, ...rest } = detail(g);
+    const { members: _members, helped: _h, helped_open: _o, ...rest } = detail(g);
     return rest;
   };
   const myGroups = () => state.groups.filter((g) => g.members.some((m) => m.user_id === ME));
@@ -1396,6 +1420,13 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
         me.has_events = true;
         if (me.progress_bps >= 10000 && !me.reached_at) me.reached_at = "2026-10-10T12:00:00Z";
         return json({ ...me, is_me: true, is_owner: g.owner_id === ME });
+      }
+      if (method === "PUT" && rest === "helped") {
+        const choices = (b.choices as unknown as string[] | undefined) ?? [];
+        if (choices.length > 5) return json({ detail: "invalid_choices" }, 422);
+        if (!(g.ended || me.reached_at)) return json({ detail: "not_yet" }, 409);
+        g.answers = { ...(g.answers ?? {}), [ME]: choices };
+        return json(detail(g));
       }
       if (method === "POST" && rest === "leave") {
         if (g.owner_id === ME) return json({ detail: "owner_cannot_leave" }, 409);

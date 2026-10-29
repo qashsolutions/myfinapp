@@ -1,0 +1,16 @@
+{
+  "entries": [
+    {
+      "date": "2026-08-01",
+      "direction": "out",
+      "amount_cents": 100
+    },
+    {
+      "date": "2026-09-01",
+      "direction": "out",
+      "amount_cents": 200
+    }
+  ],
+  "as_of": "2026-10-05",
+  "months": 6
+}

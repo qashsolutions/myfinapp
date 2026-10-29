@@ -5,7 +5,7 @@
 
 import { addDays, addMonths, type Day, daysUntil, iso, monthBounds, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
-import { assertInt, roundDiv } from "./money.ts";
+import { assertInt, ratioBps, roundDiv } from "./money.ts";
 import { compareText } from "./text.ts";
 
 type Direction = "in" | "out";
@@ -293,4 +293,139 @@ export function matchTransfers(rawEntries: unknown, windowDays: unknown = 5): Tr
     }
   }
   return pairs;
+}
+
+const BUCKETS = ["need", "want", "save", null] as const;
+type Bucket = "need" | "want" | "save" | null;
+type BucketTotals = { need: number; want: number; save: number; none: number };
+
+export interface FixedFlexibleCategory {
+  category_id: string | null;
+  bucket: Bucket;
+  fixed_cents: number;
+  flexible_cents: number;
+  out_cents: number;
+}
+
+export interface FixedFlexible {
+  start: string;
+  end: string;
+  in_cents: number;
+  out_cents: number;
+  fixed_cents: number;
+  flexible_cents: number;
+  fixed_by_bucket: BucketTotals;
+  flexible_by_bucket: BucketTotals;
+  kept_cents: number;
+  kept_rate_bps: number | null;
+  by_category: FixedFlexibleCategory[];
+  room: Array<{ category_id: string | null; flexible_cents: number }>;
+}
+
+/** Python's (−cents, category is None, category or "") order, in code points. */
+function byCentsThenCategory(
+  a: { category_id: string | null },
+  b: { category_id: string | null },
+  ca: number,
+  cb: number,
+): number {
+  if (ca !== cb) return cb - ca;
+  if ((a.category_id === null) !== (b.category_id === null)) return a.category_id === null ? 1 : -1;
+  return compareText(a.category_id ?? "", b.category_id ?? "");
+}
+
+type Part = "fixed" | "flexible";
+
+/** The person's own call per category; null means none. An array is never a record. */
+function overridesOf(raw: unknown): Map<string, Part> {
+  const calls = new Map<string, Part>();
+  if (raw === null || raw === undefined) return calls;
+  if (typeof raw !== "object" || Array.isArray(raw)) throw new RuleError("invalid_overrides");
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (value !== "fixed" && value !== "flexible") throw new RuleError("invalid_overrides");
+    calls.set(key, value);
+  }
+  return calls;
+}
+
+/** Port of cashflow.fixed_flexible: fixed vs flexible money out and the kept rate. */
+export function fixedFlexible(
+  start: unknown,
+  end: unknown,
+  rawEntries: unknown,
+  overrides: unknown = null,
+): FixedFlexible {
+  const calls = overridesOf(overrides);
+  const first = parseDate(start);
+  const last = parseDate(end);
+  if (daysUntil(first, last) < 0) throw new RuleError("invalid_range");
+  if (!Array.isArray(rawEntries)) throw new RuleError("invalid_entries");
+  const parsed = rawEntries.map((raw) => {
+    const e = entry(raw);
+    const r = raw as Record<string, unknown>;
+    if (typeof r.is_recurring !== "boolean") throw new RuleError("invalid_entry");
+    const bucket = r.bucket ?? null;
+    if (!(BUCKETS as readonly unknown[]).includes(bucket)) throw new RuleError("invalid_bucket");
+    return { ...e, is_recurring: r.is_recurring, bucket: bucket as Bucket };
+  });
+  const rows = parsed.filter((e) => daysUntil(first, e.date) >= 0 && daysUntil(e.date, last) >= 0);
+  let inCents = 0;
+  const parts: Record<"fixed" | "flexible", BucketTotals> = {
+    fixed: { need: 0, want: 0, save: 0, none: 0 },
+    flexible: { need: 0, want: 0, save: 0, none: 0 },
+  };
+  const byCategory = new Map<string | null, FixedFlexibleCategory>();
+  for (const e of rows) {
+    if (e.is_transfer) continue;
+    if (e.direction === "in" && e.category_kind !== "expense") {
+      inCents += e.cents;
+      continue;
+    }
+    // money out, or a refund netting against it
+    const cents = e.direction === "out" ? e.cents : -e.cents;
+    const call = e.category_id === null ? undefined : calls.get(e.category_id);
+    const part: Part = call ?? (e.is_recurring ? "fixed" : "flexible");
+    parts[part][e.bucket ?? "none"] += cents;
+    let cat = byCategory.get(e.category_id);
+    if (!cat) {
+      cat = {
+        category_id: e.category_id,
+        bucket: e.bucket,
+        fixed_cents: 0,
+        flexible_cents: 0,
+        out_cents: 0,
+      };
+      byCategory.set(e.category_id, cat);
+    }
+    if (cat.bucket !== e.bucket) throw new RuleError("invalid_bucket");
+    if (part === "fixed") cat.fixed_cents += cents;
+    else cat.flexible_cents += cents;
+  }
+  const sum = (b: BucketTotals) => b.need + b.want + b.save + b.none;
+  const fixed = sum(parts.fixed);
+  const flexible = sum(parts.flexible);
+  const kept = inCents - fixed - flexible;
+  const categories = [...byCategory.values()].map((c) => ({
+    ...c,
+    out_cents: c.fixed_cents + c.flexible_cents,
+  }));
+  categories.sort((a, b) => byCentsThenCategory(a, b, a.out_cents, b.out_cents));
+  const room = categories
+    .filter((c) => c.bucket === "want" && c.flexible_cents > 0)
+    .map((c) => ({ category_id: c.category_id, flexible_cents: c.flexible_cents }));
+  room.sort((a, b) => byCentsThenCategory(a, b, a.flexible_cents, b.flexible_cents));
+  return {
+    start: iso(first),
+    end: iso(last),
+    in_cents: inCents,
+    out_cents: fixed + flexible,
+    fixed_cents: fixed,
+    flexible_cents: flexible,
+    fixed_by_bucket: parts.fixed,
+    flexible_by_bucket: parts.flexible,
+    kept_cents: kept,
+    kept_rate_bps: inCents ? ratioBps(kept, inCents) : null,
+    by_category: categories,
+    room,
+  };
 }

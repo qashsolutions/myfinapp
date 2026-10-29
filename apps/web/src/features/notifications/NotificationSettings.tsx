@@ -11,6 +11,7 @@ import { addDaysIso } from "../../lib/dates.ts";
 import { todayIso } from "../../lib/format.ts";
 import { parseWholeNumber } from "../../lib/ownValues.ts";
 import { needsHomeScreen, type PushOutcome, unsubscribeFromPush } from "../../pwa/pushSubscribe.ts";
+import { BudgetAlertOptions } from "../budget/BudgetAlertOptions.tsx";
 import { ChipsOrOwn, ChoiceChips } from "../goals/CustomValueSheet.tsx";
 import { NotificationPrePrompt } from "./NotificationPrePrompt.tsx";
 import {
@@ -34,6 +35,7 @@ const TYPE_ORDER = [
   "shortfall_risk",
   "challenge_checkin",
   "goal_behind_pace",
+  "budget_pace",
   "milestone_reached",
   "group_activity",
   "weekly_recap",
@@ -199,6 +201,15 @@ export function NotificationSettings() {
               },
             }}
           />
+        );
+      case "budget_pace":
+        return (
+          <>
+            <BudgetAlertOptions prefs={prefs} update={update} />
+            <p className="auth__hint">
+              Choose which budget lines alert on Budget → Adjust budget alerts.
+            </p>
+          </>
         );
       case "weekly_recap":
         return (

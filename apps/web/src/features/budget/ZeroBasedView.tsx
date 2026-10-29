@@ -2,13 +2,15 @@ import "../entries/entries.css";
 
 import { Button, Card, ProgressBar, Sheet } from "@stackd/ui";
 import { useId, useState } from "react";
-import { Word } from "../../app/layout/Word.tsx";
+import { Word, wordTone } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { BudgetLine, Category } from "../../data/db.ts";
 import type { BudgetSummary, MonthTotals } from "../../engine/bridge.ts";
 import { parseAmount } from "../../engine/bridge.ts";
 import { formatCents } from "../../lib/format.ts";
 import { showUndo } from "../entries/undoToast.ts";
+import { PaceBar } from "./PaceBar.tsx";
+import { CLOSE_BPS, type PaceWord } from "./pace.ts";
 import {
   assignRest,
   fillFromLastMonth,
@@ -37,12 +39,21 @@ export function ZeroBasedView({
   lines,
   categories,
   lastMonth,
+  pace = null,
+  levelBps = CLOSE_BPS,
+  alerting = () => false,
 }: {
   summary: BudgetSummary;
   lines: BudgetLine[];
   categories: Map<string, Category>;
   /** Last month's totals (Money in & out's), for "Start from last month". */
   lastMonth: MonthTotals | null;
+  /** "Close" / "Over" per line from `budget.pace` (the same reading as the budget alert). */
+  pace?: Map<string, PaceWord> | null;
+  /** The "Tell me at" level each bar marks (the person's own, else the config's). */
+  levelBps?: number;
+  /** Whether a line's alert is on (the alert is on and the line wasn't turned off). */
+  alerting?: (lineId: string) => boolean;
 }) {
   const { db } = useDb();
   const ids = useId();
@@ -112,9 +123,13 @@ export function ZeroBasedView({
     const unplanned = line.planned_cents === 0;
     const over = !unplanned && spent > line.planned_cents;
     const label = name(line);
+    const word = pace?.get(line.category_id) ?? null;
     return (
       <div className="zb-line" key={line.id}>
         <div className="zb-line__main">
+          {word ? (
+            <span className={`zb-line__word zb-line__word--${wordTone(word)}`}>{word}</span>
+          ) : null}
           <button
             type="button"
             className="zb-line__name"
@@ -134,12 +149,23 @@ export function ZeroBasedView({
                 }`}
           </div>
           {line.planned_cents > 0 ? (
-            <ProgressBar
-              fraction={spent / line.planned_cents}
-              label={`${label} spent of planned`}
-              valueText={`${formatCents(spent)} of ${formatCents(line.planned_cents)}`}
-              tone={over ? "warning" : undefined}
-            />
+            categories.get(line.category_id)?.bucket === "save" ? (
+              <ProgressBar
+                fraction={spent / line.planned_cents}
+                label={`${label} spent of planned`}
+                valueText={`${formatCents(spent)} of ${formatCents(line.planned_cents)}`}
+              />
+            ) : (
+              <PaceBar
+                spentCents={spent}
+                plannedCents={line.planned_cents}
+                levelBps={levelBps}
+                alerts={alerting(line.category_id)}
+                label={`${label} spent of planned`}
+                valueText={`${formatCents(spent)} of ${formatCents(line.planned_cents)}`}
+                tone={over ? "warning" : undefined}
+              />
+            )
           ) : null}
           {over ? (
             <button

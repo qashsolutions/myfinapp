@@ -23,6 +23,14 @@ def compile_config() -> dict:
     return {
         "version": int(data["version"]),
         "thresholds": {str(k): int(v) for k, v in data["thresholds"].items()},
+        "budget_alerts": {
+            "levels_bps": [int(v) for v in data["budget_alerts"]["levels_bps"]],
+        },
+        "month_review": {
+            "show_days": int(data["month_review"]["show_days"]),
+            "debt_add_cents": int(data["month_review"]["debt_add_cents"]),
+            "one_change_order": [str(k) for k in data["month_review"]["one_change_order"]],
+        },
     }
 
 

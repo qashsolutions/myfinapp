@@ -1,0 +1,43 @@
+{
+  "items": [
+    {
+      "id": "s-fit",
+      "label": "Fit",
+      "kind": null,
+      "ask": true,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": {
+        "trial_cents": 0,
+        "cents": 1499,
+        "date": "2026-10-03"
+      },
+      "yearly_cents": 17988,
+      "monthly_cents": 1499
+    },
+    {
+      "id": "s-gym",
+      "label": "Gym",
+      "kind": null,
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 17988,
+      "monthly_cents": 1499
+    }
+  ],
+  "duplicates": [],
+  "by_kind": [
+    {
+      "kind": null,
+      "count": 2,
+      "yearly_cents": 35976,
+      "monthly_cents": 2998,
+      "ids": [
+        "s-fit",
+        "s-gym"
+      ]
+    }
+  ]
+}

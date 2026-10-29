@@ -15,6 +15,8 @@ import { deleteReceiptsOf } from "../../data/receipts.ts";
 import { parseAmount } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
+import { parseWholeNumber } from "../../lib/ownValues.ts";
+import { ChipsOrOwn } from "../goals/CustomValueSheet.tsx";
 
 const TYPE_LABELS: Record<AccountType, string> = {
   checking: "Checking",
@@ -28,6 +30,14 @@ const TYPE_LABELS: Record<AccountType, string> = {
  * format; set a balance; add or remove an account (category rules and saved names are on Categories since October 23, 2026). Everything here lives
  * on this device; removing an account deletes its imported transactions after you confirm.
  */
+/** Suggested due days; any day 1 to 31 works (31 is the last day of a shorter month). */
+export const DUE_DAY_OPTIONS: Array<[string, string]> = [
+  ["", "None"],
+  ["1", "1st"],
+  ["15", "15th"],
+  ["31", "Last day"],
+];
+
 export function AccountsManager() {
   const { db } = useDb();
   const ids = useId();
@@ -42,6 +52,7 @@ export function AccountsManager() {
   const [label, setLabel] = useState("");
   const [type, setType] = useState<AccountType>("checking");
   const [last4, setLast4] = useState("");
+  const [dueDay, setDueDay] = useState(""); // "" = none; "1".."31" (31 = the month's last day)
   const [balanceText, setBalanceText] = useState("");
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +63,7 @@ export function AccountsManager() {
     setLabel(target === "new" ? "" : target.label);
     setType(target === "new" ? "checking" : target.type);
     setLast4(target === "new" ? "" : (target.last4 ?? ""));
+    setDueDay(target === "new" || !target.due_day ? "" : String(target.due_day));
     setError(null);
   }
 
@@ -61,6 +73,9 @@ export function AccountsManager() {
       return;
     }
     const digits = last4.replace(/[^0-9]/g, "").slice(-4) || null;
+    // Credit habits (October 28, 2026): only a card that isn't linked keeps its own due day.
+    const linked = editing !== "new" && Boolean(editing?.linked);
+    const due_day = type === "credit_card" && !linked && dueDay ? Number(dueDay) : null;
     if (editing === "new") {
       await db.accounts.add({
         id: newId(),
@@ -70,9 +85,10 @@ export function AccountsManager() {
         institution: null,
         currency: "USD",
         created_at: new Date().toISOString(),
+        due_day,
       });
     } else if (editing) {
-      await db.accounts.update(editing.id, { label: label.trim(), type, last4: digits });
+      await db.accounts.update(editing.id, { label: label.trim(), type, last4: digits, due_day });
     }
     setEditing(null);
   }
@@ -99,7 +115,7 @@ export function AccountsManager() {
 
   /**
    * Removing an account removes what came with it: entries, imports, anchors, mapping, kept
-   * files, the entries' receipts and photos, a card's details and its net worth choice.
+   * files, the entries' receipts and photos, a card's details and due dates and its net worth choice.
    */
   async function removeAccount(account: Account) {
     await db.transaction(
@@ -113,6 +129,7 @@ export function AccountsManager() {
         db.files,
         db.receipts,
         db.card_details,
+        db.card_due_dates,
         db.net_worth_items,
         db.tombstones,
       ],
@@ -133,6 +150,12 @@ export function AccountsManager() {
         await db.files.bulkDelete(fileIds);
         await deleteReceiptsOf(db, entryIds);
         await db.card_details.delete(account.id);
+        const dueIds = (await db.card_due_dates
+          .where("account_id")
+          .equals(account.id)
+          .primaryKeys()) as string[];
+        await db.card_due_dates.bulkDelete(dueIds);
+        await recordDeletion(db, "card_due_dates", dueIds);
         await db.net_worth_items.bulkDelete(worthIds);
         await recordDeletion(db, "net_worth_items", worthIds);
         await db.entries.where("account_id").equals(account.id).delete();
@@ -283,6 +306,24 @@ export function AccountsManager() {
             onChange={(e) => setLast4(e.target.value)}
           />
         </label>
+        {type === "credit_card" && !(editing && editing !== "new" && editing.linked) ? (
+          <ChipsOrOwn
+            name={`${ids}-due`}
+            legend="Payment due day (optional, for Credit habits)"
+            options={DUE_DAY_OPTIONS}
+            value={dueDay}
+            onPick={setDueDay}
+            display={(v) => v}
+            own={{
+              label: "Own due day, 1 to 31",
+              placeholder: "Day 1 to 31",
+              parse: (text) => {
+                const n = parseWholeNumber(text, 1, 31);
+                return n === null ? { error: "Pick a day from 1 to 31." } : { value: String(n) };
+              },
+            }}
+          />
+        ) : null}
         {error ? (
           <p className="auth__error" role="alert">
             {error}

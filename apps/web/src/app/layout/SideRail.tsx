@@ -1,12 +1,13 @@
 import { cx } from "@stackd/ui";
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { useSession } from "../../features/auth/useSession.tsx";
-import { TABS } from "../tabs.ts";
+import { activeTab, TABS } from "../tabs.ts";
 import { Logo } from "./Logo.tsx";
 
 /** 900px and up (WIDE_QUERY): the left rail with the brand and the same five destinations. */
 export function SideRail() {
+  const current = activeTab(useLocation().pathname);
   return (
     <aside className="rail">
       <div className="rail__brand">
@@ -15,14 +16,14 @@ export function SideRail() {
       </div>
       <nav className="rail__nav" aria-label="Primary">
         {TABS.map((t) => (
-          <NavLink
+          <Link
             key={t.path}
             to={t.path}
-            end={t.path === "/"}
-            className={({ isActive }) => cx("rail__link", isActive && "rail__link--active")}
+            aria-current={current === t.path ? "page" : undefined}
+            className={cx("rail__link", current === t.path && "rail__link--active")}
           >
             {t.label}
-          </NavLink>
+          </Link>
         ))}
       </nav>
       <SignedInAs />

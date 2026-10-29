@@ -3,6 +3,8 @@ import { Word } from "../../app/layout/Word.tsx";
 import type { Category } from "../../data/db.ts";
 import type { Bucket, BudgetSummary } from "../../engine/bridge.ts";
 import { formatCents } from "../../lib/format.ts";
+import { PaceBar } from "./PaceBar.tsx";
+import { bucketLineId, CLOSE_BPS, type PaceWord } from "./pace.ts";
 import { type Split, SUGGESTED } from "./split.ts";
 
 export const BUCKET_LABELS: Record<Bucket, [string, string]> = {
@@ -17,10 +19,19 @@ export function RuleView({
   summary,
   categories,
   split,
+  pace = null,
+  levelBps = CLOSE_BPS,
+  alerting = () => false,
 }: {
   summary: BudgetSummary;
   categories: Map<string, Category>;
   split?: Split | null;
+  /** "Close" / "Over" per bucket from `budget.pace` (the same reading as the budget alert). */
+  pace?: Map<string, PaceWord> | null;
+  /** The "Tell me at" level each bar marks (the person's own, else the config's). */
+  levelBps?: number;
+  /** Whether a line's alert is on (the alert is on and the line wasn't turned off). */
+  alerting?: (lineId: string) => boolean;
 }) {
   return (
     <>
@@ -43,7 +54,9 @@ export function RuleView({
                   : "Saving"
                 : over
                   ? "Over"
-                  : "Steady"}
+                  : pace?.get(bucketLineId(b.bucket)) === "Close"
+                    ? "Close"
+                    : "Steady"}
             </Word>
             <div className="bucket__top">
               <span className="bucket__title">
@@ -54,12 +67,24 @@ export function RuleView({
                 <span className="bucket__of">of {formatCents(b.planned_cents)}</span>
               </span>
             </div>
-            <ProgressBar
-              fraction={fraction}
-              label={`${name} spent`}
-              valueText={`${formatCents(b.spent_cents)} of ${formatCents(b.planned_cents)}`}
-              tone={over ? "danger" : fraction >= 1 ? "success" : "accent"}
-            />
+            {b.bucket === "save" ? (
+              <ProgressBar
+                fraction={fraction}
+                label={`${name} spent`}
+                valueText={`${formatCents(b.spent_cents)} of ${formatCents(b.planned_cents)}`}
+                tone={fraction >= 1 ? "success" : "accent"}
+              />
+            ) : (
+              <PaceBar
+                spentCents={b.spent_cents}
+                plannedCents={b.planned_cents}
+                levelBps={levelBps}
+                alerts={alerting(bucketLineId(b.bucket))}
+                label={`${name} spent`}
+                valueText={`${formatCents(b.spent_cents)} of ${formatCents(b.planned_cents)}`}
+                tone={over ? "danger" : fraction >= 1 ? "success" : "accent"}
+              />
+            )}
             <div className="bucket__bottom">
               <span>{names.length ? names.join(", ") : "Nothing yet"}</span>
               <span

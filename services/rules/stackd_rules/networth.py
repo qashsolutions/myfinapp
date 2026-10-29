@@ -33,7 +33,7 @@ def summary(items: list, previous_net_cents: int | None) -> dict:
         if not isinstance(raw, dict) or not isinstance(raw.get("id"), str):
             raise RuleError("invalid_item")
         kind, group = raw.get("kind"), raw.get("group")
-        if kind not in GROUPS:
+        if not isinstance(kind, str) or kind not in GROUPS:
             raise RuleError("invalid_kind")
         if group not in GROUPS[kind]:
             raise RuleError("invalid_group")
@@ -124,7 +124,7 @@ def history(dates_asked: list, accounts: list, items: list) -> dict:
     for raw in items:
         if not isinstance(raw, dict) or not isinstance(raw.get("id"), str):
             raise RuleError("invalid_item")
-        if raw.get("kind") not in GROUPS:
+        if not isinstance(raw.get("kind"), str) or raw.get("kind") not in GROUPS:
             raise RuleError("invalid_kind")
         value = _int(raw.get("value_cents"), "invalid_amount")
         if value < 0:

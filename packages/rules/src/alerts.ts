@@ -2,9 +2,10 @@
 
 import { addDays, type Day, daysUntil, iso, parseDate, weekday } from "./dates.ts";
 import { RuleError } from "./errors.ts";
+import { fnv1a64 } from "./fingerprint.ts";
 import { assertInt, mul, roundDiv } from "./money.ts";
 import { compareLocal, fmtLocal, type Local, parseClock, parseLocal } from "./notify.ts";
-import { compareText } from "./text.ts";
+import { compareText, utf8 } from "./text.ts";
 
 export const HORIZON_DAYS = 30;
 export const SEND_TIME = "09:00"; // dated alerts, unless the person picks their own time (`time`)
@@ -17,6 +18,21 @@ export interface ScheduledAlert {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+const TAG = /^[a-p]{16}$/;
+
+/**
+ * Port of alerts.tag: 16 letters a–p from FNV-1a 64 of `salt:value`, so a key can name a
+ * category without the server learning which one (the salt is a random value on the device).
+ */
+export function tag(value: unknown, salt: unknown): string {
+  if (typeof value !== "string" || !value || typeof salt !== "string" || !salt)
+    throw new RuleError("invalid_inputs");
+  const hex = fnv1a64(utf8(`${salt}:${value}`, "invalid_inputs"))
+    .toString(16)
+    .padStart(16, "0");
+  return Array.from(hex, (c) => String.fromCharCode(97 + Number.parseInt(c, 16))).join("");
 }
 
 function at(day: Day, clock: unknown): Local {
@@ -130,6 +146,21 @@ export function schedule(inputs: unknown): { alerts: ScheduledAlert[] } {
       if (!isRecord(m) || typeof m.goal_id !== "string" || typeof m.key !== "string")
         throw new RuleError("invalid_inputs");
       add("milestone_reached", now, `milestone:${m.goal_id}:${m.key}`);
+    }
+  }
+
+  const budget = pref(prefs, "budget_pace");
+  if (budget.enabled) {
+    const atTime = at(today, opt(budget, "time", SEND_TIME));
+    const due = compareLocal(atTime, now) >= 0 ? atTime : now;
+    const month = iso(today).slice(0, 7);
+    for (const item of list(inputs.budget)) {
+      if (!isRecord(item)) throw new RuleError("invalid_inputs");
+      const label = item.tag;
+      if (typeof label !== "string" || !TAG.test(label)) throw new RuleError("invalid_inputs");
+      const level = assertInt(item.level_bps);
+      if (level <= 0) throw new RuleError("invalid_inputs");
+      add("budget_pace", due, `budget:${month}:${label}:${level}`);
     }
   }
 

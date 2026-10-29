@@ -11,11 +11,14 @@ import type { StackdDb } from "../../data/db.ts";
  * about into your own order and hide the rest). */
 export const HOME_CARDS = [
   ["kept", "This month", "Kept, with money in and out"],
+  ["month_review", "Your month", "Last month at a glance, in its first week"],
   ["found", "Found in your statements", "Bills and pay to confirm"],
   ["where", "Where it went", "Spending by category"],
   ["aside", "Set aside", "This month's saving"],
   ["move", "Next move", "One thing worth doing now"],
   ["next30", "Next 30 days", "Safe to spend and your balance"],
+  ["debt_free", "Debt payoff", "When your debts are paid off"],
+  ["sub_check", "Subscription check", "Still using it? Only when there's a question"],
   ["setup", "Make Qash yours", "Your next steps, if you want them"],
   ["budget", "Budget", "On track or over"],
   ["jars", "Jars", "Your saving jars"],

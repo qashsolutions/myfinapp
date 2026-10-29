@@ -69,6 +69,7 @@ export async function collectExport(
     anchors,
     imports,
     cards,
+    cardDueDates,
     worthItems,
     worthSnapshots,
     merchantNames,
@@ -93,6 +94,7 @@ export async function collectExport(
     db.balance_anchors.toArray(),
     db.statement_imports.toArray(),
     db.card_details.toArray(),
+    db.card_due_dates.toArray(),
     db.net_worth_items.toArray(),
     db.net_worth_snapshots.toArray(),
     db.merchant_names.toArray(),
@@ -202,6 +204,7 @@ export async function collectExport(
         balance_anchors: anchors,
         statement_imports: imports,
         card_details: cards,
+        card_due_dates: cardDueDates,
         csv_mappings: csvMappings,
         statement_files: statementFiles.map(({ blob: _blob, ...f }) => ({
           ...f,

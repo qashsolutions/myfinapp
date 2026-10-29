@@ -8,3 +8,26 @@ thresholds:
   lumpy_month_cents: 30000        # a month with $300+ of quarterly / yearly bills is "big"
   seasonal_increase_cents: 10000  # last year's same month ran $100+ over...
   seasonal_increase_bps: 2000     # ...and 20% over the usual month
+  # Debt & credit (October 28, 2026; signed off by the owner, October 29, 2026):
+  card_trend_months: 6            # Card spending vs payments looks back six whole months
+  credit_habits_months: 12        # Credit habits checks the due dates of the last 12 months
+  credit_guide_bps: 3000          # under 30% of the limit used is the guide line
+  # Subscription check (signed off by the owner, October 29, 2026). The two day counts are
+  # defaults: the person picks their own under Subscriptions -> Adjust (settings
+  # subscriptions.ask_days 7-365 and subscriptions.renewal_days 1-90), which win over these.
+  subscription_ask_days: 90       # ask "still using it?" again 90 days after the last Keep
+  subscription_renewal_days: 15   # a yearly or quarterly renewal this close is shown and asked
+  trial_max_cents: 100            # a first charge of $1.00 or less...
+  trial_window_days: 45           # ...followed within 45 days by a larger one is a trial
+# Budget alert levels (October 28, 2026; signed off by the owner, October 29, 2026): a budget line is
+# "Close" at the first level and alerts once per level per month (`budget.pace`).
+budget_alerts:
+  levels_bps: [9000, 10000]
+# Your month, the once-a-month review (October 28, 2026; signed off by the owner, October 29, 2026):
+# Home shows its card during the first `show_days` days of a month; with nothing over plan, the
+# debt candidate puts `debt_add_cents` a month more on the debts; ties between the one-change
+# candidates go by `one_change_order` (insights.one_change).
+month_review:
+  show_days: 7
+  debt_add_cents: 5000
+  one_change_order: [over_plan, subscription_check, debt_interest]

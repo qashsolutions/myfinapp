@@ -1,0 +1,96 @@
+{
+  "items": [
+    {
+      "id": "s-hulu",
+      "label": "Hulu",
+      "kind": "video",
+      "ask": true,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 21600,
+      "monthly_cents": 1800
+    },
+    {
+      "id": "s-net",
+      "label": "Netflix",
+      "kind": "video",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 18588,
+      "monthly_cents": 1549
+    },
+    {
+      "id": "s-spot",
+      "label": "Spotify",
+      "kind": "music",
+      "ask": true,
+      "price_rise": {
+        "from_cents": 1199,
+        "to_cents": 1299,
+        "date": "2026-10-03"
+      },
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 15588,
+      "monthly_cents": 1299
+    },
+    {
+      "id": "s-cloud",
+      "label": "Cloud",
+      "kind": null,
+      "ask": true,
+      "price_rise": null,
+      "renewal": {
+        "date": "2026-11-08",
+        "cents": 9900
+      },
+      "trial_turned_charge": null,
+      "yearly_cents": 9900,
+      "monthly_cents": 825
+    }
+  ],
+  "duplicates": [
+    {
+      "kind": "video",
+      "count": 2,
+      "monthly_total_cents": 3349,
+      "ids": [
+        "s-hulu",
+        "s-net"
+      ]
+    }
+  ],
+  "by_kind": [
+    {
+      "kind": "video",
+      "count": 2,
+      "yearly_cents": 40188,
+      "monthly_cents": 3349,
+      "ids": [
+        "s-hulu",
+        "s-net"
+      ]
+    },
+    {
+      "kind": "music",
+      "count": 1,
+      "yearly_cents": 15588,
+      "monthly_cents": 1299,
+      "ids": [
+        "s-spot"
+      ]
+    },
+    {
+      "kind": null,
+      "count": 1,
+      "yearly_cents": 9900,
+      "monthly_cents": 825,
+      "ids": [
+        "s-cloud"
+      ]
+    }
+  ]
+}

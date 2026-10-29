@@ -6,10 +6,14 @@ import {
   cleanDescription,
   daysUntil,
   engine,
+  type SubscriptionCheck,
+  type SubscriptionCheckInput,
+  subscriptionCheck,
   type YearlyCost,
   yearlyCost,
 } from "../../engine/bridge.ts";
 import { compareText } from "../../lib/order.ts";
+import { checkThresholds, KIND_TABLE, useCheckIntervals } from "./kinds.ts";
 
 /** The built-in Subscriptions category (data/defaults.ts); renaming it keeps the id. */
 export const SUBSCRIPTIONS_CATEGORY = "cat-subscriptions";
@@ -21,10 +25,28 @@ export interface SubscriptionsView {
     yearly_cents: number;
     monthly_cents: number;
     days: number;
+    /** Its kind: the person's own, else the name's, else null (from the subscription check). */
+    kind: string | null;
   }>;
   /** Other confirmed bills, which the person can count as a subscription. */
   others: RecurringSeries[];
   totals: YearlyCost;
+  /** The subscription check: when to ask "still using it?" and the facts from the charges. */
+  check: SubscriptionCheck;
+}
+
+/**
+ * The payee each entry text cleans to (`fingerprint.clean_description`), kept for the session:
+ * the rule is pure, so a text always cleans the same way, and Home, the month review and
+ * Subscriptions each read every charge out. Only texts not seen yet go to the engine, together.
+ */
+const CLEANED = new Map<string, string>();
+
+async function payeesOf(texts: Iterable<string>): Promise<Map<string, string>> {
+  const missing = [...new Set(texts)].filter((t) => !CLEANED.has(t));
+  const done = await Promise.all(missing.map(async (t) => [t, await cleanDescription(t)] as const));
+  for (const [t, payee] of done) CLEANED.set(t, payee);
+  return CLEANED;
 }
 
 /**
@@ -33,9 +55,22 @@ export interface SubscriptionsView {
  */
 async function splitBills(db: StackdDb, bills: RecurringSeries[]) {
   const latest = new Map<string, { date: string; category: string | null }>();
-  const flagged = await db.entries.filter((e) => e.is_recurring && e.direction === "out").toArray();
-  for (const e of flagged) {
-    const payee = await cleanDescription(e.merchant || e.clean_description);
+  // Every counted charge out by payee, recurring or not: a price rise or the end of a trial is
+  // often the charge the ±10% run left out. Only the bills' own payees are kept.
+  const charges = new Map<string, Array<{ date: string; cents: number }>>();
+  if (bills.length === 0) return { subs: [], others: [], charges };
+  const wanted = new Set(bills.map((s) => s.payee));
+  const out = await db.entries.filter((e) => e.direction === "out").toArray();
+  const cleaned = await payeesOf(out.map((e) => e.merchant || e.clean_description));
+  for (const e of out) {
+    const payee = cleaned.get(e.merchant || e.clean_description) as string;
+    if (!wanted.has(payee)) continue;
+    if (!e.is_transfer && !e.not_counted) {
+      const list = charges.get(payee);
+      if (list) list.push({ date: e.date, cents: e.amount_cents });
+      else charges.set(payee, [{ date: e.date, cents: e.amount_cents }]);
+    }
+    if (!e.is_recurring) continue;
     const seen = latest.get(payee);
     if (!seen || compareText(e.date, seen.date) > 0)
       latest.set(payee, { date: e.date, category: e.category_id });
@@ -46,7 +81,7 @@ async function splitBills(db: StackdDb, bills: RecurringSeries[]) {
     const counted = s.subscription ?? latest.get(s.payee)?.category === SUBSCRIPTIONS_CATEGORY;
     (counted ? subs : others).push(s);
   }
-  return { subs, others };
+  return { subs, others, charges };
 }
 
 /** The Subscriptions view (owner, October 27, 2026): yearly cost from `recurring.yearly_cost`. */
@@ -61,12 +96,13 @@ export function useSubscriptions(today: string): SubscriptionsView | undefined {
         .toArray(),
     [db],
   );
+  const intervals = useCheckIntervals();
   const [view, setView] = useState<SubscriptionsView | undefined>(undefined);
   useEffect(() => {
-    if (!bills) return;
+    if (!bills || !intervals) return;
     let alive = true;
     void (async () => {
-      const { subs, others } = await splitBills(db, bills);
+      const { subs, others, charges } = await splitBills(db, bills);
       const totals = await yearlyCost(
         subs.map((s) => ({
           id: s.id,
@@ -75,17 +111,6 @@ export function useSubscriptions(today: string): SubscriptionsView | undefined {
           expected_cents: s.expected_cents,
         })),
       );
-      const byId = new Map(subs.map((s) => [s.id, s]));
-      const subscriptions = [];
-      for (const item of totals.items) {
-        const series = byId.get(item.id) as RecurringSeries;
-        subscriptions.push({
-          series,
-          yearly_cents: item.yearly_cents,
-          monthly_cents: item.monthly_cents,
-          days: await daysUntil(today, series.next_date),
-        });
-      }
       await db.computed_results.put({
         id: `subscriptions:${today}`,
         kind: "subscriptions",
@@ -94,13 +119,60 @@ export function useSubscriptions(today: string): SubscriptionsView | undefined {
         payload: totals,
         computed_at: new Date().toISOString(),
       });
-      if (alive) setView({ subscriptions, others, totals });
+      const check = await subscriptionCheck(
+        today,
+        subs.map(
+          (s): SubscriptionCheckInput => ({
+            id: s.id,
+            label: s.label,
+            payee: s.payee,
+            interval: s.interval,
+            expected_cents: s.expected_cents,
+            next_date: s.next_date,
+            checked_at: s.checked_at ?? null,
+            charges: charges.get(s.payee) ?? [],
+            own_kind: s.subscription_kind ?? null,
+          }),
+        ),
+        KIND_TABLE,
+        checkThresholds(intervals),
+      );
+      const byId = new Map(subs.map((s) => [s.id, s]));
+      const kindOf = new Map(check.items.map((i) => [i.id, i.kind] as const));
+      const subscriptions = [];
+      for (const item of totals.items) {
+        const series = byId.get(item.id) as RecurringSeries;
+        subscriptions.push({
+          series,
+          yearly_cents: item.yearly_cents,
+          monthly_cents: item.monthly_cents,
+          days: await daysUntil(today, series.next_date),
+          kind: kindOf.get(item.id) ?? null,
+        });
+      }
+      await db.computed_results.put({
+        id: `subscription_check:${today}`,
+        kind: "subscription_check",
+        as_of: today,
+        rules_version: engine.rulesVersion ?? "unknown",
+        payload: check,
+        computed_at: new Date().toISOString(),
+      });
+      if (alive) setView({ subscriptions, others, totals, check });
     })().catch(ignoreClosed);
     return () => {
       alive = false;
     };
-  }, [db, bills, today]);
+  }, [db, bills, today, intervals]);
   return view;
+}
+
+/** "Keep it" on the subscription check: answered today, asked again in a while. */
+export async function keepSubscription(db: StackdDb, id: string, today: string): Promise<void> {
+  await db.recurring_series.update(id, {
+    checked_at: today,
+    updated_at: new Date().toISOString(),
+  });
 }
 
 /** The person's own call: count this bill as a subscription, or not. */

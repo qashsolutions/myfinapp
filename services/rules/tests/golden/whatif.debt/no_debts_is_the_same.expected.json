@@ -1,0 +1,15 @@
+{
+  "before": {
+    "months": 0,
+    "debt_free_month": null,
+    "interest_cents": 0
+  },
+  "after": {
+    "months": 0,
+    "debt_free_month": null,
+    "interest_cents": 0
+  },
+  "months_sooner": 0,
+  "interest_saved_cents": 0,
+  "status": "same"
+}

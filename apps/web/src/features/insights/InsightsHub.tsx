@@ -8,6 +8,10 @@ import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { ratioBps } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { useBudget } from "../budget/useBudget.ts";
+import { habitLines, habitsWord } from "../credit/CreditHabits.tsx";
+import { DueDots } from "../credit/CreditPictures.tsx";
+import { leadCard, useCreditCards } from "../credit/useCreditCards.ts";
+import { FixedFlexibleInsight } from "../fixed/FixedFlexibleCard.tsx";
 import { useForecast } from "../forecast/useForecast.ts";
 import { useRecurringSeries } from "../forecast/useRecurring.ts";
 import { useGoals } from "../goals/useGoals.ts";
@@ -15,6 +19,7 @@ import { LaterChart, shortMoney } from "../later/LaterChart.tsx";
 import { laterStatus, useLaterProjection } from "../later/LaterScreen.tsx";
 import { useLaterPlan } from "../later/useLaterPlan.ts";
 import { useMonthTotals } from "../money/useMonthTotals.ts";
+import { MonthReviewInsight } from "../monthreview/MonthReviewCards.tsx";
 import { WorthBars } from "../networth/NetWorthScreen.tsx";
 import { useNetWorth } from "../networth/useNetWorth.ts";
 import { RangeBars } from "../ranges/RangeBars.tsx";
@@ -35,11 +40,15 @@ export const INSIGHT_CARDS = [
   ["money", "Money in & out", "This month in and out"],
   ["sorted", "Auto-sorted spending", "How much is sorted"],
   ["spending", "Biggest & most often", "Top amounts and merchants"],
+  ["fixed", "Fixed vs flexible", "Bills against the rest, and what you keep"],
   ["bills", "Bills & subscriptions", "What's coming up"],
   ["safe", "Safe to spend", "Room before payday"],
   ["budget", "Budget & jars", "Your plan and jars"],
   ["worth", "Net worth", "Own minus owe"],
   ["later", "Later", "Savings by the age you choose"],
+  ["credit", "Credit habits", "On-time payments and limit used"],
+  ["whatif", "What if", "Move one thing, see what changes"],
+  ["month_review", "Your month", "Last month, and one change to try"],
 ] as const;
 type InsightId = (typeof INSIGHT_CARDS)[number][0];
 
@@ -60,6 +69,8 @@ export function InsightsHub() {
   const trend = sixMonths && sixMonths.active_months >= 2 ? sixMonths : null;
   const often = useTopSpending("Month", asOf, 3).result;
   const topMerchant = often?.merchants[0];
+  const creditCards = useCreditCards(asOf);
+  const creditLead = creditCards ? leadCard(creditCards) : null;
 
   // Share of this month's entries sorted into a category (transfers aren't spending).
   const spending = (month.entries ?? []).filter((e) => !e.is_transfer && !e.not_counted);
@@ -301,6 +312,8 @@ export function InsightsHub() {
             ) : null}
           </InsightCard>
         );
+      case "fixed":
+        return <FixedFlexibleInsight today={asOf} />;
       case "later":
         return (
           <InsightCard
@@ -315,6 +328,45 @@ export function InsightsHub() {
           >
             {later ? <LaterChart p={later} /> : null}
           </InsightCard>
+        );
+      case "credit":
+        // Only once there is a credit card account (October 28, 2026).
+        if (!creditCards || creditCards.length === 0) return null;
+        return (
+          <InsightCard
+            title="Credit habits"
+            to="/credit-habits"
+            word={habitsWord(creditLead?.habits ?? null)}
+            line={
+              creditLead?.habits
+                ? (habitLines(creditLead.habits, creditLead.guideBps)[0] ?? "Nothing due yet")
+                : "Set a payment due day to start"
+            }
+          >
+            {creditLead?.habits ? (
+              <>
+                <DueDots habits={creditLead.habits} compact />
+                <span className="inout__legend">
+                  {habitLines(creditLead.habits, creditLead.guideBps)
+                    .slice(1)
+                    .map((l) => (
+                      <span key={l}>{l}</span>
+                    ))}
+                </span>
+              </>
+            ) : null}
+          </InsightCard>
+        );
+      case "month_review":
+        return <MonthReviewInsight today={asOf} />;
+      case "whatif":
+        return (
+          <InsightCard
+            title="What if"
+            to="/what-if"
+            word="Try"
+            line="More on a loan, less on one thing"
+          />
         );
     }
   };

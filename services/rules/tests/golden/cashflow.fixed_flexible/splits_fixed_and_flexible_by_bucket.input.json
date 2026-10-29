@@ -1,0 +1,138 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-28",
+  "entries": [
+    {
+      "id": "e1",
+      "date": "2026-10-01",
+      "amount_cents": 300000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-paycheck",
+      "category_kind": "income",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": null
+    },
+    {
+      "id": "e2",
+      "date": "2026-10-01",
+      "amount_cents": 150000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-rent",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": true,
+      "bucket": "need"
+    },
+    {
+      "id": "e3",
+      "date": "2026-10-05",
+      "amount_cents": 1599,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-subscriptions",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": true,
+      "bucket": "want"
+    },
+    {
+      "id": "e4",
+      "date": "2026-10-07",
+      "amount_cents": 42000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": "need"
+    },
+    {
+      "id": "e5",
+      "date": "2026-10-10",
+      "amount_cents": 31000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": "want"
+    },
+    {
+      "id": "e6",
+      "date": "2026-10-12",
+      "amount_cents": 19000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": "want"
+    },
+    {
+      "id": "e7",
+      "date": "2026-10-15",
+      "amount_cents": 50000,
+      "direction": "out",
+      "is_transfer": true,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": null
+    },
+    {
+      "id": "e8",
+      "date": "2026-10-14",
+      "amount_cents": 2000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": "want"
+    },
+    {
+      "id": "e9",
+      "date": "2026-10-20",
+      "amount_cents": 2500,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": null
+    },
+    {
+      "id": "e10",
+      "date": "2026-10-29",
+      "amount_cents": 9000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": "want"
+    },
+    {
+      "id": "e11",
+      "date": "2026-10-25",
+      "amount_cents": 20000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-savings",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": "save"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "as_of": "2026-10-29",
+  "subscriptions": [
+    {"id": "a", "label": "Zed", "payee": "ZED", "interval": "monthly", "expected_cents": 1000, "next_date": "2026-11-20", "checked_at": "2026-10-29", "charges": []},
+    {"id": "b", "label": "Netflix", "payee": "NETFLIX", "interval": "monthly", "expected_cents": 1000, "next_date": "2026-11-20", "checked_at": "2026-10-29", "charges": []},
+    {"id": "c", "label": "Audible", "payee": "AUDIBLE", "interval": "monthly", "expected_cents": 1000, "next_date": "2026-11-20", "checked_at": "2026-10-29", "charges": []}
+  ],
+  "kinds": [{"match": "NETFLIX", "kind": "video"}, {"match": "AUDIBLE", "kind": "audio"}],
+  "thresholds": {"subscription_ask_days": 90, "subscription_renewal_days": 15, "trial_max_cents": 100, "trial_window_days": 45}
+}

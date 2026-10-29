@@ -14,7 +14,9 @@ import { type Entry, openDb, seedDefaults } from "../../src/data/db.ts";
 import { collectExport } from "../../src/data/export.ts";
 import { storeReceiptPhoto } from "../../src/data/receipts.ts";
 import { parseAmount } from "../../src/engine/bridge.ts";
+import { createBudget } from "../../src/features/budget/useBudget.ts";
 import { addGoalEvent, createGoal } from "../../src/features/goals/useGoals.ts";
+import { saveHelped } from "../../src/features/groups/WhatHelped.tsx";
 import { publishHousehold } from "../../src/features/household/householdSync.ts";
 import { commitImport, parseFile, prepareRows } from "../../src/features/imports/importFlow.ts";
 import {
@@ -25,7 +27,7 @@ import {
 } from "../../src/features/linking/linking.ts";
 import { syncConnection } from "../../src/features/linking/sync.ts";
 import { applyMapping, guessMapping } from "../../src/importers/csv.ts";
-import { type FakeApi, installFakeApi, mayasGroup, readySession } from "../fakeApi.ts";
+import { type FakeApi, fakeMember, installFakeApi, mayasGroup, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 
 const TODAY = new Date("2026-10-10T12:00:00");
@@ -154,7 +156,15 @@ describe("nothing about money leaves the device unencrypted", () => {
         user: { id: "u1", email: "maya@example.com", display_name: "Maya R.", look: "modern" },
       }),
       billing: { ...(await import("../fakeApi.ts")).privateBilling(), plan: "connected" },
-      groups: [mayasGroup()],
+      groups: [
+        mayasGroup(),
+        {
+          ...mayasGroup(),
+          id: "g-sweep",
+          invite_code: "STK-SWP1",
+          members: [fakeMember("u1", "Maya R.", 10000), fakeMember("u-dev", "Dev P.", 6400)],
+        },
+      ],
       households: {
         rows: [
           {
@@ -205,6 +215,11 @@ describe("nothing about money leaves the device unencrypted", () => {
       created_at: "2026-10-10T00:00:00.000Z",
       updated_at: "2026-10-10T00:00:00.000Z",
     });
+
+    // 1b. A zero-based plan the entry runs past: the budget alert goes on the schedule
+    await createBudget(db, "2026-10", "zero_based", 500000, [
+      { category_id: "cat-shopping", planned_cents: 100000 },
+    ]);
 
     // 2. A statement import, on the device
     const csv = readFileSync(`${process.cwd()}/tests/fixtures/statement_oct.csv`, "utf8").replace(
@@ -268,6 +283,9 @@ describe("nothing about money leaves the device unencrypted", () => {
     await user.click(screen.getByRole("radio", { name: "Challenges" }));
     await screen.findByText(/Join with a code/);
 
+    // 5b. "What helped" in a challenge: choice ids only
+    await saveHelped("g-sweep", ["packed_lunch", "cooked_home"]);
+
     // 6. The backup and the household publish (the shell registered the alert schedule above)
     await enableBackup(db, "u1", null);
     await pushBackup(db, "u1", "test", { force: true });
@@ -329,10 +347,19 @@ describe("nothing about money leaves the device unencrypted", () => {
           "/api/household/blobs/summary",
           "/api/alerts/schedule",
           "/api/groups",
+          "/api/groups/g-sweep/helped",
           "/api/linking/finish",
           "/api/linking/bc1/sync",
         ])
           expect([...seen], `the sweep never exercised ${must}`).toContain(must);
+        // The budget alert went on the schedule too (as a month, a tag and a level only)
+        expect(
+          api.calls.some(
+            (c) =>
+              c.path === "/api/alerts/schedule" && JSON.stringify(c.body).includes("budget_pace"),
+          ),
+          "the sweep never scheduled a budget alert",
+        ).toBe(true);
       },
       { timeout: 4000 },
     );

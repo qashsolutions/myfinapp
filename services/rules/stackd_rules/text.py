@@ -13,11 +13,22 @@ from __future__ import annotations
 
 import re
 
+from .errors import RuleError
+
 SPACE_CLASS = (
     "[\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]"
 )
 _RUNS = re.compile(SPACE_CLASS + "+")
 _EDGES = re.compile("^" + SPACE_CLASS + "+|" + SPACE_CLASS + "+$")
+
+
+def utf8(text: str, code: str) -> bytes:
+    """UTF-8 bytes of text, or RuleError(code) when it holds a lone surrogate: Python cannot
+    encode one and JavaScript's TextEncoder would quietly write U+FFFD, so both refuse it."""
+    try:
+        return text.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise RuleError(code) from exc
 
 
 def collapse_spaces(text: str) -> str:

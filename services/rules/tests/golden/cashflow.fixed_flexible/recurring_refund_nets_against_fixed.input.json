@@ -1,0 +1,30 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-31",
+  "entries": [
+    {
+      "id": "e1",
+      "date": "2026-10-05",
+      "amount_cents": 1599,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-subscriptions",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": true,
+      "bucket": "want"
+    },
+    {
+      "id": "e2",
+      "date": "2026-10-06",
+      "amount_cents": 1599,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-subscriptions",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": true,
+      "bucket": "want"
+    }
+  ]
+}
