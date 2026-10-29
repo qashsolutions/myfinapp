@@ -39,8 +39,8 @@ test("@phone debt payoff: smallest balance first beside highest rate first, and 
 
   await page.goto("/");
   const card = page.getByRole("link", { name: "Open Debt payoff" });
-  await expect(card).toContainText("Debt-free");
-  await expect(card).toContainText(/by \w+ \d{4}/);
+  await expect(card).toContainText("Debt-free at this pace");
+  await expect(card).toContainText(/[A-Z][a-z]{2} \d{4}/);
   await card.click();
   await expect(page.getByRole("region", { name: "Payoff plan" })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("debt-payoff.png"), fullPage: true });

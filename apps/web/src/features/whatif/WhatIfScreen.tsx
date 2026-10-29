@@ -48,9 +48,14 @@ export function prefillAmount(raw: string | null): number | null {
   return cents > 0 ? cents : null;
 }
 
-function monthsWords(n: number): string {
-  if (n >= 24 && n % 12 === 0) return `${n / 12} years`;
-  return `${n} ${n === 1 ? "month" : "months"}`;
+/** "4 months", "1 year", "1 year 4 months", "2 years 1 month". */
+export function monthsWords(n: number): string {
+  const months = (m: number) => `${m} ${m === 1 ? "month" : "months"}`;
+  if (n < 12) return months(n);
+  const years = Math.floor(n / 12);
+  const rest = n % 12;
+  const y = `${years} ${years === 1 ? "year" : "years"}`;
+  return rest === 0 ? y : `${y} ${months(rest)}`;
 }
 
 function monthName(ym: string | null): string {
@@ -73,11 +78,14 @@ function AmountChoice({
   presets,
   value,
   onChange,
+  plus = true,
 }: {
   legend: string;
   presets: number[];
   value: number;
   onChange: (cents: number) => void;
+  /** "+$50" for an amount added on top; Spend less is an amount taken off, so no plus. */
+  plus?: boolean;
 }) {
   const ids = useId();
   const [text, setText] = useState("");
@@ -106,7 +114,8 @@ function AmountChoice({
               checked={value === cents}
               onChange={() => onChange(cents)}
             />
-            +{formatCents(cents)}
+            {plus ? "+" : ""}
+            {formatCents(cents)}
           </label>
         ))}
       </fieldset>
@@ -133,7 +142,16 @@ function AmountChoice({
 }
 
 /** The result of a debt lever: one word, then what it means. */
-function DebtResult({ r, label }: { r: WhatIfDebt; label: string | null }) {
+function DebtResult({
+  r,
+  label,
+  planExtra,
+}: {
+  r: WhatIfDebt;
+  label: string | null;
+  /** The extra already in the plan the lever adds to: 0 means the minimums alone. */
+  planExtra: number;
+}) {
   const word = r.status === "sooner" ? "Sooner" : r.status === "stalled" ? "Stalled" : "Same";
   const who = label ? `${label} paid off` : "Debt-free";
   let line: string;
@@ -142,7 +160,10 @@ function DebtResult({ r, label }: { r: WhatIfDebt; label: string | null }) {
     line = "At these amounts the balance keeps growing.";
   } else if (r.months_sooner === null) {
     line = `${who} by ${monthName(r.after.debt_free_month)}`;
-    detail = "Instead of never at the minimums.";
+    detail =
+      planExtra > 0
+        ? "Instead of never at your current plan."
+        : "Instead of never at the minimums.";
   } else if (r.months_sooner > 0) {
     line = `${who} ${monthsWords(r.months_sooner)} sooner · ${formatCents(r.interest_saved_cents ?? 0)} less interest`;
     detail = `${monthName(r.after.debt_free_month)} instead of ${monthName(r.before.debt_free_month)}.`;
@@ -183,14 +204,19 @@ function JarResult({ r, title }: { r: WhatIfGoal; title: string }) {
   );
 }
 
-/** The jar the spend-less lever fills: the one asked for, else the top jar by priority. */
+/**
+ * The jar the spend-less lever fills: the one asked for, else the top jar by priority. A jar
+ * that grows over time is never one: its target is a future cost and it has its own monthly
+ * plan (growth.goal_plan), which this flat months-to-fill reading would contradict.
+ */
 function useJarPace(goals: Goal[] | undefined, wanted: string | null, today: string) {
   const { db } = useDb();
   const jar =
-    goals?.find((g) => g.id === wanted && g.kind === "save") ??
+    goals?.find((g) => g.id === wanted && g.kind === "save" && !g.grow) ??
     goals?.find(
       (g) =>
         g.kind === "save" &&
+        !g.grow &&
         g.status === "active" &&
         !g.is_ongoing &&
         !g.paused_at &&
@@ -404,7 +430,7 @@ export function WhatIfScreen() {
         </Card>
       ) : null}
       {lever === "loan" && loanResult && debt && !noDebts ? (
-        <DebtResult r={loanResult} label={debt.label} />
+        <DebtResult r={loanResult} label={debt.label} planExtra={0} />
       ) : null}
 
       {lever === "debts" ? (
@@ -430,7 +456,7 @@ export function WhatIfScreen() {
         </Card>
       ) : null}
       {lever === "debts" && allResult && !noDebts ? (
-        <DebtResult r={allResult} label={null} />
+        <DebtResult r={allResult} label={null} planExtra={extra ?? 0} />
       ) : null}
 
       {lever === "spend" ? (
@@ -455,6 +481,7 @@ export function WhatIfScreen() {
             presets={SPEND_LESS}
             value={spendAdd}
             onChange={setSpendAdd}
+            plus={false}
           />
           <p className="sk-card__eyebrow">
             Then put the {formatCents(spendAdd)} a month toward a jar or your debts.
@@ -468,9 +495,16 @@ export function WhatIfScreen() {
           <p>
             <Link to="/goals/new">Make a jar</Link> to see when it would be done.
           </p>
+          {goals.some((g) => g.grow && g.status === "active") ? (
+            <p className="sk-card__eyebrow">
+              A jar that grows over time keeps its own monthly plan on its screen.
+            </p>
+          ) : null}
         </Card>
       ) : null}
-      {lever === "spend" && spendDebts ? <DebtResult r={spendDebts} label={null} /> : null}
+      {lever === "spend" && spendDebts ? (
+        <DebtResult r={spendDebts} label={null} planExtra={extra ?? 0} />
+      ) : null}
 
       {lever === "payday" ? (
         <Card as="section" aria-label="Set aside each payday">

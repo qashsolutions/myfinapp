@@ -48,7 +48,10 @@ describe("Home's Debt-free card (October 28, 2026)", () => {
     installFakeApi({ session: readySession() });
     renderApp("/");
     const card = await screen.findByRole("link", { name: "Open Debt payoff" });
-    await waitFor(() => expect(card).toHaveTextContent("by January 2027"));
+    // The month leads as the value, in plain colour: "Debt-free" is a claim about then, not now.
+    await waitFor(() => expect(card).toHaveTextContent("Jan 2027"));
+    expect(card).toHaveTextContent("Debt-free at this pace");
+    expect(screen.getByText("Jan 2027")).toHaveClass("word--plain");
     await user.click(card);
     expect(await screen.findByRole("region", { name: "Payoff plan" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Debt payoff" })).toBeChecked();

@@ -12,8 +12,8 @@ from app.jobs.alert_dispatch import dispatch_due
 from app.services import push
 from tests.test_notifications import FakeBrowser, member
 
-CLOSE = "A budget category is close to its plan. Open Qash to see which."
-REACHED = "A budget category has reached its plan."
+CLOSE = "A budget line is close to its plan. Open Qash to see which."
+REACHED = "A budget line has reached its plan."
 
 
 @pytest.fixture(autouse=True)

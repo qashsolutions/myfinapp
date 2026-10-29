@@ -122,6 +122,9 @@ export async function buildInputs(db: StackdDb, sources: ScheduleSources): Promi
   const goals: AlertInputs["goals"] = [];
   for (const g of sources.goals) {
     if (g.kind !== "save" || g.status !== "active" || !g.end_date || !g.target_cents) continue;
+    // A grows jar's target is a future cost: its pace is growth.goal_pace on its own screen,
+    // never the flat target-over-weeks pace this alert reads.
+    if (g.grow) continue;
     const events = (await db.goal_events.where("goal_id").equals(g.id).toArray())
       .sort((a, b) => compareText(a.date, b.date) || compareText(a.created_at, b.created_at))
       .map((e) => ({ type: e.type, date: e.date, amount_cents: e.amount_cents }));
