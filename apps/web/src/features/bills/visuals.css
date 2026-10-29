@@ -1,0 +1,180 @@
+/* Debt & credit pictures (October 29, 2026): the payoff timeline, the Adjust sheet's slider,
+   a card's spent / paid bars, the due-date dots, the limit gauge and the paid-in-full count. */
+.payoff-chart {
+  margin: 8px 0 0;
+}
+.payoff-chart svg,
+.payoff-spark svg,
+.pair-bars svg,
+.due-dots svg {
+  display: block;
+  max-width: 100%;
+}
+.payoff-chart__label {
+  font-size: var(--fs-caption);
+  fill: var(--c-sub);
+}
+.payoff-chart__mark {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  text-anchor: middle;
+  fill: var(--c-on-accent);
+}
+.payoff-chart__legend {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-small);
+}
+.payoff-chart__legend li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.payoff-chart__dot {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+.payoff-chart__name {
+  overflow-wrap: anywhere;
+}
+.payoff-chart__when {
+  font-weight: 600;
+  font-variant-numeric: var(--numeric-data);
+}
+.payoff-chart__key {
+  display: inline-block;
+  width: 16px;
+  height: 0;
+  vertical-align: middle;
+  border-top: 3px solid var(--c-a1);
+}
+.payoff-chart__key--other {
+  border-top: 2px dashed var(--c-sub);
+}
+.payoff-spark {
+  margin-top: 8px;
+}
+.adjust-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.adjust-head .sk-card__title {
+  margin: 0;
+}
+.adjust-slider {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0;
+}
+.adjust-slider input[type="range"] {
+  width: 100%;
+  min-height: 44px;
+  accent-color: var(--c-a1);
+}
+.adjust-slider__value {
+  font-weight: 700;
+  font-variant-numeric: var(--numeric-data);
+}
+.adjust-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pair-bars__label {
+  font-size: var(--fs-caption);
+  fill: var(--c-sub);
+  text-anchor: middle;
+}
+.pair-bars__key {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+.pair-bars__key--spent {
+  background: var(--c-danger);
+}
+.pair-bars__key--paid {
+  background: var(--c-success);
+}
+
+.due-dots__label {
+  font-size: var(--fs-caption);
+  fill: var(--c-sub);
+  text-anchor: middle;
+}
+.due-dots__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+  margin: 4px 0 0;
+}
+.due-dots__key {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  vertical-align: -1px;
+  box-sizing: border-box;
+}
+.due-dots__key--on_time {
+  background: var(--c-success);
+}
+.due-dots__key--missed {
+  background: var(--c-danger);
+}
+.due-dots__key--unknown {
+  border: 2px solid var(--c-sub);
+}
+.due-dots__key--next {
+  border: 2px dashed var(--c-ink);
+}
+.credit-gauge {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.credit-gauge__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--fs-small);
+}
+.credit-gauge__value {
+  font-weight: 700;
+  font-variant-numeric: var(--numeric-data);
+}
+.full-streak {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--c-line);
+  font-size: var(--fs-small);
+  align-self: flex-start;
+}
+.full-streak__n {
+  font-weight: 700;
+  font-size: var(--fs-title);
+  font-variant-numeric: var(--numeric-data);
+}

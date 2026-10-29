@@ -9,6 +9,7 @@ import { ratioBps } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { useBudget } from "../budget/useBudget.ts";
 import { habitLines, habitsWord } from "../credit/CreditHabits.tsx";
+import { DueDots } from "../credit/CreditPictures.tsx";
 import { leadCard, useCreditCards } from "../credit/useCreditCards.ts";
 import { FixedFlexibleInsight } from "../fixed/FixedFlexibleCard.tsx";
 import { useForecast } from "../forecast/useForecast.ts";
@@ -338,18 +339,21 @@ export function InsightsHub() {
             word={habitsWord(creditLead?.habits ?? null)}
             line={
               creditLead?.habits
-                ? (habitLines(creditLead.habits)[0] ?? "Nothing due yet")
+                ? (habitLines(creditLead.habits, creditLead.guideBps)[0] ?? "Nothing due yet")
                 : "Set a payment due day to start"
             }
           >
             {creditLead?.habits ? (
-              <span className="inout__legend">
-                {habitLines(creditLead.habits)
-                  .slice(1)
-                  .map((l) => (
-                    <span key={l}>{l}</span>
-                  ))}
-              </span>
+              <>
+                <DueDots habits={creditLead.habits} compact />
+                <span className="inout__legend">
+                  {habitLines(creditLead.habits, creditLead.guideBps)
+                    .slice(1)
+                    .map((l) => (
+                      <span key={l}>{l}</span>
+                    ))}
+                </span>
+              </>
             ) : null}
           </InsightCard>
         );

@@ -5,17 +5,26 @@ import "../auth/auth.css";
 import "./budget.css";
 
 import { buttonClass, Card } from "@stackd/ui";
-import { useEffect, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
+import { useDb } from "../../data/DbProvider.tsx";
 import { addMonths, ratioBps } from "../../engine/bridge.ts";
 import { formatCents, formatMonth, todayIso } from "../../lib/format.ts";
 import { cardText } from "../../moments/catalog.ts";
 import { useLookups } from "../entries/useEntries.ts";
 import { MonthPicker } from "../money/MonthPicker.tsx";
 import { useNotificationSettings } from "../notifications/useNotifications.ts";
+import { AdjustBudgetAlerts } from "./BudgetAlertOptions.tsx";
 import { BudgetSetup } from "./BudgetSetup.tsx";
-import { useBudgetPace } from "./pace.ts";
+import {
+  ALERT_OFF_SETTING,
+  closeLevelBps,
+  paceLines,
+  readAlertOff,
+  useBudgetPace,
+} from "./pace.ts";
 import { BUCKET_LABELS, RuleView } from "./RuleView.tsx";
 import { monthKey, useBudget } from "./useBudget.ts";
 import { ZeroBasedView } from "./ZeroBasedView.tsx";
@@ -26,8 +35,22 @@ export function BudgetScreen() {
   const isCurrentMonth = monthKey(asOf) === monthKey(todayIso());
   const view = useBudget(asOf, isCurrentMonth);
   // "Close" at the person's own "Tell me at" when they set one, the level their alert uses.
-  const alertPrefs = useNotificationSettings({ background: true }).data?.prefs;
-  const pace = useBudgetPace(view.summary, asOf, alertPrefs?.budget_pace?.threshold ?? null);
+  const alerts = useNotificationSettings({ background: true });
+  const alertPrefs = alerts.data?.prefs;
+  const threshold = alertPrefs?.budget_pace?.threshold ?? null;
+  const pace = useBudgetPace(view.summary, asOf, threshold);
+  // The lines the person turned the alert off for (October 29, 2026).
+  const { db } = useDb();
+  const alertOff = useLiveQuery(
+    async () => readAlertOff((await db.settings.get(ALERT_OFF_SETTING))?.value),
+    [db],
+  );
+  const [adjusting, setAdjusting] = useState(false);
+  const alertOn = alertPrefs?.budget_pace?.enabled ?? false;
+  const alerting = useMemo(() => {
+    const off = new Set(alertOff ?? []);
+    return (id: string) => alertOn && !off.has(id);
+  }, [alertOff, alertOn]);
   // Last month's totals, for zero-based's "Start from last month" (October 23, 2026).
   const lastMonth = useMonthTotals(asOf).previous;
   const lookups = useLookups();
@@ -145,6 +168,8 @@ export function BudgetScreen() {
             categories={lookups.categories}
             split={budget.split_bps ?? null}
             pace={pace}
+            levelBps={closeLevelBps(threshold)}
+            alerting={alerting}
           />
         ) : (
           <ZeroBasedView
@@ -153,6 +178,8 @@ export function BudgetScreen() {
             categories={lookups.categories}
             lastMonth={lastMonth}
             pace={pace}
+            levelBps={closeLevelBps(threshold)}
+            alerting={alerting}
           />
         )
       ) : null}
@@ -184,6 +211,31 @@ export function BudgetScreen() {
           Change budget style
         </button>
       </div>
+      {summary && isCurrentMonth ? (
+        <>
+          <button
+            type="button"
+            className={buttonClass({ variant: "secondary", block: true })}
+            onClick={() => setAdjusting(true)}
+          >
+            Adjust budget alerts
+          </button>
+          <AdjustBudgetAlerts
+            open={adjusting}
+            onClose={() => setAdjusting(false)}
+            prefs={alertPrefs ?? null}
+            update={alerts.update}
+            off={alertOff ?? []}
+            lines={paceLines(summary).map((l) => ({
+              id: l.category_id,
+              name: l.category_id.startsWith("bucket:")
+                ? (BUCKET_LABELS[l.category_id.slice(7) as keyof typeof BUCKET_LABELS]?.[0] ??
+                  "A bucket")
+                : (lookups?.categories.get(l.category_id)?.name ?? "A category"),
+            }))}
+          />
+        </>
+      ) : null}
       {summary && summary.uncategorized_cents !== 0 ? (
         <p className="auth__hint">
           {formatCents(summary.uncategorized_cents)} spent without a category isn't in any bucket

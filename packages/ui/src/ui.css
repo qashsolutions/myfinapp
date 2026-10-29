@@ -272,6 +272,36 @@
 .sk-progress__track--danger .sk-progress__fill {
   background: var(--c-danger);
 }
+.sk-progress__marked {
+  position: relative;
+}
+.sk-progress__mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--c-ink);
+}
+.sk-progress__marks {
+  position: relative;
+  height: 1.4em;
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}
+.sk-progress__mark-label {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.sk-progress__mark-label--end {
+  transform: translateX(-100%);
+}
+.sk-progress__mark-label--start {
+  transform: none;
+}
 .sk-progress__text {
   font-size: var(--fs-small);
   color: var(--c-sub);

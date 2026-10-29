@@ -76,6 +76,13 @@ export function readLast(value: unknown): Partial<WhatIfLast> {
   return out;
 }
 
+function saveLast(db: ReturnType<typeof useDb>["db"], value: WhatIfLast): Promise<void> {
+  return db.settings
+    .put({ key: LAST_SETTING, value, updated_at: new Date().toISOString() })
+    .then(() => undefined)
+    .catch(ignoreClosed);
+}
+
 /** A small line icon per lever (decoration; the label says it). */
 function LeverIcon({ lever }: { lever: Lever }) {
   const common = {
@@ -440,13 +447,9 @@ export function WhatIfScreen() {
       debt_id: debtId,
       category_id: categoryId || null,
     };
-    // Written a moment after the slider stops, not on every step it passes.
-    const timer = setTimeout(() => {
-      void db.settings
-        .put({ key: LAST_SETTING, value, updated_at: new Date().toISOString() })
-        .catch(ignoreClosed);
-    }, 300);
-    return () => clearTimeout(timer);
+    // Written at once (one small row on this device): a delay would lose the last try when the
+    // page is left or reloaded before it ran, and no unmount runs on a page unload.
+    void saveLast(db, value);
   }, [applied, db, lever, loanAdd, allAdd, spendAdd, debtId, categoryId]);
 
   const debt = debts?.find((d) => d.id === debtId) ?? debts?.[0] ?? null;

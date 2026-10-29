@@ -405,13 +405,14 @@ describe("the visual pass: grows chart and slider, What if timelines (October 29
     fireEvent.change(await screen.findByRole("slider", { name: /Put in/ }), {
       target: { value: "15000" },
     });
+    // Leaving at once still keeps the last try (it is written as it changes).
+    view.unmount();
     await waitFor(async () =>
       expect((await db.settings.get("whatif.last"))?.value).toMatchObject({
         lever: "debts",
         debts: 15000,
       }),
     );
-    view.unmount();
     const again = renderApp("/what-if");
     await waitFor(() => expect(screen.getByRole("radio", { name: "All debts" })).toBeChecked());
     expect(await screen.findByRole("slider", { name: /Put in/ })).toHaveValue("15000");

@@ -1614,6 +1614,8 @@ export interface CreditHabits {
   paid_in_full_streak: number | null;
   utilization_bps: number | null;
   under_guide: boolean | null;
+  /** Every due date in the window, in date order (the dot strip; October 29, 2026). */
+  dues: Array<{ due_date: string; result: "on_time" | "missed" | "unknown" }>;
 }
 
 export async function creditHabits(input: {

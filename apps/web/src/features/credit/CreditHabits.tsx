@@ -1,21 +1,38 @@
 import "../bills/cards.css";
+import "../bills/visuals.css";
 import "../auth/auth.css";
 
-import { Card } from "@stackd/ui";
+import { Button, buttonClass, Card, Sheet } from "@stackd/ui";
+import { useId, useState } from "react";
 import { Link } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
+import { useDb } from "../../data/DbProvider.tsx";
 import type { CardTrend, CreditHabits } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
+import { parseWholeNumber } from "../../lib/ownValues.ts";
+import { saveSetting } from "../bills/debtPlan.ts";
+import { ChipsOrOwn } from "../goals/CustomValueSheet.tsx";
+import { DUE_DAY_OPTIONS } from "../settings/AccountsManager.tsx";
+import { CardPairBars, DueDots, FullStreak, LimitGauge } from "./CreditPictures.tsx";
 import {
   CREDIT_GUIDE_BPS,
   type CreditCardView,
+  GUIDE_SETTING,
   leadCard,
   useCreditCards,
 } from "./useCreditCards.ts";
 
 /** Fixed, short, on every credit-habits surface (October 28, 2026). */
 export const CREDIT_DISCLAIMER = "Education only. Qash never sees or shows a credit score.";
+
+/** Suggested guides for the limit used; the person may take any whole percent 1 to 100
+ * (signed off by the owner, October 29, 2026: 10 / 30 / 50, default 30). */
+export const GUIDE_OPTIONS: Array<[string, string]> = [
+  ["1000", "10%"],
+  ["3000", "30%"],
+  ["5000", "50%"],
+];
 
 function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
@@ -40,7 +57,7 @@ export function needsBalance(h: CreditHabits): boolean {
   return h.checked === 0 && h.unknown > 0;
 }
 
-export function habitLines(h: CreditHabits): string[] {
+export function habitLines(h: CreditHabits, guideBps: number = CREDIT_GUIDE_BPS): string[] {
   const lines: string[] = [];
   if (needsBalance(h)) {
     lines.push(NEEDS_BALANCE);
@@ -51,7 +68,7 @@ export function habitLines(h: CreditHabits): string[] {
   }
   if (h.utilization_bps !== null) {
     lines.push(
-      `${pctText(h.utilization_bps)} of your limit used · ${h.under_guide ? "under" : "over"} ${pctText(CREDIT_GUIDE_BPS)}`,
+      `${pctText(h.utilization_bps)} of your limit used · ${h.under_guide ? "under" : "over"} ${pctText(guideBps)}`,
     );
   }
   if (h.paid_in_full_streak) {
@@ -64,23 +81,27 @@ export function trendWord(t: CardTrend): string | null {
   return t.trend ? { growing: "Growing", shrinking: "Shrinking", steady: "Steady" }[t.trend] : null;
 }
 
-/** A card's spending against payments: one word, then last month's two numbers. */
+/** A card's spending against payments: one word, last month's two numbers, then the months as
+ * paired bars (October 29, 2026). */
 export function CardTrendLine({ trend }: { trend: CardTrend }) {
   const last = trend.last_month;
   if (!last) return null;
   const word = trendWord(trend);
   return (
-    <div className="card-trend">
-      {word ? <Word>{word}</Word> : null}
-      <span className="card-facts__sub">
-        Spent {formatCents(last.spent_cents)}, paid {formatCents(last.paid_cents)} last month
-      </span>
+    <div className="card-facts__use">
+      <div className="card-trend">
+        {word ? <Word>{word}</Word> : null}
+        <span className="card-facts__sub">
+          Spent {formatCents(last.spent_cents)}, paid {formatCents(last.paid_cents)} last month
+        </span>
+      </div>
+      <CardPairBars trend={trend} />
     </div>
   );
 }
 
-/** Bills → Debt payoff, at the top when there is a card: the lead card's habits, one tap from
- * the detail. */
+/** Bills → Debt payoff, at the top when there is a card: the lead card's habits as the dot
+ * strip and its lines, one tap from the detail. */
 export function CreditHabitsCard() {
   const cards = useCreditCards(todayIso());
   if (!cards || cards.length === 0) return null;
@@ -92,11 +113,14 @@ export function CreditHabitsCard() {
       </h2>
       <Word>{habitsWord(lead?.habits ?? null)}</Word>
       {lead?.habits ? (
-        <ul className="habit-lines">
-          {habitLines(lead.habits).map((l) => (
-            <li key={l}>{l}</li>
-          ))}
-        </ul>
+        <>
+          <DueDots habits={lead.habits} />
+          <ul className="habit-lines">
+            {habitLines(lead.habits, lead.guideBps).map((l) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
+        </>
       ) : (
         <p className="sk-card__eyebrow">Set a payment due day on your card to start</p>
       )}
@@ -135,12 +159,99 @@ function cardName(c: CreditCardView): string {
   return `${c.account.label}${c.account.last4 ? ` ••${c.account.last4}` : ""}`;
 }
 
-/** `/credit-habits`: each card with its word, lines, spending against payments, and why. */
+/**
+ * "Adjust credit habits" (October 29, 2026): the person's own guide for the limit used (10 / 30
+ * / 50% or any whole percent 1 to 100, kept in `settings` `credit.guide_bps`, read by the rule's
+ * `guide_bps`) and each unlinked card's payment due day (the same `accounts.due_day` as
+ * Accounts). Each change saves at once.
+ */
+export function AdjustCreditSheet({
+  open,
+  onClose,
+  cards,
+  guideBps,
+}: {
+  open: boolean;
+  onClose: () => void;
+  cards: CreditCardView[];
+  guideBps: number;
+}) {
+  const { db } = useDb();
+  const ids = useId();
+  const unlinked = cards.filter((c) => !c.account.linked);
+  return (
+    <Sheet open={open} onClose={onClose} title="Adjust credit habits">
+      <ChipsOrOwn
+        name={`${ids}-guide`}
+        legend="Guide for the limit used"
+        options={GUIDE_OPTIONS}
+        value={String(guideBps)}
+        display={(v) => String(Number(v) / 100)}
+        onPick={(v) => void saveSetting(db, GUIDE_SETTING, Number(v))}
+        own={{
+          label: "Your own guide, 1 to 100 percent",
+          placeholder: "Or your own: 1 to 100%",
+          parse: (t) => {
+            const n = parseWholeNumber(t.replace("%", ""), 1, 100);
+            return n === null
+              ? { error: "Pick a whole percent from 1 to 100." }
+              : { value: String(n * 100) };
+          },
+        }}
+      />
+      <p className="auth__hint">The limit-used bar marks this line. 30% is a common guide.</p>
+      {unlinked.map((c) => (
+        <ChipsOrOwn
+          key={c.account.id}
+          name={`${ids}-due-${c.account.id}`}
+          legend={`Payment due day · ${cardName(c)}`}
+          options={DUE_DAY_OPTIONS}
+          value={c.account.due_day ? String(c.account.due_day) : ""}
+          onPick={(v) => void db.accounts.update(c.account.id, { due_day: v ? Number(v) : null })}
+          own={{
+            label: `Own due day for ${c.account.label}, 1 to 31`,
+            placeholder: "Day 1 to 31",
+            parse: (text) => {
+              const n = parseWholeNumber(text, 1, 31);
+              return n === null ? { error: "Pick a day from 1 to 31." } : { value: String(n) };
+            },
+          }}
+        />
+      ))}
+      {cards.length > unlinked.length ? (
+        <p className="auth__hint">Linked cards take their due dates from the bank.</p>
+      ) : null}
+      <Button block onClick={onClose}>
+        Done
+      </Button>
+    </Sheet>
+  );
+}
+
+/** `/credit-habits`: each card with its word, due-date dots, limit gauge, paid-in-full count,
+ * spending against payments, and why. */
 export function CreditHabitsScreen() {
   const cards = useCreditCards(todayIso());
+  const [adjusting, setAdjusting] = useState(false);
+  const guide = cards?.[0]?.guideBps ?? CREDIT_GUIDE_BPS;
   return (
     <>
-      <ScreenHeader title="Credit habits" back="/bills?tab=debt" actions={null} />
+      <ScreenHeader
+        title="Credit habits"
+        back="/bills?tab=debt"
+        actions={
+          cards && cards.length > 0 ? (
+            <button
+              type="button"
+              className={buttonClass({ variant: "secondary", size: "sm" })}
+              aria-label="Adjust credit habits"
+              onClick={() => setAdjusting(true)}
+            >
+              Adjust
+            </button>
+          ) : null
+        }
+      />
       {cards && cards.length === 0 ? (
         <Card>
           <Word>Start</Word>
@@ -155,26 +266,33 @@ export function CreditHabitsScreen() {
           <span className="card-facts__name">{cardName(c)}</span>
           <Word>{habitsWord(c.habits)}</Word>
           {c.habits ? (
-            <ul className="habit-lines">
-              {habitLines(c.habits).map((l) => (
-                <li key={l}>{l}</li>
-              ))}
-              {c.habits.missed.length > 1 ? (
-                <li>
-                  {plural(c.habits.missed.length, "due date", "due dates")} missed in the window
-                </li>
-              ) : null}
-              {c.habits.next_due_date ? (
-                <li>Next due {formatDay(c.habits.next_due_date)}</li>
-              ) : null}
-              {needsBalance(c.habits) ? (
-                <li>
-                  <Link to="/me/accounts" className="auth__link">
-                    Set the balance in Accounts
-                  </Link>
-                </li>
-              ) : null}
-            </ul>
+            <>
+              <DueDots habits={c.habits} />
+              <ul className="habit-lines">
+                {habitLines(c.habits, c.guideBps)
+                  .filter((l) => !l.startsWith("Paid in full"))
+                  .map((l) => (
+                    <li key={l}>{l}</li>
+                  ))}
+                {c.habits.missed.length > 1 ? (
+                  <li>
+                    {plural(c.habits.missed.length, "due date", "due dates")} missed in the window
+                  </li>
+                ) : null}
+                {c.habits.next_due_date ? (
+                  <li>Next due {formatDay(c.habits.next_due_date)}</li>
+                ) : null}
+                {needsBalance(c.habits) ? (
+                  <li>
+                    <Link to="/me/accounts" className="auth__link">
+                      Set the balance in Accounts
+                    </Link>
+                  </li>
+                ) : null}
+              </ul>
+              <LimitGauge habits={c.habits} guideBps={c.guideBps} />
+              <FullStreak habits={c.habits} />
+            </>
           ) : (
             <p className="sk-card__eyebrow">
               {c.account.linked ? (
@@ -182,9 +300,9 @@ export function CreditHabitsScreen() {
               ) : (
                 <>
                   No due date yet.{" "}
-                  <Link to="/me/accounts" className="auth__link">
+                  <button type="button" className="auth__link" onClick={() => setAdjusting(true)}>
                     Set a payment due day
-                  </Link>
+                  </button>
                 </>
               )}
             </p>
@@ -209,6 +327,14 @@ export function CreditHabitsScreen() {
           the minimum isn't known) by the due date. {CREDIT_DISCLAIMER}
         </p>
       </Card>
+      {cards && cards.length > 0 ? (
+        <AdjustCreditSheet
+          open={adjusting}
+          onClose={() => setAdjusting(false)}
+          cards={cards}
+          guideBps={guide}
+        />
+      ) : null}
     </>
   );
 }

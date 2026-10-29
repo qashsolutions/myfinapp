@@ -133,6 +133,25 @@ export const ENTRIES: SettingEntry[] = [
     words: "credit card due day due date payment on time habits",
   },
   {
+    label: "Credit habits guide",
+    group: "data",
+    path: "/credit-habits",
+    words: "credit card limit used utilization guide percent 30 due day adjust",
+  },
+  {
+    label: "Debt payoff extra and order",
+    group: "data",
+    path: "/bills?tab=debt",
+    words:
+      "debt payoff extra monthly order highest rate smallest balance avalanche snowball adjust",
+  },
+  {
+    label: "Budget alerts by line",
+    group: "data",
+    path: "/budget",
+    words: "budget alert line category bucket off tell me at close plan adjust",
+  },
+  {
     label: "Categories",
     group: "data",
     path: "/me/categories",

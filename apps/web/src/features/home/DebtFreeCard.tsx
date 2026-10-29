@@ -2,17 +2,20 @@ import { Card } from "@stackd/ui";
 import { Link } from "react-router";
 import { Word } from "../../app/layout/Word.tsx";
 import { formatMonthShort } from "../../lib/format.ts";
-import { useDebtFreePlan } from "../bills/debtPlan.ts";
+import { useDebtFreePlan, useDebtTotal } from "../bills/debtPlan.ts";
+import { PayoffSparkline } from "../bills/PayoffChart.tsx";
+import "../bills/visuals.css";
 
 /**
  * Home's Debt-free card (October 28, 2026): the month the person's debts are paid off at their
  * extra and order, straight from `bills.payoff_plan`. The month leads as the value ("Mar 2029",
  * like "$X kept") with "Debt-free at this pace", so no green word reads as a claim about today.
  * Hidden with no debts; "Stalled" when the payments never catch the interest. Opens Bills →
- * Debt payoff.
+ * Debt payoff. A tiny line of the total falling to zero sits under it (October 29, 2026).
  */
 export function DebtFreeCard({ today }: { today: string }) {
   const plan = useDebtFreePlan(today);
+  const start = useDebtTotal();
   if (!plan) return null;
   return (
     <Link to="/bills?tab=debt" className="card-link" aria-label="Open Debt payoff">
@@ -31,6 +34,7 @@ export function DebtFreeCard({ today }: { today: string }) {
             <p className="sk-card__eyebrow">
               {plan.debt_free_month ? "Debt-free at this pace" : "No balance left"}
             </p>
+            {start ? <PayoffSparkline plan={plan} startCents={start} /> : null}
           </>
         )}
       </Card>
