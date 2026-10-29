@@ -36,7 +36,9 @@ export function BudgetScreen() {
   const alerting = marks.alerting;
   const [adjusting, setAdjusting] = useState(false);
   // Last month's totals, for zero-based's "Start from last month" (October 23, 2026).
-  const lastMonth = useMonthTotals(asOf).previous;
+  // "Start from last month" plans from a whole month only, never two days of one (invariant 51).
+  const monthView = useMonthTotals(asOf);
+  const lastMonth = monthView.previousPartial ? null : monthView.previous;
   const lookups = useLookups();
   const [editing, setEditing] = useState<"pay" | "method" | null>(null);
   const [insight, setInsight] = useState<{

@@ -10,6 +10,7 @@ import { formatCents, formatDay } from "../../lib/format.ts";
 import {
   confirmSuggestion,
   dismissSuggestion,
+  inConfirmAll,
   suggestionInterval,
   useRecurringSuggestions,
 } from "../forecast/useRecurring.ts";
@@ -46,6 +47,8 @@ export function FoundCard({ asOf }: { asOf: string }) {
   const [busy, setBusy] = useState(false);
   if (!suggestions || suggestions.length === 0) return null;
   const bills = suggestions.filter((s) => s.kind === "bill");
+  // Confirm all takes monthly-or-longer bills only; weekly ones are reviewed one by one on Bills.
+  const bulk = bills.filter(inConfirmAll);
   const subs = bills.filter((s) => subscriptionIds?.has(s.payee)).length;
   const paycheck =
     suggestions
@@ -56,7 +59,7 @@ export function FoundCard({ asOf }: { asOf: string }) {
   async function confirmBills() {
     setBusy(true);
     try {
-      for (const s of bills) await confirmSuggestion(db, s);
+      for (const s of bulk) await confirmSuggestion(db, s);
     } finally {
       setBusy(false);
     }
@@ -136,9 +139,13 @@ export function FoundCard({ asOf }: { asOf: string }) {
           <Link to="/bills" className={buttonClass({ variant: "secondary" })}>
             Review
           </Link>
-          <Button onClick={confirmBills} disabled={busy}>
-            Confirm {bills.length === 1 ? "it" : `all ${bills.length}`}
-          </Button>
+          {bulk.length > 0 ? (
+            <Button onClick={confirmBills} disabled={busy}>
+              {bulk.length === bills.length
+                ? `Confirm ${bills.length === 1 ? "it" : `all ${bills.length}`}`
+                : `Confirm ${bulk.length} monthly`}
+            </Button>
+          ) : null}
         </div>
       ) : null}
     </Card>

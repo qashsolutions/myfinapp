@@ -1,6 +1,11 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Entry, openDb, seedDefaults } from "../../src/data/db.ts";
+import {
+  isRegularSpending,
+  REGULAR_CALLS_KEY,
+  REGULAR_CATEGORIES_KEY,
+} from "../../src/features/forecast/useRecurring.ts";
 import { installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 
@@ -114,6 +119,158 @@ describe("Home, visual (October 19, 2026)", () => {
     );
     await waitFor(() =>
       expect(screen.queryByRole("region", { name: "Confirm to see what's coming" })).toBeNull(),
+    );
+  });
+
+  it("weekly groceries, takeout and gas are regular spending, never offered as bills (invariant 52)", async () => {
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    await seedDefaults(db);
+    const rows: Entry[] = [];
+    const weeks = ["2026-09-21", "2026-09-28", "2026-10-05", "2026-10-12"];
+    for (const [i, d] of weeks.entries()) {
+      rows.push(entry(`tj${i}`, d, 8400 + i * 10, "TRADER JOE'S", "out", "cat-groceries"));
+      rows.push(entry(`ch${i}`, d, 1450, "CHIPOTLE 1234", "out", "cat-dining"));
+      rows.push(entry(`sh${i}`, d, 4500, "SHELL OIL 57444", "out", "cat-transport"));
+      rows.push(entry(`ue${i}`, d, 3200, "UBER EATS", "out", "cat-dining"));
+      // A weekly charge outside the everyday categories is still a bill to look at
+      rows.push(entry(`sit${i}`, d, 30000, "SITTER CO", "out", null));
+    }
+    for (const m of ["08", "09", "10"])
+      rows.push(
+        entry(`rent${m}`, `2026-${m}-01`, 165000, "MAPLE GROVE APTS RENT", "out", "cat-rent"),
+      );
+    await db.entries.bulkAdd(rows);
+    installFakeApi({ session: readySession() });
+    renderApp("/");
+
+    const found = await screen.findByRole("region", { name: "Confirm to see what's coming" });
+    await waitFor(() => expect(found).toHaveTextContent("2bills"));
+    expect(found).not.toHaveTextContent(/TRADER JOE|CHIPOTLE|SHELL|UBER EATS/);
+    // Confirm all takes the monthly rent only; the weekly sitter is reviewed on Bills
+    await user.click(within(found).getByRole("button", { name: "Confirm 1 monthly" }));
+    await waitFor(async () =>
+      expect(await db.recurring_series.where("status").equals("confirmed").count()).toBe(1),
+    );
+    const [rent] = await db.recurring_series.toArray();
+    expect(rent).toMatchObject({ payee: "MAPLE GROVE APTS RENT", interval: "monthly" });
+    // No grocery, takeout or gas charge became a bill's charge
+    const marked = (await db.entries.toArray()).filter((e) => e.is_recurring).map((e) => e.id);
+    expect(marked.sort()).toEqual(["rent08", "rent09", "rent10"]);
+
+    renderApp("/bills");
+    const regular = await screen.findByRole("region", { name: "Regular spending, not bills" });
+    for (const name of ["TRADER JOE'S", "CHIPOTLE 1234", "SHELL OIL 57444", "UBER EATS"])
+      expect(regular).toHaveTextContent(name);
+    // Shown, never confirmable as it is: only the person's own "This is a bill"
+    expect(within(regular).queryByRole("button", { name: /Yes, it's a bill/ })).toBeNull();
+    expect(screen.getByRole("region", { name: "Suggestion: SITTER CO" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /Suggestion: TRADER JOE/ })).toBeNull();
+  });
+
+  it("the person's everyday categories and their own call decide; the call always wins (invariant 52)", () => {
+    const byId = new Map([
+      ["c1", { category_id: "cat-dining" }],
+      ["c2", { category_id: "cat-dining" }],
+      ["s1", { category_id: null }],
+      ["s2", { category_id: null }],
+    ]);
+    const chipotle = {
+      kind: "bill" as const,
+      interval: "weekly" as const,
+      payee: "CHIPOTLE",
+      entry_ids: ["c1", "c2"],
+    };
+    const sitter = {
+      kind: "bill" as const,
+      interval: "weekly" as const,
+      payee: "SITTER CO",
+      entry_ids: ["s1", "s2"],
+    };
+    const dining = new Set(["cat-dining"]);
+    const noDining = new Set(["cat-groceries"]);
+    expect(isRegularSpending(chipotle, byId)).toBe(true);
+    expect(isRegularSpending(chipotle, byId, { categories: noDining, calls: {} })).toBe(false);
+    expect(
+      isRegularSpending(chipotle, byId, { categories: dining, calls: { CHIPOTLE: "bill" } }),
+    ).toBe(false);
+    expect(
+      isRegularSpending(sitter, byId, { categories: dining, calls: { "SITTER CO": "regular" } }),
+    ).toBe(true);
+    // Monthly-or-longer and money in stay bills whatever the call
+    expect(
+      isRegularSpending({ ...chipotle, interval: "monthly" }, byId, {
+        categories: dining,
+        calls: { CHIPOTLE: "regular" },
+      }),
+    ).toBe(false);
+    expect(isRegularSpending({ ...chipotle, kind: "income" }, byId)).toBe(false);
+  });
+
+  it("This is a bill confirms Trader Joe's into the 30-day list; This is regular spending takes it back; Adjust and calls reach Confirm all", async () => {
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    await seedDefaults(db);
+    const rows: Entry[] = [];
+    for (const [i, d] of ["2026-09-21", "2026-09-28", "2026-10-05", "2026-10-12"].entries()) {
+      rows.push(entry(`tj${i}`, d, 8400, "TRADER JOE'S", "out", "cat-groceries"));
+      rows.push(entry(`ch${i}`, d, 1450, "CHIPOTLE 1234", "out", "cat-dining"));
+      rows.push(entry(`sit${i}`, d, 30000, "SITTER CO", "out", null));
+    }
+    for (const m of ["08", "09", "10"])
+      rows.push(
+        entry(`rent${m}`, `2026-${m}-01`, 165000, "MAPLE GROVE APTS RENT", "out", "cat-rent"),
+      );
+    await db.entries.bulkAdd(rows);
+    installFakeApi({ session: readySession() });
+
+    // The person's call on the sitter and Dining no longer everyday, both saved as settings
+    await db.settings.put({
+      key: REGULAR_CALLS_KEY,
+      value: { "SITTER CO": "regular" },
+      updated_at: "x",
+    });
+    await db.settings.put({
+      key: REGULAR_CATEGORIES_KEY,
+      value: ["cat-groceries"],
+      updated_at: "x",
+    });
+    renderApp("/");
+    const found = await screen.findByRole("region", { name: "Confirm to see what's coming" });
+    // Rent and Chipotle (Dining is not everyday now); the sitter is regular by their call
+    await waitFor(() => expect(found).toHaveTextContent("2bills"));
+    expect(found).not.toHaveTextContent("SITTER CO");
+    await user.click(within(found).getByRole("button", { name: "Confirm 1 monthly" }));
+    await waitFor(async () =>
+      expect(await db.recurring_series.where("status").equals("confirmed").count()).toBe(1),
+    );
+
+    renderApp("/bills");
+    const regular = await screen.findByRole("region", { name: "Regular spending, not bills" });
+    expect(regular).toHaveTextContent("SITTER CO");
+    expect(regular).not.toHaveTextContent("CHIPOTLE");
+    await user.click(within(regular).getByRole("button", { name: "TRADER JOE'S: this is a bill" }));
+    await waitFor(async () =>
+      expect(await db.recurring_series.where("payee").equals("TRADER JOE'S").count()).toBe(1),
+    );
+    await waitFor(async () => expect((await db.entries.get("tj0"))?.is_recurring).toBe(true));
+    expect((await db.settings.get(REGULAR_CALLS_KEY))?.value).toMatchObject({
+      "TRADER JOE'S": "bill",
+    });
+
+    // Back again from the bill's own sheet
+    const list = await screen.findByRole("list", { name: "Bills and income" });
+    await user.click(within(list).getByRole("button", { name: /TRADER JOE'S/ }));
+    const sheet = await screen.findByRole("dialog", { name: "Edit" });
+    await user.click(within(sheet).getByRole("button", { name: "This is regular spending" }));
+    await waitFor(async () =>
+      expect(await db.recurring_series.where("payee").equals("TRADER JOE'S").count()).toBe(0),
+    );
+    await waitFor(async () => expect((await db.entries.get("tj0"))?.is_recurring).toBe(false));
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Regular spending, not bills" })).toHaveTextContent(
+        "TRADER JOE'S",
+      ),
     );
   });
 

@@ -356,3 +356,33 @@
 .up-month__name {
   font-weight: 600;
 }
+
+/* Bills → Adjust bills: the everyday categories as toggle chips (October 29, 2026). */
+.bills-adjust {
+  border: 0;
+  margin: 0 0 16px;
+  padding: 0;
+}
+.bills-everyday {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bills-everyday .sk-chip {
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-small);
+}
+.regular-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+}
+.regular-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}

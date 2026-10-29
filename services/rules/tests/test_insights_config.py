@@ -55,3 +55,19 @@ def test_budget_alert_levels_are_ascending_whole_bps() -> None:
     assert levels, "at least one level"
     assert all(isinstance(v, int) and 0 < v <= 100000 for v in levels)
     assert levels == sorted(set(levels))
+
+
+def test_regular_spending_values() -> None:
+    """Everyday runs (October 29, 2026): weekly kinds only, built-in expense categories only."""
+    regular = build.compile_config()["regular_spending"]
+    assert regular["intervals"] and set(regular["intervals"]) <= {"weekly", "biweekly"}
+    assert regular["categories"]
+    assert set(regular["categories"]) <= {
+        "cat-groceries",
+        "cat-dining",
+        "cat-transport",
+        "cat-shopping",
+        "cat-fun",
+        "cat-other",
+    }
+    assert len(set(regular["categories"])) == len(regular["categories"])

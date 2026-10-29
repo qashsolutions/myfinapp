@@ -42,7 +42,7 @@ export const INSIGHT_CARDS = [
   ["spending", "Biggest & most often", "Top amounts and merchants"],
   ["fixed", "Fixed vs flexible", "Bills against the rest, and what you keep"],
   ["bills", "Bills & subscriptions", "What's coming up"],
-  ["safe", "Safe to spend", "Room before payday"],
+  ["safe", "Safe to spend", "Room this pay period"],
   ["budget", "Budget & jars", "Your plan and jars"],
   ["worth", "Net worth", "Own minus owe"],
   ["later", "Later", "Savings by the age you choose"],
@@ -65,8 +65,12 @@ export function InsightsHub() {
   const worth = useNetWorth(asOf);
   // Home already says this month; this card shows the months behind it (October 23, 2026), once
   // there are at least two with entries.
-  const sixMonths = useRangeTotals("Year", asOf).series;
-  const trend = sixMonths && sixMonths.active_months >= 2 ? sixMonths : null;
+  const year = useRangeTotals("Year", asOf);
+  const sixMonths = year.series;
+  // The average a month counts only months the data covers whole (invariant 51).
+  const average = year.average;
+  const trend = sixMonths && average && average.active_months >= 2 ? sixMonths : null;
+  const avgNet = average?.avg_net_cents ?? 0;
   const often = useTopSpending("Month", asOf, 3).result;
   const topMerchant = often?.merchants[0];
   const creditCards = useCreditCards(asOf);
@@ -106,7 +110,7 @@ export function InsightsHub() {
             to="/money"
             word={
               trend
-                ? (trend.avg_net_cents ?? 0) < 0
+                ? avgNet < 0
                   ? "Over"
                   : "Kept"
                 : totals
@@ -117,9 +121,8 @@ export function InsightsHub() {
             }
             line={
               trend ? (
-                <span className={(trend.avg_net_cents ?? 0) < 0 ? "insight-neg" : undefined}>
-                  About {formatCents(Math.abs(trend.avg_net_cents ?? 0))} a month{" "}
-                  {(trend.avg_net_cents ?? 0) < 0 ? "over" : "kept"}
+                <span className={avgNet < 0 ? "insight-neg" : undefined}>
+                  About {formatCents(Math.abs(avgNet))} a month {avgNet < 0 ? "over" : "kept"}
                 </span>
               ) : totals ? (
                 <span className={totals.net_cents < 0 ? "insight-neg" : undefined}>
@@ -236,9 +239,11 @@ export function InsightsHub() {
                   ? "Working it out"
                   : safe.safe_cents > 0
                     ? `${formatCents(safe.per_day_cents)} a day${safe.payday ? ` until ${formatDay(safe.payday)}` : ""}`
-                    : safe.payday
-                      ? "Nothing spare before payday"
-                      : "Nothing spare in the next 30 days"
+                    : safe.window === "pay_period"
+                      ? "Nothing spare this pay period"
+                      : safe.window === "payday"
+                        ? "Nothing spare before payday"
+                        : `Nothing spare in the next ${safe.days} days`
             }
             tag={forecast.projection?.shortfall ? <Chip tone="warning">Dips low</Chip> : null}
           >

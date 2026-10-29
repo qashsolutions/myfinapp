@@ -28,5 +28,17 @@
       "subscription_check",
       "debt_interest"
     ]
+  },
+  "regular_spending": {
+    "intervals": [
+      "weekly",
+      "biweekly"
+    ],
+    "categories": [
+      "cat-groceries",
+      "cat-dining",
+      "cat-transport",
+      "cat-shopping"
+    ]
   }
 }

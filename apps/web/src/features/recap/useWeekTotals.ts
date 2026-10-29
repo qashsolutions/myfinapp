@@ -1,5 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
+import { covers, useCoverageStart } from "../../data/coverage.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { counted, type Entry, entriesBetween, ignoreClosed } from "../../data/db.ts";
 import { addDays, engine, type MonthTotals, netChange, periodTotals } from "../../engine/bridge.ts";
@@ -14,7 +15,7 @@ export interface WeekView {
   totals: MonthTotals | null;
   /** the seven days before those */
   previous: MonthTotals | null;
-  /** this week's net − last week's, null until both are known */
+  /** this week's net − last week's; null until both are known, or when last week is partial */
   delta: number | null;
   rulesVersion: string | null;
 }
@@ -27,6 +28,7 @@ export interface WeekView {
 export function useWeekTotals(asOf: string): WeekView {
   const { db } = useDb();
   const lookups = useLookups();
+  const coverage = useCoverageStart();
   const [range, setRange] = useState<{
     start: string;
     prevStart: string;
@@ -60,7 +62,7 @@ export function useWeekTotals(asOf: string): WeekView {
   );
 
   useEffect(() => {
-    if (!range || !entries || !prevEntries || !lookups) return;
+    if (!range || !entries || !prevEntries || !lookups || coverage === undefined) return;
     let alive = true;
     void (async () => {
       const current = await periodTotals(
@@ -73,7 +75,10 @@ export function useWeekTotals(asOf: string): WeekView {
         range.prevEnd,
         counted(prevEntries).map((e) => toRuleEntry(e, lookups.categories)),
       );
-      const change = await netChange(current.net_cents, prior.net_cents);
+      // The week before is compared only when the data covers all seven days (invariant 51).
+      const change = covers(coverage, range.prevStart)
+        ? await netChange(current.net_cents, prior.net_cents)
+        : null;
       if (!alive) return;
       setTotals(current);
       setPrevious(prior);
@@ -90,7 +95,7 @@ export function useWeekTotals(asOf: string): WeekView {
     return () => {
       alive = false;
     };
-  }, [db, range, asOf, entries, prevEntries, lookups]);
+  }, [db, range, asOf, entries, prevEntries, lookups, coverage]);
 
   return {
     start: range?.start ?? null,

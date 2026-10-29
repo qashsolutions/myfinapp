@@ -1,0 +1,109 @@
+{
+  "as_of": "2026-11-15",
+  "thresholds": {
+    "seasonal_increase_cents": 10000,
+    "seasonal_increase_bps": 2000
+  },
+  "entries": [
+    {
+      "id": "d1",
+      "date": "2025-12-20",
+      "amount_cents": 80000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-shopping",
+      "category_kind": "expense"
+    },
+    {
+      "id": "g1",
+      "date": "2026-01-10",
+      "amount_cents": 30000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense"
+    },
+    {
+      "id": "g2",
+      "date": "2026-02-10",
+      "amount_cents": 30000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense"
+    },
+    {
+      "id": "g3",
+      "date": "2026-03-10",
+      "amount_cents": 30000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense"
+    },
+    {
+      "id": "g4",
+      "date": "2026-04-10",
+      "amount_cents": 30000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense"
+    },
+    {
+      "id": "g5",
+      "date": "2026-05-10",
+      "amount_cents": 30000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense"
+    },
+    {
+      "id": "g6",
+      "date": "2026-06-10",
+      "amount_cents": 30000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense"
+    },
+    {
+      "id": "g7",
+      "date": "2026-07-10",
+      "amount_cents": 30000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense"
+    },
+    {
+      "id": "g8",
+      "date": "2026-08-10",
+      "amount_cents": 30000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense"
+    },
+    {
+      "id": "g9",
+      "date": "2026-09-10",
+      "amount_cents": 30000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense"
+    },
+    {
+      "id": "g10",
+      "date": "2026-10-10",
+      "amount_cents": 30000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-groceries",
+      "category_kind": "expense"
+    }
+  ],
+  "history_from": "2025-12-20"
+}

@@ -3,7 +3,7 @@ out, imports and the forecast"). Every number is arithmetic over entries, bills 
 forecast the device already has: no model, no network. Thresholds come from config
 (config/next_move.yaml), passed in so these stay pure.
 
-safe_to_spend   the forecast's lowest balance before the next payday, minus the buffer
+safe_to_spend   the forecast's lowest balance through the next pay period, minus the buffer
 vs_usual        categories running above the same days of recent months
 lumpy_bills     quarterly / yearly bills ahead, with a monthly amount to set aside
 seasonal        months that ran high last year, coming up again
@@ -42,10 +42,36 @@ def _month_start(day: date) -> date:
 # --- safe to spend ------------------------------------------------------------------------
 
 
-def safe_to_spend(days: list, buffer_cents: int, as_of: str, until: str) -> dict:
+def _paydays(raw: object, today: date) -> list[date]:
+    """The paydays after today, once each, earliest first."""
+    if not isinstance(raw, list):
+        raise RuleError("invalid_paydays")
+    return sorted({d for d in (dates.parse_date(p) for p in raw) if d > today})
+
+
+def safe_to_spend(
+    days: list, buffer_cents: int, as_of: str, until: str, paydays: object = None
+) -> dict:
+    """Room to spend beyond the usual daily spending the forecast already counts.
+
+    The window runs from today through the day before the payday after next when two paydays
+    are known (the next whole pay period, October 29, 2026: a payday two days away never makes
+    the whole balance spendable in two days), the day before the next payday when one is
+    known, else through `until`. `paydays` left out or null keeps the `until` window.
+    """
     today = dates.parse_date(as_of)
     last = dates.parse_date(until)
     buffer = _int(buffer_cents)
+    payday: date | None = None
+    kind = "until"
+    if paydays is not None:
+        ahead = _paydays(paydays, today)
+        if len(ahead) >= 2:
+            payday, kind = ahead[1], "pay_period"
+        elif ahead:
+            payday, kind = ahead[0], "payday"
+        if payday is not None:
+            last = dates.add_days(payday, -1)
     if not isinstance(days, list):
         raise RuleError("invalid_days")
     window: list[tuple[date, int]] = []
@@ -71,6 +97,8 @@ def safe_to_spend(days: list, buffer_cents: int, as_of: str, until: str) -> dict
         "days": len(window),
         "lowest_cents": lowest,
         "lowest_date": lowest_day.isoformat(),
+        "payday": payday.isoformat() if payday is not None else None,
+        "window": kind,
     }
 
 
@@ -107,8 +135,21 @@ def _spend_rows(entries: object) -> list[dict]:
     return rows
 
 
-def vs_usual(as_of: str, entries: list, thresholds: dict, months: int) -> dict:
+def _covered_from(history_from: object) -> date | None:
+    """The first day the person's data covers (October 29, 2026): a month is history only when
+    this is on or before its 1st. Null: every month with entries counts."""
+    return None if history_from is None else dates.parse_date(history_from)
+
+
+def _covered(start: date, since: date | None) -> bool:
+    return since is None or since <= start
+
+
+def vs_usual(
+    as_of: str, entries: list, thresholds: dict, months: int, history_from: object = None
+) -> dict:
     today = dates.parse_date(as_of)
+    since = _covered_from(history_from)
     floor_cents = _threshold(thresholds, "usual_increase_cents")
     floor_bps = _threshold(thresholds, "usual_increase_bps")
     lookback = _int(months)
@@ -128,6 +169,8 @@ def vs_usual(as_of: str, entries: list, thresholds: dict, months: int) -> dict:
         month_end = start.replace(day=dates.days_in_month(start))
         if not any(start <= r["date"] <= month_end for r in rows):
             continue  # a month with no entries at all is missing data, not zero spend
+        if not _covered(start, since):
+            continue  # a month the data only partly covers is not "usual" (October 29, 2026)
         used += 1
         for r in rows:
             if start <= r["date"] <= end and r["category_id"] is not None and r["net"]:
@@ -212,8 +255,9 @@ def lumpy_bills(as_of: str, series: list, thresholds: dict, months: int) -> dict
 # --- seasonal spikes ----------------------------------------------------------------------
 
 
-def seasonal(as_of: str, entries: list, thresholds: dict) -> dict:
+def seasonal(as_of: str, entries: list, thresholds: dict, history_from: object = None) -> dict:
     today = dates.parse_date(as_of)
+    since = _covered_from(history_from)
     floor_cents = _threshold(thresholds, "seasonal_increase_cents")
     floor_bps = _threshold(thresholds, "seasonal_increase_bps")
     rows = _spend_rows(entries)
@@ -224,10 +268,14 @@ def seasonal(as_of: str, entries: list, thresholds: dict) -> dict:
         key = _month_key(r["date"])
         with_entries.add(key)
         by_month[key] = by_month.get(key, 0) + r["net"]
+
+    def counts(month: date) -> bool:
+        return _month_key(month) in with_entries and _covered(month, since)
+
     history = [
         _month_key(dates.add_months(this_month, -back))
         for back in range(1, 13)
-        if _month_key(dates.add_months(this_month, -back)) in with_entries
+        if counts(dates.add_months(this_month, -back))
     ]
     flagged = []
     if len(history) >= 6:
@@ -235,7 +283,7 @@ def seasonal(as_of: str, entries: list, thresholds: dict) -> dict:
         for ahead in (1, 2):
             month = dates.add_months(this_month, ahead)
             last_year = _month_key(dates.add_months(month, -12))
-            if last_year not in with_entries:
+            if not counts(dates.add_months(month, -12)):
                 continue
             spent = by_month.get(last_year, 0)
             increase = spent - usual

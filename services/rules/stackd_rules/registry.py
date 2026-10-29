@@ -117,12 +117,16 @@ def _categorize_match(description: str, direction: str, user_rules: list, keywor
     return categorize.match(description, direction, user_rules, keywords)
 
 
-def _insights_safe_to_spend(days: list, buffer_cents: int, as_of: str, until: str) -> dict:
-    return insights.safe_to_spend(days, buffer_cents, as_of, until)
+def _insights_safe_to_spend(
+    days: list, buffer_cents: int, as_of: str, until: str, paydays: object = None
+) -> dict:
+    return insights.safe_to_spend(days, buffer_cents, as_of, until, paydays)
 
 
-def _insights_vs_usual(as_of: str, entries: list, thresholds: dict, months: int) -> dict:
-    return insights.vs_usual(as_of, entries, thresholds, months)
+def _insights_vs_usual(
+    as_of: str, entries: list, thresholds: dict, months: int, history_from: object = None
+) -> dict:
+    return insights.vs_usual(as_of, entries, thresholds, months, history_from)
 
 
 def _insights_lumpy_bills(as_of: str, series: list, thresholds: dict, months: int) -> dict:
@@ -133,8 +137,10 @@ def _insights_top_spending(start: str, end: str, entries: list, limit: int) -> d
     return insights.top_spending(start, end, entries, limit)
 
 
-def _insights_seasonal(as_of: str, entries: list, thresholds: dict) -> dict:
-    return insights.seasonal(as_of, entries, thresholds)
+def _insights_seasonal(
+    as_of: str, entries: list, thresholds: dict, history_from: object = None
+) -> dict:
+    return insights.seasonal(as_of, entries, thresholds, history_from)
 
 
 def _insights_one_change(candidates: list, order: list) -> dict:
