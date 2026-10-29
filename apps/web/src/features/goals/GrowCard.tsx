@@ -1,5 +1,6 @@
 import { Card } from "@stackd/ui";
 import { useEffect, useState } from "react";
+import { AmountSlider } from "../../app/layout/AmountSlider.tsx";
 import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type Goal, ignoreClosed } from "../../data/db.ts";
@@ -7,12 +8,15 @@ import {
   engine,
   type GrowPace,
   type GrowPlan,
+  type GrowReach,
   growGoalPace,
   growGoalPlan,
+  growGoalReach,
 } from "../../engine/bridge.ts";
 import { formatCents, formatMonth } from "../../lib/format.ts";
 import { percentText } from "../../lib/ownValues.ts";
-import { growLineOf, growMessage } from "./grow.ts";
+import { GrowChart } from "./GrowChart.tsx";
+import { growLineOf, growMessage, reachLineOf } from "./grow.ts";
 
 const PACE_WORD: Record<GrowPace["status"], string> = {
   ahead: "Ahead",
@@ -130,11 +134,46 @@ export function GrowCard({
     };
   }, [db, goal.id, goal.target_cents, goal.end_date, grow, savedCents, today]);
 
+  // The slider's amount: the plan's own month until the person moves it (October 29, 2026).
+  const [own, setOwn] = useState<number | null>(null);
+  const planMonthly =
+    state && "plan" in state
+      ? state.plan.already_enough
+        ? 0
+        : state.plan.monthly_needed_cents
+      : null;
+  const monthly = own ?? planMonthly;
+  const [reach, setReach] = useState<GrowReach | null>(null);
+  useEffect(() => {
+    if (!grow || !goal.end_date || monthly === null) return;
+    let alive = true;
+    void growGoalReach({
+      today_cost_cents: grow.today_cents,
+      cost_rise_bps: grow.cost_rise_bps,
+      return_bps: grow.return_bps,
+      target_date: goal.end_date,
+      priced_on: grow.priced_on,
+      saved_cents: Math.max(0, savedCents),
+      monthly_cents: monthly,
+      as_of: today,
+    })
+      .then((r) => {
+        if (alive) setReach(r);
+      })
+      .catch(() => {
+        if (alive) setReach(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [grow, goal.end_date, savedCents, monthly, today]);
+
   if (!grow || !goal.end_date) return null;
   return (
     <Card as="section" aria-label="Grows over time">
       {state && "plan" in state ? (
         <>
+          {reach && monthly !== null ? <GrowChart reach={reach} monthly={monthly} /> : null}
           <Word>{state.plan.already_enough ? "Ahead" : PACE_WORD[state.pace.status]}</Word>
           <p role="status">
             {state.plan.already_enough
@@ -153,12 +192,20 @@ export function GrowCard({
               {formatCents(state.plan.future_cost_cents)} by {formatMonth(goal.end_date)}
             </span>
           </p>
-          <div className="grow-bars" aria-hidden="true">
-            <span
-              className="grow-bars__now"
-              style={{ width: `${barPct(grow.today_cents, state.plan.future_cost_cents)}%` }}
+          {monthly !== null && planMonthly !== null ? (
+            <AmountSlider
+              label="If I put in"
+              value={monthly}
+              max={Math.max(10000, planMonthly * 2)}
+              onChange={setOwn}
+              own="Your own amount a month"
             />
-          </div>
+          ) : null}
+          {reach ? (
+            <p className="grow__result" aria-live="polite">
+              {reachLineOf(reach, goal.end_date)}
+            </p>
+          ) : null}
           <p className="sk-card__eyebrow">
             {formatCents(grow.today_cents)} today, rising {percentText(grow.cost_rise_bps)} a year.
             What you save growing {percentText(grow.return_bps)} a year.
@@ -176,9 +223,4 @@ export function GrowCard({
       </p>
     </Card>
   );
-}
-
-/** Today's cost as a share of the future cost, for the bar's width (layout only). */
-function barPct(today: number, future: number): number {
-  return future > 0 ? Math.max(4, Math.min(100, Math.round((today / future) * 100))) : 100;
 }

@@ -1239,6 +1239,42 @@ export async function growGoalPlan(input: {
   return engine.call<GrowPlan>("growth.goal_plan", input);
 }
 
+export interface GrowReachPoint {
+  month: string; // YYYY-MM
+  months: number;
+  cost_cents: number;
+  saved_cents: number;
+}
+
+export interface GrowReach {
+  months: number;
+  target_cost_cents: number;
+  at_target_cents: number;
+  short_by_cents: number;
+  reaches_by_target: boolean;
+  reach_months: number | null;
+  reach_month: string | null; // YYYY-MM
+  points: GrowReachPoint[];
+}
+
+/**
+ * growth.goal_reach (October 29, 2026): what a chosen monthly amount does for a goal that grows:
+ * the month it reaches the cost (within 65 years), how far short at the date, and yearly points
+ * of the cost and the savings for the chart.
+ */
+export async function growGoalReach(input: {
+  today_cost_cents: number;
+  cost_rise_bps: number;
+  return_bps: number;
+  saved_cents: number;
+  monthly_cents: number;
+  as_of: string;
+  target_date: string;
+  priced_on?: string | null;
+}): Promise<GrowReach> {
+  return engine.call<GrowReach>("growth.goal_reach", input);
+}
+
 export interface GrowPace {
   months_in: number;
   expected_cents: number;

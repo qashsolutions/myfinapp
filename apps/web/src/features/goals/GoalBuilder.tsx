@@ -19,10 +19,12 @@ import {
   addMonths,
   customJar,
   EngineError,
+  type GrowReach,
   goalMilestones,
   goalPlan,
   goalProgress,
   growGoalPlan,
+  growGoalReach,
   monthBounds,
   parseAmount,
   spendLessBaseline,
@@ -40,7 +42,8 @@ import { payScheduleOf } from "../home/useHome.ts";
 import { useHouseholdLocal, useHouseholdStatus } from "../household/useHousehold.ts";
 import { ChipsOrOwn, CustomValueSheet } from "./CustomValueSheet.tsx";
 import { CADENCE_WORDS } from "./GoalCard.tsx";
-import { growLineOf, growMessage } from "./grow.ts";
+import { GrowChart } from "./GrowChart.tsx";
+import { GROW_MAX_MONTHS, growLineOf, growMessage } from "./grow.ts";
 import {
   AMOUNTS,
   DEADLINE_MONTHS,
@@ -138,6 +141,23 @@ export function GoalBuilder() {
   const [riseBps, setRiseBps] = useState(DEFAULT_RISE_BPS);
   const [returnBps, setReturnBps] = useState(DEFAULT_RETURN_BPS);
   const [growLine, setGrowLine] = useState<string>("");
+  const [growPicture, setGrowPicture] = useState<{ reach: GrowReach; monthly: number } | null>(
+    null,
+  );
+  // The furthest date a grows jar takes: 65 years on, to that month's end (owner, October 29, 2026).
+  const [growMax, setGrowMax] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    void addMonths(today, GROW_MAX_MONTHS)
+      .then((d) => monthBounds(d))
+      .then((b) => {
+        if (alive) setGrowMax(b.end);
+      })
+      .catch(ignoreClosed);
+    return () => {
+      alive = false;
+    };
+  }, [today]);
   const growing = kind === "save" && grow && !ongoing;
   const templates = useTemplates();
   const pay = useLiveQuery(
@@ -193,23 +213,30 @@ export function GoalBuilder() {
     if (!growing) return;
     if (!deadline) {
       setGrowLine(growMessage(null));
+      setGrowPicture(null);
       return;
     }
     let alive = true;
-    void growGoalPlan({
+    const base = {
       today_cost_cents: amount,
       cost_rise_bps: riseBps,
       return_bps: returnBps,
       saved_cents: 0,
       as_of: today,
       target_date: deadline,
-    })
-      .then((g) => {
-        if (alive) setGrowLine(growLineOf(g.monthly_needed_cents, g.future_cost_cents, deadline));
-      })
-      .catch((err) => {
-        if (alive) setGrowLine(growMessage(err));
-      });
+    };
+    void (async () => {
+      const g = await growGoalPlan(base);
+      if (!alive) return;
+      setGrowLine(growLineOf(g.monthly_needed_cents, g.future_cost_cents, deadline));
+      // The same picture as the goal screen, at the plan's own month (October 29, 2026).
+      const r = await growGoalReach({ ...base, monthly_cents: g.monthly_needed_cents });
+      if (alive) setGrowPicture({ reach: r, monthly: g.monthly_needed_cents });
+    })().catch((err) => {
+      if (!alive) return;
+      setGrowLine(growMessage(err));
+      setGrowPicture(null);
+    });
     return () => {
       alive = false;
     };
@@ -277,8 +304,26 @@ export function GoalBuilder() {
 
   async function commitDate(text: string): Promise<string | null> {
     try {
-      const r = await customJar(what || "Jar", amount, text, today);
-      setWhen({ kind: "custom", date: r.goal.end_date ?? text });
+      // Only the date is checked here: a preset name longer than a custom one may be
+      // ("Kids' education") must not refuse the date as `invalid_name`.
+      const r = await customJar("Jar", amount, text, today);
+      const date = r.goal.end_date ?? text;
+      if (growing) {
+        // A grows jar's date goes through its own rule too: 65 years at most, next month on.
+        try {
+          await growGoalPlan({
+            today_cost_cents: amount,
+            cost_rise_bps: riseBps,
+            return_bps: returnBps,
+            saved_cents: 0,
+            as_of: today,
+            target_date: date,
+          });
+        } catch (err) {
+          return growMessage(err);
+        }
+      }
+      setWhen({ kind: "custom", date });
       return null;
     } catch (err) {
       return customMessage(err);
@@ -584,6 +629,9 @@ export function GoalBuilder() {
                   },
                 }}
               />
+              {growPicture ? (
+                <GrowChart reach={growPicture.reach} monthly={growPicture.monthly} compact />
+              ) : null}
               <p className="auth__fineprint">
                 An illustration at the rates you chose, not a prediction or advice.
               </p>
@@ -736,7 +784,13 @@ export function GoalBuilder() {
         onPick={(v) =>
           setWhen(v === "none" ? { kind: "none" } : { kind: "months", months: Number(v) })
         }
-        custom={{ label: "Or pick a date", type: "date", min: today, commit: commitDate }}
+        custom={{
+          label: growing ? "Or pick a date, within 65 years" : "Or pick a date",
+          type: "date",
+          min: today,
+          max: growing ? growMax : undefined,
+          commit: commitDate,
+        }}
       />
       <CustomValueSheet
         open={open === "cadence"}

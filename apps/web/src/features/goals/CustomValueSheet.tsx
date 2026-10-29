@@ -9,6 +9,7 @@ export interface CustomValue {
   placeholder?: string;
   type: "text" | "decimal" | "date";
   min?: string;
+  max?: string;
   /** Validates through the engine and applies the value; resolves to a message to show instead, or null. */
   commit: (text: string) => Promise<string | null>;
 }
@@ -83,6 +84,7 @@ export function CustomValueSheet({
             type={custom.type === "date" ? "date" : "text"}
             inputMode={custom.type === "decimal" ? "decimal" : undefined}
             min={custom.min}
+            max={custom.max}
             placeholder={custom.placeholder}
             value={text}
             onChange={(e) => {

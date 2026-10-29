@@ -1,10 +1,13 @@
 import "../auth/auth.css";
 import "../goals/goals.css";
+import "../entries/entries.css";
+import "./whatif.css";
 
 import { Button, Card, Toggle } from "@stackd/ui";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useId, useState } from "react";
 import { Link, useSearchParams } from "react-router";
+import { AmountSlider } from "../../app/layout/AmountSlider.tsx";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
@@ -25,19 +28,90 @@ import { compareText } from "../../lib/order.ts";
 import { ORDER_SETTING, orderLabel } from "../bills/debtPlan.ts";
 import { EXTRA_SETTING } from "../bills/PayoffPlan.tsx";
 import { newMoneyIn, useGoals } from "../goals/useGoals.ts";
+import { WhatIfTimeline } from "./WhatIfTimeline.tsx";
 
-/** The four levers (a fixed choice: kinds, not values; October 28, 2026). */
+/**
+ * The four levers (a fixed choice: kinds, not values; October 28, 2026): a short label for the
+ * segmented choice and the card's own title (October 29, 2026).
+ */
 export const LEVERS = [
-  ["loan", "Extra on a loan"],
-  ["debts", "Extra on all debts"],
-  ["spend", "Spend less"],
-  ["payday", "Set aside each payday"],
+  ["loan", "One loan", "Extra on a loan"],
+  ["debts", "All debts", "Extra on all debts"],
+  ["spend", "Spend less", "Spend less"],
+  ["payday", "Payday", "Set aside each payday"],
 ] as const;
 type Lever = (typeof LEVERS)[number][0];
 
-/** Suggested amounts a month; every one also takes the person's own (proposed). */
+/** Suggested amounts a month; every one also takes the person's own (signed off October 29, 2026). */
 export const LOAN_EXTRAS = [5000, 10000, 20000];
 export const SPEND_LESS = [2500, 5000, 10000];
+/** The sliders' reach (layout only: an own amount past it widens the slider). */
+const SLIDER_STEP = 500;
+const LOAN_SLIDER_MAX = 60000;
+const SPEND_SLIDER_MAX = 30000;
+
+/** The person's last lever and amounts (October 29, 2026), so coming back feels like theirs. */
+export const LAST_SETTING = "whatif.last";
+export interface WhatIfLast {
+  lever: Lever;
+  loan: number;
+  debts: number;
+  spend: number;
+  debt_id: string | null;
+  category_id: string | null;
+}
+
+/** A saved `whatif.last` read safely: anything unknown is dropped. */
+export function readLast(value: unknown): Partial<WhatIfLast> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const v = value as Record<string, unknown>;
+  const out: Partial<WhatIfLast> = {};
+  if (LEVERS.some(([k]) => k === v.lever)) out.lever = v.lever as Lever;
+  for (const k of ["loan", "debts", "spend"] as const) {
+    const cents = typeof v[k] === "number" ? prefillAmount(String(v[k])) : null;
+    if (cents !== null) out[k] = cents;
+  }
+  if (typeof v.debt_id === "string") out.debt_id = v.debt_id;
+  if (typeof v.category_id === "string") out.category_id = v.category_id;
+  return out;
+}
+
+/** A small line icon per lever (decoration; the label says it). */
+function LeverIcon({ lever }: { lever: Lever }) {
+  const common = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      {lever === "loan" ? (
+        <>
+          <rect x="3" y="9" width="18" height="6" rx="3" {...common} />
+          <path d="M7 12h6" {...common} />
+        </>
+      ) : lever === "debts" ? (
+        <>
+          <rect x="3" y="4" width="18" height="4" rx="2" {...common} />
+          <rect x="3" y="10" width="14" height="4" rx="2" {...common} />
+          <rect x="3" y="16" width="9" height="4" rx="2" {...common} />
+        </>
+      ) : lever === "spend" ? (
+        <>
+          <path d="M12 4v13" {...common} />
+          <path d="M6 12l6 6 6-6" {...common} />
+        </>
+      ) : (
+        <>
+          <rect x="3" y="5" width="18" height="16" rx="2" {...common} />
+          <path d="M3 10h18M8 3v4M16 3v4" {...common} />
+        </>
+      )}
+    </svg>
+  );
+}
 
 const DISCLAIMER = "An illustration from your own numbers, not advice.";
 
@@ -146,9 +220,12 @@ function DebtResult({
   r,
   label,
   planExtra,
+  add,
 }: {
   r: WhatIfDebt;
   label: string | null;
+  /** The amount the lever adds a month, for the second bar's label. */
+  add: number;
   /** The extra already in the plan the lever adds to: 0 means the minimums alone. */
   planExtra: number;
 }) {
@@ -170,8 +247,24 @@ function DebtResult({
   } else {
     line = `${who} by ${monthName(r.after.debt_free_month)} either way`;
   }
+  const interest = (c: number | null) => (c === null ? undefined : `${formatCents(c)} interest`);
   return (
     <Card as="section" aria-label={`What changes for ${label ?? "your debts"}`}>
+      <WhatIfTimeline
+        what={who}
+        before={{
+          label: "Now",
+          months: r.before.months,
+          end: r.before.debt_free_month,
+          note: interest(r.before.interest_cents),
+        }}
+        after={{
+          label: `With ${formatCents(add)} more a month`,
+          months: r.after.months,
+          end: r.after.debt_free_month,
+          note: interest(r.after.interest_cents),
+        }}
+      />
       <Word>{word}</Word>
       <p role="status">{line}</p>
       {detail ? <p className="sk-card__eyebrow">{detail}</p> : null}
@@ -180,7 +273,7 @@ function DebtResult({
 }
 
 /** The result of putting an amount into the top jar. */
-function JarResult({ r, title }: { r: WhatIfGoal; title: string }) {
+function JarResult({ r, title, add }: { r: WhatIfGoal; title: string; add: number }) {
   const word = r.status === "sooner" ? "Sooner" : r.status === "never" ? "Stalled" : "Same";
   let line: string;
   let detail: string | null = null;
@@ -197,6 +290,15 @@ function JarResult({ r, title }: { r: WhatIfGoal; title: string }) {
   }
   return (
     <Card as="section" aria-label={`What changes for ${title}`}>
+      <WhatIfTimeline
+        what={`${title} jar done`}
+        before={{ label: "At your pace now", months: r.months_now, end: r.finish_now }}
+        after={{
+          label: `With ${formatCents(add)} more a month`,
+          months: r.months_new,
+          end: r.finish_new,
+        }}
+      />
       <Word>{word}</Word>
       <p role="status">{line}</p>
       {detail ? <p className="sk-card__eyebrow">{detail}</p> : null}
@@ -309,6 +411,44 @@ export function WhatIfScreen() {
   const [spendDebts, setSpendDebts] = useState<WhatIfDebt | null>(null);
   const [spendJar, setSpendJar] = useState<WhatIfGoal | null>(null);
 
+  // The last lever and amounts (October 29, 2026): applied once, under anything the address
+  // asked for, then kept as the person moves them.
+  const last = useLiveQuery(
+    async () => readLast((await db.settings.get(LAST_SETTING))?.value),
+    [db],
+  );
+  const [applied, setApplied] = useState(false);
+  useEffect(() => {
+    if (applied || last === undefined) return;
+    const fromLink = asked !== null && LEVERS.some(([k]) => k === asked);
+    if (!fromLink && !params.get("goal") && last.lever) setLever(last.lever);
+    const linked = prefill !== null ? (fromLink ? asked : null) : null;
+    if (last.loan && linked !== "loan") setLoanAdd(last.loan);
+    if (last.debts && linked !== "debts") setAllAdd(last.debts);
+    if (last.spend && linked !== "spend") setSpendAdd(last.spend);
+    if (last.debt_id && !params.get("debt")) setDebtId(last.debt_id);
+    if (last.category_id && !params.get("category")) setCategoryId(last.category_id);
+    setApplied(true);
+  }, [applied, last, asked, prefill, params]);
+  useEffect(() => {
+    if (!applied) return;
+    const value: WhatIfLast = {
+      lever,
+      loan: loanAdd,
+      debts: allAdd,
+      spend: spendAdd,
+      debt_id: debtId,
+      category_id: categoryId || null,
+    };
+    // Written a moment after the slider stops, not on every step it passes.
+    const timer = setTimeout(() => {
+      void db.settings
+        .put({ key: LAST_SETTING, value, updated_at: new Date().toISOString() })
+        .catch(ignoreClosed);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [applied, db, lever, loanAdd, allAdd, spendAdd, debtId, categoryId]);
+
   const debt = debts?.find((d) => d.id === debtId) ?? debts?.[0] ?? null;
   const category =
     categories?.find((c) => c.id === categoryId) ??
@@ -321,7 +461,7 @@ export function WhatIfScreen() {
     let alive = true;
     void (async () => {
       // Half every two weeks: 26 half payments are one extra full payment a year, spread
-      // across the months (an approximation; proposed, awaiting owner sign-off).
+      // across the months (an approximation; signed off by the owner, October 29, 2026).
       const yearly = halfBiweekly ? await roundDiv(debt.min_payment_cents, 12) : 0;
       const r = await whatIfDebt([toInput(debt)], 0, loanAdd + yearly, today, order ?? null);
       if (alive) setLoanResult(r);
@@ -373,10 +513,10 @@ export function WhatIfScreen() {
   return (
     <>
       <ScreenHeader title="What if" actions={null} back="/insights" />
-      <fieldset className="kind-chips" style={{ border: 0, margin: 0, padding: 0 }}>
+      <fieldset className="segmented whatif-levers">
         <legend className="sr-only">What to change</legend>
-        {LEVERS.map(([k, label]) => (
-          <label className="chip-option" key={k}>
+        {LEVERS.map(([k, short]) => (
+          <label className="segmented__option" key={k}>
             <input
               className="segmented__input"
               type="radio"
@@ -385,11 +525,15 @@ export function WhatIfScreen() {
               checked={lever === k}
               onChange={() => setLever(k)}
             />
-            {label}
+            <LeverIcon lever={k} />
+            {short}
           </label>
         ))}
       </fieldset>
 
+      {lever === "loan" && loanResult && debt && !noDebts ? (
+        <DebtResult r={loanResult} label={debt.label} planExtra={0} add={loanAdd} />
+      ) : null}
       {lever === "loan" ? (
         <Card as="section" aria-label="Extra on a loan">
           <h2 className="sk-card__title">Put more on one loan</h2>
@@ -413,6 +557,15 @@ export function WhatIfScreen() {
                   </label>
                 ))}
               </fieldset>
+              <AmountSlider
+                label="Put in"
+                suffix="more a month"
+                value={loanAdd}
+                min={SLIDER_STEP}
+                step={SLIDER_STEP}
+                max={LOAN_SLIDER_MAX}
+                onChange={setLoanAdd}
+              />
               <AmountChoice
                 legend="Extra each month"
                 presets={LOAN_EXTRAS}
@@ -429,10 +582,10 @@ export function WhatIfScreen() {
           )}
         </Card>
       ) : null}
-      {lever === "loan" && loanResult && debt && !noDebts ? (
-        <DebtResult r={loanResult} label={debt.label} planExtra={0} />
-      ) : null}
 
+      {lever === "debts" && allResult && !noDebts ? (
+        <DebtResult r={allResult} label={null} planExtra={extra ?? 0} add={allAdd} />
+      ) : null}
       {lever === "debts" ? (
         <Card as="section" aria-label="Extra on all debts">
           <h2 className="sk-card__title">Put more on your debts</h2>
@@ -445,6 +598,15 @@ export function WhatIfScreen() {
                 {extra ? `'s ${formatCents(extra)} extra` : ""},{" "}
                 {orderLabel(order ?? "avalanche").toLowerCase()}.
               </p>
+              <AmountSlider
+                label="Put in"
+                suffix="more a month"
+                value={allAdd}
+                min={SLIDER_STEP}
+                step={SLIDER_STEP}
+                max={LOAN_SLIDER_MAX}
+                onChange={setAllAdd}
+              />
               <AmountChoice
                 legend="More each month"
                 presets={LOAN_EXTRAS}
@@ -455,10 +617,26 @@ export function WhatIfScreen() {
           )}
         </Card>
       ) : null}
-      {lever === "debts" && allResult && !noDebts ? (
-        <DebtResult r={allResult} label={null} planExtra={extra ?? 0} />
-      ) : null}
 
+      {lever === "spend" && spendJar && jar ? (
+        <JarResult r={spendJar} title={jar.title} add={spendAdd} />
+      ) : null}
+      {lever === "spend" && !jar && goals !== undefined ? (
+        <Card as="section" aria-label="No jar yet">
+          <Word>Start</Word>
+          <p>
+            <Link to="/goals/new">Make a jar</Link> to see when it would be done.
+          </p>
+          {goals.some((g) => g.grow && g.status === "active") ? (
+            <p className="sk-card__eyebrow">
+              A jar that grows over time keeps its own monthly plan on its screen.
+            </p>
+          ) : null}
+        </Card>
+      ) : null}
+      {lever === "spend" && spendDebts ? (
+        <DebtResult r={spendDebts} label={null} planExtra={extra ?? 0} add={spendAdd} />
+      ) : null}
       {lever === "spend" ? (
         <Card as="section" aria-label="Spend less">
           <h2 className="sk-card__title">Spend less on one thing</h2>
@@ -476,6 +654,15 @@ export function WhatIfScreen() {
               ))}
             </select>
           </label>
+          <AmountSlider
+            label="Spend"
+            suffix="less a month"
+            value={spendAdd}
+            min={SLIDER_STEP}
+            step={SLIDER_STEP}
+            max={SPEND_SLIDER_MAX}
+            onChange={setSpendAdd}
+          />
           <AmountChoice
             legend={`Less on ${category?.name ?? "it"} each month`}
             presets={SPEND_LESS}
@@ -488,23 +675,6 @@ export function WhatIfScreen() {
           </p>
         </Card>
       ) : null}
-      {lever === "spend" && spendJar && jar ? <JarResult r={spendJar} title={jar.title} /> : null}
-      {lever === "spend" && !jar && goals !== undefined ? (
-        <Card as="section" aria-label="No jar yet">
-          <Word>Start</Word>
-          <p>
-            <Link to="/goals/new">Make a jar</Link> to see when it would be done.
-          </p>
-          {goals.some((g) => g.grow && g.status === "active") ? (
-            <p className="sk-card__eyebrow">
-              A jar that grows over time keeps its own monthly plan on its screen.
-            </p>
-          ) : null}
-        </Card>
-      ) : null}
-      {lever === "spend" && spendDebts ? (
-        <DebtResult r={spendDebts} label={null} planExtra={extra ?? 0} />
-      ) : null}
 
       {lever === "payday" ? (
         <Card as="section" aria-label="Set aside each payday">
@@ -516,7 +686,9 @@ export function WhatIfScreen() {
         </Card>
       ) : null}
 
-      <p className="auth__fineprint">{DISCLAIMER} Nothing is saved or moved.</p>
+      <p className="auth__fineprint">
+        {DISCLAIMER} Nothing is moved; your last try is kept on this device for next time.
+      </p>
     </>
   );
 }
