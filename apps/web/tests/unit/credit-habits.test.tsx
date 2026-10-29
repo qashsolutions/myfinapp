@@ -15,6 +15,14 @@ import { renderApp } from "../render.tsx";
 
 const NOW = new Date("2026-10-20T12:00:00");
 
+/**
+ * A card's views come from its own engine calls (credit.card_trend, then credit.habits), queued
+ * behind every other engine call the screen makes; the screen shows the card only once both are
+ * in, never half of it. Under a full-suite load that took just over the default 1 s, so these
+ * waits match the other whole-screen tests (October 29, 2026).
+ */
+const CARDS = { timeout: 4000 };
+
 const VISA: Account = {
   id: "acct-visa",
   label: "Visa",
@@ -87,13 +95,17 @@ describe("credit habits and card spending (October 28, 2026)", () => {
     await seedCard();
     installFakeApi({ session: readySession() });
     renderApp("/bills?tab=debt");
-    const habits = await screen.findByRole("region", { name: /Credit habits/ });
-    await waitFor(() => expect(habits).toHaveTextContent("4 payments on time in a row"));
+    const habits = await screen.findByRole("region", { name: /Credit habits/ }, CARDS);
+    await waitFor(() => expect(habits).toHaveTextContent("4 payments on time in a row"), CARDS);
     expect(habits).toHaveTextContent("Steady");
     expect(habits).toHaveTextContent("Education only. Qash never sees or shows a credit score.");
-    const spending = await screen.findByRole("region", { name: "Card spending vs payments" });
+    const spending = await screen.findByRole(
+      "region",
+      { name: "Card spending vs payments" },
+      CARDS,
+    );
     // credit.card_trend: Jul 9000/5000, Aug 8000/5000, Sep 12000/5000 → growing three months running.
-    await waitFor(() => expect(spending).toHaveTextContent("Growing"));
+    await waitFor(() => expect(spending).toHaveTextContent("Growing"), CARDS);
     expect(spending).toHaveTextContent("Spent $120.00, paid $50.00 last month");
   });
 
@@ -102,8 +114,8 @@ describe("credit habits and card spending (October 28, 2026)", () => {
     installFakeApi({ session: readySession() });
     renderApp("/credit-habits");
     await screen.findByRole("heading", { level: 1, name: "Credit habits" });
-    const card = await screen.findByRole("article", { name: "Visa ••4242" });
-    await waitFor(() => expect(card).toHaveTextContent("4 payments on time in a row"));
+    const card = await screen.findByRole("article", { name: "Visa ••4242" }, CARDS);
+    await waitFor(() => expect(card).toHaveTextContent("4 payments on time in a row"), CARDS);
     expect(card).toHaveTextContent("Next due Nov 15");
     expect(document.body).toHaveTextContent("under 30% is a common guide");
     expect(document.body).not.toHaveTextContent(/you should/i);
@@ -113,8 +125,8 @@ describe("credit habits and card spending (October 28, 2026)", () => {
     await seedCard();
     installFakeApi({ session: readySession() });
     renderApp("/insights");
-    const card = await screen.findByRole("link", { name: "Credit habits" });
-    await waitFor(() => expect(card).toHaveTextContent("4 payments on time in a row"));
+    const card = await screen.findByRole("link", { name: "Credit habits" }, CARDS);
+    await waitFor(() => expect(card).toHaveTextContent("4 payments on time in a row"), CARDS);
     expect(card).toHaveTextContent("Steady");
   });
 
@@ -128,14 +140,17 @@ describe("credit habits and card spending (October 28, 2026)", () => {
     ]);
     installFakeApi({ session: readySession() });
     renderApp("/credit-habits");
-    const card = await screen.findByRole("article", { name: "Visa ••4242" });
+    const card = await screen.findByRole("article", { name: "Visa ••4242" }, CARDS);
     // Aug 15, Sep 15 and Oct 15 checked: Aug paid, Sep and Oct owed nothing.
-    await waitFor(() => expect(card).toHaveTextContent("3 payments on time in a row"));
+    await waitFor(() => expect(card).toHaveTextContent("3 payments on time in a row"), CARDS);
     expect(card).toHaveTextContent("Steady");
     expect(card).not.toHaveTextContent("Missed");
 
     await db.balance_anchors.clear();
-    await waitFor(() => expect(card).toHaveTextContent("Set the card's balance to start checking"));
+    await waitFor(
+      () => expect(card).toHaveTextContent("Set the card's balance to start checking"),
+      CARDS,
+    );
     expect(card).toHaveTextContent("Start");
     expect(card).not.toHaveTextContent("Missed");
     expect(within(card).getByRole("link", { name: "Set the balance in Accounts" })).toBeVisible();
@@ -181,8 +196,8 @@ describe("credit habits and card spending (October 28, 2026)", () => {
     });
     installFakeApi({ session: readySession() });
     renderApp("/credit-habits");
-    const card = await screen.findByRole("article", { name: "Visa ••4242" });
-    await waitFor(() => expect(card).toHaveTextContent("2 payments on time in a row"));
+    const card = await screen.findByRole("article", { name: "Visa ••4242" }, CARDS);
+    await waitFor(() => expect(card).toHaveTextContent("2 payments on time in a row"), CARDS);
     expect(card).toHaveTextContent("Steady");
     expect(card).not.toHaveTextContent("Missed");
   });
@@ -193,8 +208,8 @@ describe("credit habits and card spending (October 28, 2026)", () => {
     await db.accounts.update(VISA.id, { due_day: null });
     installFakeApi({ session: readySession() });
     renderApp("/credit-habits");
-    const card = await screen.findByRole("article", { name: "Visa ••4242" });
-    await waitFor(() => expect(card).toHaveTextContent("No due date yet"));
+    const card = await screen.findByRole("article", { name: "Visa ••4242" }, CARDS);
+    await waitFor(() => expect(card).toHaveTextContent("No due date yet"), CARDS);
     expect(card).toHaveTextContent("Start");
 
     // The due day is set in the screen's Adjust sheet (October 29, 2026), any day 1 to 31.
@@ -259,8 +274,8 @@ describe("credit habits and card spending (October 28, 2026)", () => {
       { ...entry("x2", "2026-09-24", "in", 30000), account_id: card.id },
     ]);
     renderApp("/credit-habits");
-    const shown = await screen.findByRole("article", { name: "Visa ••4242" });
-    await waitFor(() => expect(shown).toHaveTextContent("1 payment on time in a row"));
+    const shown = await screen.findByRole("article", { name: "Visa ••4242" }, CARDS);
+    await waitFor(() => expect(shown).toHaveTextContent("1 payment on time in a row"), CARDS);
     expect(shown).toHaveTextContent("Paid in full 1 month");
     // 15000 of a 100000 limit: 15% · under 30%.
     expect(shown).toHaveTextContent("15% of your limit used · under 30%");
