@@ -11,5 +11,19 @@
   "next_due_date": null,
   "paid_in_full_streak": null,
   "utilization_bps": null,
-  "under_guide": null
+  "under_guide": null,
+  "dues": [
+    {
+      "due_date": "2026-07-28",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-08-28",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-09-28",
+      "result": "missed"
+    }
+  ]
 }

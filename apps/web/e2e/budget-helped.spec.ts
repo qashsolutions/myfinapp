@@ -64,7 +64,26 @@ test("@phone a budget line past 90% says Close, and the alert leaves as a tag an
   expect(Object.keys(items[0] ?? {}).sort()).toEqual(["dedupe_key", "due_at", "type"]);
   expect(items[0]?.dedupe_key).toMatch(/^budget:\d{4}-\d{2}:[a-p]{16}:9000$/);
   expect(body).not.toMatch(/Groceries|groceries|CORNER|4217|42\.17|4500/);
+  // The bar marks "Tell me at" and the plan's end (October 29, 2026).
+  await expect(groceries.getByRole("progressbar")).toHaveAttribute(
+    "aria-valuetext",
+    /· (Tell me|Close) at 90% · Plan$/,
+  );
   await page.screenshot({ path: test.info().outputPath("budget-close.png"), fullPage: true });
+
+  // "Don't alert me for this one": the line keeps its word, and the next schedule has no item.
+  const sent = bodies.length;
+  await page.getByRole("button", { name: "Adjust budget alerts" }).click();
+  const adjust = page.getByRole("dialog", { name: "Adjust budget alerts" });
+  const groceriesAlert = adjust.getByRole("switch", { name: "Alert me for Groceries" });
+  await expect(groceriesAlert).toBeChecked();
+  await adjust.getByText("Alert me for Groceries", { exact: true }).click();
+  await expect(groceriesAlert).not.toBeChecked();
+  await adjust.getByRole("button", { name: "Done" }).click();
+  await expect(groceries).toContainText("Close");
+  await expect
+    .poll(() => bodies.slice(sent).some((b) => !b.includes("budget_pace")), { timeout: 20_000 })
+    .toBe(true);
 });
 
 /** Where the owner's screenshots of each changed screen go (kept; the owner looks at them). */

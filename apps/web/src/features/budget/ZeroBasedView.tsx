@@ -9,7 +9,8 @@ import type { BudgetSummary, MonthTotals } from "../../engine/bridge.ts";
 import { parseAmount } from "../../engine/bridge.ts";
 import { formatCents } from "../../lib/format.ts";
 import { showUndo } from "../entries/undoToast.ts";
-import type { PaceWord } from "./pace.ts";
+import { PaceBar } from "./PaceBar.tsx";
+import { CLOSE_BPS, type PaceWord } from "./pace.ts";
 import {
   assignRest,
   fillFromLastMonth,
@@ -39,6 +40,8 @@ export function ZeroBasedView({
   categories,
   lastMonth,
   pace = null,
+  levelBps = CLOSE_BPS,
+  alerting = () => false,
 }: {
   summary: BudgetSummary;
   lines: BudgetLine[];
@@ -47,6 +50,10 @@ export function ZeroBasedView({
   lastMonth: MonthTotals | null;
   /** "Close" / "Over" per line from `budget.pace` (the same reading as the budget alert). */
   pace?: Map<string, PaceWord> | null;
+  /** The "Tell me at" level each bar marks (the person's own, else the config's). */
+  levelBps?: number;
+  /** Whether a line's alert is on (the alert is on and the line wasn't turned off). */
+  alerting?: (lineId: string) => boolean;
 }) {
   const { db } = useDb();
   const ids = useId();
@@ -142,12 +149,23 @@ export function ZeroBasedView({
                 }`}
           </div>
           {line.planned_cents > 0 ? (
-            <ProgressBar
-              fraction={spent / line.planned_cents}
-              label={`${label} spent of planned`}
-              valueText={`${formatCents(spent)} of ${formatCents(line.planned_cents)}`}
-              tone={over ? "warning" : undefined}
-            />
+            categories.get(line.category_id)?.bucket === "save" ? (
+              <ProgressBar
+                fraction={spent / line.planned_cents}
+                label={`${label} spent of planned`}
+                valueText={`${formatCents(spent)} of ${formatCents(line.planned_cents)}`}
+              />
+            ) : (
+              <PaceBar
+                spentCents={spent}
+                plannedCents={line.planned_cents}
+                levelBps={levelBps}
+                alerts={alerting(line.category_id)}
+                label={`${label} spent of planned`}
+                valueText={`${formatCents(spent)} of ${formatCents(line.planned_cents)}`}
+                tone={over ? "warning" : undefined}
+              />
+            )
           ) : null}
           {over ? (
             <button

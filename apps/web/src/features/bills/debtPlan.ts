@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type Debt, ignoreClosed, type StackdDb } from "../../data/db.ts";
 import {
+  avalancheOrder,
   type DebtInput,
   type PayoffOrder,
   type PayoffPlan,
@@ -87,4 +88,28 @@ export function useDebtFreePlan(asOf: string): PayoffPlan | null | undefined {
     };
   }, [settings, asOf]);
   return plan;
+}
+
+/** Every debt's balance added up (`bills.avalanche_order`'s total): where the payoff line
+ * starts. Null with no debts, undefined while loading. */
+export function useDebtTotal(): number | null | undefined {
+  const settings = useDebtSettings();
+  const [total, setTotal] = useState<number | null | undefined>(undefined);
+  useEffect(() => {
+    if (!settings) return;
+    if (settings.debts.length === 0) {
+      setTotal(null);
+      return;
+    }
+    let alive = true;
+    void avalancheOrder(debtInputs(settings.debts))
+      .then((o) => {
+        if (alive) setTotal(o.total_balance_cents);
+      })
+      .catch(ignoreClosed);
+    return () => {
+      alive = false;
+    };
+  }, [settings]);
+  return total;
 }

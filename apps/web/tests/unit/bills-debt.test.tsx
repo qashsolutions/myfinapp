@@ -45,7 +45,7 @@ describe("Bills & debt: the debt payoff tab", () => {
     await addDebt(user, "Store card", "600", "24.90", "25");
     await addDebt(user, "Card A", "2,400", "27.99", "72");
 
-    const list = screen.getByRole("list", { name: "Debts, highest APR first" });
+    const list = screen.getByRole("list", { name: "Debts, highest rate first" });
     await waitFor(() => expect(within(list).getAllByRole("listitem")).toHaveLength(3));
     const rows = within(list)
       .getAllByRole("listitem")
