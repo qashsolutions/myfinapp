@@ -160,7 +160,7 @@ describe("What helped", () => {
     const api = installFakeApi({ session: readySession(), groups: [group] });
     renderApp("/groups/g-done");
     const card = await screen.findByRole("region", { name: "What helped" });
-    expect(card).toHaveTextContent("The group's totals show once two members have answered.");
+    expect(card).toHaveTextContent("The group's totals show once two other members have answered.");
     await user.click(within(card).getByRole("checkbox", { name: "Packed lunch" }));
     await user.click(within(card).getByRole("checkbox", { name: "Cooked at home" }));
     await user.click(within(card).getByRole("checkbox", { name: "No-spend days" }));

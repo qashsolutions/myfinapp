@@ -1,0 +1,42 @@
+{
+  "items": [
+    {
+      "id": "a",
+      "label": "Alpha",
+      "kind": null,
+      "ask": true,
+      "price_rise": {
+        "from_cents": 1199,
+        "to_cents": 1299,
+        "date": "2026-09-03"
+      },
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 15588,
+      "monthly_cents": 1299
+    },
+    {
+      "id": "b",
+      "label": "Bravo",
+      "kind": null,
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 15588,
+      "monthly_cents": 1299
+    },
+    {
+      "id": "c",
+      "label": "Charlie",
+      "kind": null,
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 14388,
+      "monthly_cents": 1199
+    }
+  ],
+  "duplicates": []
+}

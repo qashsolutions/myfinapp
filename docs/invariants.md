@@ -161,8 +161,11 @@ written against both.
     where the tag is 16 letters a–p (`alerts.tag`: FNV-1a over a random value kept on the device
     and the category's id, so the server cannot work back from it). `alerts.schedule` refuses any
     other tag and the API refuses any other key shape; the push label is fixed text. "What
-    helped" answers leave as choice ids from the fixed list only, and the group sees totals only,
-    from two answers.
+    helped" answers leave as choice ids from the fixed list only, and the group sees totals only:
+    a member sees them once at least two members other than themselves answered (proposed,
+    awaiting owner sign-off), so no one can take their own answer away and read another's; leaving
+    or being removed clears the answer, and rejoining starts without it
+    (`tests/test_group_helped.py`).
     golden `alerts.schedule/budget_tag_must_be_letters` · `notifications.test.tsx` "a budget
     alert carries a month, a tag and a level…" · `test_budget_alerts.py` · `leak-sweep.test.tsx` ·
     `test_group_helped.py` · `budget-helped.test.tsx` "What helped"

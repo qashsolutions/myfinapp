@@ -71,6 +71,16 @@ def interval_of(gap_days: int) -> str | None:
     return None
 
 
+def step_keeping_day(day: date, interval: str, keep: int | None) -> date:
+    """One step on, back on the series' own day of the month (1-31, clamped to the month) when
+    it has one, so stepping from a short month never drifts it earlier (forecast.upcoming's
+    `day`, subscription_check's renewals)."""
+    day = step(day, interval)
+    if keep is not None and interval in ("monthly", "quarterly", "yearly"):
+        day = day.replace(day=min(keep, dates.days_in_month(day)))
+    return day
+
+
 def step(day: date, interval: str) -> date:
     if interval == "weekly":
         return day + timedelta(days=7)
@@ -161,7 +171,7 @@ def yearly_cost(series_in: object) -> dict:
         if not isinstance(sid, str) or not isinstance(label, str):
             raise RuleError("invalid_series")
         interval = raw.get("interval")
-        if interval not in PER_YEAR:
+        if not isinstance(interval, str) or interval not in PER_YEAR:
             raise RuleError("invalid_interval")
         cents = _int(raw.get("expected_cents"), "invalid_amount")
         if cents < 0:
@@ -261,7 +271,7 @@ def subscription_check(
         if not isinstance(sid, str) or not isinstance(label, str) or not isinstance(payee, str):
             raise RuleError("invalid_series")
         interval = raw.get("interval")
-        if interval not in PER_YEAR:
+        if not isinstance(interval, str) or interval not in PER_YEAR:
             raise RuleError("invalid_interval")
         expected = _int(raw.get("expected_cents"), "invalid_amount")
         if expected < 0:
@@ -289,16 +299,30 @@ def subscription_check(
                 "cents": charges[1][1],
                 "date": charges[1][0].isoformat(),
             }
+        # A price rise: the most recent charge above the one before it, shown while every
+        # charge since is at that new price and the person has not answered (Keep) on or after
+        # the day it went up. A trial ending is never one; a later drop clears it.
         rise = None
-        if len(charges) >= 2 and not (trial_pair and len(charges) == 2):
-            (_, previous), (latest_day, latest) = charges[-2], charges[-1]
-            if latest > previous and not _answered_since(checked, latest_day):
-                rise = {"from_cents": previous, "to_cents": latest, "date": latest_day.isoformat()}
+        up = next(
+            (i for i in range(len(charges) - 1, 0, -1) if charges[i][1] > charges[i - 1][1]),
+            None,
+        )
+        if (
+            up is not None
+            and not (trial_pair and up == 1)
+            and charges[-1][1] == charges[up][1]
+            and not _answered_since(checked, charges[up][0])
+        ):
+            rise = {
+                "from_cents": charges[up - 1][1],
+                "to_cents": charges[-1][1],
+                "date": charges[up][0].isoformat(),
+            }
         renewal = None
         if interval in ("quarterly", "yearly"):
             due = next_date
             while due < today:
-                due = step(due, interval)
+                due = step_keeping_day(due, interval, next_date.day)
             if (due - today).days <= limits["subscription_renewal_days"]:
                 renewal = {"date": due.isoformat(), "cents": expected}
         last_charge = charges[-1][0] if charges else None

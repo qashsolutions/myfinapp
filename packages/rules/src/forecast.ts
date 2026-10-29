@@ -8,7 +8,7 @@ import {
   INTERVALS,
   type Interval,
   entries as recurringEntries,
-  step,
+  stepKeepingDay,
   withinTenPercent,
 } from "./recurring.ts";
 import { compareText } from "./text.ts";
@@ -171,8 +171,7 @@ export interface Upcoming {
 
 /** One step on, back on the series' own day of the month when it has one (clamped). */
 function nextOf(day: Day, s: SeriesIn): Day {
-  const stepped = step(day, s.interval);
-  return s.day === null ? stepped : { ...stepped, d: Math.min(s.day, daysInMonth(stepped)) };
+  return stepKeepingDay(day, s.interval, s.day);
 }
 
 export function upcoming(

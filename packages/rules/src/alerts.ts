@@ -5,7 +5,7 @@ import { RuleError } from "./errors.ts";
 import { fnv1a64 } from "./fingerprint.ts";
 import { assertInt, mul, roundDiv } from "./money.ts";
 import { compareLocal, fmtLocal, type Local, parseClock, parseLocal } from "./notify.ts";
-import { compareText } from "./text.ts";
+import { compareText, utf8 } from "./text.ts";
 
 export const HORIZON_DAYS = 30;
 export const SEND_TIME = "09:00"; // dated alerts, unless the person picks their own time (`time`)
@@ -21,7 +21,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const TAG = /^[a-p]{16}$/;
-const encoder = new TextEncoder();
 
 /**
  * Port of alerts.tag: 16 letters a–p from FNV-1a 64 of `salt:value`, so a key can name a
@@ -30,7 +29,7 @@ const encoder = new TextEncoder();
 export function tag(value: unknown, salt: unknown): string {
   if (typeof value !== "string" || !value || typeof salt !== "string" || !salt)
     throw new RuleError("invalid_inputs");
-  const hex = fnv1a64(encoder.encode(`${salt}:${value}`))
+  const hex = fnv1a64(utf8(`${salt}:${value}`, "invalid_inputs"))
     .toString(16)
     .padStart(16, "0");
   return Array.from(hex, (c) => String.fromCharCode(97 + Number.parseInt(c, 16))).join("");

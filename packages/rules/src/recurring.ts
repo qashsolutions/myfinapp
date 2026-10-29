@@ -1,6 +1,6 @@
 /** Port of stackd_rules/recurring.py: recurring series detection (bills and income). */
 
-import { addDays, addMonths, type Day, daysUntil, iso, parseDate } from "./dates.ts";
+import { addDays, addMonths, type Day, daysInMonth, daysUntil, iso, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { cleanDescription } from "./fingerprint.ts";
 import { assertInt, mul, roundDiv } from "./money.ts";
@@ -66,6 +66,20 @@ export function intervalOf(gapDays: number): Interval | null {
     if (lo <= gapDays && gapDays <= hi) return name;
   }
   return null;
+}
+
+/**
+ * One step on, back on the series' own day of the month (1-31, clamped) when it has one, so a
+ * short month never drifts it earlier (see Python's step_keeping_day).
+ */
+export function stepKeepingDay(day: Day, interval: unknown, keep: number | null): Day {
+  const stepped = step(day, interval);
+  if (
+    keep === null ||
+    !(interval === "monthly" || interval === "quarterly" || interval === "yearly")
+  )
+    return stepped;
+  return { ...stepped, d: Math.min(keep, daysInMonth(stepped)) };
 }
 
 export function step(day: Day, interval: unknown): Day {
@@ -328,17 +342,27 @@ export function subscriptionCheck(
       trialPair && c0 && c1 && !answeredSince(checked, c1[0])
         ? { trial_cents: c0[1], cents: c1[1], date: iso(c1[0]) }
         : null;
+    // A price rise: the most recent charge above the one before it, shown while every charge
+    // since is at that new price and no Keep came on or after the day it went up (see Python).
     let rise: SubscriptionCheckItem["price_rise"] = null;
-    if (list.length >= 2 && !(trialPair && list.length === 2)) {
-      const previous = list[list.length - 2] as [Day, number];
+    let up = -1;
+    for (let i = list.length - 1; i > 0; i -= 1) {
+      if ((list[i] as [Day, number])[1] > (list[i - 1] as [Day, number])[1]) {
+        up = i;
+        break;
+      }
+    }
+    if (up > 0 && !(trialPair && up === 1)) {
+      const before = list[up - 1] as [Day, number];
+      const raised = list[up] as [Day, number];
       const latest = list[list.length - 1] as [Day, number];
-      if (latest[1] > previous[1] && !answeredSince(checked, latest[0]))
-        rise = { from_cents: previous[1], to_cents: latest[1], date: iso(latest[0]) };
+      if (latest[1] === raised[1] && !answeredSince(checked, raised[0]))
+        rise = { from_cents: before[1], to_cents: latest[1], date: iso(raised[0]) };
     }
     let renewal: SubscriptionCheckItem["renewal"] = null;
     if (interval === "quarterly" || interval === "yearly") {
       let due = nextDate;
-      while (daysUntil(due, today) > 0) due = step(due, interval);
+      while (daysUntil(due, today) > 0) due = stepKeepingDay(due, interval, nextDate.d);
       if (daysUntil(today, due) <= limits.subscription_renewal_days)
         renewal = { date: iso(due), cents: expected };
     }

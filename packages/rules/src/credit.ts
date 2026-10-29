@@ -201,6 +201,7 @@ export function habits(
   guideBps: unknown,
   since: unknown = null,
   balanceHistory: unknown = null,
+  until: unknown = null,
 ): CreditHabits {
   const today = parseDate(asOf);
   const span = windowMonths(months);
@@ -213,16 +214,9 @@ export function habits(
   const addDue = (day: Day) => dues.set(iso(day), day);
   for (const d of dueDates) addDue(parseDate(d));
   const start = addMonths(today, -span);
+  const last = until === null || until === undefined ? null : parseDate(until);
   const day = dueDay === null || dueDay === undefined ? null : assertInt(dueDay, "invalid_day");
-  if (day !== null) {
-    if (day < 1 || day > 31) throw new RuleError("invalid_day");
-    // From the month before the window through the month after as_of (see Python).
-    const lead = addMonths({ y: start.y, m: start.m, d: 1 }, -1);
-    for (let step = 0; step < span + 3; step += 1) {
-      const month = addMonths(lead, step);
-      addDue({ ...month, d: Math.min(day, daysInMonth(month)) });
-    }
-  }
+  if (day !== null && (day < 1 || day > 31)) throw new RuleError("invalid_day");
   const minimum = optInt(minimumCents);
   if (minimum !== null && minimum < 0) throw new RuleError("invalid_amount");
   const owedByDue = new Map<string, number>();
@@ -240,6 +234,17 @@ export function habits(
         if (ownMin < 0) throw new RuleError("invalid_amount");
         minimumByDue.set(iso(due), ownMin);
       }
+    }
+  }
+  if (day !== null) {
+    // The own due day fills only months with no known due date (see Python), from the month
+    // before the window through the month after as_of.
+    const known = new Set([...dues.values()].map((d) => d.y * 100 + d.m));
+    const lead = addMonths({ y: start.y, m: start.m, d: 1 }, -1);
+    for (let step = 0; step < span + 3; step += 1) {
+      const month = addMonths(lead, step);
+      if (!known.has(month.y * 100 + month.m))
+        addDue({ ...month, d: Math.min(day, daysInMonth(month)) });
     }
   }
   const paid = payments.map((raw) => {
@@ -270,7 +275,8 @@ export function habits(
     }
     checked.push(d);
   }
-  const results: DueResult[] = checked.map((d) => {
+  const results: DueResult[] = [];
+  for (const d of checked) {
     const after = ordered.filter((x) => daysUntil(x, d) > 0).at(-1) ?? addMonths(d, -1);
     let total = 0;
     for (const p of paid) {
@@ -279,10 +285,18 @@ export function habits(
     const key = iso(d);
     const owed = owedByDue.get(key) ?? null;
     const need = minimumByDue.get(key) ?? minimum;
-    if (owed !== null && owed <= 0) return { due: key, onTime: true, inFull: true };
+    if (owed !== null && owed <= 0) {
+      results.push({ due: key, onTime: true, inFull: true });
+      continue;
+    }
     const onTime = need ? total >= need : total > 0;
-    return { due: key, onTime, inFull: owed === null ? null : total >= owed };
-  });
+    if (!onTime && last !== null && daysUntil(last, d) > 0) {
+      // Past what the card's data reaches: its payment may simply not be in yet.
+      unknown += 1;
+      continue;
+    }
+    results.push({ due: key, onTime, inFull: owed === null ? null : total >= owed });
+  }
 
   const newestFirst = [...results].reverse();
   let streak = 0;

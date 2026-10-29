@@ -1603,6 +1603,8 @@ export async function creditHabits(input: {
     anchors: Array<{ as_of: string; balance_cents: number }>;
     entries: Array<{ date: string; direction: "in" | "out"; amount_cents: number }>;
   } | null;
+  /** The last day the card's data reaches: due dates after it are unknown, never missed. */
+  until: string | null;
 }): Promise<CreditHabits> {
   return engine.call<CreditHabits>("credit.habits", {
     due_dates: input.dueDates,
@@ -1618,5 +1620,6 @@ export async function creditHabits(input: {
     guide_bps: input.guideBps,
     since: input.since,
     balance_history: input.balanceHistory,
+    until: input.until,
   });
 }

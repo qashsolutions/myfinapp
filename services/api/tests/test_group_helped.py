@@ -1,6 +1,7 @@
 """'What helped' in challenges: fixed choices only, up to 3, once a member reached their target
-or the challenge ended; the group sees totals only, and only from 2 answers; the person's own
-answer is in their export; deletion takes it out of the totals."""
+or the challenge ended; the group sees totals only, and a caller only once at least 2 members
+other than the caller answered; the person's own answer is in their export; deletion, leaving
+and removal take it out of the totals."""
 
 import uuid
 from datetime import date
@@ -79,14 +80,18 @@ def test_choices_are_fixed_counted_and_never_attributed() -> None:
     for m in seen["members"]:
         assert "helped" not in m and "my_helped" not in m
 
+    # An answerer with only one other answer sees nothing: taking away her own leaves his
+    assert maya.get(f"/api/groups/{gid}").json()["helped"] is None
+    assert dev.get(f"/api/groups/{gid}").json()["helped"] is None
+
     # Changeable, and [] clears it (totals drop back under the minimum)
     dev.put(f"/api/groups/{gid}/helped", json={"choices": ["waited_a_day"]})
-    assert maya.get(f"/api/groups/{gid}").json()["helped"] == {
+    assert sam.get(f"/api/groups/{gid}").json()["helped"] == {
         "answered": 2,
         "counts": {"packed_lunch": 1, "cooked_home": 1, "waited_a_day": 1},
     }
     dev.put(f"/api/groups/{gid}/helped", json={"choices": []})
-    assert maya.get(f"/api/groups/{gid}").json()["helped"] is None
+    assert sam.get(f"/api/groups/{gid}").json()["helped"] is None
 
     # The person's own answer is in their export (step-up is fresh after sign-up)
     r = maya.post("/api/account/export")
@@ -96,9 +101,9 @@ def test_choices_are_fixed_counted_and_never_attributed() -> None:
 
     # A deleted account's answer leaves the totals
     dev.put(f"/api/groups/{gid}/helped", json={"choices": ["waited_a_day"]})
-    assert maya.get(f"/api/groups/{gid}").json()["helped"]["answered"] == 2
+    assert sam.get(f"/api/groups/{gid}").json()["helped"]["answered"] == 2
     assert dev.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
-    assert maya.get(f"/api/groups/{gid}").json()["helped"] is None
+    assert sam.get(f"/api/groups/{gid}").json()["helped"] is None
 
 
 def test_an_ended_challenge_opens_it_for_everyone() -> None:
@@ -114,3 +119,61 @@ def test_an_ended_challenge_opens_it_for_everyone() -> None:
     assert dev.get(f"/api/groups/{gid}").json()["helped_open"] is True
     r = dev.put(f"/api/groups/{gid}/helped", json={"choices": ["no_spend_days"]})
     assert r.status_code == 200, r.text
+
+
+def _reach_and_answer(gid: str, client, choices: list[str]) -> None:
+    r = client.put(f"/api/groups/{gid}/progress", json={"progress_bps": 10000})
+    assert r.status_code == 200, r.text
+    r = client.put(f"/api/groups/{gid}/helped", json={"choices": choices})
+    assert r.status_code == 200, r.text
+
+
+def test_two_answers_never_show_to_either_answerer() -> None:
+    """Invariant 29: in a two-person group an answerer could take her own answer away."""
+    maya, _ = member("maya")
+    dev, _ = member("dev")
+    gid = _group(maya, dev)
+    _reach_and_answer(gid, maya, ["packed_lunch"])
+    _reach_and_answer(gid, dev, ["cooked_home"])
+    for c in (maya, dev):
+        assert c.get(f"/api/groups/{gid}").json()["helped"] is None
+
+
+def test_an_answerer_sees_totals_once_two_others_answered() -> None:
+    maya, _ = member("maya")
+    dev, _ = member("dev")
+    sam, _ = member("sam")
+    gid = _group(maya, dev, sam)
+    _reach_and_answer(gid, maya, ["packed_lunch"])
+    _reach_and_answer(gid, dev, ["cooked_home"])
+    _reach_and_answer(gid, sam, ["cooked_home"])
+    want = {"answered": 3, "counts": {"packed_lunch": 1, "cooked_home": 2}}
+    for c in (maya, dev, sam):
+        assert c.get(f"/api/groups/{gid}").json()["helped"] == want
+
+
+def test_leaving_or_being_removed_takes_the_answer_out() -> None:
+    maya, _ = member("maya")
+    dev, _ = member("dev")
+    sam, sam_id = member("sam")
+    ana, _ = member("ana")
+    gid = _group(maya, dev, sam, ana)
+    code = maya.get(f"/api/groups/{gid}").json()["invite_code"]
+    _reach_and_answer(gid, dev, ["cooked_home"])
+    _reach_and_answer(gid, sam, ["packed_lunch"])
+    assert ana.get(f"/api/groups/{gid}").json()["helped"]["answered"] == 2
+
+    # Leaving clears it, and rejoining does not bring it back
+    assert dev.post(f"/api/groups/{gid}/leave").status_code == 204
+    assert ana.get(f"/api/groups/{gid}").json()["helped"] is None
+    assert dev.post("/api/groups/join", json={"code": code}).status_code == 200
+    assert dev.get(f"/api/groups/{gid}").json()["my_helped"] == []
+    assert ana.get(f"/api/groups/{gid}").json()["helped"] is None
+
+    # Removal clears it too
+    _reach_and_answer(gid, dev, ["cooked_home"])
+    assert ana.get(f"/api/groups/{gid}").json()["helped"]["answered"] == 2
+    assert maya.delete(f"/api/groups/{gid}/members/{sam_id}").status_code == 204
+    assert ana.get(f"/api/groups/{gid}").json()["helped"] is None
+    assert sam.post("/api/groups/join", json={"code": code}).status_code == 200
+    assert sam.get(f"/api/groups/{gid}").json()["my_helped"] == []

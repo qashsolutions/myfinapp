@@ -14,7 +14,7 @@ from __future__ import annotations
 from . import dates
 from .errors import RuleError
 from .money import _int
-from .text import collapse_spaces, trim_spaces
+from .text import collapse_spaces, trim_spaces, utf8
 
 _ASCII_LOWER = str.maketrans("abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 FNV64_OFFSET = 0xCBF29CE484222325
@@ -43,5 +43,8 @@ def fingerprint(account_id: str, date: str, amount_cents: int, description: str)
         raise RuleError("invalid_account")
     day = dates.parse_date(date)
     cents = _int(amount_cents)
-    key = f"{account_id}|{day.isoformat()}|{cents}|{clean_description(description)}"
+    utf8(account_id, "invalid_account")
+    clean = clean_description(description)
+    utf8(clean, "invalid_description")
+    key = f"{account_id}|{day.isoformat()}|{cents}|{clean}"
     return f"{fnv1a_64(key.encode('utf-8')):016x}"

@@ -62,6 +62,8 @@ _HELPED = json.loads(
 )
 HELPED_IDS: tuple[str, ...] = tuple(c["id"] for c in _HELPED["choices"])
 HELPED_MAX: int = _HELPED["max_choices"]
+# Answers from members other than the caller needed before the caller sees totals (invariant 29):
+# counting the caller's own would let one of two answerers take hers away and read the other's.
 HELPED_MIN_ANSWERS: int = _HELPED["min_answers"]
 
 
@@ -119,7 +121,7 @@ class GroupSummary(BaseModel):
 class GroupDetail(GroupSummary):
     members: list[MemberOut]
     helped_open: bool  # the caller may answer: reached their target, or the challenge ended
-    helped: HelpedTotals | None  # only once at least HELPED_MIN_ANSWERS members answered
+    helped: HelpedTotals | None  # once HELPED_MIN_ANSWERS members other than the caller answered
 
 
 class GroupPreview(BaseModel):
@@ -278,9 +280,10 @@ def _helped_open(group: Group, me: GroupMember) -> bool:
     return me.reached_at is not None or me.progress_bps >= 10000 or _now().date() > group.end_date
 
 
-def _helped_totals(members: list[tuple[GroupMember, User]]) -> HelpedTotals | None:
+def _helped_totals(members: list[tuple[GroupMember, User]], me: GroupMember) -> HelpedTotals | None:
     answers = [_helped_list(m) for m, _ in members if m.helped]
-    if len(answers) < HELPED_MIN_ANSWERS:
+    others = sum(1 for m, _ in members if m.helped and m.user_id != me.user_id)
+    if others < HELPED_MIN_ANSWERS:
         return None
     counts = {cid: sum(cid in a for a in answers) for cid in HELPED_IDS}
     return HelpedTotals(answered=len(answers), counts={k: v for k, v in counts.items() if v})
@@ -293,7 +296,7 @@ def _detail(db: DbSession, group: Group, me: GroupMember, caller: Caller) -> Gro
         **summary.model_dump(),
         members=[_member_out(m, u, group, caller) for m, u in members],
         helped_open=_helped_open(group, me),
-        helped=_helped_totals(members),
+        helped=_helped_totals(members, me),
     )
 
 
@@ -305,6 +308,7 @@ def _join(db: DbSession, group: Group, caller: Caller, request: Request) -> Grou
     elif member.left_at is not None:
         member.left_at = None
         member.joined_at = _now()
+        member.helped = None  # a fresh start: an answer from before leaving never comes back
     else:
         return member
     record(
@@ -486,6 +490,7 @@ def leave_group(
         # regenerate the code).
         raise HTTPException(status.HTTP_409_CONFLICT, detail="owner_cannot_leave")
     me.left_at = _now()
+    me.helped = None  # a former member's answer leaves the totals and never comes back on rejoin
     record(
         db,
         actor_id=caller.user.id,
@@ -514,6 +519,7 @@ def remove_member(
     if member is None or member.left_at is not None:
         raise not_found()
     member.left_at = _now()
+    member.helped = None  # as on leaving
     record(
         db,
         actor_id=caller.user.id,

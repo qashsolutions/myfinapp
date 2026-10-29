@@ -1,0 +1,22 @@
+{
+  "as_of": "2026-10-28",
+  "subscriptions": [
+    {
+      "id": "s",
+      "label": "X",
+      "payee": "X",
+      "interval": ["monthly"],
+      "expected_cents": 100,
+      "next_date": "2026-11-01",
+      "checked_at": null,
+      "charges": []
+    }
+  ],
+  "kinds": [],
+  "thresholds": {
+    "subscription_ask_days": 90,
+    "subscription_renewal_days": 14,
+    "trial_max_cents": 100,
+    "trial_window_days": 45
+  }
+}
