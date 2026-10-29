@@ -71,7 +71,7 @@ def active_subscription(
             continue
         if row.disputed_at is not None:
             continue  # paused while a payment on it is disputed
-        if row.first_payment in ("pending", "failed"):
+        if row.first_payment in ("pending", "failed", "refund_all"):
             continue  # a first bank payment that hasn't cleared (or never did)
         if row.status in ("active", "past_due"):
             if row.plan == "founding" and row.ends_at is not None and row.ends_at <= now:

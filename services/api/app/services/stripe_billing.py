@@ -493,6 +493,10 @@ def deletion_refund(
     credit for the unused time is taken back to that day."""
     if sub.disputed_at is not None:
         return 0, None
+    if sub.first_payment in ("pending", REFUND_ALL):
+        # The first bank payment hadn't cleared, so the plan never started (owner decision,
+        # October 29, 2026): all of it comes back once it clears, no months, no fee.
+        return clearing_refund(sub), None
     when = as_of or now
     if sub.interval is None:
         start, end = sub.created_at, sub.ends_at
@@ -521,6 +525,26 @@ def deletion_refund(
     paid = int((first_item(live).get("price") or {}).get("unit_amount") or prices["yearly"])
     used = months_used(start, kept) * int(prices["monthly"])
     return max(0, min(unused, paid - used)), kept
+
+
+# A row whose first bank payment was still clearing when the account was deleted: its refund
+# is the whole payment, paid once it clears (owner decision, October 29, 2026).
+REFUND_ALL = "refund_all"
+
+
+def clearing_refund(sub: Subscription) -> int:
+    """The whole first payment of a plan that never started: Founding's price, or the plan's
+    price for its interval (as charged: the first item's price at Stripe when it answers)."""
+    plans = load_plans()
+    if sub.interval is None:
+        return int(plans["founding"]["one_time_cents"])
+    listed = int(plans["plans"][sub.plan]["price_cents"][sub.interval])
+    if not sub.external_id:
+        return listed
+    live = _get_or_none(f"/subscriptions/{sub.external_id}") or {}
+    items = (live.get("items") or {}).get("data") or []
+    amount = ((items[0].get("price") or {}).get("unit_amount")) if items else None
+    return int(amount) if amount else listed
 
 
 def refund_fee_cents(cents: int, method: str = "card") -> int:
@@ -1101,8 +1125,8 @@ def _subscription_after_deletion(
             cancel_at_period_end=False,
         )
         row.first_payment = None if paid else "pending"
-    elif paid and row.first_payment == "pending":
-        row.first_payment = "paid"  # the bank payment cleared: its refund is now payable
+    # A row still "pending" stays so: the plan never started, so the deletion's settling
+    # refunds the whole payment now that it has arrived (owner decision, October 29, 2026).
     row.customer_id = row.customer_id or customer
     db.flush()
     from app.services import deletion  # noqa: PLC0415 - deletion imports this module

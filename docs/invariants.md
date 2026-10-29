@@ -355,10 +355,13 @@ written against both.
     dispute on an older plan's charge…", "a dispute that lands before the checkout…"
 43. **A refund promised on deletion is recorded as paid only once it is paid** (October 29,
     2026). While a bank payment is clearing the amount stays due, the settle and the purge wait,
-    and it is refunded against that payment when it arrives; a payment that arrives for a
-    deleted account grants nothing.
-    `test_billing_oct29.py` "deleting while a yearly bank payment clears…", "a bank payment that
-    fails after the deletion…", "a page paid after the deletion…"
+    and it is refunded against that payment when it arrives; a first payment still clearing
+    (the plan never started) comes back whole, with no fee, and the Delete account screen says
+    that same amount (owner decision, October 29, 2026). A payment that arrives for a deleted
+    account grants nothing.
+    `test_billing_oct29.py` "deleting while a yearly bank payment clears…", "a founding bank
+    payment clearing at the deletion…", "a bank payment that fails after the deletion…", "a
+    page paid after the deletion…"
 
 ## Offline and the way in
 

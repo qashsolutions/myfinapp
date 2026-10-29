@@ -581,12 +581,11 @@ def _yearly_by_bank(name: str):
     return client, user_id, sub, stripe, charge, obj
 
 
-def test_deleting_while_a_yearly_bank_payment_clears_refunds_it_once_it_arrives() -> None:
+def test_deleting_while_a_yearly_bank_payment_clears_refunds_all_of_it_once_it_arrives() -> None:
+    """Owner decision, October 29, 2026: the plan never started, so the whole $65 comes back,
+    no months charged and no bank fee kept; the Delete account screen says so first."""
     client, user_id, sub, stripe, charge, obj = _yearly_by_bank("achdelete")
-    # Promised: $65 less this month at the $7 monthly price, less the bank fee (0.8%).
-    due = 6500 - 700
-    promised = due - stripe_billing.refund_fee_cents(due, "bank")
-    assert promised == 5754
+    due = promised = 6500
     assert client.get("/api/billing/credit").json()["refund_if_deleted_cents"] == promised
     assert client.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
     assert stripe.deleted() == [sub]
@@ -599,12 +598,12 @@ def test_deleting_while_a_yearly_bank_payment_clears_refunds_it_once_it_arrives(
         deletion.settle_billing(db, now=datetime.now(UTC) + timedelta(hours=1))
     assert stripe.refunds == [] and _row(sub).refund_due_cents == due
     assert _purge() == 0
-    # The payment arrives: what the deletion promised goes back against it, once.
+    # The payment arrives: all of it goes back, once, in full.
     stripe.clear(charge)
     cleared = {**obj, "payment_status": "paid"}
     r = post_event(client, _event("checkout.session.async_payment_succeeded", cleared))
     assert r.json()["outcome"] == "account_deleted"
-    assert [(c, a) for c, a, _ in stripe.refunded()] == [(f"ch_{sub}", promised)]
+    assert stripe.refunded() == [(f"pi_{sub}", promised, f"deletion_all:{_row(sub).id}:pi_{sub}")]
     assert _row(sub).refund_due_cents == 0
     post_event(client, _event("checkout.session.async_payment_succeeded", cleared))
     with get_session_factory()() as db, db.begin():
@@ -617,7 +616,7 @@ def test_deleting_while_a_yearly_bank_payment_clears_refunds_it_once_it_arrives(
 def test_a_bank_payment_that_fails_after_the_deletion_owes_nothing_and_the_purge_goes_on() -> None:
     client, user_id, sub, stripe, charge, obj = _yearly_by_bank("achfail")
     assert client.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
-    assert _row(sub).refund_due_cents == 5800
+    assert _row(sub).refund_due_cents == 6500
     charge["status"] = "failed"
     r = post_event(client, _event("checkout.session.async_payment_failed", obj))
     assert r.json()["outcome"] == "payment_failed"
@@ -648,3 +647,44 @@ def test_a_page_paid_after_the_deletion_grants_nothing_and_is_refunded_in_full()
     assert stripe.deleted() == [sub]
     assert [(c, a) for c, a, _ in stripe.refunded()] == [(f"ch_{sub}", 300)]
     assert _row(sub).status == "canceled"
+
+
+def test_a_founding_bank_payment_clearing_at_the_deletion_is_promised_and_refunded_in_full() -> (
+    None
+):
+    stripe = Stripe()
+    stripe_billing.transport_override = stripe.transport()
+    client, user_id = member("foundingach")
+    stripe.charges.append(
+        {
+            "id": "ch_fa",
+            "customer": "cus_p",
+            "payment_intent": "pi_fa",
+            "amount": 15000,
+            "amount_refunded": 0,
+            "status": "pending",
+            "created": NOW,
+            "method": "us_bank_account",
+        }
+    )
+    founding = {
+        "id": "cs_fa",
+        "mode": "payment",
+        "payment_status": "unpaid",
+        "client_reference_id": user_id,
+        "customer": "cus_p",
+        "payment_intent": "pi_fa",
+        "metadata": {"user_id": user_id, "plan": "founding"},
+    }
+    assert (
+        post_event(client, _event("checkout.session.completed", founding)).json()["outcome"]
+        == "pending"
+    )
+    assert client.get("/api/billing/credit").json()["refund_if_deleted_cents"] == 15000
+    assert client.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
+    assert stripe.refunds == []
+    stripe.charges[-1]["status"] = "succeeded"
+    paid = {**founding, "payment_status": "paid"}
+    r = post_event(client, _event("checkout.session.async_payment_succeeded", paid))
+    assert r.json()["outcome"] == "account_deleted"
+    assert [(c, a) for c, a, _ in stripe.refunded()] == [("pi_fa", 15000)]

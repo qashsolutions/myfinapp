@@ -96,6 +96,7 @@ const yearlyBack = Math.round(deleteMonth3);
             "A monthly plan: the current month is the whole period, so there is nothing after it to refund.",
             `A Founding membership: the part of its ${FOUNDING.years} years after the current month. For example, deleted in month 13 of ${FOUNDING.years * 12}: about ${$(foundingMonth13)}, less a ${$(fee(foundingMonth13))} fee, so about ${$(foundingMonth13 - fee(foundingMonth13))} back.`,
             "Credit on your account: refunded in full, in the same refund.",
+            "If your first bank payment is still clearing when you delete, you get all of it back, with no fee and no months charged, once it clears (the plan never started).",
           ],
           `Stripe's fee: Stripe, our payment processor, keeps its fee when a payment is refunded, so we take it off the refund: ${feeText} for a card, ${bankFeeText} for a US bank account, once per refund, never more than the refund itself. Refunding when you leave is something most apps don't do; the fee is the cost of doing it, and it is all we take.`,
           "Amounts are worked out to the second by Stripe at the price you paid, so they can differ by a few cents from the examples. The Delete account screen shows the exact amount, the fee and the date your current month ends before you confirm. The refund is sent through Stripe straight away; your bank usually shows it within 5 to 10 days. A refund may be split across the payments you made, newest first. A plan that is behind on payment ends with no refund for the unpaid period.",

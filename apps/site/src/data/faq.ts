@@ -41,7 +41,7 @@ export const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: "Do I get money back if I delete my account?",
-    a: "Yes. Your plan ends at once. On a yearly plan, the months you used, this one included, cost the monthly price, and the rest of what you paid for the year comes back to your card, plus any credit, less Stripe's card fee (2.9% + 30¢), which Stripe keeps on a refund. The app shows the amount before you confirm.",
+    a: "Yes. Your plan ends at once. On a yearly plan, the months you used, this one included, cost the monthly price, and the rest of what you paid for the year comes back to your card, plus any credit, less Stripe's card fee (2.9% + 30¢), which Stripe keeps on a refund. The app shows the amount before you confirm. If your first bank payment is still clearing when you delete, you get all of it back.",
   },
   {
     q: "How do I delete my account?",
