@@ -9,6 +9,8 @@ export const BAD_WORDS: ReadonlySet<string> = new Set([
   "Behind",
   "Short",
   "Review",
+  "Stalled",
+  "Missed",
 ]);
 export const GOOD_WORDS: ReadonlySet<string> = new Set([
   "Kept",
@@ -24,6 +26,9 @@ export const GOOD_WORDS: ReadonlySet<string> = new Set([
   "Found",
   "Done",
   "Clear",
+  "Debt-free",
+  "Shrinking",
+  "Building",
 ]);
 
 export function wordTone(word: string): "good" | "bad" | "plain" {

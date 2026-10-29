@@ -17,6 +17,9 @@ KEYS = {
     "lumpy_month_cents",
     "seasonal_increase_cents",
     "seasonal_increase_bps",
+    "card_trend_months",
+    "credit_habits_months",
+    "credit_guide_bps",
 }
 
 

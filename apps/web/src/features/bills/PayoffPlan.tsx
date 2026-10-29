@@ -1,79 +1,89 @@
 import "../auth/auth.css";
+import "./cards.css";
 
 import { Button, Card } from "@stackd/ui";
-import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useId, useState } from "react";
+import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import { ignoreClosed } from "../../data/db.ts";
-import { engine, type PayoffPlan as Plan, parseAmount, payoffPlan } from "../../engine/bridge.ts";
+import {
+  engine,
+  type PayoffOrder,
+  type PayoffPlan as Plan,
+  parseAmount,
+  payoffPlan,
+} from "../../engine/bridge.ts";
 import { formatCents, formatMonth, todayIso } from "../../lib/format.ts";
+import {
+  debtInputs,
+  EXTRA_SETTING,
+  ORDER_SETTING,
+  PAYOFF_ORDERS,
+  saveSetting,
+  useDebtSettings,
+} from "./debtPlan.ts";
 
-export const EXTRA_SETTING = "debt.extra_cents";
+export { EXTRA_SETTING, ORDER_SETTING };
+
 const PRESETS = [0, 5000, 10000, 20000]; // suggestions; any amount works (owner sign-off, October 27, 2026)
 
 function monthsText(n: number): string {
   return `${n} ${n === 1 ? "month" : "months"}`;
 }
 
+function monthText(plan: Plan): string {
+  return plan.debt_free_month ? formatMonth(`${plan.debt_free_month}-01`) : "now";
+}
+
 /**
  * The debt payoff planner (fast-follow 1; docs/spec.md "Rules added for the debt payoff
- * planner"): a fixed monthly budget of every minimum plus an extra amount, the avalanche
- * month by month from the `bills.payoff_plan` rule, and what the extra buys against minimums
- * only. Nothing is moved; the plan is arithmetic on the numbers entered.
+ * planner"): a fixed monthly budget of every minimum plus an extra amount, month by month from
+ * the `bills.payoff_plan` rule in the order the person picks (highest rate first or smallest
+ * balance first, October 28, 2026), both orders side by side, and what the extra buys against
+ * minimums only. Nothing is moved; the plan is arithmetic on the numbers entered.
  */
 export function PayoffPlan() {
   const { db } = useDb();
   const ids = useId();
   const today = todayIso();
-  const debts = useLiveQuery(() => db.debts.toArray(), [db]);
-  const extra = useLiveQuery(
-    async () => ((await db.settings.get(EXTRA_SETTING))?.value as number | undefined) ?? 0,
-    [db],
-  );
-  const [plan, setPlan] = useState<Plan | null>(null);
+  const settings = useDebtSettings();
+  const [plans, setPlans] = useState<Record<PayoffOrder, Plan> | null>(null);
   const [baseline, setBaseline] = useState<Plan | null>(null);
   const [custom, setCustom] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!debts || extra === undefined) return;
+    if (!settings || settings.debts.length === 0) return;
+    const { debts, extra, order } = settings;
     let alive = true;
     void (async () => {
-      const input = debts.map((d) => ({
-        id: d.id,
-        label: d.label,
-        balance_cents: d.balance_cents,
-        apr_bps: d.apr_bps,
-        min_payment_cents: d.min_payment_cents,
-      }));
-      const [withExtra, minimums] = await Promise.all([
-        payoffPlan(input, extra, today),
-        extra > 0 ? payoffPlan(input, 0, today) : null,
+      const input = debtInputs(debts);
+      const [avalanche, snowball, minimums] = await Promise.all([
+        payoffPlan(input, extra, today, "avalanche"),
+        payoffPlan(input, extra, today, "snowball"),
+        extra > 0 ? payoffPlan(input, 0, today, order) : null,
       ]);
       if (!alive) return;
-      setPlan(withExtra);
-      setBaseline(minimums ?? withExtra);
+      const chosen = order === "snowball" ? snowball : avalanche;
+      setPlans({ avalanche, snowball });
+      setBaseline(minimums ?? chosen);
       await db.computed_results.put({
         id: `payoff_plan:${today}`,
         kind: "payoff_plan",
         as_of: today,
         rules_version: engine.rulesVersion ?? "unknown",
-        payload: { extra_cents: extra, ...withExtra },
+        payload: { extra_cents: extra, ...chosen, payoff_order: order },
         computed_at: new Date().toISOString(),
       });
     })().catch(ignoreClosed);
     return () => {
       alive = false;
     };
-  }, [db, debts, extra, today]);
+  }, [db, settings, today]);
 
   async function setExtra(cents: number) {
     setError(null);
-    await db.settings.put({
-      key: EXTRA_SETTING,
-      value: cents,
-      updated_at: new Date().toISOString(),
-    });
+    await saveSetting(db, EXTRA_SETTING, cents);
   }
 
   async function setCustomExtra() {
@@ -87,7 +97,9 @@ export function PayoffPlan() {
     }
   }
 
-  if (!debts || debts.length === 0 || extra === undefined) return null;
+  if (!settings || settings.debts.length === 0) return null;
+  const { extra, order } = settings;
+  const plan = plans ? plans[order] : null;
   const sooner =
     plan && baseline && !plan.stalled && !baseline.stalled && extra > 0
       ? {
@@ -102,14 +114,18 @@ export function PayoffPlan() {
       {plan === null ? (
         <p className="sr-only">Working it out</p>
       ) : plan.stalled ? (
-        <p role="status">
-          At these minimums the balances grow instead of shrinking. Add an extra amount each month
-          to make a plan.
-        </p>
+        <>
+          <Word>Stalled</Word>
+          <p role="status">
+            At these minimums the balances grow instead of shrinking. Add an extra amount each month
+            to make a plan.
+          </p>
+        </>
       ) : (
         <>
+          <Word>Debt-free</Word>
           <p className="sk-card__hero sk-card__hero--empty" role="status">
-            Debt-free by {plan.debt_free_month ? formatMonth(`${plan.debt_free_month}-01`) : "now"}
+            by {monthText(plan)}
           </p>
           <p>
             {monthsText(plan.months ?? 0)} at {formatCents(plan.monthly_budget_cents)} a month ·{" "}
@@ -148,6 +164,44 @@ export function PayoffPlan() {
           ) : null}
         </>
       )}
+      <fieldset className="kind-chips" style={{ border: 0, margin: "8px 0 0", padding: 0 }}>
+        <legend className="auth__label">Which debt gets the extra first</legend>
+        {PAYOFF_ORDERS.map((o) => (
+          <label className="chip-option" key={o.value}>
+            <input
+              className="segmented__input"
+              type="radio"
+              name={`${ids}-order`}
+              value={o.value}
+              checked={order === o.value}
+              onChange={() => void saveSetting(db, ORDER_SETTING, o.value)}
+            />
+            {o.label}
+          </label>
+        ))}
+      </fieldset>
+      {plans ? (
+        <ul className="order-compare" aria-label="Both orders side by side">
+          {PAYOFF_ORDERS.map((o) => {
+            const p = plans[o.value];
+            return (
+              <li
+                key={o.value}
+                className={`order-compare__item${order === o.value ? " order-compare__item--on" : ""}`}
+              >
+                <span className="order-compare__label">{o.label}</span>
+                <span className="order-compare__value">
+                  {p.stalled ? "No end at this amount" : `Debt-free ${monthText(p)}`}
+                </span>
+                <span className="order-compare__value">
+                  {p.stalled ? "—" : `${formatCents(p.total_interest_cents ?? 0)} interest`}
+                </span>
+                <span className="order-compare__line">{o.line}</span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
       <fieldset className="kind-chips" style={{ border: 0, margin: "8px 0 0", padding: 0 }}>
         <legend className="auth__label">Extra each month, on top of the minimums</legend>
         {PRESETS.map((cents) => (

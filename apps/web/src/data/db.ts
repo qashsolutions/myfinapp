@@ -25,6 +25,9 @@ export interface Account {
   created_at: string;
   /** Phase 3: set while the account is read through a bank connection; cleared on Disconnect. */
   linked?: LinkedRef | null;
+  /** A card's payment due day, 1-31 (31 = the month's last day), set by the person on a card
+   * that isn't linked; Credit habits derives its due dates from it (October 28, 2026). */
+  due_day?: number | null;
 }
 
 export interface LinkedRef {
@@ -414,6 +417,20 @@ export interface CardDetail {
   updated_at: string;
 }
 
+/**
+ * Every distinct due date seen on a linked card's facts, with what that statement asked for
+ * (October 28, 2026; Dexie v17), so Credit habits can look back after `card_details` moves on.
+ * Device only like `card_details` (never in backups), in the export.
+ */
+export interface CardDueDate {
+  id: string; // `${account_id}:${due_date}`
+  account_id: string;
+  due_date: string;
+  statement_balance_cents: number | null;
+  minimum_cents: number | null;
+  updated_at: string;
+}
+
 /** docs/spec.md data model: emergency_fund. Saved comes from the jar; this is the rest. */
 export interface EmergencyFund {
   id: "me";
@@ -458,6 +475,7 @@ export class StackdDb extends Dexie {
   goal_milestones!: EntityTable<GoalMilestone, "id">;
   goal_templates!: EntityTable<GoalTemplate, "id">;
   card_details!: EntityTable<CardDetail, "account_id">;
+  card_due_dates!: EntityTable<CardDueDate, "id">;
   net_worth_items!: EntityTable<NetWorthItem, "id">;
   net_worth_snapshots!: EntityTable<NetWorthSnapshot, "month">;
 
@@ -540,6 +558,8 @@ export class StackdDb extends Dexie {
     });
     // Rename all like this (October 20, 2026): names by cleaned bank text.
     this.version(16).stores({ merchant_names: "id, &match" });
+    // Credit habits (October 28, 2026): linked cards' due dates as they were seen.
+    this.version(17).stores({ card_due_dates: "id, account_id" });
   }
 }
 

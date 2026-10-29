@@ -1,0 +1,31 @@
+{
+  "stalled": false,
+  "months": 3,
+  "debt_free_month": "2027-01",
+  "monthly_budget_cents": 10000,
+  "total_interest_cents": 111,
+  "total_paid_cents": 20111,
+  "series_cents": [
+    10100,
+    111,
+    0
+  ],
+  "order": [
+    {
+      "id": "y",
+      "label": "Zeta",
+      "rank": 1,
+      "payoff_month": "2026-12",
+      "months": 2,
+      "interest_cents": 111
+    },
+    {
+      "id": "x",
+      "label": "Alpha",
+      "rank": 2,
+      "payoff_month": "2027-01",
+      "months": 3,
+      "interest_cents": 0
+    }
+  ]
+}

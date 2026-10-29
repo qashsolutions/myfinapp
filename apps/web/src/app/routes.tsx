@@ -8,6 +8,7 @@ import { PlanScreen } from "../features/billing/PlanScreen.tsx";
 import { BillsScreen } from "../features/bills/BillsScreen.tsx";
 import { BudgetScreen } from "../features/budget/BudgetScreen.tsx";
 import { CategoriesScreen } from "../features/categories/CategoriesScreen.tsx";
+import { CreditHabitsScreen } from "../features/credit/CreditHabits.tsx";
 import { EmergencyScreen } from "../features/emergency/EmergencyScreen.tsx";
 import { AddEntrySheet } from "../features/entries/AddEntrySheet.tsx";
 import { TagDetail, TagsScreen } from "../features/entries/TagScreens.tsx";
@@ -90,6 +91,7 @@ export function AppRoutes() {
           <Route path="insights" element={<InsightsHub />} />
           <Route path="insights/spending" element={<SpendingScreen />} />
           <Route path="subscriptions" element={<SubscriptionsScreen />} />
+          <Route path="credit-habits" element={<CreditHabitsScreen />} />
           <Route path="insights/later" element={<LaterScreen />} />
           <Route path="review" element={<ReviewScreen />} />
           <Route path="net-worth" element={<NetWorthScreen />} />

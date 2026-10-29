@@ -1,0 +1,46 @@
+{
+  "due_dates": [],
+  "due_day": null,
+  "minimum_cents": 9999,
+  "statements": [
+    {
+      "due_date": "2026-07-25",
+      "balance_cents": 40000,
+      "minimum_cents": 2500
+    },
+    {
+      "due_date": "2026-08-25",
+      "balance_cents": 30000,
+      "minimum_cents": 2500
+    },
+    {
+      "due_date": "2026-09-25",
+      "balance_cents": 20000,
+      "minimum_cents": 2000
+    },
+    {
+      "due_date": "2026-10-25",
+      "balance_cents": 15000,
+      "minimum_cents": 2000
+    }
+  ],
+  "payments": [
+    {
+      "date": "2026-07-20",
+      "cents": 1000
+    },
+    {
+      "date": "2026-08-24",
+      "cents": 30000
+    },
+    {
+      "date": "2026-09-25",
+      "cents": 20000
+    }
+  ],
+  "statement_balance_cents": 15000,
+  "limit_cents": 50000,
+  "as_of": "2026-10-20",
+  "months": 12,
+  "guide_bps": 3000
+}

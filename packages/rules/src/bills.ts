@@ -85,13 +85,36 @@ function monthLabel(asOf: string, monthsAhead: number): string {
   return `${String(day.y).padStart(4, "0")}-${String(day.m).padStart(2, "0")}`;
 }
 
-/** Port of bills.payoff_plan: the avalanche month by month (see the Python docstring). */
-export function payoffPlan(debts: unknown, extraCents: unknown, asOf: unknown): PayoffPlan {
+export type PayoffOrder = "avalanche" | "snowball";
+
+/** Port of bills.snowball_order: smallest balance first, then APR descending, label, id. */
+export function snowballOrder(debts: unknown): Array<Debt & { rank: number }> {
+  if (!Array.isArray(debts)) throw new RuleError("invalid_debts");
+  const rows = debts.map(debt);
+  rows.sort(
+    (a, b) =>
+      a.balance_cents - b.balance_cents ||
+      b.apr_bps - a.apr_bps ||
+      compareText(a.label, b.label) ||
+      compareText(a.id, b.id),
+  );
+  return rows.map((d, i) => ({ ...d, rank: i + 1 }));
+}
+
+/** Port of bills.payoff_plan: the plan month by month (see the Python docstring). */
+export function payoffPlan(
+  debts: unknown,
+  extraCents: unknown,
+  asOf: unknown,
+  orderKind: unknown = null,
+): PayoffPlan {
   if (typeof asOf !== "string") throw new RuleError("invalid_date");
   parseDate(asOf);
   const extra = assertInt(extraCents, "invalid_amount");
   if (extra < 0) throw new RuleError("invalid_amount");
-  const order = avalancheOrder(debts).order;
+  const kind = orderKind === null || orderKind === undefined ? "avalanche" : orderKind;
+  if (kind !== "avalanche" && kind !== "snowball") throw new RuleError("invalid_order");
+  const order = kind === "avalanche" ? avalancheOrder(debts).order : snowballOrder(debts);
   const budget = order.reduce((sum, d) => sum + d.min_payment_cents, 0) + extra;
   const balances = new Map(order.map((d) => [d.id, d.balance_cents]));
   const interest = new Map(order.map((d) => [d.id, 0]));

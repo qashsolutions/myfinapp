@@ -8,6 +8,8 @@ import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { ratioBps } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { useBudget } from "../budget/useBudget.ts";
+import { habitLines, habitsWord } from "../credit/CreditHabits.tsx";
+import { leadCard, useCreditCards } from "../credit/useCreditCards.ts";
 import { useForecast } from "../forecast/useForecast.ts";
 import { useRecurringSeries } from "../forecast/useRecurring.ts";
 import { useGoals } from "../goals/useGoals.ts";
@@ -40,6 +42,7 @@ export const INSIGHT_CARDS = [
   ["budget", "Budget & jars", "Your plan and jars"],
   ["worth", "Net worth", "Own minus owe"],
   ["later", "Later", "Savings by the age you choose"],
+  ["credit", "Credit habits", "On-time payments and limit used"],
 ] as const;
 type InsightId = (typeof INSIGHT_CARDS)[number][0];
 
@@ -60,6 +63,8 @@ export function InsightsHub() {
   const trend = sixMonths && sixMonths.active_months >= 2 ? sixMonths : null;
   const often = useTopSpending("Month", asOf, 3).result;
   const topMerchant = often?.merchants[0];
+  const creditCards = useCreditCards(asOf);
+  const creditLead = creditCards ? leadCard(creditCards) : null;
 
   // Share of this month's entries sorted into a category (transfers aren't spending).
   const spending = (month.entries ?? []).filter((e) => !e.is_transfer && !e.not_counted);
@@ -314,6 +319,31 @@ export function InsightsHub() {
             }
           >
             {later ? <LaterChart p={later} /> : null}
+          </InsightCard>
+        );
+      case "credit":
+        // Only once there is a credit card account (October 28, 2026).
+        if (!creditCards || creditCards.length === 0) return null;
+        return (
+          <InsightCard
+            title="Credit habits"
+            to="/credit-habits"
+            word={habitsWord(creditLead?.habits ?? null)}
+            line={
+              creditLead?.habits
+                ? (habitLines(creditLead.habits)[0] ?? "Nothing due yet")
+                : "Set a payment due day to start"
+            }
+          >
+            {creditLead?.habits ? (
+              <span className="inout__legend">
+                {habitLines(creditLead.habits)
+                  .slice(1)
+                  .map((l) => (
+                    <span key={l}>{l}</span>
+                  ))}
+              </span>
+            ) : null}
           </InsightCard>
         );
     }

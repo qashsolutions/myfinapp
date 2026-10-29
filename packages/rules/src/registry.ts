@@ -321,13 +321,52 @@ const BARE: Record<string, Rule> = {
       ),
     };
   },
+  "credit.card_trend": (input) => {
+    const { entries, as_of, months } = args(input, ["entries", "as_of", "months"]);
+    return { ...credit.cardTrend(entries, as_of, months) };
+  },
+  "credit.habits": (input) => {
+    const a = args(
+      input,
+      ["due_dates", "payments", "as_of", "months", "guide_bps"],
+      [
+        "due_day",
+        "minimum_cents",
+        "statements",
+        "statement_balance_cents",
+        "current_balance_cents",
+        "limit_cents",
+        "since",
+      ],
+    );
+    return {
+      ...credit.habits(
+        a.due_dates,
+        a.due_day ?? null,
+        a.payments,
+        a.minimum_cents ?? null,
+        a.statements ?? null,
+        a.statement_balance_cents ?? null,
+        a.current_balance_cents ?? null,
+        a.limit_cents ?? null,
+        a.as_of,
+        a.months,
+        a.guide_bps,
+        a.since ?? null,
+      ),
+    };
+  },
   "bills.avalanche_order": (input) => {
     const { debts } = args(input, ["debts"]);
     return { ...bills.avalancheOrder(debts) };
   },
   "bills.payoff_plan": (input) => {
-    const { debts, extra_cents, as_of } = args(input, ["debts", "extra_cents", "as_of"]);
-    return { ...bills.payoffPlan(debts, extra_cents, as_of) };
+    const { debts, extra_cents, as_of, order } = args(
+      input,
+      ["debts", "extra_cents", "as_of"],
+      ["order"],
+    );
+    return { ...bills.payoffPlan(debts, extra_cents, as_of, order) };
   },
   "growth.projection": (input) => {
     const { age_now, retire_age, start_cents, monthly_cents, rates_bps, target_cents } = args(

@@ -1,0 +1,23 @@
+{
+  "months": [
+    {
+      "month": "2026-08",
+      "spent_cents": 100,
+      "paid_cents": 0,
+      "net_cents": 100
+    },
+    {
+      "month": "2026-09",
+      "spent_cents": 200,
+      "paid_cents": 0,
+      "net_cents": 200
+    }
+  ],
+  "last_month": {
+    "month": "2026-09",
+    "spent_cents": 200,
+    "paid_cents": 0,
+    "net_cents": 200
+  },
+  "trend": null
+}

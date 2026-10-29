@@ -1,0 +1,12 @@
+{
+  "status": null,
+  "checked": 0,
+  "on_time": 0,
+  "on_time_streak": 0,
+  "missed": [],
+  "latest_due_date": null,
+  "next_due_date": null,
+  "paid_in_full_streak": null,
+  "utilization_bps": null,
+  "under_guide": null
+}

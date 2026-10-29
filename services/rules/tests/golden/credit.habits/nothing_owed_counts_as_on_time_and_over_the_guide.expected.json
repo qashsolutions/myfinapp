@@ -1,0 +1,12 @@
+{
+  "status": "steady",
+  "checked": 1,
+  "on_time": 1,
+  "on_time_streak": 1,
+  "missed": [],
+  "latest_due_date": "2026-09-10",
+  "next_due_date": null,
+  "paid_in_full_streak": 1,
+  "utilization_bps": 4500,
+  "under_guide": false
+}

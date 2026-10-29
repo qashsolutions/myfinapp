@@ -1,0 +1,21 @@
+{
+  "debts": [
+    {
+      "id": "x",
+      "label": "Alpha",
+      "balance_cents": 10000,
+      "apr_bps": 0,
+      "min_payment_cents": 1000
+    },
+    {
+      "id": "y",
+      "label": "Zeta",
+      "balance_cents": 10000,
+      "apr_bps": 1200,
+      "min_payment_cents": 1000
+    }
+  ],
+  "extra_cents": 8000,
+  "as_of": "2026-10-10",
+  "order": "snowball"
+}

@@ -5,6 +5,9 @@
     "usual_increase_bps": 2500,
     "lumpy_month_cents": 30000,
     "seasonal_increase_cents": 10000,
-    "seasonal_increase_bps": 2000
+    "seasonal_increase_bps": 2000,
+    "card_trend_months": 6,
+    "credit_habits_months": 12,
+    "credit_guide_bps": 3000
   }
 }

@@ -1064,16 +1064,22 @@ export interface PayoffPlan {
   order: PayoffDebt[];
 }
 
-/** The avalanche month by month with a fixed budget of every minimum plus `extraCents` (fast-follow 1). */
+/** "avalanche" = highest rate first (the default); "snowball" = smallest balance first. */
+export type PayoffOrder = "avalanche" | "snowball";
+
+/** The plan month by month with a fixed budget of every minimum plus `extraCents` (fast-follow
+ * 1), in the order the person picked (October 28, 2026). */
 export async function payoffPlan(
   debts: DebtInput[],
   extraCents: number,
   asOf: string,
+  order: PayoffOrder = "avalanche",
 ): Promise<PayoffPlan> {
   return engine.call<PayoffPlan>("bills.payoff_plan", {
     debts,
     extra_cents: extraCents,
     as_of: asOf,
+    order,
   });
 }
 
@@ -1300,5 +1306,76 @@ export async function payInFull(input: {
     last_payment_date: input.lastPaymentDate,
     due_date: input.dueDate,
     paydays: input.paydays,
+  });
+}
+
+/** credit.card_trend (October 28, 2026): one card's spent against paid per whole month. */
+export interface CardMonth {
+  month: string; // YYYY-MM
+  spent_cents: number;
+  paid_cents: number;
+  net_cents: number;
+}
+
+export interface CardTrend {
+  months: CardMonth[];
+  last_month: CardMonth | null;
+  trend: "growing" | "shrinking" | "steady" | null;
+}
+
+export async function cardTrend(
+  entries: Array<{ date: string; direction: "in" | "out"; amount_cents: number }>,
+  asOf: string,
+  months: number,
+): Promise<CardTrend> {
+  return engine.call<CardTrend>("credit.card_trend", { entries, as_of: asOf, months });
+}
+
+/** credit.habits (October 28, 2026): on-time payments, the limit used and paying in full. */
+export interface CreditHabits {
+  status: "steady" | "building" | "missed" | null;
+  checked: number;
+  on_time: number;
+  on_time_streak: number;
+  missed: string[];
+  latest_due_date: string | null;
+  next_due_date: string | null;
+  paid_in_full_streak: number | null;
+  utilization_bps: number | null;
+  under_guide: boolean | null;
+}
+
+export async function creditHabits(input: {
+  dueDates: string[];
+  dueDay: number | null;
+  payments: Array<{ date: string; cents: number }>;
+  minimumCents: number | null;
+  statements: Array<{
+    due_date: string;
+    balance_cents: number | null;
+    minimum_cents: number | null;
+  }>;
+  statementBalanceCents: number | null;
+  currentBalanceCents: number | null;
+  limitCents: number | null;
+  asOf: string;
+  months: number;
+  guideBps: number;
+  /** The card's first entry: due dates before it are not checked. */
+  since: string | null;
+}): Promise<CreditHabits> {
+  return engine.call<CreditHabits>("credit.habits", {
+    due_dates: input.dueDates,
+    due_day: input.dueDay,
+    payments: input.payments,
+    minimum_cents: input.minimumCents,
+    statements: input.statements,
+    statement_balance_cents: input.statementBalanceCents,
+    current_balance_cents: input.currentBalanceCents,
+    limit_cents: input.limitCents,
+    as_of: input.asOf,
+    months: input.months,
+    guide_bps: input.guideBps,
+    since: input.since,
   });
 }

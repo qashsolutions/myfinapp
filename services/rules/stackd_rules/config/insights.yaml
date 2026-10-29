@@ -8,3 +8,7 @@ thresholds:
   lumpy_month_cents: 30000        # a month with $300+ of quarterly / yearly bills is "big"
   seasonal_increase_cents: 10000  # last year's same month ran $100+ over...
   seasonal_increase_bps: 2000     # ...and 20% over the usual month
+  # Debt & credit (October 28, 2026; proposed, awaiting owner sign-off):
+  card_trend_months: 6            # Card spending vs payments looks back six whole months
+  credit_habits_months: 12        # Credit habits checks the due dates of the last 12 months
+  credit_guide_bps: 3000          # under 30% of the limit used is the guide line
