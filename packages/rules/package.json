@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./dates": "./src/dates.ts",
     "./engine": "./src/engine.ts",
+    "./helped": "./src/helped.json",
     "./insights": "./src/insights.json",
     "./keywords": "./src/keywords.json",
     "./moments": "./src/moments.json",

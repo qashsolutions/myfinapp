@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "max_choices": 3,
+  "min_answers": 2,
+  "choices": [
+    {
+      "id": "packed_lunch",
+      "label": "Packed lunch"
+    },
+    {
+      "id": "cooked_home",
+      "label": "Cooked at home"
+    },
+    {
+      "id": "no_spend_days",
+      "label": "No-spend days"
+    },
+    {
+      "id": "cut_subscription",
+      "label": "Paused or cancelled a subscription"
+    },
+    {
+      "id": "payday_set_aside",
+      "label": "Set money aside on payday"
+    },
+    {
+      "id": "waited_a_day",
+      "label": "Waited a day before buying"
+    },
+    {
+      "id": "cash_for_treats",
+      "label": "Used cash for treats"
+    },
+    {
+      "id": "shopping_list",
+      "label": "Shopped with a list"
+    }
+  ]
+}

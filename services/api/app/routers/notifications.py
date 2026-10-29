@@ -35,6 +35,15 @@ CLOCK = re.compile(r"^[0-9]{2}:[0-9]{2}$")
 DAYS = re.compile(r"^[0-6](,[0-6])*$")
 
 
+# The person's own value for each type that takes a threshold (docs/spec.md "Notifications").
+THRESHOLDS: dict[str, tuple[int, int]] = {"goal_behind_pace": (1, 4), "budget_pace": (50, 150)}
+
+
+def _threshold_ok(kind: str, value: int) -> bool:
+    low, high = THRESHOLDS.get(kind, (1, 4))
+    return low <= value <= high
+
+
 class PrefOut(BaseModel):
     enabled: bool
     time_of_day: str | None = None
@@ -51,7 +60,8 @@ class PrefPatch(BaseModel):
     time_of_day: str | None = Field(default=None, pattern=r"^[0-9]{2}:[0-9]{2}$")
     days: str | None = Field(default=None, pattern=r"^[0-6](,[0-6])*$")
     lead_days: int | None = Field(default=None, ge=0, le=14)
-    threshold: int | None = Field(default=None, ge=1, le=4)
+    # goal_behind_pace: periods 1-4; budget_pace: the "Tell me at" percent 50-150
+    threshold: int | None = Field(default=None, ge=1, le=150)
     channel: Literal["push", "email", "both"] | None = None  # weekly_recap only
     delivery: Literal["instant", "daily"] | None = None  # DIGEST_TYPES only
 
@@ -206,6 +216,8 @@ def update_settings(
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_CONTENT, detail="channel_not_supported"
             )
+        if patch.threshold is not None and not _threshold_ok(kind, patch.threshold):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="invalid_threshold")
         if patch.delivery is not None and kind not in DIGEST_TYPES:
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_CONTENT, detail="delivery_not_supported"

@@ -14,6 +14,7 @@ import { cardText } from "../../moments/catalog.ts";
 import { useLookups } from "../entries/useEntries.ts";
 import { MonthPicker } from "../money/MonthPicker.tsx";
 import { BudgetSetup } from "./BudgetSetup.tsx";
+import { useBudgetPace } from "./pace.ts";
 import { BUCKET_LABELS, RuleView } from "./RuleView.tsx";
 import { monthKey, useBudget } from "./useBudget.ts";
 import { ZeroBasedView } from "./ZeroBasedView.tsx";
@@ -23,6 +24,7 @@ export function BudgetScreen() {
   const [asOf, setAsOf] = useState(todayIso());
   const isCurrentMonth = monthKey(asOf) === monthKey(todayIso());
   const view = useBudget(asOf, isCurrentMonth);
+  const pace = useBudgetPace(view.summary, asOf);
   // Last month's totals, for zero-based's "Start from last month" (October 23, 2026).
   const lastMonth = useMonthTotals(asOf).previous;
   const lookups = useLookups();
@@ -139,6 +141,7 @@ export function BudgetScreen() {
             summary={summary}
             categories={lookups.categories}
             split={budget.split_bps ?? null}
+            pace={pace}
           />
         ) : (
           <ZeroBasedView
@@ -146,6 +149,7 @@ export function BudgetScreen() {
             lines={view.lines}
             categories={lookups.categories}
             lastMonth={lastMonth}
+            pace={pace}
           />
         )
       ) : null}

@@ -1,0 +1,35 @@
+{
+  "month": "2026-10",
+  "as_of": "2026-10-22",
+  "levels_bps": [
+    9000,
+    10000
+  ],
+  "lines": [
+    {
+      "category_id": "dining",
+      "planned_cents": 20000,
+      "spent_cents": 18000
+    },
+    {
+      "category_id": "groceries",
+      "planned_cents": 40000,
+      "spent_cents": 30000
+    },
+    {
+      "category_id": "fun",
+      "planned_cents": 10000,
+      "spent_cents": 12500
+    },
+    {
+      "category_id": "shopping",
+      "planned_cents": 0,
+      "spent_cents": 500
+    },
+    {
+      "category_id": "rent",
+      "planned_cents": 150000,
+      "spent_cents": 150000
+    }
+  ]
+}

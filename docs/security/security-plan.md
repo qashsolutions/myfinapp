@@ -24,7 +24,7 @@ It applies to the web app (PWA), the API, the website, this repository, CI, the 
 | Class | Examples | Where it lives | Protection |
 |---|---|---|---|
 | **Device-only** | Statements, receipt photos, transactions, budgets, goals, forecasts, computed results | IndexedDB on the user's device | Never sent to the server (hard rule, enforced by code review and the network allowlist). Export and encrypted backup are the user's safety nets |
-| **Server, personal** | Email, display name, passkey public keys, sessions, plan, group membership with % progress, alert schedule (date, type, generic label), notification preferences | PostgreSQL | TLS, encryption at rest, row-level ownership checks (`app/security/authz.py`), audit log |
+| **Server, personal** | Email, display name, passkey public keys, sessions, plan, group membership with % progress and the member's own "What helped" answer (up to 3 ids from a fixed list; others see totals only, from 2 answers), alert schedule (date, type, generic label; a budget alert key holds a month, a 16-letter tag and a level, never a category or amount), notification preferences | PostgreSQL | TLS, encryption at rest, row-level ownership checks (`app/security/authz.py`), audit log |
 | **Server, opaque** | End-to-end encrypted backups | Object storage | Ciphertext only; the key never leaves the user's devices. The newest 3 plus each of the previous 7 days' newest are kept, so bad uploads from a stolen session cannot push out every good copy |
 | **Server, linked accounts (Connected only)** | Per bank or card connection: the Plaid access token, Plaid item id, institution name, status and dates | PostgreSQL | The token is encrypted (Fernet) under a key used for nothing else (`STACKD_LINK_TOKEN_KEY`), decrypted only inside the request that calls Plaid, never logged or sent to the device, revoked at Plaid on disconnect, account deletion, or 60 days unused (`linking.md`) |
 | **Passed through, never stored** | Linked transactions, balances and card statement details | In memory for one request, then on the user's device | The server returns them to the device and keeps nothing; a test checks no table can hold them |
@@ -49,7 +49,7 @@ It applies to the web app (PWA), the API, the website, this repository, CI, the 
 
 - Every user-owned row carries `user_id`. Every router reads and writes through `app/security/authz.py` (`get_owned`, `owned_by`); a row that belongs to someone else answers 404.
 - `services/api/tests/authz/` holds cross-user tests and grows with each router; every PR that touches the server runs it inside the full API suite (`ci.yml`), and `security.yml` runs it again on every change to main and weekly.
-- Group members never see each other's amounts or emails; the server only ever holds % progress.
+- Group members never see each other's amounts or emails; the server only ever holds % progress and each member's fixed-list "What helped" ids, shown to the group as totals only.
 
 ### Application
 

@@ -33,6 +33,7 @@ ALERT_TYPES = (
     "milestone_reached",
     "group_activity",
     "weekly_recap",
+    "budget_pace",
 )
 PLATFORMS = ("web", "ios", "android")
 CHANNELS = ("push", "email", "summary")
@@ -64,7 +65,8 @@ class NotificationPref(Base, StackdRow):
     time_of_day: Mapped[str | None] = mapped_column(String(5))  # "19:30"
     days: Mapped[str | None] = mapped_column(String(32))  # "0" = Sunday … "6", comma separated
     lead_days: Mapped[int | None] = mapped_column(Integer)
-    threshold: Mapped[int | None] = mapped_column(Integer)  # periods behind pace
+    # goal_behind_pace: periods behind; budget_pace: the "Tell me at" percent (50-150)
+    threshold: Mapped[int | None] = mapped_column(Integer)
     channel: Mapped[str | None] = mapped_column(String(8))  # weekly_recap only; null = push
     # DIGEST_TYPES only; null = instant. "daily" sends one summary at time_of_day.
     delivery: Mapped[str | None] = mapped_column(String(8))

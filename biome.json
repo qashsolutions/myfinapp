@@ -21,6 +21,8 @@
       "!services/rules/stackd_rules/config/moments.json",
       "!packages/rules/src/insights.json",
       "!services/rules/stackd_rules/config/insights.json",
+      "!packages/rules/src/helped.json",
+      "!services/rules/stackd_rules/config/helped.json",
       "!**/public",
       "!apps/site/**/*.astro",
       "!apps/site/.astro",

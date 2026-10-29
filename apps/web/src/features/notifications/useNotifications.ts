@@ -38,6 +38,13 @@ export const TYPE_COPY: Record<
     title: pushSettingsTitle("group_activity"),
     sub: (p) => withDelivery(p, "Joins and challenge ends"),
   },
+  budget_pace: {
+    title: pushSettingsTitle("budget_pace"),
+    sub: (p) =>
+      p.threshold && p.threshold >= 100
+        ? `When a category reaches ${p.threshold}% of its plan`
+        : `At ${p.threshold ?? 90}% and 100% of a category's plan`,
+  },
   weekly_recap: {
     title: pushSettingsTitle("weekly_recap"),
     sub: (p) =>

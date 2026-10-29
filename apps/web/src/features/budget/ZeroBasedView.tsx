@@ -2,13 +2,14 @@ import "../entries/entries.css";
 
 import { Button, Card, ProgressBar, Sheet } from "@stackd/ui";
 import { useId, useState } from "react";
-import { Word } from "../../app/layout/Word.tsx";
+import { Word, wordTone } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { BudgetLine, Category } from "../../data/db.ts";
 import type { BudgetSummary, MonthTotals } from "../../engine/bridge.ts";
 import { parseAmount } from "../../engine/bridge.ts";
 import { formatCents } from "../../lib/format.ts";
 import { showUndo } from "../entries/undoToast.ts";
+import type { PaceWord } from "./pace.ts";
 import {
   assignRest,
   fillFromLastMonth,
@@ -37,12 +38,15 @@ export function ZeroBasedView({
   lines,
   categories,
   lastMonth,
+  pace = null,
 }: {
   summary: BudgetSummary;
   lines: BudgetLine[];
   categories: Map<string, Category>;
   /** Last month's totals (Money in & out's), for "Start from last month". */
   lastMonth: MonthTotals | null;
+  /** "Close" / "Over" per line from `budget.pace` (the same reading as the budget alert). */
+  pace?: Map<string, PaceWord> | null;
 }) {
   const { db } = useDb();
   const ids = useId();
@@ -112,9 +116,13 @@ export function ZeroBasedView({
     const unplanned = line.planned_cents === 0;
     const over = !unplanned && spent > line.planned_cents;
     const label = name(line);
+    const word = pace?.get(line.category_id) ?? null;
     return (
       <div className="zb-line" key={line.id}>
         <div className="zb-line__main">
+          {word ? (
+            <span className={`zb-line__word zb-line__word--${wordTone(word)}`}>{word}</span>
+          ) : null}
           <button
             type="button"
             className="zb-line__name"

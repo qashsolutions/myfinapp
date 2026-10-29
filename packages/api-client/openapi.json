@@ -1711,6 +1711,20 @@
             "title": "End Date",
             "type": "string"
           },
+          "helped": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HelpedTotals"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "helped_open": {
+            "title": "Helped Open",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -1733,6 +1747,13 @@
               "$ref": "#/components/schemas/MemberOut"
             },
             "title": "Members",
+            "type": "array"
+          },
+          "my_helped": {
+            "items": {
+              "type": "string"
+            },
+            "title": "My Helped",
             "type": "array"
           },
           "my_progress_bps": {
@@ -1763,7 +1784,10 @@
           "is_owner",
           "member_count",
           "my_progress_bps",
-          "members"
+          "my_helped",
+          "members",
+          "helped_open",
+          "helped"
         ],
         "title": "GroupDetail",
         "type": "object"
@@ -1843,6 +1867,13 @@
             "title": "Member Count",
             "type": "integer"
           },
+          "my_helped": {
+            "items": {
+              "type": "string"
+            },
+            "title": "My Helped",
+            "type": "array"
+          },
           "my_progress_bps": {
             "title": "My Progress Bps",
             "type": "integer"
@@ -1870,7 +1901,8 @@
           "invite_code",
           "is_owner",
           "member_count",
-          "my_progress_bps"
+          "my_progress_bps",
+          "my_helped"
         ],
         "title": "GroupSummary",
         "type": "object"
@@ -1886,6 +1918,45 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HelpedRequest": {
+        "properties": {
+          "choices": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Choices",
+            "type": "array"
+          }
+        },
+        "required": [
+          "choices"
+        ],
+        "title": "HelpedRequest",
+        "type": "object"
+      },
+      "HelpedTotals": {
+        "description": "How many members answered and how many picked each choice: never who picked what.",
+        "properties": {
+          "answered": {
+            "title": "Answered",
+            "type": "integer"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "answered",
+          "counts"
+        ],
+        "title": "HelpedTotals",
         "type": "object"
       },
       "HouseholdBlobIn": {
@@ -3018,7 +3089,7 @@
           "threshold": {
             "anyOf": [
               {
-                "maximum": 4.0,
+                "maximum": 150.0,
                 "minimum": 1.0,
                 "type": "integer"
               },
@@ -3216,7 +3287,8 @@
               "challenge_checkin",
               "goal_behind_pace",
               "milestone_reached",
-              "weekly_recap"
+              "weekly_recap",
+              "budget_pace"
             ],
             "title": "Type",
             "type": "string"
@@ -5475,6 +5547,60 @@
           }
         },
         "summary": "Regenerate Code",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{group_id}/helped": {
+      "put": {
+        "description": "The member's own \"What helped\": up to 3 ids from the fixed list; [] clears it. Open once\nthey reached their target or the challenge ended (409 not_yet before).",
+        "operationId": "update_helped_api_groups__group_id__helped_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HelpedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Helped",
         "tags": [
           "groups"
         ]

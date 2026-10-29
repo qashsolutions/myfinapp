@@ -249,6 +249,8 @@ def soft_delete(
             AlertSchedule.status.in_(("pending", "deferred", "summary")),
         )
     )
+    # Their "What helped" answers leave the group's totals (the memberships stay).
+    db.execute(update(GroupMember).where(GroupMember.user_id == user.id).values(helped=None))
     for group in db.scalars(select(Group).where(Group.owner_id == user.id)):
         successor = db.scalar(
             select(GroupMember.user_id)

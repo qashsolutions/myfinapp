@@ -23,6 +23,9 @@ def compile_config() -> dict:
     return {
         "version": int(data["version"]),
         "thresholds": {str(k): int(v) for k, v in data["thresholds"].items()},
+        "budget_alerts": {
+            "levels_bps": [int(v) for v in data["budget_alerts"]["levels_bps"]],
+        },
     }
 
 

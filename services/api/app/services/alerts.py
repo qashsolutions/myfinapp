@@ -8,6 +8,7 @@ the one type the server schedules itself, because the server is where a member j
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from datetime import UTC, datetime
 from importlib import resources
@@ -40,6 +41,7 @@ PLAN_ENDED_LABEL: str = _MOMENTS["push_plan_ended"]
 TRIAL_ENDS_TOMORROW_LABEL: str = _MOMENTS["push_trial_ends_tomorrow"]
 FOUNDING_ENDS_SOON_LABEL: str = _MOMENTS["push_founding_ends_soon"]
 FOUNDING_ENDED_LABEL: str = _MOMENTS["push_founding_ended"]
+BUDGET_REACHED_LABEL: str = _MOMENTS["push_budget_reached"]
 TITLE = "Qash"
 # Where a tap on the push lands (the service worker opens it); never a deep link with data.
 URLS: dict[str, str] = {
@@ -50,7 +52,11 @@ URLS: dict[str, str] = {
     "milestone_reached": "/goals",
     "group_activity": "/goals",
     "weekly_recap": "/recap",
+    "budget_pace": "/budget",
 }
+# A budget alert key: the month, a 16-letter tag the device made from a random value it keeps
+# and the category's id (never the category, its name or an amount), and the level in bps.
+BUDGET_KEY = re.compile(r"budget:[0-9]{4}-[0-9]{2}:[a-p]{16}:([0-9]{1,6})")
 
 DEFAULT_PREFS: dict[str, dict] = {
     "upcoming_expense": {"enabled": True, "lead_days": 3, "time_of_day": "09:00"},
@@ -62,8 +68,19 @@ DEFAULT_PREFS: dict[str, dict] = {
     "group_activity": {"enabled": False, "delivery": "instant", "time_of_day": "19:00"},
     # channel: push, email or both (docs/spec.md "Notifications": "Push, email, both, or off")
     "weekly_recap": {"enabled": True, "time_of_day": "09:00", "days": "0", "channel": "push"},
+    # threshold: the "Tell me at" percent; none = the rules config's levels (90% and 100%)
+    "budget_pace": {"enabled": True, "time_of_day": "09:00"},
 }
 MAX_SCHEDULE_ITEMS = 300
+
+
+def label_for(kind: str, dedupe_key: str) -> str:
+    """The fixed lock-screen text: per type, except a budget alert at its whole plan or more."""
+    if kind == "budget_pace":
+        match = BUDGET_KEY.fullmatch(dedupe_key)
+        if match and int(match.group(1)) >= 10000:
+            return BUDGET_REACHED_LABEL
+    return LABELS[kind]
 
 
 def recap_channel(prefs: dict[str, dict]) -> str:
@@ -161,7 +178,7 @@ def enqueue(
         user_id=user_id,
         due_at=due_at,
         type=kind,
-        generic_label=LABELS[kind],
+        generic_label=label_for(kind, dedupe_key),
         dedupe_key=dedupe_key,
         from_device=from_device,
     )

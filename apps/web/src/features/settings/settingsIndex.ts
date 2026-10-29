@@ -55,6 +55,7 @@ const ALERT_WORDS: Record<string, string> = {
   shortfall_risk: "low balance shortfall forecast buffer cushion daily summary digest",
   challenge_checkin: "challenge check-in daily reminder",
   goal_behind_pace: "goal behind pace jar",
+  budget_pace: "budget category plan close over spending limit percent",
   milestone_reached: "milestone jar goal reached daily summary digest",
   group_activity: "group challenge joins members daily summary digest",
   weekly_recap: "weekly recap summary email",

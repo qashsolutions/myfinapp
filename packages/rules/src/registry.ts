@@ -214,6 +214,15 @@ const BARE: Record<string, Rule> = {
       ...budget.summary(as_of, method, take_home_cents, lines, entries, split_bps ?? null),
     };
   },
+  "budget.pace": (input) => {
+    const { month, as_of, lines, levels_bps } = args(input, [
+      "month",
+      "as_of",
+      "lines",
+      "levels_bps",
+    ]);
+    return { ...budget.pace(month, as_of, lines, levels_bps) };
+  },
   "goals.progress": (input) => {
     const { goal, events, as_of } = args(input, ["goal", "events", "as_of"]);
     return { ...goals.progress(goal, events, as_of) };
@@ -358,6 +367,10 @@ const BARE: Record<string, Rule> = {
   "alerts.schedule": (input) => {
     const { inputs } = args(input, ["inputs"]);
     return { ...alerts.schedule(inputs) };
+  },
+  "alerts.tag": (input) => {
+    const { value, salt } = args(input, ["value", "salt"]);
+    return { tag: alerts.tag(value, salt) };
   },
   "next_move.pick": (input) => {
     const { facts, config, as_of } = args(input, ["facts", "config", "as_of"]);

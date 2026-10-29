@@ -6,5 +6,11 @@
     "lumpy_month_cents": 30000,
     "seasonal_increase_cents": 10000,
     "seasonal_increase_bps": 2000
+  },
+  "budget_alerts": {
+    "levels_bps": [
+      9000,
+      10000
+    ]
   }
 }

@@ -24,6 +24,7 @@ TYPES = (
     "milestone_reached",
     "group_activity",
     "weekly_recap",
+    "budget_pace",
 )
 _LOCAL = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}")
 _CLOCK = re.compile(r"[0-9]{2}:[0-9]{2}")

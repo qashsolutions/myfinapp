@@ -8,11 +8,14 @@ Bucket spent       sum of this month's entries whose category maps to the bucket
 Zero-based         left to assign = take-home − sum(planned lines); negative = over-assigned.
 Kept this month    take-home − total spent month-to-date, floored at 0.
 Monthly take-home  from a paycheck amount and its frequency, rounded half-even once.
+Pace               the highest level of its plan each line's spending reached this month.
 
 Entries and lines are passed in with their category's bucket, so the rule stays pure.
 """
 
 from __future__ import annotations
+
+import re
 
 from . import dates, money
 from .errors import RuleError
@@ -216,3 +219,61 @@ def summary(
         "left_to_assign_cents": left_to_assign,
         "kept_cents": max(0, take_home - total_spent),
     }
+
+
+_MONTH = re.compile(r"[0-9]{4}-[0-9]{2}")
+MAX_LEVEL_BPS = 100000
+
+
+def _levels(raw: object) -> list[int]:
+    if not isinstance(raw, list) or not raw:
+        raise RuleError("invalid_levels")
+    levels: list[int] = []
+    for v in raw:
+        if isinstance(v, bool) or not isinstance(v, int) or not 0 < v <= MAX_LEVEL_BPS:
+            raise RuleError("invalid_levels")
+        if levels and v <= levels[-1]:
+            raise RuleError("invalid_levels")
+        levels.append(v)
+    return levels
+
+
+def pace(month: str, as_of: str, lines: list, levels_bps: list) -> dict:
+    """A budget alert in the moment (docs/spec.md "Budgeting"): for each line with something
+    planned, the highest level of its plan this month's spending has reached (spent × 10000 ≥
+    planned × level, exact), and the days left in the month with today counted. Lines under
+    every level are left out; lines keep their input order."""
+    if not isinstance(month, str) or not _MONTH.fullmatch(month):
+        raise RuleError("invalid_date")
+    day = dates.parse_date(as_of)
+    if day.isoformat()[:7] != month:
+        raise RuleError("invalid_date")
+    levels = _levels(levels_bps)
+    if not isinstance(lines, list):
+        raise RuleError("invalid_lines")
+    _, end = dates.month_bounds(day)
+    seen: set[str] = set()
+    items = []
+    for line in lines:
+        if not isinstance(line, dict) or not isinstance(line.get("category_id"), str):
+            raise RuleError("invalid_line")
+        planned = _int(line.get("planned_cents"))
+        spent = _int(line.get("spent_cents"))
+        if planned < 0:
+            raise RuleError("invalid_amount")
+        if line["category_id"] in seen:
+            raise RuleError("duplicate_line")
+        seen.add(line["category_id"])
+        if planned == 0:
+            continue
+        crossed = [lv for lv in levels if spent * 10000 >= planned * lv]
+        if not crossed:
+            continue
+        items.append(
+            {
+                "category_id": line["category_id"],
+                "level_bps": crossed[-1],
+                "spent_bps": money.ratio_bps(spent, planned),
+            }
+        )
+    return {"month": month, "days_left": (end - day).days + 1, "items": items}

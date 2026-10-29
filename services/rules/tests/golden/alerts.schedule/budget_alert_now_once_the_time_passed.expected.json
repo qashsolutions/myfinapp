@@ -1,0 +1,9 @@
+{
+  "alerts": [
+    {
+      "type": "budget_pace",
+      "due_local": "2026-10-22T13:05",
+      "dedupe_key": "budget:2026-10:lekdgdiedlbpekao:9000"
+    }
+  ]
+}

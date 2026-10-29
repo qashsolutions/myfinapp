@@ -394,6 +394,33 @@ export async function budgetSummary(
   });
 }
 
+export interface BudgetPaceLine {
+  category_id: string;
+  planned_cents: number;
+  spent_cents: number;
+}
+
+export interface BudgetPace {
+  month: string;
+  days_left: number;
+  items: Array<{ category_id: string; level_bps: number; spent_bps: number | null }>;
+}
+
+/** budget.pace: the highest level of its plan each line's spending reached this month. */
+export async function budgetPace(
+  month: string,
+  asOf: string,
+  lines: BudgetPaceLine[],
+  levelsBps: number[],
+): Promise<BudgetPace> {
+  return engine.call<BudgetPace>("budget.pace", {
+    month,
+    as_of: asOf,
+    lines,
+    levels_bps: levelsBps,
+  });
+}
+
 /** money.round_div: the one half-even division, for averages shown on screen. */
 export async function roundDiv(numerator: number, denominator: number): Promise<number> {
   const { cents } = await engine.call<{ cents: number }>("money.round_div", {
@@ -1113,6 +1140,8 @@ export interface AlertInputs {
     current_cents: number;
   }>;
   milestones: Array<{ goal_id: string; key: string }>;
+  /** Crossed budget levels: a 16-letter tag (alerts.tag), never the category or an amount. */
+  budget: Array<{ tag: string; level_bps: number }>;
   prefs: Record<
     string,
     { enabled: boolean; lead_days?: number; time?: string; periods?: number; day?: number }
@@ -1128,6 +1157,12 @@ export interface ScheduledAlert {
 /** Which alerts are due in the next 30 days: dates, types and keys, nothing else. */
 export async function alertsSchedule(inputs: AlertInputs): Promise<{ alerts: ScheduledAlert[] }> {
   return engine.call<{ alerts: ScheduledAlert[] }>("alerts.schedule", { inputs });
+}
+
+/** alerts.tag: 16 letters from `salt:value`, so a key never names what it is about. */
+export async function alertsTag(value: string, salt: string): Promise<string> {
+  const { tag } = await engine.call<{ tag: string }>("alerts.tag", { value, salt });
+  return tag;
 }
 
 // insights (fast-follow 8): arithmetic over the device's own history; thresholds from config.

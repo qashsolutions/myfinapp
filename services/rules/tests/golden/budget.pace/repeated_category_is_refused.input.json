@@ -1,0 +1,20 @@
+{
+  "month": "2026-10",
+  "as_of": "2026-10-01",
+  "levels_bps": [
+    9000,
+    10000
+  ],
+  "lines": [
+    {
+      "category_id": "a",
+      "planned_cents": 1,
+      "spent_cents": 1
+    },
+    {
+      "category_id": "a",
+      "planned_cents": 1,
+      "spent_cents": 1
+    }
+  ]
+}

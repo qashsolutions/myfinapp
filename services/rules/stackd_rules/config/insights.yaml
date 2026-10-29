@@ -8,3 +8,7 @@ thresholds:
   lumpy_month_cents: 30000        # a month with $300+ of quarterly / yearly bills is "big"
   seasonal_increase_cents: 10000  # last year's same month ran $100+ over...
   seasonal_increase_bps: 2000     # ...and 20% over the usual month
+# Budget alert levels (October 28, 2026; proposed, awaiting owner sign-off): a budget line is
+# "Close" at the first level and alerts once per level per month (`budget.pace`).
+budget_alerts:
+  levels_bps: [9000, 10000]
