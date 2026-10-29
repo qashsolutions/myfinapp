@@ -1,5 +1,5 @@
-import { startRegistration } from "@simplewebauthn/browser";
-import { act, screen, waitFor } from "@testing-library/react";
+import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
@@ -33,21 +33,51 @@ describe("B4: after the phone signs a computer in, offer the computer its own pa
     vi.unstubAllGlobals();
   });
 
-  it("asks once, and Set up Touch ID adds a passkey", async () => {
+  it("asks once, checks it's you on the computer first, then Set up Touch ID adds a passkey", async () => {
+    const user = userEvent.setup();
+    platformAuthenticator(true);
+    vi.mocked(startRegistration).mockClear();
+    vi.mocked(startAuthentication).mockClear();
+    const api = await linkFromComputer();
+    const offer = await screen.findByRole("dialog", { name: "Use Touch ID here next time?" });
+    expect(offer).toHaveTextContent("First, a quick check that it's you, with your phone.");
+    await user.click(screen.getByRole("button", { name: "Set up Touch ID" }));
+
+    // Invariant 44: the phone's approval is no check on this computer, so step-up comes first,
+    // and it says how to use the phone's passkey here.
+    const check = await screen.findByRole("dialog", { name: "Confirm it's you" });
+    expect(check).toHaveTextContent("Setting up Touch ID here needs a quick check on this device");
+    expect(check).toHaveTextContent("choose your phone and scan the code");
+    expect(screen.queryByRole("dialog", { name: "Use Touch ID here next time?" })).toBeNull();
+    expect(startRegistration).not.toHaveBeenCalled();
+    await user.click(within(check).getByRole("button", { name: "Confirm it's you" }));
+
+    expect(await screen.findByRole("dialog", { name: "All set" })).toBeInTheDocument();
+    expect(startAuthentication).toHaveBeenCalledTimes(1);
+    expect(startRegistration).toHaveBeenCalledTimes(1);
+    const paths = api.calls.map((c) => c.path);
+    expect(paths.indexOf("/api/security/passkeys/assert/verify")).toBeLessThan(
+      paths.indexOf("/api/security/passkeys/register/options"),
+    );
+    expect(paths).toContain("/api/security/passkeys/register/verify");
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(sessionStorage.getItem("stackd.offer_passkey_here")).toBeNull();
+  });
+
+  it("cancelling the check brings the offer back and adds nothing", async () => {
     const user = userEvent.setup();
     platformAuthenticator(true);
     vi.mocked(startRegistration).mockClear();
     const api = await linkFromComputer();
+    await user.click(await screen.findByRole("button", { name: "Set up Touch ID" }));
+    const check = await screen.findByRole("dialog", { name: "Confirm it's you" });
+    await user.click(within(check).getByRole("button", { name: "Cancel" }));
     expect(
       await screen.findByRole("dialog", { name: "Use Touch ID here next time?" }),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Set up Touch ID" }));
-    expect(await screen.findByRole("dialog", { name: "All set" })).toBeInTheDocument();
-    expect(startRegistration).toHaveBeenCalledTimes(1);
-    expect(api.calls.some((c) => c.path === "/api/security/passkeys/register/verify")).toBe(true);
-    await user.click(screen.getByRole("button", { name: "Done" }));
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(sessionStorage.getItem("stackd.offer_passkey_here")).toBeNull();
+    expect(startRegistration).not.toHaveBeenCalled();
+    expect(api.calls.some((c) => c.path.startsWith("/api/security/passkeys/register"))).toBe(false);
   });
 
   it("Not now closes it for good in this tab", async () => {

@@ -127,8 +127,9 @@ def test_monthly_savings_challenge() -> None:
     r = maya.post(f"/api/groups/{gid}/code")
     assert r.status_code == 200 and r.json()["invite_code"] != code
     assert dev.post("/api/groups/lookup", json={"code": code}).status_code == 404
+    # A removed member stays out with the new code too (invariant 45)
     r = dev.post("/api/groups/lookup", json={"code": r.json()["invite_code"]})
-    assert r.status_code == 200 and r.json()["member_count"] == 2
+    assert r.status_code == 403 and r.json()["detail"] == "removed"
 
 
 def test_other_challenge_types_take_their_own_dates() -> None:

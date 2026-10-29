@@ -175,6 +175,16 @@ describe("Groups", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("No group with that code.");
   });
 
+  it("someone the owner removed is told plainly they can't rejoin (invariant 45)", async () => {
+    installFakeApi({ session: readySession(), groups: [{ ...mayasGroup(), removed: [ME] }] });
+    renderApp("/groups/join?code=stk-4f9q");
+    await screen.findByRole("navigation", { name: "Primary" });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The owner removed you from this challenge, so you can't rejoin it.",
+    );
+    expect(screen.queryByRole("region", { name: "Group" })).toBeNull();
+  });
+
   it("the owner can remove a member and issue a new code", async () => {
     const user = userEvent.setup();
     const mine = {

@@ -221,3 +221,106 @@ def test_three_link_requests_an_hour_per_ip() -> None:
         assert computer.post("/api/auth/link/start").status_code == 200
     r = computer.post("/api/auth/link/start")
     assert r.status_code == 429 and "retry-after" in r.headers
+
+
+def _step_up_routes() -> list[tuple[str, str]]:
+    """Every operation whose dependencies include `require_step_up`, read from the app itself,
+    so a new step-up route is covered without editing this list."""
+    from fastapi.routing import APIRoute
+
+    from app.main import create_app
+    from app.security.principal import require_step_up
+
+    def needs(dep) -> bool:
+        return any(d.call is require_step_up or needs(d) for d in dep.dependencies)
+
+    def routes(items):
+        for item in items:
+            inner = getattr(item, "original_router", None)  # an included router
+            yield from routes(inner.routes) if inner is not None else [item]
+
+    out = []
+    for route in routes(create_app().routes):
+        if isinstance(route, APIRoute) and needs(route.dependant):
+            path = route.path
+            for name in route.param_convertors:
+                path = path.replace("{" + name + "}", str(uuid.uuid4()))
+            out.extend((m, path) for m in route.methods)
+    return sorted(out)
+
+
+def _linked_computer():
+    net = _network()
+    phone, auth, email = _phone(net)
+    computer, started = _computer(net)
+    assert_passkey(phone, auth)
+    assert phone.post("/api/auth/link/approve", json={"code": started["code"]}).status_code == 200
+    r = computer.get("/api/auth/link/status")
+    assert r.status_code == 200 and r.json()["status"] == "approved", r.text
+    return computer, auth, email
+
+
+def test_a_linked_computer_opens_unlocked_with_no_step_up_credit() -> None:
+    """Invariant 44 (owner decision, October 29, 2026): the phone's passkey check approves the
+    sign-in; it is never a check on the computer. The computer opens unlocked, but every
+    step-up route (export, delete, email change, adding a passkey, plan changes, bank
+    linking, ...) asks for a passkey check on the computer first, so a phished approval never
+    gets five minutes to add its own passkey, change the email or delete the account."""
+    computer, auth, _email = _linked_computer()
+    me = computer.get("/api/auth/session").json()
+    assert me["locked"] is False and me["passkey_verified_at"] is None
+    assert computer.get("/api/security/passkeys").status_code == 200  # unlocked
+
+    routes = _step_up_routes()
+    assert ("POST", "/api/account/export") in routes and ("POST", "/api/account/delete") in routes
+    for method, path in routes:
+        r = computer.request(method, path, json={})
+        assert r.status_code == 403 and r.json()["detail"] == "step_up_required", (
+            method,
+            path,
+            r.status_code,
+            r.text,
+        )
+    # Adding a passkey checks step-up inline (the first passkey at sign-up needs none).
+    for path in (
+        "/api/security/passkeys/register/options",
+        "/api/security/passkeys/register/verify",
+    ):
+        r = computer.post(path, json={"credential": {}})
+        assert r.status_code == 403 and r.json()["detail"] == "step_up_required", (path, r.text)
+
+    # A passkey check on the computer (the phone's synced passkey, through the browser's
+    # "use a phone" option) gives the credit, as on any device.
+    assert_passkey(computer, auth, purpose="step_up")
+    assert computer.get("/api/auth/session").json()["passkey_verified_at"] is not None
+    assert computer.post("/api/security/passkeys/register/options").status_code == 200
+    assert computer.post("/api/account/export").status_code == 200
+
+
+def test_a_linked_computer_locks_when_idle_like_any_session() -> None:
+    computer, auth, _ = _linked_computer()
+    with get_session_factory()() as s:
+        row = s.scalars(select(Session).order_by(Session.created_at.desc())).first()
+        assert row is not None
+        row.last_seen_at = datetime.now(UTC) - timedelta(hours=2)
+        row.link_unlocked_at = datetime.now(UTC) - timedelta(hours=2)
+        s.commit()
+    assert computer.get("/api/auth/session").json()["locked"] is True
+    assert computer.get("/api/security/passkeys").status_code == 403
+    assert_passkey(computer, auth)
+    assert computer.get("/api/security/passkeys").status_code == 200
+
+
+def test_assertion_options_leave_the_phone_option_open() -> None:
+    """A computer with no passkey of its own steps up with the phone's synced passkey through
+    the browser's cross-device (hybrid) option: the options never narrow the passkeys to this
+    device's transports and never hint at a platform authenticator."""
+    computer, _auth, _ = _linked_computer()
+    r = computer.post("/api/security/passkeys/assert/options", json={"purpose": "step_up"})
+    assert r.status_code == 200, r.text
+    options = r.json()["options"]
+    assert options["allowCredentials"], options
+    for cred in options["allowCredentials"]:
+        assert "transports" not in cred or "hybrid" in cred["transports"], cred
+    assert "client-device" not in options.get("hints", [])
+    assert options.get("authenticatorAttachment") in (None, "cross-platform")

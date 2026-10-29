@@ -210,5 +210,6 @@ def test_leaving_or_being_removed_takes_the_answer_out() -> None:
     assert ana.get(f"/api/groups/{gid}").json()["helped"]["answered"] == 2
     assert maya.delete(f"/api/groups/{gid}/members/{sam_id}").status_code == 204
     assert ana.get(f"/api/groups/{gid}").json()["helped"] is None
-    assert sam.post("/api/groups/join", json={"code": code}).status_code == 200
-    assert sam.get(f"/api/groups/{gid}").json()["my_helped"] == []
+    # ...and a removed member stays out (invariant 45), so the answer can't come back either
+    r = sam.post("/api/groups/join", json={"code": code})
+    assert r.status_code == 403 and r.json()["detail"] == "removed"

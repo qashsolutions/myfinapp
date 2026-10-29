@@ -40,5 +40,9 @@ class Session(Base, StackdRow):
     # Set when the app's screen locked (POST /api/auth/lock, October 28, 2026): locked here
     # too until the next passkey check, whatever the idle clock says (migration 0032).
     locked_at: Mapped[datetime | None]
+    # Link with your phone (invariant 44, owner decision, October 29, 2026): this computer was
+    # opened unlocked from this time by the phone's approval. It is not a passkey check here, so
+    # `passkey_verified_at` stays empty and step-up asks for one on this device (migration 0038).
+    link_unlocked_at: Mapped[datetime | None]
     revoked_at: Mapped[datetime | None]
     ended_reason: Mapped[str | None] = mapped_column(String(24))

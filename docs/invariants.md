@@ -338,6 +338,25 @@ written against both.
     device or the server registers it for a time still ahead; a key in `notification_log` is
     never scheduled again.
     `test_alert_delivery_once.py` "a skipped alert comes back…"
+44. **A phone's approval signs a computer in; it is never a passkey check on the computer**
+    (owner decision, October 29, 2026). A Link with your phone session opens unlocked
+    (`sessions.link_unlocked_at`) with `passkey_verified_at` empty, so every `require_step_up`
+    route (and adding a passkey) answers `step_up_required` until the computer itself passes a
+    passkey check; the assertion options leave the browser's "use a phone" choice open (no
+    transports, no platform hint). Found when the phone's check stood in for the computer's and
+    a phished approval had five minutes to add a passkey, change the email or delete the account.
+    `test_device_link.py` "a linked computer opens unlocked with no step-up credit…", "assertion
+    options leave the phone option open" · `passkey-here-offer.test.tsx`
+45. **Removed is not left** (October 29, 2026). The owner removing a member stamps
+    `group_members.removed_at`; such a member gets 403 `removed` on lookup and join with the old
+    code or a new one, and the app says so plainly. Someone who left may rejoin. Found when a
+    removal set the same stamp as leaving and a join reopened it with the unchanged code.
+    `test_group_joins.py` · `groups.test.tsx` "someone the owner removed…"
+46. **A join is counted and written under the person's lock, then the group's** (October 29,
+    2026), like the household's joins (invariant 14). Two joins at once never pass Free's one
+    challenge; two joins of the same group at once both answer the one membership (200), never a
+    500 from the unique constraint. Leave and removal take the same locks.
+    `test_group_joins.py` (parallel requests against Postgres)
 
 ## Offline and the way in
 
