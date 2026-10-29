@@ -4,6 +4,8 @@ import { Word } from "../../app/layout/Word.tsx";
 import type { RecurringSeries } from "../../data/db.ts";
 import type { SubscriptionCheckItem } from "../../engine/bridge.ts";
 import { formatCents, formatDay } from "../../lib/format.ts";
+import { KindBar, YearShareBar } from "./KindBar.tsx";
+import { kindMany } from "./kinds.ts";
 import { type SubscriptionsView, useSubscriptions } from "./useSubscriptions.ts";
 
 /** The question asked next: the costliest subscription the check says to ask about. */
@@ -36,7 +38,7 @@ export function checkFacts(view: SubscriptionsView): Array<{ key: string; text: 
   for (const d of view.check.duplicates)
     facts.push({
       key: `kind-${d.kind}`,
-      text: `${d.count} ${d.kind} services · ${formatCents(d.monthly_total_cents)} a month together`,
+      text: `${d.count} ${kindMany(d.kind)} · ${formatCents(d.monthly_total_cents)} a month together`,
     });
   for (const i of view.check.items)
     if (i.renewal)
@@ -74,6 +76,11 @@ export function SubscriptionCheckCard({
       {question && series ? (
         <>
           <p className="subs__question">{questionText(question)}</p>
+          <YearShareBar
+            label={question.label}
+            yearlyCents={question.yearly_cents}
+            totalYearlyCents={view.totals.yearly_cents}
+          />
           <div className="install-actions">
             <Button size="sm" onClick={() => onKeep(series)}>
               Keep it
@@ -113,6 +120,7 @@ export function SubCheckHomeCard({ today }: { today: string }) {
     >
       <Card as="div">
         <h2 className="sk-card__title">Subscriptions</h2>
+        <KindBar rows={view?.check.by_kind ?? []} height={8} />
         <Word>Check</Word>
         <p className="subs__question">{questionText(question)}</p>
       </Card>

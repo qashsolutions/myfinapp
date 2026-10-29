@@ -5554,7 +5554,7 @@
     },
     "/api/groups/{group_id}/helped": {
       "put": {
-        "description": "The member's own \"What helped\": up to 3 ids from the fixed list; [] clears it. Open once\nthey reached their target or the challenge ended (409 not_yet before).",
+        "description": "The member's own \"What helped\": up to 5 ids from the fixed list; [] clears it. Open once\nthey reached their target or the challenge ended (409 not_yet before).",
         "operationId": "update_helped_api_groups__group_id__helped_put",
         "parameters": [
           {

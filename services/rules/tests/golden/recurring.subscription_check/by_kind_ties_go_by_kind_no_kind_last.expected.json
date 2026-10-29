@@ -1,0 +1,13 @@
+{
+  "items": [
+    {"id": "c", "label": "Audible", "kind": "audio", "ask": false, "price_rise": null, "renewal": null, "trial_turned_charge": null, "yearly_cents": 12000, "monthly_cents": 1000},
+    {"id": "b", "label": "Netflix", "kind": "video", "ask": false, "price_rise": null, "renewal": null, "trial_turned_charge": null, "yearly_cents": 12000, "monthly_cents": 1000},
+    {"id": "a", "label": "Zed", "kind": null, "ask": false, "price_rise": null, "renewal": null, "trial_turned_charge": null, "yearly_cents": 12000, "monthly_cents": 1000}
+  ],
+  "duplicates": [],
+  "by_kind": [
+    {"kind": "audio", "count": 1, "yearly_cents": 12000, "monthly_cents": 1000, "ids": ["c"]},
+    {"kind": "video", "count": 1, "yearly_cents": 12000, "monthly_cents": 1000, "ids": ["b"]},
+    {"kind": null, "count": 1, "yearly_cents": 12000, "monthly_cents": 1000, "ids": ["a"]}
+  ]
+}

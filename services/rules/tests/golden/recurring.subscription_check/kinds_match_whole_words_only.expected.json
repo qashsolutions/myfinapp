@@ -1,0 +1,113 @@
+{
+  "items": [
+    {
+      "id": "s3",
+      "label": "Springfield Water",
+      "kind": null,
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 36000,
+      "monthly_cents": 3000
+    },
+    {
+      "id": "s5",
+      "label": "Tidalwave",
+      "kind": null,
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 30000,
+      "monthly_cents": 2500
+    },
+    {
+      "id": "s2",
+      "label": "Golds Gym",
+      "kind": "fitness",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 24000,
+      "monthly_cents": 2000
+    },
+    {
+      "id": "s6",
+      "label": "Yoga Studio",
+      "kind": "fitness",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 18000,
+      "monthly_cents": 1500
+    },
+    {
+      "id": "s1",
+      "label": "Gymboree",
+      "kind": null,
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 12000,
+      "monthly_cents": 1000
+    },
+    {
+      "id": "s4",
+      "label": "Ring",
+      "kind": "home",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 4800,
+      "monthly_cents": 400
+    }
+  ],
+  "duplicates": [
+    {
+      "kind": "fitness",
+      "count": 2,
+      "monthly_total_cents": 3500,
+      "ids": [
+        "s2",
+        "s6"
+      ]
+    }
+  ],
+  "by_kind": [
+    {
+      "kind": null,
+      "count": 3,
+      "yearly_cents": 78000,
+      "monthly_cents": 6500,
+      "ids": [
+        "s3",
+        "s5",
+        "s1"
+      ]
+    },
+    {
+      "kind": "fitness",
+      "count": 2,
+      "yearly_cents": 42000,
+      "monthly_cents": 3500,
+      "ids": [
+        "s2",
+        "s6"
+      ]
+    },
+    {
+      "kind": "home",
+      "count": 1,
+      "yearly_cents": 4800,
+      "monthly_cents": 400,
+      "ids": [
+        "s4"
+      ]
+    }
+  ]
+}

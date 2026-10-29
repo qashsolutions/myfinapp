@@ -1,8 +1,9 @@
 import helpedCatalog from "@stackd/rules/helped";
-import { Button, Card, ProgressBar } from "@stackd/ui";
+import { Button, Card } from "@stackd/ui";
 import { useEffect, useId, useState } from "react";
 import { Word } from "../../app/layout/Word.tsx";
 import { api, failureOf, type GroupDetail } from "../../data/api.ts";
+import { useBoxWidth } from "../../lib/useBoxWidth.ts";
 
 interface Catalog {
   max_choices: number;
@@ -22,10 +23,88 @@ export async function saveHelped(groupId: string, choices: string[]): Promise<Gr
   return failureOf(r) ? null : (r.data ?? null);
 }
 
+const ROW = 40;
+const BAR = 10;
+const VALUE = 56; // room at the bar's end for "12 of 12"
+
+/** "2 of 2 said Packed lunch (your pick), 1 of 2 said Cooked at home" for screen readers. */
+export function helpedText(rows: Array<[string, number]>, of: number, mine: string[]): string {
+  return rows
+    .map(
+      ([id, n]) =>
+        `${n} of ${of} said ${LABELS.get(id) ?? id}${mine.includes(id) ? " (your pick)" : ""}`,
+    )
+    .join(", ");
+}
+
+/**
+ * The group's totals as a ranked bar chart (October 29, 2026): most said first, one bar per
+ * choice someone picked, my own picks marked with a tick and the accent colour. Counts come
+ * straight from the server; the widths are only their picture.
+ */
+export function HelpedChart({
+  rows,
+  of,
+  mine,
+}: {
+  rows: Array<[string, number]>;
+  of: number;
+  mine: string[];
+}) {
+  const [box, width] = useBoxWidth(320, 200);
+  const track = Math.max(40, width - VALUE);
+  return (
+    <div ref={box} className="helped-chart">
+      <svg
+        width={width}
+        height={rows.length * ROW}
+        viewBox={`0 0 ${width} ${rows.length * ROW}`}
+        role="img"
+        aria-label={`What helped the group: ${helpedText(rows, of, mine)}`}
+      >
+        {rows.map(([id, n], i) => {
+          const y = i * ROW;
+          const own = mine.includes(id);
+          const w = of > 0 ? Math.max(4, Math.round((n / of) * track)) : 0;
+          return (
+            <g key={id}>
+              <text x={0} y={y + 14} className="helped-chart__label">
+                {own ? "✓ " : ""}
+                {LABELS.get(id) ?? id}
+              </text>
+              <rect x={0} y={y + 20} width={track} height={BAR} rx={BAR / 2} fill="var(--c-line)" />
+              <rect
+                x={0}
+                y={y + 20}
+                width={w}
+                height={BAR}
+                rx={BAR / 2}
+                fill={own ? "var(--c-a1)" : "var(--c-sub)"}
+              />
+              <text
+                x={width}
+                y={y + 29}
+                textAnchor="end"
+                className="helped-chart__value"
+              >{`${n} of ${of}`}</text>
+            </g>
+          );
+        })}
+      </svg>
+      {mine.some((id) => rows.some(([r]) => r === id)) ? (
+        <p className="helped-chart__key">
+          <span className="helped-chart__swatch" aria-hidden /> ✓ Your picks
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * "What helped?" (docs/spec.md "Groups"; instead of a forum): once I reached my target or the
- * challenge ended, up to three choices from one fixed list, then the group's totals as bars
- * ("6 of 9 said Packed lunch"), shown only from two answers so no answer is anyone's.
+ * challenge ended, up to five choices from one fixed list, then the group's totals as a ranked
+ * bar chart ("6 of 9 said Packed lunch"), shown only once two other members answered, so no
+ * answer is anyone's.
  */
 export function WhatHelped({ group, onSaved }: { group: GroupDetail; onSaved: () => void }) {
   const ids = useId();
@@ -37,7 +116,7 @@ export function WhatHelped({ group, onSaved }: { group: GroupDetail; onSaved: ()
   const changed = picked.join(",") !== group.my_helped.join(",");
   const totals = group.helped
     ? Object.entries(group.helped.counts)
-        .filter(([id]) => LABELS.has(id))
+        .filter(([id, n]) => LABELS.has(id) && n > 0)
         .sort(
           (a, b) =>
             b[1] - a[1] ||
@@ -48,9 +127,16 @@ export function WhatHelped({ group, onSaved }: { group: GroupDetail; onSaved: ()
 
   return (
     <Card as="section" aria-label="What helped">
+      {group.helped && totals.length ? (
+        <HelpedChart rows={totals} of={group.helped.answered} mine={group.my_helped} />
+      ) : null}
       <Word>{group.my_helped.length ? "Shared" : "Helped"}</Word>
       <h2 className="sk-card__title">What helped?</h2>
-      <p>Pick up to {HELPED.max_choices}. The group sees totals only, never who chose what.</p>
+      <p>
+        {group.helped
+          ? `${group.helped.answered} answered. Pick up to ${HELPED.max_choices} of your own.`
+          : `Pick up to ${HELPED.max_choices}. The group sees totals only, never who chose what.`}
+      </p>
       <fieldset className="chips" style={{ border: 0, margin: 0, padding: "4px 0 12px" }}>
         <legend className="sr-only">What helped you</legend>
         {HELPED.choices.map((c) => {
@@ -93,22 +179,7 @@ export function WhatHelped({ group, onSaved }: { group: GroupDetail; onSaved: ()
             ? "Couldn't save. Try again when you're online."
             : ""}
       </p>
-      {group.helped ? (
-        <div className="helped-totals">
-          {totals.map(([id, n]) => {
-            const label = LABELS.get(id) ?? id;
-            const of = group.helped?.answered ?? 0;
-            return (
-              <div key={id} className="helped-totals__row">
-                <span>
-                  {n} of {of} said {label}
-                </span>
-                <ProgressBar fraction={of ? n / of : 0} label={label} valueText={`${n} of ${of}`} />
-              </div>
-            );
-          })}
-        </div>
-      ) : (
+      {group.helped ? null : (
         <p className="auth__hint">The group's totals show once two other members have answered.</p>
       )}
     </Card>

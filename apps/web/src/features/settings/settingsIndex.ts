@@ -140,6 +140,13 @@ export const ENTRIES: SettingEntry[] = [
       "categories category rename add new own custom needs wants save hide remove rules names merchant",
   },
   {
+    label: "Subscription check",
+    group: "data",
+    path: "/subscriptions",
+    words:
+      "subscriptions still using ask again days renewal heads up reminder adjust interval kind streaming",
+  },
+  {
     label: "Linked banks & cards",
     group: "data",
     path: "/me/linking",

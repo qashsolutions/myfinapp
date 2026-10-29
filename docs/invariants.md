@@ -162,8 +162,8 @@ written against both.
     and the category's id, so the server cannot work back from it). `alerts.schedule` refuses any
     other tag and the API refuses any other key shape; the push label is fixed text. "What
     helped" answers leave as choice ids from the fixed list only, and the group sees totals only:
-    a member sees them once at least two members other than themselves answered (proposed,
-    awaiting owner sign-off), so no one can take their own answer away and read another's; leaving
+    a member sees them once at least two members other than themselves answered (signed off by
+    the owner, October 29, 2026), so no one can take their own answer away and read another's; leaving
     or being removed clears the answer, and rejoining starts without it
     (`tests/test_group_helped.py`).
     golden `alerts.schedule/budget_tag_must_be_letters` · `notifications.test.tsx` "a budget

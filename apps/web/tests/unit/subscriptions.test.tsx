@@ -92,7 +92,10 @@ describe("Subscriptions", () => {
     expect(hero).toHaveTextContent("$16.32 a month across 2 subscriptions");
     const list = screen.getByRole("region", { name: "Netflix" });
     expect(list).toHaveTextContent("$185.88 a year");
-    expect(list).toHaveTextContent("$15.49 monthly · $15.49 a month · Renews in 10 days, Oct 20");
+    expect(list).toHaveTextContent("$15.49 a month · $185.88 a year");
+    expect(list).toHaveTextContent("$15.49 monthly · Renews in 10 days, Oct 20");
+    expect(list).toHaveTextContent("In 10 days");
+    expect(list).toHaveTextContent("Video streaming");
     expect(screen.getByRole("region", { name: "Cloud" })).toHaveTextContent(
       "Renews tomorrow, Oct 11",
     );
