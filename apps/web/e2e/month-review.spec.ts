@@ -105,7 +105,9 @@ test("@phone the month review shows last month over plan and opens What if with 
   // The summary picture first: Kept as the hero, then in against out (the kept rate by month
   // joins once there are two months to compare; this account has one)
   const how = page.getByRole("region", { name: "How it went" });
-  await expect(how.locator(".sk-card__hero")).toContainText("$2,237.83 kept");
+  // The word Kept names the amount, so the hero carries no repeated unit
+  await expect(how.locator(".word")).toHaveText("Kept");
+  await expect(how.locator(".sk-card__hero")).toHaveText("$2,237.83");
   await expect(how).toContainText("93% of what came in");
   await expect(how.getByRole("img", { name: /^Kept rate by month/ })).toHaveCount(0);
   const budget = page.getByRole("region", { name: "Budget" });

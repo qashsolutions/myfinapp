@@ -95,8 +95,14 @@ function HowItWent({ review }: { review: MonthReview }) {
       </h2>
       <Word>{how.word}</Word>
       <p className="sk-card__hero review-month__hero">
-        {formatCents(Math.abs(now.kept_cents))}{" "}
-        <span className="sk-card__hero-unit">{now.kept_cents < 0 ? "over" : "kept"}</span>
+        {formatCents(Math.abs(now.kept_cents))}
+        {/* The word Kept / Over already names the amount; after Up / Down / Steady the unit says it. */}
+        {how.word === "Kept" || how.word === "Over" ? null : (
+          <>
+            {" "}
+            <span className="sk-card__hero-unit">{now.kept_cents < 0 ? "over" : "kept"}</span>
+          </>
+        )}
       </p>
       {/* The hero already says Kept: the line says what share of what came in, then the month
           before, so "kept" is never said three times over. */}
