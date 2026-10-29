@@ -2,7 +2,7 @@ import helpedCatalog from "@stackd/rules/helped";
 import { Button, Card } from "@stackd/ui";
 import { useEffect, useId, useState } from "react";
 import { Word } from "../../app/layout/Word.tsx";
-import { api, failureOf, type GroupDetail } from "../../data/api.ts";
+import { type ApiFailure, api, failureOf, type GroupDetail } from "../../data/api.ts";
 import { useBoxWidth } from "../../lib/useBoxWidth.ts";
 
 interface Catalog {
@@ -15,12 +15,35 @@ export const HELPED = helpedCatalog as Catalog;
 const LABELS = new Map(HELPED.choices.map((c) => [c.id, c.label] as const));
 
 /** Saves my answer: only the choice ids leave the device, never anything typed. */
-export async function saveHelped(groupId: string, choices: string[]): Promise<GroupDetail | null> {
+export async function saveHelped(
+  groupId: string,
+  choices: string[],
+): Promise<GroupDetail | ApiFailure> {
   const r = await api.PUT("/api/groups/{group_id}/helped", {
     params: { path: { group_id: groupId } },
     body: { choices },
   });
-  return failureOf(r) ? null : (r.data ?? null);
+  const failure = failureOf(r);
+  if (failure) return failure;
+  return r.data ?? { status: 500, code: "error" };
+}
+
+/**
+ * What went wrong with a save, in plain words (October 29, 2026): only a network failure asks
+ * to try again online; the server's own answers say what to change.
+ */
+export function helpedErrorText(failure: ApiFailure): string {
+  if (failure.status === 0) return "Couldn't save. Try again when you're online.";
+  if (failure.status === 409)
+    return "You can answer once you reach your target or the challenge ends.";
+  if (failure.status === 422) return `Pick up to ${HELPED.max_choices} from the list.`;
+  if (failure.status === 429) return "Too many changes this hour. Try again later.";
+  if (failure.status === 404) return "This challenge isn't yours to answer any more.";
+  return "Couldn't save just now. Try again in a moment.";
+}
+
+function isFailure(r: GroupDetail | ApiFailure): r is ApiFailure {
+  return "code" in r && "status" in r && !("id" in r);
 }
 
 const ROW = 40;
@@ -117,6 +140,7 @@ export function WhatHelped({
   const ids = useId();
   const [picked, setPicked] = useState<string[]>(group.my_helped);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [problem, setProblem] = useState("");
   useEffect(() => setPicked(group.my_helped), [group.my_helped]);
 
   const full = picked.length >= HELPED.max_choices;
@@ -172,7 +196,10 @@ export function WhatHelped({
         onClick={async () => {
           setStatus("saving");
           const saved = await saveHelped(group.id, picked);
-          if (!saved) return setStatus("failed");
+          if (isFailure(saved)) {
+            setProblem(helpedErrorText(saved));
+            return setStatus("failed");
+          }
           setStatus("saved");
           onSaved(saved);
         }}
@@ -180,11 +207,7 @@ export function WhatHelped({
         Save
       </Button>
       <p className="auth__hint" role="status">
-        {status === "saved"
-          ? "Saved. Thanks for sharing."
-          : status === "failed"
-            ? "Couldn't save. Try again when you're online."
-            : ""}
+        {status === "saved" ? "Saved. Thanks for sharing." : status === "failed" ? problem : ""}
       </p>
       {group.helped ? null : (
         <p className="auth__hint">The group's totals show once two other members have answered.</p>
