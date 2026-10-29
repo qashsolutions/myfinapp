@@ -1,7 +1,7 @@
 import { Button, Chip } from "@stackd/ui";
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
-import { api, failureOf } from "../../data/api.ts";
+import { api, failureOf, OFFLINE_MESSAGE } from "../../data/api.ts";
 import { APP_NAME } from "../../lib/brand.ts";
 import { mmss } from "../../lib/dates.ts";
 import { isStandalone } from "../../lib/platform.ts";
@@ -41,9 +41,11 @@ export function OtpEntry() {
     setResendIn(failure?.retryAfter ?? result.data?.resend_after_seconds ?? 60);
     setCode("");
     setError(
-      failure && failure.code === "locked"
+      failure?.code === "locked"
         ? "Too many wrong tries. Codes pause for 15 minutes."
-        : null,
+        : failure?.code === "offline"
+          ? OFFLINE_MESSAGE
+          : null,
     );
   }
 
@@ -63,6 +65,8 @@ export function OtpEntry() {
       navigate(info?.has_passkeys ? "/" : "/signup/passkey", { replace: true });
       return;
     }
+    // No network: the code was never checked and still works, so it stays in the boxes.
+    if (failure.code === "offline") return setError(OFFLINE_MESSAGE);
     setCode("");
     if (failure.code === "wrong_code") {
       const left = failure.attemptsLeft ?? 0;

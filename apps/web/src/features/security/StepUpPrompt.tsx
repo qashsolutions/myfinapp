@@ -67,7 +67,9 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
       setError(
         e?.code === "cancelled"
           ? "Cancelled. Try again when you're ready."
-          : `${bio} didn't match. Try again.`,
+          : e?.code === "offline"
+            ? e.message
+            : `${bio} didn't match. Try again.`,
       );
     } finally {
       setBusy(false);

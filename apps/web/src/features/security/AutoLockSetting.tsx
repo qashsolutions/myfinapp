@@ -1,6 +1,6 @@
 import { Button, Card } from "@stackd/ui";
 import { useEffect, useId, useState } from "react";
-import { api, failureOf } from "../../data/api.ts";
+import { api, failureOf, failureText } from "../../data/api.ts";
 import { useSession } from "../auth/useSession.tsx";
 import { useStepUp } from "./StepUpPrompt.tsx";
 
@@ -47,8 +47,9 @@ export function AutoLockSetting() {
     setBusy(true);
     const r = await api.PUT("/api/security/lock", { body: { minutes } });
     setBusy(false);
-    if (failureOf(r)) {
-      setNotice("Couldn't save that. Try again.");
+    const failure = failureOf(r);
+    if (failure) {
+      setNotice(failureText(failure, "Couldn't save that. Try again."));
       return;
     }
     await session.refresh();

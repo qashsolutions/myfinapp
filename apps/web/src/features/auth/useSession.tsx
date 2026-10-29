@@ -9,6 +9,11 @@
  *
  * The server is the authority (`locked` from the API); the client also locks itself on
  * inactivity (SessionLock) and on a `locked` signal from any response.
+ *
+ * No network (invariant 36, October 29, 2026): when the session check can't reach the server,
+ * the last answer this device kept for a signed-in account is used, always locked, and the
+ * lock screen unlocks it with a passkey check on this device only (lib/offlineSession.ts says
+ * why). The check runs again as soon as the device is back online.
  */
 
 import {
@@ -25,6 +30,14 @@ import { api, backgroundApi, onAuthSignal, type SessionInfo } from "../../data/a
 import { closeDb, deleteDb } from "../../data/db.ts";
 import { currentHashFor, rememberCurrent, rememberKept } from "../../lib/keptAccount.ts";
 import { rememberAccount } from "../../lib/lastAccount.ts";
+import {
+  forgetSession,
+  markSignOutPending,
+  offlineSession,
+  rememberSession,
+  signOutPending,
+} from "../../lib/offlineSession.ts";
+import { forgetReturn } from "../../lib/returnTo.ts";
 
 /** Erase this device's copy of a deleted account: its database and every `stackd.` key. */
 async function wipeDevice(userId: string): Promise<void> {
@@ -46,6 +59,7 @@ async function wipeDevice(userId: string): Promise<void> {
 
 /** Keep this device's copy of an account whose plan ended, and show where it is. */
 async function keepDevice(userId: string): Promise<void> {
+  forgetSession();
   rememberKept({
     user_id: userId,
     closed_at: new Date().toISOString(),
@@ -60,12 +74,16 @@ export type SessionStatus = "loading" | "signed_out" | "needs_passkey" | "locked
 export interface Session {
   status: SessionStatus;
   info: SessionInfo | null;
+  /** The last session check couldn't reach the server: `info` is this device's last answer. */
+  offline: boolean;
   /** Re-read the session from the server. */
   refresh: () => Promise<SessionInfo | null>;
   /** Lock (inactivity): the screen and the server session; the next unlock asserts the passkey. */
   lock: () => void;
   /** After a successful passkey check on this device. */
   unlocked: (passkeyVerifiedAt: string) => void;
+  /** After a passkey check on this device with no network: opens this device's data only. */
+  unlockedOffline: () => void;
   signOut: () => Promise<void>;
 }
 
@@ -82,12 +100,37 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [info, setInfo] = useState<SessionInfo | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [clientLocked, setClientLocked] = useState(false);
+  const [offline, setOffline] = useState(false);
+  const offlineRef = useRef(false);
+  const answered = useRef<SessionInfo | null | undefined>(undefined); // the server's last word
   const alive = useRef(true);
 
   const refresh = useCallback(async () => {
-    const { data } = await api.GET("/api/auth/session");
+    // Log out pressed with no network: tell the server first, so the cookie it still honours
+    // never signs this device back in.
+    if (signOutPending()) {
+      const out = await api.POST("/api/auth/signout");
+      if (out.response.status !== 0 && out.response.status < 500) markSignOutPending(false);
+    }
+    const r = await api.GET("/api/auth/session");
     if (!alive.current) return null;
-    const next = data ?? null;
+    // The session check never answers an error, so no answer means no network or no server
+    // (a proxy's 502 too): fall back to what this device kept, locked (invariant 36).
+    if (!r.data) {
+      offlineRef.current = true;
+      setOffline(true);
+      // The server already answered in this run (the network dropped later): what it said
+      // stands, locked or not, and the idle lock keeps running.
+      if (answered.current !== undefined) return answered.current;
+      const kept = signOutPending() ? null : offlineSession();
+      setInfo(kept);
+      setLoaded(true);
+      return kept;
+    }
+    offlineRef.current = false;
+    setOffline(false);
+    const next = r.data;
+    answered.current = next;
     // This device's account was deleted elsewhere (another device, the website, or a plan that
     // ended): erase what this device kept, then say so (October 14, 2026).
     if (next && !next.authenticated && next.deleted_user_id) {
@@ -100,7 +143,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (next?.authenticated && next.has_passkeys && next.user) {
       rememberAccount(next.user.email, next.user.display_name ?? null);
       void rememberCurrent(next.user.id, next.user.email);
-    }
+      rememberSession(next);
+    } else if (!next.authenticated) forgetSession(); // the server's word: no session here
     setInfo(next);
     setLoaded(true);
     if (next?.locked === false) setClientLocked(false);
@@ -110,8 +154,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     alive.current = true;
     void refresh();
+    // Back online after an offline open: ask the server again (it may still say locked).
+    const retry = () => {
+      if (offlineRef.current) void refresh();
+    };
+    window.addEventListener("online", retry);
     return () => {
       alive.current = false;
+      window.removeEventListener("online", retry);
     };
   }, [refresh]);
 
@@ -143,8 +193,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       i ? { ...i, locked: false, has_passkeys: true, passkey_verified_at: passkeyVerifiedAt } : i,
     );
   }, []);
+  const unlockedOffline = useCallback(() => {
+    // The server hasn't heard: ask it again once the device is back online.
+    offlineRef.current = true;
+    setOffline(true);
+    setClientLocked(false);
+    setInfo((i) => (i ? { ...i, locked: false } : i));
+  }, []);
   const signOut = useCallback(async () => {
-    await api.POST("/api/auth/signout");
+    const r = await api.POST("/api/auth/signout");
+    // No network: this device forgets now and the server is told on the next open online.
+    markSignOutPending(r.response.status === 0 || r.response.status >= 500);
+    forgetSession();
+    forgetReturn();
+    answered.current = undefined;
     setClientLocked(false);
     setInfo((i) => (i ? { ...i, authenticated: false } : i));
   }, []);
@@ -153,12 +215,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     () => ({
       status: loaded ? statusOf(info, clientLocked) : "loading",
       info,
+      offline,
       refresh,
       lock,
       unlocked,
+      unlockedOffline,
       signOut,
     }),
-    [loaded, info, clientLocked, refresh, lock, unlocked, signOut],
+    [loaded, info, offline, clientLocked, refresh, lock, unlocked, unlockedOffline, signOut],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

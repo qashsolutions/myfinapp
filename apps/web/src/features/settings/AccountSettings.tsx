@@ -4,7 +4,7 @@ import { Button, List, ListRow, Sheet } from "@stackd/ui";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
-import { api, failureOf } from "../../data/api.ts";
+import { api, failureOf, failureText } from "../../data/api.ts";
 import { useSession } from "../auth/useSession.tsx";
 import { usePlanLine } from "./SettingsScreen.tsx";
 
@@ -30,8 +30,9 @@ export function AccountSettings() {
       return;
     }
     const r = await api.PATCH("/api/account", { body: { display_name: trimmed } });
-    if (failureOf(r)) {
-      setNameError("Couldn't save your name. Try again.");
+    const failure = failureOf(r);
+    if (failure) {
+      setNameError(failureText(failure, "Couldn't save your name. Try again."));
       return;
     }
     await session.refresh();

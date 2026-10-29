@@ -242,6 +242,8 @@ export interface FakeApi {
   wrongAttempts: number;
   /** The server's per-IP limit on code checks has been reached (October 24, 2026). */
   verifyRateLimited?: boolean;
+  /** No network: every request fails the way fetch does offline (a TypeError). */
+  offline?: boolean;
   /** This inbox may not buy again: a lost dispute or a fraud-warning refund (October 24, 2026). */
   purchaseBlocked?: boolean;
   passkeySignInUnknown: boolean;
@@ -523,6 +525,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     const request = input instanceof Request ? input : new Request(input, init);
     const path = new URL(request.url).pathname;
     const method = request.method;
+    if (state.offline) throw new TypeError("Failed to fetch"); // nothing reaches the server
     const raw = method === "GET" || method === "HEAD" ? "" : await request.text().catch(() => "");
     let body: unknown;
     if (method !== "GET" && method !== "DELETE" && raw) {

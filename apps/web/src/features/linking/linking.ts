@@ -7,7 +7,7 @@
 
 import type { components } from "@stackd/api-client";
 import { useCallback, useEffect, useState } from "react";
-import { type ApiFailure, api, failureOf } from "../../data/api.ts";
+import { type ApiFailure, api, failureOf, OFFLINE_MESSAGE } from "../../data/api.ts";
 import { type Account, type AccountType, newId, type StackdDb } from "../../data/db.ts";
 import { goExternal } from "../billing/billing.ts";
 
@@ -154,6 +154,7 @@ export const LINK_ERRORS: Record<string, string> = {
   session_expired: "That link took too long. Start again from Linked banks & cards.",
   not_found: "We couldn't find that link. Start again from Linked banks & cards.",
   login_required: "Your bank needs you to sign in again. Tap Sign in again next to it.",
+  offline: OFFLINE_MESSAGE,
 };
 
 export function linkErrorText(code: string): string {

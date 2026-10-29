@@ -46,6 +46,16 @@ export function createApiClient(options: ApiClientOptions = {}) {
     // Late-bound so a test can replace globalThis.fetch after the client exists.
     fetch: options.fetch ?? ((input: Request) => globalThis.fetch(input)),
   });
+  // No network (offline, the server unreachable, DNS): answer with a status-0 response, the
+  // shape every caller already reads with failureOf(), instead of throwing past it. A throw
+  // left buttons pending for good and the session check loading forever (invariant 35,
+  // October 29, 2026). A request the caller cancelled still throws, since nobody waits on it.
+  client.use({
+    onError({ error }) {
+      if ((error as { name?: unknown } | null)?.name === "AbortError") return error as Error;
+      return Response.error();
+    },
+  });
   if (options.onAuthSignal) {
     const onAuthSignal = options.onAuthSignal;
     const middleware: Middleware = {

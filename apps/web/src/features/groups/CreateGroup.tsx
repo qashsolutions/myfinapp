@@ -6,6 +6,7 @@ import { Button, Card } from "@stackd/ui";
 import { useId, useState } from "react";
 import { useNavigate } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
+import { failureText } from "../../data/api.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { customJar, EngineError, monthBounds, parseAmount } from "../../engine/bridge.ts";
 import { formatMonth, todayIso } from "../../lib/format.ts";
@@ -81,7 +82,7 @@ export function CreateGroup() {
         }
         const failure = await setDisplayName(trimmed);
         if (failure) {
-          setError("Couldn't save your name. Try again.");
+          setError(failureText(failure, "Couldn't save your name. Try again."));
           return;
         }
         await session.refresh();

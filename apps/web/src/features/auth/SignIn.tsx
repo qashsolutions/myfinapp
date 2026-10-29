@@ -1,7 +1,7 @@
 import { Button } from "@stackd/ui";
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { api, failureOf } from "../../data/api.ts";
+import { api, failureOf, failureText } from "../../data/api.ts";
 import { APP_NAME } from "../../lib/brand.ts";
 import { isStandalone } from "../../lib/platform.ts";
 import { armPasskeyAutofill, cancelPasskeyAutofill } from "../security/webauthn.ts";
@@ -83,7 +83,7 @@ export function SignIn() {
     } else if (failure.code === "rate_limited") {
       setError("Too many requests. Try again in a few minutes.");
     } else {
-      setError("We couldn't send the code. Check your connection and try again.");
+      setError(failureText(failure, "We couldn't send the code. Try again."));
     }
   }
 

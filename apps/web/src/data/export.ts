@@ -36,6 +36,26 @@ function dollars(cents: number): string {
   return `${sign}${Math.trunc(abs / 100)}.${String(abs % 100).padStart(2, "0")}`;
 }
 
+/**
+ * Settings that never go in the export (October 29, 2026): keys to the person's data, not the
+ * data. The backup key and recovery key open the server backups, the household key opens the
+ * household's shared blobs, the alert salt hides categories in alert keys, a linking cursor is
+ * a bank sync's place; the rest of `backup.` is this device's sync bookkeeping. A key ending
+ * in "." names every key that starts with it. Nothing changes for the person: these stay on
+ * this device and keep working; the export never needed them.
+ */
+export const EXPORT_LEFT_OUT_SETTINGS: readonly string[] = [
+  "backup.",
+  "household.key",
+  "alerts.tag_salt",
+  "alerts.last_hash",
+  "linking.cursor.",
+];
+
+export function exportsSetting(key: string): boolean {
+  return !EXPORT_LEFT_OUT_SETTINGS.some((p) => (p.endsWith(".") ? key.startsWith(p) : key === p));
+}
+
 /** A kept file's name made safe as one ZIP path segment. */
 function safeName(name: string): string {
   return name.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^\.+/, "_") || "file";
@@ -60,7 +80,7 @@ export async function collectExport(
     goalEvents,
     budgets,
     budgetLines,
-    settings,
+    allSettings,
     merchantRules,
     recurring,
     debts,
@@ -107,6 +127,7 @@ export async function collectExport(
     db.own_subscription_kinds.toArray(),
     db.own_subscription_words.toArray(),
   ]);
+  const settings = allSettings.filter((s) => exportsSetting(s.key));
   const statementPath = (f: { id: string; name: string }) =>
     `statements/${f.id}-${safeName(f.name)}`;
   const categoryName = new Map(categories.map((c) => [c.id, c.name]));

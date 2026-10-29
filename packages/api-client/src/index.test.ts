@@ -51,6 +51,31 @@ describe("createApiClient", () => {
     expect(seen).toEqual(["locked"]);
   });
 
+  // Invariant 35: a network failure is an answer (status 0), never a throw, so every screen's
+  // pending state ends and "You're offline" can show (October 29, 2026).
+  it("answers a network failure with status 0 instead of throwing", async () => {
+    const api = createApiClient({
+      baseUrl: "http://app.test",
+      fetch: async () => {
+        throw new TypeError("Failed to fetch");
+      },
+    });
+    const result = await api.POST("/api/auth/signout");
+    expect(result.response.status).toBe(0);
+    expect(result.response.ok).toBe(false);
+    expect(result.data).toBeUndefined();
+  });
+
+  it("still throws when the caller cancelled the request", async () => {
+    const api = createApiClient({
+      baseUrl: "http://app.test",
+      fetch: async () => {
+        throw new DOMException("The operation was aborted.", "AbortError");
+      },
+    });
+    await expect(api.GET("/api/auth/session")).rejects.toThrow("aborted");
+  });
+
   it("authSignalOf ignores other errors", async () => {
     const r = new Response(JSON.stringify({ detail: "not_found" }), { status: 404 });
     expect(await authSignalOf(r)).toBeNull();

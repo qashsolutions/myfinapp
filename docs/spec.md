@@ -259,6 +259,10 @@ A five-tab bottom bar: **Home · Budget · Goals · Insights · Me**. "Insights"
 
 Rules: never show the install guide inside the installed app (`display-mode: standalone`); a dismissed install prompt stays hidden for 14 days (owner sign-off, October 27, 2026); queued entries sync automatically when back online, oldest first.
 
+**Opened with no network** (October 29, 2026; docs/invariants.md 35 and 36). A call that never reaches the server is an answer (status 0, "You're offline. Try again when connected."), never a hang: every button's wait ends and says so. When the session check can't reach the server, the app opens for the account last signed in on this device, always locked; Unlock checks the passkey on this device alone and opens what is stored here, with the offline banner; the server is asked again as soon as the device is back online and its answer wins (it may still ask for the passkey). A device that never unlocked that account offline says to connect once. Log out with no network forgets here at once and tells the server at the next open online. Details in `docs/security/security-plan.md`.
+
+**Back where you were going** (October 29, 2026; invariant 37). A link opened signed out (a challenge `/groups/join?code=…`, a household invite with its `#k=` key) leads through Welcome, the email code or a passkey, passkey setup and the trial pick, then opens that link instead of Home. Only a path in this app is kept (never another site, never a sign-in screen), in this tab's `sessionStorage`, taken once; the household key never goes in a query string or a request.
+
 ## Feature specs
 
 ### Budgeting
@@ -605,6 +609,7 @@ Settings lives under the **Me** tab (owner decision, October 18, 2026): a short 
 
 - Produces a ZIP: `profile.json`, `entries.csv`, `goals.json`, `groups.json`, `budgets.json`, `settings.json`, and a `receipts/` folder of photos.
 - Built on the device and saved directly; server-held data (account, groups, plan) is added through one authenticated request.
+- Never a key to the data (October 29, 2026; invariant 25): the backup key and recovery key, the household key, the alert salt, linking cursors and the rest of the device's backup bookkeeping are left out (`EXPORT_LEFT_OUT_SETTINGS` in `data/export.ts`), so whoever gets the file cannot open the server backups or the household's shared jars with it. They stay on the device and keep working; the export screen says nothing changes for the person.
 
 **Delete account**
 

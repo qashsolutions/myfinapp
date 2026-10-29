@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router";
 import { DbProvider } from "../data/DbProvider.tsx";
 import { useSession } from "../features/auth/useSession.tsx";
 import { StepUpProvider } from "../features/security/StepUpPrompt.tsx";
+import { rememberReturn } from "../lib/returnTo.ts";
 import { AccessGate } from "./AccessGate.tsx";
 import { SessionLock } from "./SessionLock.tsx";
 
@@ -16,8 +17,11 @@ export function RequireAuth() {
       </p>
     );
   }
-  if (status === "signed_out")
-    return <Navigate to="/welcome" replace state={{ from: location.pathname }} />;
+  // Signed out or mid-sign-up: remember where this was going (a challenge or household link,
+  // query and fragment too), so the way in ends there (invariant 37).
+  if (status === "signed_out" || status === "needs_passkey")
+    rememberReturn(`${location.pathname}${location.search}${location.hash}`);
+  if (status === "signed_out") return <Navigate to="/welcome" replace />;
   if (status === "needs_passkey") return <Navigate to="/signup/passkey" replace />;
   return (
     <StepUpProvider>

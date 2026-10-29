@@ -6,7 +6,7 @@ import { Button, Card, Chip } from "@stackd/ui";
 import { useEffect, useId, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
-import type { GroupPreview } from "../../data/api.ts";
+import { failureText, type GroupPreview } from "../../data/api.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { customJar, EngineError, parseAmount } from "../../engine/bridge.ts";
 import { formatDay, todayIso } from "../../lib/format.ts";
@@ -58,7 +58,7 @@ export function JoinGroup() {
             ? "No group with that code. Check it and try again."
             : result.status === 429
               ? "Too many tries. Wait a few minutes."
-              : "Couldn't look that up. Are you online?",
+              : failureText(result, "Couldn't look that up. Try again."),
         );
       } else setPreview(result);
     });
@@ -91,7 +91,7 @@ export function JoinGroup() {
         }
         const failure = await setDisplayName(trimmed);
         if (failure) {
-          setError("Couldn't save your name. Try again.");
+          setError(failureText(failure, "Couldn't save your name. Try again."));
           return;
         }
         await session.refresh();
@@ -103,7 +103,7 @@ export function JoinGroup() {
             ? "Your plan joins one challenge at a time. Leave the other first, or choose a bigger plan."
             : result.status === 404
               ? "That code no longer works."
-              : "Couldn't join. Try again.",
+              : failureText(result, "Couldn't join. Try again."),
         );
         return;
       }

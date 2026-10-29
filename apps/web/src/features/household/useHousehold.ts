@@ -78,7 +78,7 @@ export async function createInvite(
 ): Promise<{ link: string; code: string } | ApiFailure> {
   const r = await api.POST("/api/household/invites");
   const failure = failureOf(r);
-  if (failure || !r.data) return failure ?? { status: 0, code: "error" };
+  if (failure || !r.data) return failure ?? { status: 500, code: "error" };
   const status = await fetchHouseholdStatus();
   if (status?.household) await rememberHousehold(db, status.household.id);
   const key = await ensureHouseholdKey(db);
@@ -92,7 +92,7 @@ export async function joinHousehold(
 ): Promise<HouseholdStatus["household"] | ApiFailure> {
   const r = await api.POST("/api/household/join", { body: { code } });
   const failure = failureOf(r);
-  if (failure || !r.data) return failure ?? { status: 0, code: "error" };
+  if (failure || !r.data) return failure ?? { status: 500, code: "error" };
   await rememberHousehold(db, r.data.id, keyB64);
   return r.data as HouseholdStatus["household"];
 }

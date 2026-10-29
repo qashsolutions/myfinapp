@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router";
 import { api, failureOf } from "../../data/api.ts";
 import { APP_NAME } from "../../lib/brand.ts";
 import { formatCents } from "../../lib/format.ts";
+import { takeReturn } from "../../lib/returnTo.ts";
 import { AuthLayout } from "../auth/AuthLayout.tsx";
 import { BringBackOffer } from "../settings/KeptOnPhone.tsx";
 import { priceCents, useBilling } from "./billing.ts";
@@ -86,9 +87,12 @@ export function ChooseTrial() {
       );
       return;
     }
+    // A link that started the way in (a challenge, a household invite) comes first; taken
+    // before the refresh opens the app, so AccessGate never races this (invariant 37).
+    const back = takeReturn();
     await refresh();
     // Then "Make Qash yours": choices, not a wizard (owner, October 20, 2026).
-    navigate("/setup", { replace: true });
+    navigate(back ?? "/setup", { replace: true });
   }
 
   if (used) return <WelcomeBack />;
