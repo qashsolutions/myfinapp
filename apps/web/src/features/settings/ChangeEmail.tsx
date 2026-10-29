@@ -5,7 +5,7 @@ import { Button, Card } from "@stackd/ui";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
-import { api, failureOf } from "../../data/api.ts";
+import { api, failureOf, failureText } from "../../data/api.ts";
 import { useSession } from "../auth/useSession.tsx";
 import { useStepUp } from "../security/StepUpPrompt.tsx";
 
@@ -37,7 +37,7 @@ export function ChangeEmail() {
             ? "That's already your address."
             : failure.status === 429
               ? "Too many codes. Wait a minute."
-              : "Couldn't send a code. Try again.",
+              : failureText(failure, "Couldn't send a code. Try again."),
       );
       return;
     }
@@ -62,7 +62,7 @@ export function ChangeEmail() {
                 ? "Too many wrong tries. Codes pause for 15 minutes."
                 : failure.code === "rate_limited"
                   ? "Too many tries from this network. Wait a few minutes."
-                  : "Couldn't verify the code. Try again.",
+                  : failureText(failure, "Couldn't verify the code. Try again."),
       );
       return;
     }

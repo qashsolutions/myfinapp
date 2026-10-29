@@ -10,7 +10,8 @@ import {
   startRegistration,
   WebAuthnAbortService,
 } from "@simplewebauthn/browser";
-import { api, failureOf, type PasskeyOut } from "../../data/api.ts";
+import { api, failureOf, OFFLINE_MESSAGE, type PasskeyOut } from "../../data/api.ts";
+import { noteCredential, offlineUnlock } from "../../lib/offlineSession.ts";
 import {
   nativeCreateCredential,
   nativeGetCredential,
@@ -19,12 +20,25 @@ import {
 
 export class PasskeyError extends Error {
   constructor(
-    public readonly code: "cancelled" | "unsupported" | "no_passkeys" | "invalid" | "failed",
+    public readonly code:
+      | "cancelled"
+      | "unsupported"
+      | "no_passkeys"
+      | "invalid"
+      | "failed"
+      | "offline",
     message: string,
   ) {
     super(message);
     this.name = "PasskeyError";
   }
+}
+
+/** A server step that failed: no network says so (invariant 35); anything else keeps its code. */
+function serverFailed(r: { error?: unknown; response: Response }): PasskeyError {
+  const failure = failureOf(r);
+  if (failure?.status === 0) return new PasskeyError("offline", OFFLINE_MESSAGE);
+  return new PasskeyError("failed", failure?.code ?? "failed");
 }
 
 let phoneNext = false;
@@ -61,12 +75,25 @@ function classify(err: unknown): PasskeyError {
   return new PasskeyError("failed", "The passkey check didn't complete.");
 }
 
+/** The relying party id in the server's options (assertion `rpId`, registration `rp.id`). */
+function rpIdOf(options: unknown): string | null {
+  const o = options as { rpId?: unknown; rp?: { id?: unknown } } | null;
+  if (typeof o?.rpId === "string") return o.rpId;
+  if (typeof o?.rp?.id === "string") return o.rp.id;
+  return null;
+}
+
+/** Remember a passkey the server accepted, for unlocking on this device with no network. */
+function remember(options: unknown, credential: { id?: unknown }, signedIn: boolean): void {
+  if (typeof credential.id === "string") noteCredential(rpIdOf(options), credential.id, signedIn);
+}
+
 /** Create a passkey on this device and attach it to the signed-in account. */
 export async function registerPasskey(label?: string): Promise<PasskeyOut> {
   if (!passkeysSupported())
     throw new PasskeyError("unsupported", "This browser can't create passkeys.");
   const opts = await api.POST("/api/security/passkeys/register/options");
-  if (!opts.data) throw new PasskeyError("failed", failureOf(opts)?.code ?? "failed");
+  if (!opts.data) throw serverFailed(opts);
   let credential: Awaited<ReturnType<typeof startRegistration>>;
   try {
     credential = nativePasskeysAvailable()
@@ -79,7 +106,8 @@ export async function registerPasskey(label?: string): Promise<PasskeyOut> {
   const result = await api.POST("/api/security/passkeys/register/verify", {
     body: { credential: credential as unknown as Record<string, never>, label: label ?? null },
   });
-  if (!result.data) throw new PasskeyError("failed", failureOf(result)?.code ?? "failed");
+  if (!result.data) throw serverFailed(result);
+  remember(opts.data.options, credential, true);
   return result.data;
 }
 
@@ -126,7 +154,7 @@ export async function assertPasskeyWithPrf(
     const failure = failureOf(opts);
     if (failure?.code === "no_passkeys")
       throw new PasskeyError("no_passkeys", "No passkey on this account yet.");
-    throw new PasskeyError("failed", failure?.code ?? "failed");
+    throw serverFailed(opts);
   }
   let credential: Awaited<ReturnType<typeof startAuthentication>>;
   try {
@@ -152,7 +180,11 @@ export async function assertPasskeyWithPrf(
   const result = await api.POST("/api/security/passkeys/assert/verify", {
     body: { credential: credential as unknown as Record<string, never> },
   });
-  if (!result.data) throw new PasskeyError("invalid", "That didn't match. Try again.");
+  if (!result.data) {
+    if (result.response.status === 0) throw serverFailed(result);
+    throw new PasskeyError("invalid", "That didn't match. Try again.");
+  }
+  remember(opts.data.options, credential, purpose !== "sign_in");
   return {
     verifiedAt: result.data.passkey_verified_at,
     prf,
@@ -169,7 +201,7 @@ export async function signInWithPasskey(displayMode: "browser" | "standalone"): 
   if (!passkeysSupported())
     throw new PasskeyError("unsupported", "This browser can't use passkeys.");
   const opts = await api.POST("/api/auth/passkey/options");
-  if (!opts.data) throw new PasskeyError("failed", failureOf(opts)?.code ?? "failed");
+  if (!opts.data) throw serverFailed(opts);
   let credential: Awaited<ReturnType<typeof startAuthentication>>;
   try {
     credential = nativePasskeysAvailable()
@@ -186,6 +218,7 @@ export async function signInWithPasskey(displayMode: "browser" | "standalone"): 
     },
   });
   if (!result.data) {
+    if (result.response.status === 0) throw serverFailed(result);
     const code = failureOf(result)?.code;
     throw new PasskeyError(
       code === "unknown_credential" ? "no_passkeys" : "failed",
@@ -194,6 +227,7 @@ export async function signInWithPasskey(displayMode: "browser" | "standalone"): 
         : "The passkey check didn't complete.",
     );
   }
+  remember(opts.data.options, credential, false);
 }
 
 /**
@@ -224,7 +258,51 @@ export async function armPasskeyAutofill(displayMode: "browser" | "standalone"):
       display_mode: displayMode,
     },
   });
+  if (result.data) remember(opts.data.options, credential, false);
   return Boolean(result.data);
+}
+
+function randomChallenge(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/**
+ * Unlock with no network (invariant 36): a passkey check on this device alone, user
+ * verification required, offered only the passkeys that unlocked this account here. Opens what
+ * is on this device; the server is not asked and its session stays locked (lib/offlineSession.ts).
+ */
+export async function unlockOnDevice(): Promise<void> {
+  const known = offlineUnlock();
+  if (!known)
+    throw new PasskeyError("no_passkeys", "Connect to unlock this device the first time.");
+  if (!passkeysSupported())
+    throw new PasskeyError("unsupported", "This browser can't use passkeys.");
+  const options = {
+    challenge: randomChallenge(),
+    ...(known.rpId ? { rpId: known.rpId } : {}),
+    allowCredentials: known.credentialIds.map((id) => ({ id, type: "public-key" })),
+    userVerification: "required",
+    timeout: 60000,
+  };
+  let credential: { id?: unknown; response?: { authenticatorData?: unknown } };
+  try {
+    credential = nativePasskeysAvailable()
+      ? ((await nativeGetCredential(options)) as typeof credential)
+      : // biome-ignore lint/suspicious/noExplicitAny: the same spec-shaped options the server builds
+        await startAuthentication({ optionsJSON: options as any });
+  } catch (err) {
+    throw classify(err);
+  }
+  if (typeof credential.id !== "string" || !known.credentialIds.includes(credential.id))
+    throw new PasskeyError("invalid", "That passkey isn't this account's.");
+  // The authenticator must say it verified the person (flags byte, bit UV), not just presence.
+  const data = credential.response?.authenticatorData;
+  const flags = typeof data === "string" ? base64urlToBytes(data)[32] : undefined;
+  if (flags === undefined || (flags & 0x04) === 0)
+    throw new PasskeyError("invalid", "Your device didn't confirm it's you. Try again.");
 }
 
 /** Stops a pending autofill request (before the email code is sent, or when leaving). */

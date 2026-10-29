@@ -7,6 +7,7 @@ import { useCallback, useEffect, useId, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
+import { failureText } from "../../data/api.ts";
 import { formatCents, formatDate, formatWholeDollars } from "../../lib/format.ts";
 import {
   buyPlanNative,
@@ -247,7 +248,7 @@ export function PlanScreen() {
     const result = await setTesterPlan(plan);
     setBusy(false);
     if (isFailure(result)) {
-      setStatus("Couldn't switch the test plan. Try again.");
+      setStatus(failureText(result, "Couldn't switch the test plan. Try again."));
       return;
     }
     await refresh();

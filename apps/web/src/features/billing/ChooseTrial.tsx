@@ -4,9 +4,10 @@ import "./billing.css";
 import { Button, buttonClass } from "@stackd/ui";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { api, failureOf } from "../../data/api.ts";
+import { api, failureOf, failureText } from "../../data/api.ts";
 import { APP_NAME } from "../../lib/brand.ts";
 import { formatCents } from "../../lib/format.ts";
+import { takeReturn } from "../../lib/returnTo.ts";
 import { AuthLayout } from "../auth/AuthLayout.tsx";
 import { BringBackOffer } from "../settings/KeptOnPhone.tsx";
 import { priceCents, useBilling } from "./billing.ts";
@@ -49,7 +50,19 @@ const CHOICES: Array<{
  */
 export function ChooseTrial() {
   const navigate = useNavigate();
-  const { billing } = useBilling();
+  const { billing, error: billingError, refresh: refreshBilling } = useBilling();
+  // The plans never loaded (no network when the screen opened): say so, and load them again
+  // once the device is back online, so Start never stays disabled for good (invariant 35).
+  useEffect(() => {
+    if (billing || !billingError) return;
+    const retry = () => void refreshBilling();
+    window.addEventListener("online", retry);
+    return () => window.removeEventListener("online", retry);
+  }, [billing, billingError, refreshBilling]);
+  const loadNote =
+    !billing && billingError
+      ? failureText(billingError, "Couldn't load the plans. Try again.")
+      : null;
   const { entitlements, refresh } = useEntitlements();
   const [picked, setPicked] = useState<TrialPlan>("private");
   const [busy, setBusy] = useState(false);
@@ -86,9 +99,12 @@ export function ChooseTrial() {
       );
       return;
     }
+    // A link that started the way in (a challenge, a household invite) comes first; taken
+    // before the refresh opens the app, so AccessGate never races this (invariant 37).
+    const back = takeReturn();
     await refresh();
     // Then "Make Qash yours": choices, not a wizard (owner, October 20, 2026).
-    navigate("/setup", { replace: true });
+    navigate(back ?? "/setup", { replace: true });
   }
 
   if (used) return <WelcomeBack />;
@@ -144,9 +160,9 @@ export function ChooseTrial() {
           );
         })}
       </fieldset>
-      {note ? (
+      {(note ?? loadNote) ? (
         <p className="auth__note" role="alert">
-          {note}
+          {note ?? loadNote}
         </p>
       ) : null}
       <div className="auth__spacer" />

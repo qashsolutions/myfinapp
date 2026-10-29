@@ -1,6 +1,6 @@
 import { Button, List, ListRow } from "@stackd/ui";
 import { useCallback, useEffect, useState } from "react";
-import { api, failureOf, type PasskeyOut } from "../../data/api.ts";
+import { api, failureOf, failureText, type PasskeyOut } from "../../data/api.ts";
 import { shortDate } from "../../lib/dates.ts";
 import { useSession } from "../auth/useSession.tsx";
 import { useStepUp } from "./StepUpPrompt.tsx";
@@ -34,7 +34,7 @@ export function ManagePasskeys() {
     const failure = failureOf(result);
     if (failure?.code === "last_passkey")
       setNotice("Keep at least one passkey. Add another before removing this one.");
-    else if (failure) setNotice("Couldn't remove that passkey. Try again.");
+    else if (failure) setNotice(failureText(failure, "Couldn't remove that passkey. Try again."));
     await load();
   }
 

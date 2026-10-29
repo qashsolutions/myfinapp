@@ -1,6 +1,6 @@
 import { Button, Sheet } from "@stackd/ui";
 import { useState } from "react";
-import type { GroupDetail } from "../../data/api.ts";
+import { failureText, type GroupDetail } from "../../data/api.ts";
 import { isFailure, regenerateCode } from "./useGroups.ts";
 
 /** Invite code and share link; the owner can issue a new code (the old one stops working). */
@@ -68,7 +68,7 @@ export function GroupInvite({
             const result = await regenerateCode(group.id);
             setNote(
               isFailure(result)
-                ? "Couldn't make a new code."
+                ? failureText(result, "Couldn't make a new code.")
                 : "New code issued; the old one no longer works.",
             );
             await onChanged();

@@ -5,7 +5,7 @@ import { Button, Card } from "@stackd/ui";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
-import { api, failureOf } from "../../data/api.ts";
+import { api, failureOf, failureText } from "../../data/api.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { useSession } from "../auth/useSession.tsx";
 import { isFailure, joinHousehold, useHouseholdLocal } from "./useHousehold.ts";
@@ -39,7 +39,10 @@ export function JoinHousehold() {
         setError(
           failure?.status === 404
             ? "This invite link no longer works. Ask your partner for a new one."
-            : "Couldn't check that invite. Are you online?",
+            : failureText(
+                failure ?? { status: 500, code: "error" },
+                "Couldn't check that invite. Try again.",
+              ),
         );
       else setPreview(r.data);
     });
@@ -63,7 +66,7 @@ export function JoinHousehold() {
               ? "Your partner's plan no longer includes couples & household."
               : result.status === 404
                 ? "This invite link no longer works. Ask your partner for a new one."
-                : "Couldn't join. Try again.",
+                : failureText(result, "Couldn't join. Try again."),
       );
       return;
     }

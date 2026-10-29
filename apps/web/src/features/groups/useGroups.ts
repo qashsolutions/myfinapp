@@ -184,7 +184,7 @@ export async function createGroup(
     },
   });
   const failure = failureOf(r);
-  if (failure || !r.data) return failure ?? { status: 0, code: "error" };
+  if (failure || !r.data) return failure ?? { status: 500, code: "error" };
   await localGoalFor(db, r.data, input);
   return r.data;
 }
@@ -195,7 +195,7 @@ export async function joinGroup(
 ): Promise<GroupDetail | ApiFailure> {
   const r = await api.POST("/api/groups/join", { body: { code: input.code } });
   const failure = failureOf(r);
-  if (failure || !r.data) return failure ?? { status: 0, code: "error" };
+  if (failure || !r.data) return failure ?? { status: 500, code: "error" };
   await localGoalFor(db, r.data, input);
   return r.data;
 }

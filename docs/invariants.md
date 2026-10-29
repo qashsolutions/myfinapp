@@ -150,8 +150,12 @@ written against both.
     "Download all my data" except device-only bookkeeping a restore rebuilds (`computed_results`,
     `forecasts`, `server_queue`, `tombstones`, named in `data/export.ts`), kept statement files
     included, and entries carry what rebuilds their splits and pairs. A new table joins the
-    export or that list.
-    `settings-data.test.tsx` "the export holds everything the person made…"
+    export or that list. It is never a key to the data (October 29, 2026): device secrets and
+    sync bookkeeping (`backup.*` with the backup and recovery keys, `household.key`, the alert
+    salt and hash, linking cursors) are left out through `EXPORT_LEFT_OUT_SETTINGS`; a new
+    secret setting joins that list. Found when the ZIP carried `backup.key`.
+    `settings-data.test.tsx` "the export holds everything the person made…" ·
+    `export-secrets.test.ts`
 28. **Qash says only what the person's own data shows** (October 28, 2026). It cannot see
     whether a service is used, so the subscription check asks ("Still using …?") and states
     facts from the charges (a price rise, a trial that became a charge, a renewal, services of
@@ -334,6 +338,33 @@ written against both.
     device or the server registers it for a time still ahead; a key in `notification_log` is
     never scheduled again.
     `test_alert_delivery_once.py` "a skipped alert comes back…"
+
+## Offline and the way in
+
+35. **A call that never reaches the server is an answer, not a hang** (October 29, 2026). The
+    API client turns a network failure into a status-0 response (`@stackd/api-client`), which
+    `failureOf()` names `offline`; every pending state ends on it and a person-facing failure
+    says "You're offline. Try again when connected." (`failureText`, `OFFLINE_MESSAGE`, the
+    passkey ceremonies' `offline` error). Only a request its caller cancelled still throws.
+    Found when Start trial with the network dropped stayed disabled for good.
+    `api-client` `index.test.ts` "answers a network failure with status 0…" ·
+    `offline-and-return.test.tsx` "Start trial with the network dropped…"
+36. **The app opens with no network, locked, for the person last signed in here** (October 29,
+    2026). A session check with no answer uses this device's last answer for a signed-in
+    account (`lib/offlineSession.ts`), always locked; Unlock is a passkey check on the device
+    alone (user verification, only the passkeys that unlocked this account here) and opens
+    only what is stored on the device; the server session is untouched and is asked again on
+    `online`. A drop later in a run keeps the server's last answer. Sign-out and a server
+    "no session" forget it; Log out offline signs out on the server at the next open online.
+    Found when the app opened offline stayed on a blank screen.
+    `offline-and-return.test.tsx` invariant 36 · `e2e/offline.spec.ts`
+37. **Signing in ends where the link that started it pointed** (October 29, 2026). A path
+    opened signed out (query and `#k=` fragment too) is kept in this tab's `sessionStorage`
+    through Welcome, the email code or a passkey, passkey setup and the trial pick, then taken
+    once (`lib/returnTo.ts`: only a path of this app, never a sign-in screen or another
+    origin); the household key is never put in a query string or a request. Found when a
+    challenge link landed on Home after sign-up.
+    `offline-and-return.test.tsx` invariant 37 · `e2e/offline.spec.ts`
 
 ## Working to these rules
 

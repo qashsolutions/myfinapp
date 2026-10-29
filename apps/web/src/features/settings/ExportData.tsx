@@ -43,7 +43,7 @@ export function ExportData({ label = "Download all my data" }: { label?: string 
       const saved = downloadBytes(zip, name);
       setStatus(
         saved
-          ? `Saved ${name} (${files.length} files). Keep it somewhere safe; it holds your money data.`
+          ? `Saved ${name} (${files.length} files). Keep it somewhere safe; it holds your money data. Your backup and household keys aren't in it: they stay on this device, and nothing changes for you.`
           : `Prepared ${name} (${files.length} files), but this browser didn't offer a download.`,
       );
     } catch {

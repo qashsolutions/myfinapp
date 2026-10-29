@@ -67,6 +67,18 @@ describe("Link a device, the phone's screen (B3, October 19, 2026)", () => {
     expect(api.deviceLink?.status).toBe("approved");
   });
 
+  it("deny with the network gone is never shown as denied: the computer is still waiting (invariant 35)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession(), deviceLink: pending() });
+    renderApp("/link?code=ABCD-EFGH");
+    const deny = await screen.findByRole("button", { name: "No, deny" });
+    api.offline = true;
+    await user.click(deny);
+    expect(await screen.findByText("You're offline. Try again when connected.")).toBeVisible();
+    expect(screen.queryByText("Nobody was signed in.")).toBeNull();
+    expect(deny).toBeEnabled();
+  });
+
   it("from Me: type the code; an unknown or expired one says to get a new one", async () => {
     const user = userEvent.setup();
     installFakeApi({ session: readySession(), deviceLink: pending() });

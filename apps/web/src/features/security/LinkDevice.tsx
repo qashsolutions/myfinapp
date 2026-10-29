@@ -5,7 +5,7 @@ import { type FormEvent, useEffect, useId, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { RequireAuth } from "../../app/RequireAuth.tsx";
-import { api, failureOf } from "../../data/api.ts";
+import { api, failureOf, failureText, OFFLINE_MESSAGE } from "../../data/api.ts";
 import { biometricName } from "../../lib/platform.ts";
 import { AuthLayout } from "../auth/AuthLayout.tsx";
 import { completeCode, tidyCode } from "../auth/linkCode.ts";
@@ -68,6 +68,10 @@ export function LinkDevice() {
     const failure = failureOf(result);
     if (failure || !result.data) {
       if (failure?.code === "rate_limited") return setPhase({ kind: "limited" });
+      if (failure?.code === "offline") {
+        setError(OFFLINE_MESSAGE);
+        return setPhase({ kind: "enter", scanning: false });
+      }
       return setPhase({ kind: "gone" });
     }
     setMine(false);
@@ -119,7 +123,7 @@ export function LinkDevice() {
       return setPhase({ kind: "review", request: { ...request, sameNetwork: false } });
     // 404: no such request; 409: already answered or expired (each is answered once).
     if (failure.status === 404 || failure.status === 409) return setPhase({ kind: "gone" });
-    setError("That didn't go through. Try again.");
+    setError(failureText(failure, "That didn't go through. Try again."));
   }
 
   async function deny(request: Request) {
@@ -128,6 +132,8 @@ export function LinkDevice() {
     setBusy(false);
     const failure = failureOf(result);
     if (failure?.status === 404 || failure?.status === 409) return setPhase({ kind: "gone" });
+    // Not said no until the server heard it: the computer would still be waiting.
+    if (failure) return setError(failureText(failure, "That didn't go through. Try again."));
     setPhase({ kind: "denied" });
   }
 

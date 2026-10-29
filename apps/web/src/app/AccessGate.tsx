@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
-import { Navigate, useLocation } from "react-router";
+import { type ReactNode, useEffect } from "react";
+import { Navigate, useLocation, useNavigate } from "react-router";
 import { type Access, useEntitlements } from "../features/billing/entitlements.ts";
+import { takeReturn } from "../lib/returnTo.ts";
 
 /**
  * Open while there is no plan to use: the plan (to subscribe, and receipts), Me, Money & data
@@ -47,6 +48,15 @@ export function AccessGate({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const access = known ? entitlements.access : null;
   const routes = accessRoutes(access);
+  const navigate = useNavigate();
+  // The way in is over (signed in, passkey made, trial picked, the app open to this plan):
+  // go where the link that started it pointed (invariant 37).
+  const open = known && routes === null;
+  useEffect(() => {
+    if (!open) return;
+    const target = takeReturn();
+    if (target) navigate(target, { replace: true });
+  }, [open, navigate]);
   if (routes && !routes.open.has(pathname)) return <Navigate to={routes.home} replace />;
   // /start is only for picking a trial or being told it was used.
   if (known && access?.state !== "choose" && pathname === "/start")

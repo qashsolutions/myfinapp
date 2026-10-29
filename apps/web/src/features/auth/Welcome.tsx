@@ -85,6 +85,7 @@ export function Welcome() {
         setNote(`No ${APP_NAME} passkey on this device yet? Continue with your email.`);
       else if (err instanceof PasskeyError && err.code === "no_passkeys")
         setNote(`No ${APP_NAME} passkey on this device yet. Continue with your email instead.`);
+      else if (err instanceof PasskeyError && err.code === "offline") setNote(err.message);
       else setNote("That didn't work. Try again, or continue with your email.");
     } finally {
       setBusy(false);

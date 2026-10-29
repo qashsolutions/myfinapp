@@ -69,6 +69,18 @@ export function onAuthSignal(handler: (signal: AuthSignal) => void): () => void 
   return () => authEvents.removeEventListener("auth", listener);
 }
 
+/**
+ * No network (offline, or the server unreachable): the client answers status 0 rather than
+ * throwing (`@stackd/api-client`), and failureOf() names it `offline` (invariant 35, October 29,
+ * 2026). Every pending state ends on it, and a person-facing failure says this.
+ */
+export const OFFLINE_MESSAGE = "You're offline. Try again when connected.";
+
+/** The offline message for a call that never reached the server, else the screen's own words. */
+export function failureText(failure: ApiFailure, otherwise: string): string {
+  return failure.status === 0 ? OFFLINE_MESSAGE : otherwise;
+}
+
 /** The server's error `detail`, which is a string code or {code, ...} for our own errors. */
 export interface ApiFailure {
   status: number;
@@ -82,7 +94,8 @@ export function failureOf(result: { error?: unknown; response: Response }): ApiF
   const detail = (result.error as { detail?: unknown } | undefined)?.detail;
   let code = "error";
   let attemptsLeft: number | undefined;
-  if (typeof detail === "string") code = detail;
+  if (result.response.status === 0) code = "offline";
+  else if (typeof detail === "string") code = detail;
   else if (detail && typeof detail === "object" && "code" in detail) {
     code = String((detail as { code: unknown }).code);
     const left = (detail as { attempts_left?: unknown }).attempts_left;
