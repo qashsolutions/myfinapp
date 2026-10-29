@@ -10,7 +10,7 @@ import type { NotificationSettingsOut } from "../../data/api.ts";
 import { addDaysIso } from "../../lib/dates.ts";
 import { todayIso } from "../../lib/format.ts";
 import { parseWholeNumber } from "../../lib/ownValues.ts";
-import { needsHomeScreen, type PushOutcome, unsubscribeFromPush } from "../../pwa/pushSubscribe.ts";
+import { needsHomeScreen, pushOutcomeText, unsubscribeFromPush } from "../../pwa/pushSubscribe.ts";
 import { BudgetAlertOptions } from "../budget/BudgetAlertOptions.tsx";
 import { ChipsOrOwn, ChoiceChips } from "../goals/CustomValueSheet.tsx";
 import { NotificationPrePrompt } from "./NotificationPrePrompt.tsx";
@@ -52,21 +52,6 @@ export function NotificationSettings() {
   const { data, error, update, refresh } = useNotificationSettings();
   const [prePrompt, setPrePrompt] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-
-  function outcomeNote(outcome: PushOutcome): string {
-    switch (outcome) {
-      case "subscribed":
-        return "Notifications are on.";
-      case "denied":
-        return "Your browser blocked notifications. Allow them in its settings to turn these on.";
-      case "needs_home_screen":
-        return "On iPhone, add Qash to your Home Screen first (Me → Install Qash), then come back.";
-      case "unavailable":
-        return "Push isn't set up on the server yet.";
-      default:
-        return "This browser can't receive notifications.";
-    }
-  }
 
   if (!data) {
     return (
@@ -274,7 +259,12 @@ export function NotificationSettings() {
               size="sm"
               variant="ghost"
               onClick={async () => {
-                await unsubscribeFromPush();
+                setNote(null);
+                try {
+                  await unsubscribeFromPush();
+                } catch {
+                  setNote("Couldn't turn push off on this device. Try again in a minute.");
+                }
                 await refresh();
               }}
             >
@@ -468,8 +458,9 @@ export function NotificationSettings() {
         open={prePrompt}
         onClose={() => setPrePrompt(false)}
         onDone={async (outcome) => {
-          setPrePrompt(false);
-          setNote(outcomeNote(outcome));
+          // A failure stays in the sheet with what to try; the card keeps the same words.
+          if (outcome === "subscribed") setPrePrompt(false);
+          setNote(pushOutcomeText(outcome));
           await refresh();
         }}
       />

@@ -537,6 +537,48 @@ written against both.
     for merchant keys inside its transaction.
     `transaction-scope.test.ts` (the engine answering a task later, as the worker does)
 
+## What the screens say
+
+63. **Turning push on always ends in words** (October 29, 2026). Every way the browser, the
+    push service, the native shell or the network can refuse is an outcome of
+    `subscribeToPush` (`blocked`, `denied`, `dismissed`, `push_failed`, `offline`,
+    `not_saved`, `unsupported`, `unavailable`, `needs_home_screen`), never a throw or a wait
+    without end (the service worker, the push service and the server each get 15 seconds; the browser's permission question has no limit, owner decision October 29, 2026); the "Stay on track"
+    sheet says what happened and what to try (`pushOutcomeText`), offers Try again only where
+    another tap can help, and never leaves a disabled button. Found when a Chrome private
+    window refused push and the sheet stayed open saying nothing.
+    `notifications.test.tsx` invariant 63 · `native-features.test.tsx` invariant 63
+64. **A balance says where it came from** (October 29, 2026). One helper
+    (`linking/anchorText.ts`) names a balance's source everywhere: a statement's date, the bank
+    and when it last synced ("from First Platypus Bank · synced 5 min ago"), or "you entered".
+    A linked account is never "you entered", "Manual balance" or "Never imported". Found on
+    Accounts & imports and Next 30 days' "How we calculated this".
+    `settings-data.test.tsx` invariant 64 · `forecast.test.tsx` invariant 64
+65. **A linked card is a debt in the plan, counted once** (October 29, 2026). The payoff plan
+    and everything built on it (Home's Debt-free card, What if, the month review, the balance
+    comparison) read one list, `debtPlan.readPlanDebts`: hand-added debts plus each linked
+    card at the bank's balance with the issuer's APR and minimum, or the person's own when the
+    issuer sent none (asked once). A hand-added debt the person paired with a linked card is
+    that card (one row, the bank's balance), and net worth leaves it out beside the account.
+    Found when Debt payoff showed linked cards on top and "No cards or loans yet" below.
+    A card's rate typed by hand is 0% to 40%; any other debt's 0% to 400%, asked once above 40% (`bills/apr.ts`). `debt-linked-cards.test.tsx`
+66. **A count says only what changed, or what is still to do** (October 29, 2026). A linked
+    sync counts a row as updated only when it differs from what is stored (a row sent again
+    as it is is not written at all), a pending row posting is one update, and split parts and
+    partners moved with a row are not counted (`sync.sameRow`); "Up to date." when nothing
+    changed, else "3 new · 1 updated". Home's "Found in your statements" counts the paycheck
+    only while it is still offered (Budget has no pay yet). Found as "Up to date: 170 updated"
+    with nothing changed, and "1 paycheck" after pay was set.
+    `linked-sync.test.tsx` invariant 66 · `home-visual.test.tsx` "once Budget has pay…"
+
+59 (again, October 29, 2026). The sweep was repeated on main after #51: every
+`db.transaction(...)` body in `apps/web/src` (47) was read for awaits of anything but Dexie,
+including the linking sync write, the import commit, the backup merge, the household pull and
+split, goals, milestones, receipts, categories, budgets and settings writes, and no
+`useLiveQuery` callback writes. None was found. `transaction-scope.test.ts` now fails on any
+transaction body that awaits something other than the database or a helper read and listed as
+Dexie-only, and runs a linked sync page with the engine answering a task later.
+
 ## Working to these rules
 
 - **Before fixing**, name the rule the defect broke, and write the failing test first (a

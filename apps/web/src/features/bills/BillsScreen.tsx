@@ -28,9 +28,11 @@ import {
 import { useSubscriptions } from "../subscriptions/useSubscriptions.ts";
 import { AdjustBillsSheet } from "./AdjustBillsSheet.tsx";
 import { BillSheet } from "./BillSheet.tsx";
+import { CardDebtSheet } from "./CardDebtSheet.tsx";
 import { ConsolidationCalc } from "./ConsolidationCalc.tsx";
 import { DebtList } from "./DebtList.tsx";
 import { DebtSheet } from "./DebtSheet.tsx";
+import { usePlanDebts } from "./debtPlan.ts";
 import { LinkedCards } from "./LinkedCards.tsx";
 import { PayoffPlan } from "./PayoffPlan.tsx";
 
@@ -68,6 +70,9 @@ export function BillsScreen() {
   const [editing, setEditing] = useState<RecurringSeries | "new" | null>(null);
   const [adjusting, setAdjusting] = useState(false);
   const [editingDebt, setEditingDebt] = useState<Debt | "new" | null>(null);
+  const [cardFor, setCardFor] = useState<string | null>(null);
+  const planDebts = usePlanDebts();
+  const openCard = planDebts?.cards.find((c) => c.account.id === cardFor) ?? null;
 
   return (
     <>
@@ -115,7 +120,7 @@ export function BillsScreen() {
             <Link to="/what-if?lever=loan">What if I put more on one loan?</Link>
           </p>
           <ConsolidationCalc />
-          <DebtList onEdit={(d) => setEditingDebt(d)} />
+          <DebtList onEdit={(d) => setEditingDebt(d)} onCard={setCardFor} />
         </>
       ) : (
         <>
@@ -233,6 +238,11 @@ export function BillsScreen() {
         open={editingDebt !== null}
         debt={editingDebt === "new" ? null : editingDebt}
         onClose={() => setEditingDebt(null)}
+      />
+      <CardDebtSheet
+        card={openCard}
+        unpaired={planDebts?.unpaired ?? []}
+        onClose={() => setCardFor(null)}
       />
     </>
   );

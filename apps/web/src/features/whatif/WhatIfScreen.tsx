@@ -25,7 +25,7 @@ import {
 } from "../../engine/bridge.ts";
 import { formatCents, formatMonth, todayIso } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
-import { ORDER_SETTING, orderLabel } from "../bills/debtPlan.ts";
+import { ORDER_SETTING, orderLabel, usePlanDebts } from "../bills/debtPlan.ts";
 import { EXTRA_SETTING } from "../bills/PayoffPlan.tsx";
 import { newMoneyIn, useGoals } from "../goals/useGoals.ts";
 import { WhatIfTimeline } from "./WhatIfTimeline.tsx";
@@ -379,7 +379,8 @@ export function WhatIfScreen() {
   const ids = useId();
   const today = todayIso();
   const [params] = useSearchParams();
-  const debts = useLiveQuery(() => db.debts.toArray(), [db]);
+  // The payoff plan's own debts, linked cards included (invariant 65).
+  const debts = usePlanDebts()?.debts;
   const extra = useLiveQuery(
     async () => ((await db.settings.get(EXTRA_SETTING))?.value as number | undefined) ?? 0,
     [db],

@@ -122,6 +122,30 @@ describe("Home, visual (October 19, 2026)", () => {
     );
   });
 
+  it("once Budget has pay, the paycheck is neither offered nor counted", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await db.entries.bulkAdd(statement());
+    // Pay set in Budget by hand: the income suggestion was never used or dismissed.
+    await db.settings.put({
+      key: "pay",
+      value: {
+        amount_cents: 245000,
+        frequency: "biweekly",
+        next_payday: "2026-10-30",
+        monthly_cents: 530833,
+      },
+      updated_at: "2026-10-09T00:00:00Z",
+    });
+    installFakeApi({ session: readySession() });
+    renderApp("/");
+    const found = await screen.findByRole("region", { name: "Confirm to see what's coming" });
+    await waitFor(() => expect(found).toHaveTextContent("2bills"));
+    expect(found).toHaveTextContent("1subscription");
+    expect(found).not.toHaveTextContent("paycheck");
+    expect(within(found).queryByRole("button", { name: /as my pay/ })).toBeNull();
+  });
+
   it("weekly groceries, takeout and gas are regular spending, never offered as bills (invariant 52)", async () => {
     const user = userEvent.setup();
     const db = openDb("u1");

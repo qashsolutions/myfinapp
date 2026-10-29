@@ -78,6 +78,23 @@ export function todayIso(now: Date = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
+/**
+ * How long ago a moment was, for "synced …": "just now", "5 min ago", "3 hr ago", "yesterday",
+ * else the day ("Oct 9"). A moment in the future (another device's clock) reads as just now.
+ */
+export function formatSince(at: string, now: Date = new Date()): string {
+  const then = new Date(at);
+  const minutes = Math.floor((now.getTime() - then.getTime()) / 60_000);
+  if (Number.isNaN(minutes) || minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 24 * 60) return `${Math.floor(minutes / 60)} hr ago`;
+  const day = todayIso(then);
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (day === todayIso(yesterday)) return "yesterday";
+  return formatDay(day, now);
+}
+
 /** Whole dollars, rounded down, for headline savings ("Save $233"); never for amounts owed. */
 export function formatWholeDollars(cents: number): string {
   return usd.format(Math.floor(Math.abs(cents) / 100)).replace(/\.00$/, "");

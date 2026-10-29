@@ -14,6 +14,7 @@ import { accountLabel } from "../entries/useEntries.ts";
 import { BiggerMonths } from "../insights/BiggerMonths.tsx";
 import { SafeToSpendLine } from "../insights/SafeToSpendLine.tsx";
 import { useSafeToSpend } from "../insights/useSafeToSpend.ts";
+import { balanceSourceText } from "../linking/anchorText.ts";
 import { ForecastChart } from "./ForecastChart.tsx";
 import { type ForecastView, setBalance, setBuffer, useForecast } from "./useForecast.ts";
 import { INTERVAL_LABELS, useRecurringSuggestions } from "./useRecurring.ts";
@@ -254,7 +255,7 @@ export function ForecastScreen() {
                     <dt>
                       Starting balance
                       {view.anchor
-                        ? ` (${view.anchor.source === "statement" ? "statement" : "entered"} ${formatDay(view.anchor.as_of)}, plus ${view.start?.entries_since ?? 0} entries since)`
+                        ? ` (${balanceSourceText(view.anchor, view.account)}, plus ${view.start?.entries_since ?? 0} entries since)`
                         : ""}
                     </dt>
                     <dd>{formatCents(view.start?.balance_cents ?? 0)}</dd>

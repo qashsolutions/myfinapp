@@ -8,7 +8,7 @@
 
 import { api, failureOf } from "../data/api.ts";
 import { nativePlatform, nativePlugin } from "../lib/platform.ts";
-import type { PushOutcome } from "../pwa/pushSubscribe.ts";
+import { type PushOutcome, serverOutcome } from "../pwa/pushSubscribe.ts";
 
 interface PushNotificationsPlugin {
   requestPermissions(): Promise<{ receive: string }>;
@@ -61,13 +61,17 @@ export async function subscribeNativePush(): Promise<PushOutcome> {
     plugin.addListener("registration", (data) => done(data.value ?? null));
     plugin.addListener("registrationError", () => done(null));
     setTimeout(() => done(null), REGISTER_TIMEOUT_MS);
-    void plugin.register();
+    Promise.resolve()
+      .then(() => plugin.register())
+      .catch(() => done(null));
   });
-  if (!token) return "unavailable";
+  // The OS's push service refused or never answered (invariant 63).
+  if (!token) return "push_failed";
   const r = await api.POST("/api/notifications/push/native", {
     body: { platform, token, user_agent: navigator.userAgent.slice(0, 120) },
   });
-  if (failureOf(r)) return "unavailable";
+  const failure = failureOf(r);
+  if (failure) return serverOutcome(failure);
   rememberToken(platform, token);
   return "subscribed";
 }

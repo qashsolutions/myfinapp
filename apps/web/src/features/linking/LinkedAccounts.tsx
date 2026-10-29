@@ -50,7 +50,7 @@ export function LinkedAccounts() {
       return;
     }
     const changed = describeReport(report);
-    setNote(changed ? `Up to date: ${changed}.` : "Up to date. Nothing new since the last check.");
+    setNote(changed ? `${changed}.` : "Up to date.");
   }
 
   async function signInAgain(id: string) {

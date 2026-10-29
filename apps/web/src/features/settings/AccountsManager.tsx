@@ -17,6 +17,7 @@ import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
 import { parseWholeNumber } from "../../lib/ownValues.ts";
 import { ChipsOrOwn } from "../goals/CustomValueSheet.tsx";
+import { balanceSourceText, bankName, linkedStatusText } from "../linking/anchorText.ts";
 
 const TYPE_LABELS: Record<AccountType, string> = {
   checking: "Checking",
@@ -200,6 +201,10 @@ export function AccountsManager() {
           .filter((i) => i.account_id === a.id)
           .sort((x, y) => compareText(y.created_at, x.created_at))[0];
         const mapping = mappings?.find((m) => m.account_id === a.id);
+        const linked = linkedStatusText(
+          a,
+          (anchors ?? []).filter((x) => x.account_id === a.id),
+        );
         return (
           <Card as="section" key={a.id} aria-label={a.label}>
             <div className="goal-card__top">
@@ -214,7 +219,7 @@ export function AccountsManager() {
                 <dt className="group-row__meta">Balance</dt>
                 <dd>
                   {latest
-                    ? `${formatCents(latest.balance_cents)} · ${latest.source === "statement" ? `from ${formatDay(latest.as_of)} statement` : "you entered"}`
+                    ? `${formatCents(latest.balance_cents)} · ${balanceSourceText(latest, a)}`
                     : "Not set"}
                 </dd>
               </div>
@@ -223,7 +228,7 @@ export function AccountsManager() {
                 <dd>
                   {lastImport
                     ? `${formatDay(lastImport.created_at.slice(0, 10))} · ${lastImport.rows_added} added${lastImport.rows_skipped ? `, ${lastImport.rows_skipped} skipped` : ""}`
-                    : "Never imported"}
+                    : (linked ?? "Never imported")}
                 </dd>
               </div>
               <div className="hero-split">
@@ -231,9 +236,11 @@ export function AccountsManager() {
                 <dd>
                   {lastImport
                     ? `${lastImport.format.toUpperCase()}${mapping ? " · mapping saved" : ""}`
-                    : latest
-                      ? "Manual balance"
-                      : "—"}
+                    : a.linked
+                      ? `Linked to ${bankName(a)}`
+                      : latest
+                        ? "Manual balance"
+                        : "—"}
                 </dd>
               </div>
             </dl>

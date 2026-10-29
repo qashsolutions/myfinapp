@@ -77,6 +77,29 @@ describe("Upcoming + forecast", () => {
     vi.useRealTimers();
   });
 
+  it("a balance from a linked bank says the bank and when it synced (invariant 64)", async () => {
+    const db = await seedHistory(false);
+    await db.accounts.update("acct-cash", {
+      institution: "First Platypus Bank",
+      linked: { connection_id: "c1", account_id: "pa1" },
+    });
+    await db.balance_anchors.add({
+      id: "lnk-bal-acct-cash-2026-10-10",
+      account_id: "acct-cash",
+      as_of: "2026-10-10",
+      balance_cents: 210000,
+      source: "linked",
+      created_at: new Date("2026-10-10T09:00:00").toISOString(),
+    });
+    installFakeApi({ session: readySession() });
+    renderApp("/forecast");
+    const how = await screen.findByText(/^Starting balance/);
+    expect(how).toHaveTextContent(
+      "Starting balance (from First Platypus Bank · synced 3 hr ago, plus 0 entries since)",
+    );
+    expect(how).not.toHaveTextContent("entered");
+  });
+
   it("shows bills and paydays on a calendar, and a day's items and balance when tapped", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const db = await seedHistory(true);

@@ -54,7 +54,10 @@ export function FoundCard({ asOf }: { asOf: string }) {
     suggestions
       .filter((s) => s.kind === "income" && PAY_FREQUENCY[s.interval])
       .sort((a, b) => b.expected_cents - a.expected_cents)[0] ?? null;
+  // Once Budget has pay, the paycheck is settled: not offered, not counted (invariant 66's
+  // sibling: a count says only what is still to do).
   const offerPay = paycheck !== null && !pay;
+  if (bills.length === 0 && !offerPay) return null;
 
   async function confirmBills() {
     setBusy(true);
@@ -91,7 +94,7 @@ export function FoundCard({ asOf }: { asOf: string }) {
   const counts: Array<[number, string]> = [
     [bills.length - subs, bills.length - subs === 1 ? "bill" : "bills"],
     [subs, subs === 1 ? "subscription" : "subscriptions"],
-    [paycheck ? 1 : 0, "paycheck"],
+    [offerPay ? 1 : 0, "paycheck"],
   ];
   return (
     <Card as="section" aria-labelledby="home-found" className="found">

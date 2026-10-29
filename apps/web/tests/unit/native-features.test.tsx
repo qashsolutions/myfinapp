@@ -127,6 +127,30 @@ describe("native features (chunk 2.3)", () => {
     expect(api.calls.filter((c) => c.path.includes("/push/"))).toEqual([]);
   });
 
+  it("a shell whose push registration throws reports push_failed, never a hang (invariant 63)", async () => {
+    installShell({
+      PushNotifications: {
+        requestPermissions: vi.fn(async () => ({ receive: "granted" })),
+        addListener: () => {},
+        register: vi.fn(async () => {
+          throw new Error("no APNs entitlement");
+        }),
+      },
+    });
+    await expect(subscribeToPush()).resolves.toBe("push_failed");
+    installShell({
+      PushNotifications: {
+        requestPermissions: vi.fn(async () => {
+          throw new Error("plugin missing");
+        }),
+        addListener: () => {},
+        register: vi.fn(),
+      },
+    });
+    await expect(subscribeToPush()).resolves.toBe("push_failed");
+    expect(api.calls.filter((c) => c.path.includes("/push/"))).toEqual([]);
+  });
+
   it("passkey ceremonies run through the StackdPasskeys plugin, never the browser API", async () => {
     const get = vi.fn(async ({ optionsJSON }: { optionsJSON: string }) => {
       expect(JSON.parse(optionsJSON)).toEqual({ challenge: "c2", allowCredentials: [] });
