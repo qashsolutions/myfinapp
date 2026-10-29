@@ -277,11 +277,16 @@ written against both.
     `insights.seasonal` "a_partly_covered_month_is_not_history"
 52. **Everyday spending on a schedule is never a bill** (owner decision, October 29, 2026). A
     weekly or every-2-weeks run of money out mostly in an everyday category (config/insights.yaml
-    `regular_spending`) is shown as regular spending and never offered or confirmed as a bill
-    (`useRecurring.isRegularSpending`; `confirmSuggestion` refuses one), so its charges never
+    `regular_spending`, or the person's own list in `settings` `bills.regular_categories`) is
+    shown as regular spending and never confirmed as it is (`useRecurring.isRegularSpending`;
+    `confirmSuggestion` refuses one); the person's own call per merchant (`bills.regular_calls`:
+    This is a bill / This is regular spending) always wins, and regular never keeps a bill or
+    an `is_recurring` mark (`billToRegular` removes it). So its charges never
     become `is_recurring`, fixed or left out of typical daily spending; Home's Confirm all takes
     monthly-or-longer bills only (`inConfirmAll`). Income runs are always offered.
-    `home-visual.test.tsx` "weekly groceries, takeout and gas are regular spending…"
+    `home-visual.test.tsx` "weekly groceries, takeout and gas are regular spending…", "the
+    person's everyday categories and their own call decide…", "This is a bill confirms Trader
+    Joe's…" · `e2e/regular-bills.spec.ts"
 53. **Safe to spend looks through the next whole pay period** (owner decision, October 29,
     2026). With two paydays ahead, the window ends the day before the payday after next, so a
     payday two days away never makes the whole balance spendable in two days; one payday known

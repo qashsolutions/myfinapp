@@ -15,14 +15,18 @@ import type { Debt, RecurringSeries } from "../../data/db.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { CardSpending, CreditHabitsCard } from "../credit/CreditHabits.tsx";
 import {
+  canBeRegular,
   confirmSuggestion,
   dismissSuggestion,
   INTERVAL_LABELS,
+  markAsBill,
+  markAsRegular,
   suggestionInterval,
   useFoundRuns,
   useRecurringSeries,
 } from "../forecast/useRecurring.ts";
 import { useSubscriptions } from "../subscriptions/useSubscriptions.ts";
+import { AdjustBillsSheet } from "./AdjustBillsSheet.tsx";
 import { BillSheet } from "./BillSheet.tsx";
 import { ConsolidationCalc } from "./ConsolidationCalc.tsx";
 import { DebtList } from "./DebtList.tsx";
@@ -62,6 +66,7 @@ export function BillsScreen() {
     };
   }, [series, today]);
   const [editing, setEditing] = useState<RecurringSeries | "new" | null>(null);
+  const [adjusting, setAdjusting] = useState(false);
   const [editingDebt, setEditingDebt] = useState<Debt | "new" | null>(null);
 
   return (
@@ -136,6 +141,11 @@ export function BillsScreen() {
                 <Button variant="secondary" onClick={() => dismissSuggestion(db, s)}>
                   {s.kind === "income" ? "Not income" : "Not a bill"}
                 </Button>
+                {canBeRegular(s) ? (
+                  <Button variant="secondary" onClick={() => markAsRegular(db, s)}>
+                    This is regular spending
+                  </Button>
+                ) : null}
               </div>
             </Card>
           ))}
@@ -147,16 +157,24 @@ export function BillsScreen() {
                 Regular spending, not bills
               </h2>
               <p>Everyday spending on a schedule. It stays in your usual spending.</p>
-              <List aria-label="Regular spending">
+              <ul className="regular-list" aria-label="Regular spending">
                 {regular.map((s) => (
-                  <ListRow
-                    key={`${s.payee}:${s.kind}`}
-                    label={s.label}
-                    sublabel={suggestionInterval(s.interval)}
-                    value={formatCents(s.expected_cents, "out")}
-                  />
+                  <li key={`${s.payee}:${s.kind}`} className="regular-row">
+                    <span>
+                      <strong>{s.label}</strong> · {formatCents(s.expected_cents)}{" "}
+                      {suggestionInterval(s.interval).toLowerCase()}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      aria-label={`${s.label}: this is a bill`}
+                      onClick={() => markAsBill(db, s)}
+                    >
+                      This is a bill
+                    </Button>
+                  </li>
                 ))}
-              </List>
+              </ul>
             </Card>
           ) : null}
           {series && series.length === 0 ? (
@@ -197,11 +215,15 @@ export function BillsScreen() {
               ))}
             </List>
           ) : null}
+          <Button variant="secondary" size="sm" onClick={() => setAdjusting(true)}>
+            Adjust bills
+          </Button>
           <p className="auth__fineprint">
             Bills feed your upcoming-expense alerts and 30-day forecast.
           </p>
         </>
       )}
+      <AdjustBillsSheet open={adjusting} onClose={() => setAdjusting(false)} />
       <BillSheet
         open={editing !== null}
         series={editing === "new" ? null : editing}

@@ -48,27 +48,130 @@ export interface Suggestion extends DetectedSeries {
 
 /**
  * Regular spending (invariant 52, October 29, 2026; config/insights.yaml `regular_spending`,
- * proposed): a weekly or every-2-weeks run of money out whose charges are mostly (more than
- * half) in an everyday category (groceries, dining, transport, shopping) is everyday spending on
- * a schedule, not a bill. It is shown for information and never confirmed, so its charges never
- * become fixed or leave typical daily spending. Money in is always offered.
+ * signed off by the owner, October 29, 2026): a weekly or every-2-weeks run of money out whose
+ * charges are mostly (more than half) in an everyday category (groceries, dining, transport,
+ * shopping by default; the person's own list under Bills → Adjust) is everyday spending on a
+ * schedule, not a bill. It is shown for information and never confirmed as it is, so its charges
+ * never become fixed or leave typical daily spending. The person's own call on one merchant
+ * ("This is a bill" / "This is regular spending") always wins over the categories. Money in and
+ * monthly-or-longer runs are always bills.
  */
 const REGULAR = (
   insightsConfig as unknown as { regular_spending: { intervals: string[]; categories: string[] } }
 ).regular_spending;
 const REGULAR_INTERVALS = new Set<string>(REGULAR.intervals);
-const EVERYDAY_CATEGORIES = new Set<string>(REGULAR.categories);
+/** The everyday categories until the person picks their own. */
+export const DEFAULT_EVERYDAY: readonly string[] = REGULAR.categories;
+
+/** `settings` keys (synced): the person's everyday categories, and their call per merchant. */
+export const REGULAR_CATEGORIES_KEY = "bills.regular_categories";
+export const REGULAR_CALLS_KEY = "bills.regular_calls";
+
+export type RegularCall = "bill" | "regular";
+
+export interface RegularPrefs {
+  categories: Set<string>;
+  /** merchant key → the person's call */
+  calls: Record<string, RegularCall>;
+}
+
+export function readRegularCategories(raw: unknown): Set<string> {
+  return new Set(
+    Array.isArray(raw) && raw.every((c) => typeof c === "string")
+      ? (raw as string[])
+      : DEFAULT_EVERYDAY,
+  );
+}
+
+export function readRegularCalls(raw: unknown): Record<string, RegularCall> {
+  const out: Record<string, RegularCall> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const [key, call] of Object.entries(raw as Record<string, unknown>))
+    if (call === "bill" || call === "regular") out[key] = call;
+  return out;
+}
+
+/** The person's everyday categories and calls, live; undefined while reading. */
+export function useRegularPrefs(): RegularPrefs | undefined {
+  const { db } = useDb();
+  return useLiveQuery(async () => {
+    const [cats, calls] = await Promise.all([
+      db.settings.get(REGULAR_CATEGORIES_KEY),
+      db.settings.get(REGULAR_CALLS_KEY),
+    ]);
+    return {
+      categories: readRegularCategories(cats?.value),
+      calls: readRegularCalls(calls?.value),
+    };
+  }, [db]);
+}
+
+/** Whether a run can be regular spending at all: money out at a weekly kind of interval. */
+export function canBeRegular(s: Pick<DetectedSeries, "kind" | "interval">): boolean {
+  return s.kind === "bill" && REGULAR_INTERVALS.has(s.interval);
+}
 
 export function isRegularSpending(
-  s: Pick<DetectedSeries, "kind" | "interval" | "entry_ids">,
+  s: Pick<DetectedSeries, "kind" | "interval" | "entry_ids" | "payee">,
   byId: Map<string, Pick<Entry, "category_id">>,
+  prefs: Pick<RegularPrefs, "categories" | "calls"> = {
+    categories: new Set(DEFAULT_EVERYDAY),
+    calls: {},
+  },
 ): boolean {
-  if (s.kind !== "bill" || !REGULAR_INTERVALS.has(s.interval)) return false;
+  if (!canBeRegular(s)) return false;
+  const call = prefs.calls[s.payee];
+  if (call) return call === "regular";
   const everyday = s.entry_ids.filter((id) => {
     const category = byId.get(id)?.category_id;
-    return typeof category === "string" && EVERYDAY_CATEGORIES.has(category);
+    return typeof category === "string" && prefs.categories.has(category);
   }).length;
   return everyday * 2 > s.entry_ids.length;
+}
+
+export async function saveRegularCategories(db: StackdDb, ids: string[]): Promise<void> {
+  await db.settings.put({
+    key: REGULAR_CATEGORIES_KEY,
+    value: ids,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+/** The person's call on one merchant (its merchant key), or null to go back to the categories. */
+export async function setRegularCall(
+  db: StackdDb,
+  payee: string,
+  call: RegularCall | null,
+): Promise<void> {
+  const key = await merchantKey(payee);
+  const now = readRegularCalls((await db.settings.get(REGULAR_CALLS_KEY))?.value);
+  if (call === null) delete now[key];
+  else now[key] = call;
+  await db.settings.put({
+    key: REGULAR_CALLS_KEY,
+    value: now,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+/** "This is a bill" on regular spending: the person's call is kept and the bill confirmed. */
+export async function markAsBill(db: StackdDb, s: Suggestion): Promise<RecurringSeries> {
+  await setRegularCall(db, s.payee, "bill");
+  return confirmSuggestion(db, { ...s, regular: false });
+}
+
+/** "This is regular spending" on a found weekly bill: kept as the person's call. */
+export async function markAsRegular(db: StackdDb, s: Suggestion): Promise<void> {
+  await setRegularCall(db, s.payee, "regular");
+}
+
+/**
+ * "This is regular spending" on a confirmed weekly bill: the call is kept and the bill removed
+ * (tombstoned, its charges no longer `is_recurring`), so it shows as regular spending again.
+ */
+export async function billToRegular(db: StackdDb, series: RecurringSeries): Promise<void> {
+  await setRegularCall(db, series.payee, "regular");
+  await removeSeries(db, series.id);
 }
 
 /** Home's "Confirm all" takes only bills due monthly or less often (invariant 52). */
@@ -122,9 +225,10 @@ export function useFoundRuns(
   const { db } = useDb();
   const entries = useLiveQuery(() => db.entries.toArray(), [db]);
   const known = useLiveQuery(() => db.recurring_series.toArray(), [db]);
+  const prefs = useRegularPrefs();
   const [found, setFound] = useState<{ offered: Suggestion[]; regular: Suggestion[] }>();
   useEffect(() => {
-    if (!entries || !known) return;
+    if (!entries || !known || !prefs) return;
     let alive = true;
     void (async () => {
       const detected = await detectRecurring(bankRows(entries).map(toRecurringEntry), asOf);
@@ -136,7 +240,11 @@ export function useFoundRuns(
         .filter((s) => !seen.has(`${s.payee}\u0000${s.kind}`))
         .map((s) => {
           const latest = byId.get(s.entry_ids[s.entry_ids.length - 1] ?? "");
-          return { ...s, label: latest?.merchant || s.payee, regular: isRegularSpending(s, byId) };
+          return {
+            ...s,
+            label: latest?.merchant || s.payee,
+            regular: isRegularSpending(s, byId, prefs),
+          };
         });
       if (alive)
         setFound({
@@ -147,7 +255,7 @@ export function useFoundRuns(
     return () => {
       alive = false;
     };
-  }, [entries, known, asOf]);
+  }, [entries, known, asOf, prefs]);
   return found;
 }
 

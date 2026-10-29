@@ -159,6 +159,13 @@ export const ENTRIES: SettingEntry[] = [
       "categories category rename add new own custom needs wants save hide remove rules names merchant",
   },
   {
+    label: "Adjust bills",
+    group: "data",
+    path: "/bills",
+    words:
+      "bills regular spending everyday categories weekly groceries dining transport shopping not a bill",
+  },
+  {
     label: "Subscription check",
     group: "data",
     path: "/subscriptions",

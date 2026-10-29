@@ -356,6 +356,40 @@ describe("accessibility of the Adjust sheets (axe-core)", () => {
     await checkBody("Adjust payoff plan");
   });
 
+  it("Adjust bills and regular spending on Bills", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const db = openDb("u1");
+    await seedDefaults(db);
+    const rows = ["2026-09-21", "2026-09-28", "2026-10-05", "2026-10-12"].map((date, i) => ({
+      id: `tj${i}`,
+      date,
+      amount_cents: 8400,
+      direction: "out" as const,
+      merchant: "TRADER JOE'S",
+      clean_description: "TRADER JOE'S",
+      raw_description: null,
+      category_id: "cat-groceries",
+      account_id: "acct-cash",
+      source: "import" as const,
+      receipt_id: null,
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      split_parent_id: null,
+      is_recurring: false,
+      created_at: `${date}T00:00:00Z`,
+      updated_at: `${date}T00:00:00Z`,
+    }));
+    await db.entries.bulkAdd(rows);
+    installFakeApi({ session: readySession() });
+    renderApp("/bills");
+    await screen.findByRole("region", { name: "Regular spending, not bills" });
+    await checkBody("Bills with regular spending");
+    await user.click(screen.getByRole("button", { name: "Adjust bills" }));
+    await screen.findByRole("dialog", { name: "Adjust bills" });
+    await checkBody("Adjust bills");
+  });
+
   it("Adjust credit habits, over the dot strip", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const db = openDb("u1");

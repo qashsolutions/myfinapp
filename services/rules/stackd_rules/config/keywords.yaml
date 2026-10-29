@@ -70,7 +70,7 @@ keywords:
   - { match: AT&T, category_id: cat-utilities, direction: out }
   - { match: T-MOBILE, category_id: cat-utilities, direction: out }
   - { match: INTERNET, category_id: cat-utilities, direction: out }
-  # More utility words (October 29, 2026; proposed, awaiting owner sign-off): CITY POWER & LIGHT
+  # More utility words (October 29, 2026; signed off by the owner, October 29, 2026): CITY POWER & LIGHT
   # was uncategorized because the table had POWER CO only.
   - { match: POWER & LIGHT, category_id: cat-utilities, direction: out }
   - { match: LIGHT & POWER, category_id: cat-utilities, direction: out }
