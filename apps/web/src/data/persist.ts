@@ -65,8 +65,8 @@ export function shouldNudgeExport(
  * "Not now" hides it for STORAGE_CARD_SNOOZE_DAYS, but it is always shown again after a gap of
  * STORAGE_CARD_GAP_DAYS since the last open, when the 7 days are close.
  */
-export const STORAGE_CARD_SNOOZE_DAYS = 3; // proposed, awaiting owner sign-off
-export const STORAGE_CARD_GAP_DAYS = 5; // proposed, awaiting owner sign-off
+export const STORAGE_CARD_SNOOZE_DAYS = 3; // signed off by the owner, October 29, 2026
+export const STORAGE_CARD_GAP_DAYS = 5; // signed off by the owner, October 29, 2026
 
 export type StorageRisk = "iphone_tab" | "export" | null;
 
