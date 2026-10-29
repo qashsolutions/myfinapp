@@ -7,13 +7,17 @@ import sys
 
 from alembic import command
 
-from app.db import alembic_config, get_engine, migration_status
+from app.db import alembic_config, database_is_newer, get_engine, migration_status
 from app.storage import ensure_bucket
 
 
 def migrate(check_only: bool) -> int:
     with get_engine().connect() as conn:
         current, head = migration_status(conn)
+    if database_is_newer(current):
+        # A newer build migrated this database; never fail to start because of it.
+        print(f"database at {current}, newer than this build (head {head}); not migrating")
+        return 0
     if check_only:
         print(f"database at {current}, head is {head}")
         return 0 if current == head and head is not None else 1

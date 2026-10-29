@@ -282,6 +282,15 @@ written against both.
     `test_device_link.py` "each request is answered once" · `link-device.test.tsx` ·
     `test_founding_reminders.py`
 
+31. **An older build keeps running on a newer database** (October 29, 2026). A deploy runs the
+    migrations as the new API starts; if the new version then does not go live, the old one must
+    still start and report ready. Every migration stays backward compatible for one release
+    (add tables, nullable columns and wider CHECKs; drop or rename only one release later), and
+    `stackd-api migrate` and `/health/ready` treat a revision this build does not know as newer,
+    not as an error. Found when deployment 85 migrated to 0036, Lightsail gave up waiting, and the
+    old API crashed at every restart until the deploy was re-run.
+    `test_health.py` "a newer database keeps this build ready and starting"
+
 ## Working to these rules
 
 - **Before fixing**, name the rule the defect broke, and write the failing test first (a
