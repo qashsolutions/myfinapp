@@ -306,6 +306,40 @@ describe("Settings + data rights", () => {
     );
   });
 
+  it("a linked account's balance names its bank and sync, never 'you entered' (invariant 64)", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await db.accounts.add({
+      id: "acc-linked",
+      label: "Plaid Checking",
+      type: "checking",
+      last4: "0000",
+      institution: "First Platypus Bank",
+      currency: "USD",
+      created_at: "2026-10-01T00:00:00Z",
+      linked: { connection_id: "c1", account_id: "pa1" },
+    });
+    await db.balance_anchors.add({
+      id: "lnk-bal-acc-linked-2026-10-10",
+      account_id: "acc-linked",
+      as_of: "2026-10-10",
+      balance_cents: 110_00,
+      source: "linked",
+      created_at: new Date("2026-10-10T11:55:00").toISOString(),
+    });
+    installFakeApi({ session: readySession() });
+    renderApp("/me/accounts");
+    const card = await screen.findByRole("region", { name: "Plaid Checking" });
+    await waitFor(() =>
+      expect(card).toHaveTextContent("$110.00 · from First Platypus Bank · synced 5 min ago"),
+    );
+    expect(card).toHaveTextContent("Linked · synced 5 min ago");
+    expect(card).toHaveTextContent("Linked to First Platypus Bank");
+    expect(card).not.toHaveTextContent("you entered");
+    expect(card).not.toHaveTextContent("Never imported");
+    expect(card).not.toHaveTextContent("Manual balance");
+  });
+
   it("manages accounts: add, set a balance, remove with its transactions", async () => {
     const user = userEvent.setup();
     const db = openDb("u1");

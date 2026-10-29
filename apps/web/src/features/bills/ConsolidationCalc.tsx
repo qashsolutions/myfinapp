@@ -2,11 +2,10 @@ import "../auth/auth.css";
 import "../insights/insights.css";
 
 import { Button, Card } from "@stackd/ui";
-import { useLiveQuery } from "dexie-react-hooks";
 import { useId, useState } from "react";
-import { useDb } from "../../data/DbProvider.tsx";
 import { type Consolidation, consolidation, parseAmount } from "../../engine/bridge.ts";
 import { formatCents, todayIso } from "../../lib/format.ts";
+import { usePlanDebts } from "./debtPlan.ts";
 
 function monthsText(n: number | null): string {
   if (n === null) return "never at this payment";
@@ -19,10 +18,9 @@ function monthsText(n: number | null): string {
  * the app names no lender or product and recommends nothing (spec hard constraint 6).
  */
 export function ConsolidationCalc() {
-  const { db } = useDb();
   const ids = useId();
   const today = todayIso();
-  const debts = useLiveQuery(() => db.debts.toArray(), [db]);
+  const debts = usePlanDebts()?.debts; // linked cards included, once each (invariant 65)
   const [apr, setApr] = useState("");
   const [fee, setFee] = useState("3");
   const [promoMonths, setPromoMonths] = useState("0");

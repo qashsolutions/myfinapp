@@ -10,6 +10,7 @@ import { linkErrorText } from "../../src/features/linking/linking.ts";
 import {
   applySync,
   cursorKey,
+  describeReport,
   LAST_SYNC_KEY,
   type SyncOut,
   type SyncTxn,
@@ -114,6 +115,42 @@ describe("linked sync (chunk 3.3)", () => {
     expect(e?.fingerprint).toMatch(/^[0-9a-f]{16}$/);
     expect(e?.account_id).toBe("acct-chk");
     expect((await db.settings.get(cursorKey("bc1")))?.value).toBe("cur-1");
+  });
+
+  it("counts only what changed on this device (invariant 66)", async () => {
+    const rows = [
+      txn(),
+      txn({ transaction_id: "t2", amount_cents: 1200 }),
+      txn({ transaction_id: "p3", pending: true, amount_cents: 900 }),
+    ];
+    expect(await applySync(db, "bc1", page({ added: rows }), NOW)).toMatchObject({
+      added: 3,
+      updated: 0,
+      removed: 0,
+    });
+    const before = await db.entries.toArray();
+    // The bank sends the same rows again (a reset cursor, or "modified" with nothing new).
+    const later = new Date("2026-10-12T16:00:00Z");
+    const again = await applySync(db, "bc1", page({ modified: rows }), later);
+    expect(again).toMatchObject({ added: 0, updated: 0, removed: 0 });
+    expect(describeReport(again)).toBe("");
+    expect(await db.entries.toArray()).toEqual(before); // nothing rewritten either
+    // A pending row posting is one update, not one new and one removed; a real change counts.
+    const posted = await applySync(
+      db,
+      "bc1",
+      page({
+        removed: ["p3"],
+        added: [txn({ transaction_id: "t3", pending_transaction_id: "p3", amount_cents: 900 })],
+        modified: [txn({ transaction_id: "t2", amount_cents: 1250 }), txn()],
+      }),
+      later,
+    );
+    expect(posted).toMatchObject({ added: 0, updated: 2, removed: 0 });
+    expect(describeReport(posted)).toBe("2 updated");
+    expect(describeReport({ added: 3, updated: 1, removed: 0, adopted: 0, transfers: 0 })).toBe(
+      "3 new · 1 updated",
+    );
   });
 
   it("keeps the person's names: a renamed row survives an update, new rows like it take the name", async () => {
@@ -740,7 +777,7 @@ describe("linked sync (chunk 3.3)", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "Check for new transactions" }),
     );
-    expect(await screen.findByText("Up to date: 1 new.")).toBeTruthy();
+    expect(await screen.findByText("1 new.")).toBeTruthy();
     expect(await db.entries.count()).toBe(2);
   });
 

@@ -165,6 +165,8 @@ export function useNetWorth(asOf: string): NetWorthView {
       });
     }
     for (const d of debts) {
+      // A debt the person said is a linked card is that account, already above (invariant 65).
+      if (d.account_id && accounts.some((a) => a.id === d.account_id && a.linked)) continue;
       const picked = choice("debt", d.id);
       out.push({
         key: `debt:${d.id}`,
