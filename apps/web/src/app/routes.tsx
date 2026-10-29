@@ -51,6 +51,7 @@ import { LookSettings } from "../features/settings/LookSettings.tsx";
 import { MeLayout } from "../features/settings/MeLayout.tsx";
 import { SettingsScreen } from "../features/settings/SettingsScreen.tsx";
 import { SubscriptionsScreen } from "../features/subscriptions/SubscriptionsScreen.tsx";
+import { WhatIfScreen } from "../features/whatif/WhatIfScreen.tsx";
 import { AppShell } from "./layout/AppShell.tsx";
 import { NotFound } from "./NotYet.tsx";
 import { PublicOnly, RequireAuth } from "./RequireAuth.tsx";
@@ -93,6 +94,7 @@ export function AppRoutes() {
           <Route path="insights/fixed-flexible" element={<FixedFlexibleScreen />} />
           <Route path="subscriptions" element={<SubscriptionsScreen />} />
           <Route path="insights/later" element={<LaterScreen />} />
+          <Route path="what-if" element={<WhatIfScreen />} />
           <Route path="review" element={<ReviewScreen />} />
           <Route path="net-worth" element={<NetWorthScreen />} />
           <Route path="setup" element={<SetupHub />} />

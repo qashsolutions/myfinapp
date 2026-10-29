@@ -1184,6 +1184,97 @@ export async function growthProjection(input: {
   return engine.call<LaterProjection>("growth.projection", input);
 }
 
+export interface GrowPlan {
+  months: number;
+  cost_months: number;
+  future_cost_cents: number;
+  saved_grows_to_cents: number;
+  monthly_needed_cents: number;
+  already_enough: boolean;
+}
+
+/** growth.goal_plan: a jar whose cost rises while what's saved grows (October 28, 2026). */
+export async function growGoalPlan(input: {
+  today_cost_cents: number;
+  cost_rise_bps: number;
+  return_bps: number;
+  saved_cents: number;
+  as_of: string;
+  target_date: string;
+  priced_on?: string | null;
+}): Promise<GrowPlan> {
+  return engine.call<GrowPlan>("growth.goal_plan", input);
+}
+
+export interface GrowPace {
+  months_in: number;
+  expected_cents: number;
+  status: "ahead" | "on_track" | "behind";
+}
+
+/** growth.goal_pace: deposits so far against the plan's monthly amount. */
+export async function growGoalPace(input: {
+  plan_monthly_cents: number;
+  deposited_cents: number;
+  start_date: string;
+  as_of: string;
+}): Promise<GrowPace> {
+  return engine.call<GrowPace>("growth.goal_pace", input);
+}
+
+export interface WhatIfSide {
+  months: number | null;
+  debt_free_month: string | null;
+  interest_cents: number | null;
+}
+
+export interface WhatIfDebt {
+  before: WhatIfSide;
+  after: WhatIfSide;
+  months_sooner: number | null;
+  interest_saved_cents: number | null;
+  status: "sooner" | "same" | "stalled";
+}
+
+/** whatif.debt: the payoff plan with today's extra, then with `addCents` more a month. */
+export async function whatIfDebt(
+  debts: DebtInput[],
+  extraCents: number,
+  addCents: number,
+  asOf: string,
+): Promise<WhatIfDebt> {
+  return engine.call<WhatIfDebt>("whatif.debt", {
+    debts,
+    extra_cents: extraCents,
+    add_cents: addCents,
+    as_of: asOf,
+  });
+}
+
+export interface WhatIfGoal {
+  months_now: number | null;
+  months_new: number | null;
+  finish_now: string | null; // YYYY-MM
+  finish_new: string | null;
+  months_sooner: number | null;
+  status: "sooner" | "same" | "never";
+}
+
+/** whatif.goal: months to fill a jar at today's pace and with `addCents` more a month. */
+export async function whatIfGoal(
+  remainingCents: number,
+  perMonthCents: number,
+  addCents: number,
+  asOf: string,
+): Promise<WhatIfGoal> {
+  return engine.call<WhatIfGoal>("whatif.goal", {
+    remaining_cents: remainingCents,
+    per_month_cents: perMonthCents,
+    add_cents: addCents,
+    as_of: asOf,
+  });
+}
+
 export interface AlertInputs {
   now_local: string;
   upcoming: Array<{ series_id: string; date: string; kind: "bill" | "income"; matched: boolean }>;

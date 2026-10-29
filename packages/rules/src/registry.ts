@@ -24,6 +24,7 @@ import * as networth from "./networth.ts";
 import * as nextMove from "./next_move.ts";
 import * as notify from "./notify.ts";
 import * as recurring from "./recurring.ts";
+import * as whatif from "./whatif.ts";
 
 export type JsonObject = Record<string, unknown>;
 export type Rule = (input: JsonObject) => JsonObject;
@@ -348,6 +349,38 @@ const BARE: Record<string, Rule> = {
         target_cents,
       ),
     };
+  },
+  "growth.goal_plan": (input) => {
+    const a = args(
+      input,
+      ["today_cost_cents", "cost_rise_bps", "return_bps", "saved_cents", "as_of", "target_date"],
+      ["priced_on"],
+    );
+    return {
+      ...growth.goalPlan(
+        a.today_cost_cents,
+        a.cost_rise_bps,
+        a.return_bps,
+        a.saved_cents,
+        a.as_of,
+        a.target_date,
+        a.priced_on ?? null,
+      ),
+    };
+  },
+  "growth.goal_pace": (input) => {
+    const a = args(input, ["plan_monthly_cents", "deposited_cents", "start_date", "as_of"]);
+    return {
+      ...growth.goalPace(a.plan_monthly_cents, a.deposited_cents, a.start_date, a.as_of),
+    };
+  },
+  "whatif.debt": (input) => {
+    const a = args(input, ["debts", "extra_cents", "add_cents", "as_of"]);
+    return { ...whatif.debt(a.debts, a.extra_cents, a.add_cents, a.as_of) };
+  },
+  "whatif.goal": (input) => {
+    const a = args(input, ["remaining_cents", "per_month_cents", "add_cents", "as_of"]);
+    return { ...whatif.goal(a.remaining_cents, a.per_month_cents, a.add_cents, a.as_of) };
   },
   "notify.decide": (input) => {
     const { candidate, settings, prefs, sent, now_local } = args(input, [

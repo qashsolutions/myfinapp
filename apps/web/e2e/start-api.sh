@@ -7,12 +7,12 @@ cd "$(dirname "$0")/../../../services/api"
 # the job sets every STACKD_* itself (development values, no real keys) and storage is made here.
 if [ -f .env ]; then
   base=$(grep '^STACKD_DATABASE_URL=' .env | cut -d= -f2-)
-  export STACKD_DATABASE_URL="${base%/*}/stackd_e2e"
+  export STACKD_DATABASE_URL="${base%/*}/${E2E_DB:-stackd_e2e}"
 fi
 export STACKD_EMAIL_BACKEND=console
-export STACKD_ORIGINS='["http://localhost:5174"]'
+export STACKD_ORIGINS="[\"http://localhost:${E2E_WEB_PORT:-5174}\"]"
 export STACKD_RP_ID=localhost
 export PYTHONUNBUFFERED=1
 uv run stackd-api migrate >/dev/null
 if [ -n "$CI" ]; then uv run stackd-api init-storage >/dev/null; fi
-exec uv run uvicorn app.main:app --port 8100
+exec uv run uvicorn app.main:app --port "${E2E_API_PORT:-8100}"

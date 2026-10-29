@@ -31,6 +31,7 @@ from . import (
     next_move,
     notify,
     recurring,
+    whatif,
 )
 from .errors import RuleError
 
@@ -300,6 +301,34 @@ def _growth_projection(
     )
 
 
+def _growth_goal_plan(
+    today_cost_cents: int,
+    cost_rise_bps: int,
+    return_bps: int,
+    saved_cents: int,
+    as_of: str,
+    target_date: str,
+    priced_on: str | None = None,
+) -> dict:
+    return growth.goal_plan(
+        today_cost_cents, cost_rise_bps, return_bps, saved_cents, as_of, target_date, priced_on
+    )
+
+
+def _growth_goal_pace(
+    plan_monthly_cents: int, deposited_cents: int, start_date: str, as_of: str
+) -> dict:
+    return growth.goal_pace(plan_monthly_cents, deposited_cents, start_date, as_of)
+
+
+def _whatif_debt(debts: list, extra_cents: int, add_cents: int, as_of: str) -> dict:
+    return whatif.debt(debts, extra_cents, add_cents, as_of)
+
+
+def _whatif_goal(remaining_cents: int, per_month_cents: int, add_cents: int, as_of: str) -> dict:
+    return whatif.goal(remaining_cents, per_month_cents, add_cents, as_of)
+
+
 def _notify_decide(
     candidate: dict, settings: dict, prefs: dict, sent: dict, now_local: str
 ) -> dict:
@@ -403,6 +432,10 @@ _BARE: dict[str, Rule] = {
     "credit.utilization_bps": _credit_utilization_bps,
     "credit.pay_in_full": _credit_pay_in_full,
     "growth.projection": _growth_projection,
+    "growth.goal_plan": _growth_goal_plan,
+    "growth.goal_pace": _growth_goal_pace,
+    "whatif.debt": _whatif_debt,
+    "whatif.goal": _whatif_goal,
     "notify.decide": _notify_decide,
     "alerts.schedule": _alerts_schedule,
     "next_move.set_aside": _next_move_set_aside,
