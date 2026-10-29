@@ -218,7 +218,8 @@ def habits(
     payment as above, and paid in full stays unknown. A due date with no anchor on or before
     it is unknown: left out of `checked` and counted in `unknown`, never missed. So is a due
     date after `until`, the last day the card's data reaches (its latest import, entry, balance
-    or sync), unless the payments already seen make it on time: its payment may not be in yet. We say only what the person's own data shows.
+    or sync), unless the payments already seen make it on time: its payment may not be in yet.
+    We say only what the person's own data shows.
     """
     today = parse_date(as_of)
     span = _window_months(months)
