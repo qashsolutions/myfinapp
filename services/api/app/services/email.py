@@ -309,6 +309,24 @@ def plan_paused_message(to: str, link: str) -> Message:
     )
 
 
+def second_plan_refunded_message(to: str, link: str) -> Message:
+    """Two payment pages were open and both were paid (October 29, 2026): the plan bought
+    first stays, the second is ended at once and refunded in full. No amounts."""
+    return Message(
+        to=to,
+        subject="We refunded a second Qash plan",
+        text=(
+            "You already had a Qash plan when a second one was paid for, maybe from another tab "
+            "or device. You only need one, so we ended the second straight away and refunded "
+            "its payment in full; a bank payment is refunded as soon as it clears. Refunds "
+            "reach you within 5 to 10 business days. Your first plan carries on as it was.\n\n"
+            "To switch plans or billing period, use the Plan screen. Questions? "
+            "Reply to this email.\n\n"
+            f"Your plan: {link}\n"
+        ),
+    )
+
+
 def plan_resumed_message(to: str, link: str) -> Message:
     return Message(
         to=to,

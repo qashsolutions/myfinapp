@@ -1,6 +1,7 @@
 import { Button, Sheet } from "@stackd/ui";
 import { useEffect, useState } from "react";
 import { biometricName } from "../../lib/platform.ts";
+import { useSession } from "../auth/useSession.tsx";
 import { useStepUp } from "./StepUpPrompt.tsx";
 import { PasskeyError, passkeysSupported, registerPasskey } from "./webauthn.ts";
 
@@ -45,12 +46,18 @@ async function canMakeOne(): Promise<boolean> {
  * B4 (owner decision, October 19, 2026: offered, not required): right after a computer is signed
  * in by the phone, offer this computer its own passkey, so next time it signs in by itself with
  * Touch ID or Windows Hello. Asked once; "Not now" or closing it never asks again in this tab.
+ *
+ * The phone's approval is not a passkey check on this computer (invariant 44, owner decision,
+ * October 29, 2026), so adding one asks for that check first: the browser offers the phone's
+ * passkey ("use a phone", a QR code to scan). This sheet steps aside while it runs.
  */
 export function PasskeyHereOffer() {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<"ask" | "busy" | "done" | "error">("ask");
   const bio = biometricName();
   const stepUp = useStepUp();
+  const session = useSession();
+  const checkedHere = Boolean(session.info?.passkey_verified_at);
 
   useEffect(() => {
     if (!pending()) return;
@@ -71,8 +78,11 @@ export function PasskeyHereOffer() {
   }
 
   async function create() {
-    // Fresh right after the phone approves; if it has gone stale the server asks again.
-    if (!(await stepUp.confirm(`Using ${bio} here`))) return;
+    // The check on this computer comes first; the step-up sheet takes the screen meanwhile.
+    setOpen(false);
+    const ok = await stepUp.confirm(`Setting up ${bio} here`);
+    setOpen(true);
+    if (!ok) return;
     setState("busy");
     try {
       await registerPasskey();
@@ -101,6 +111,9 @@ export function PasskeyHereOffer() {
       ) : (
         <>
           <p className="auth__lead">Skip the phone next time. One touch signs you in here.</p>
+          {checkedHere ? null : (
+            <p className="auth__hint">First, a quick check that it's you, with your phone.</p>
+          )}
           {state === "error" ? (
             <p className="auth__error" role="alert">
               That didn't work. Try again, or add one later in Me → Sign-in &amp; security.

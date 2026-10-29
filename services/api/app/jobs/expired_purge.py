@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import delete, or_
 from sqlalchemy.orm import Session as DbSession
 
-from app.models.billing import BillingEvent, PurchaseConsent
+from app.models.billing import BillingEvent, CheckoutPage, PurchaseConsent
 from app.models.device_link import DeviceLink
 from app.models.household import HouseholdInvite
 from app.models.linking import LinkSession
@@ -40,6 +40,11 @@ def purge(db: DbSession, *, now: datetime | None = None) -> dict[str, int]:
         # Bank-link sessions: finished or abandoned trips to Plaid's page.
         "link_sessions": db.execute(
             delete(LinkSession).where(LinkSession.expires_at < day)
+        ).rowcount,
+        # Stripe payment pages: 31 minutes at most (24 hours for pages opened before October
+        # 29, 2026); kept a day past closing.
+        "checkout_pages": db.execute(
+            delete(CheckoutPage).where(CheckoutPage.expires_at < day)
         ).rowcount,
         # "Link with your phone" requests: 2-minute codes, kept a day.
         "device_links": db.execute(delete(DeviceLink).where(DeviceLink.expires_at < day)).rowcount,

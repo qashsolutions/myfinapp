@@ -58,14 +58,19 @@ def load_session(db: DbSession, token: str, *, now: datetime | None = None) -> S
 def is_locked(
     session: Session, *, lock_after_seconds: int | None = None, now: datetime | None = None
 ) -> bool:
-    """No passkey check yet, the app's screen locked it (`locked_at`), or idle for longer than
-    the lock window: the user's own choice (users.lock_after_minutes, 5 to 60) when given, else
-    the default setting. Idle counts only what the person does (see `touch`)."""
+    """No passkey check yet (and no phone's approval, `link_unlocked_at`), the app's screen
+    locked it (`locked_at`), or idle for longer than the lock window: the user's own choice
+    (users.lock_after_minutes, 5 to 60) when given, else the default setting. Idle counts only
+    what the person does (see `touch`)."""
     now = now or now_utc()
-    if session.passkey_verified_at is None or session.locked_at is not None:
+    opened = max(
+        (t for t in (session.passkey_verified_at, session.link_unlocked_at) if t is not None),
+        default=None,
+    )
+    if opened is None or session.locked_at is not None:
         return True
     window = lock_after_seconds or get_settings().lock_after_seconds
-    last_active = max(session.last_seen_at, session.passkey_verified_at)
+    last_active = max(session.last_seen_at, opened)
     return now - last_active > timedelta(seconds=window)
 
 
@@ -80,6 +85,16 @@ def touch(session: Session, *, now: datetime | None = None) -> None:
 def mark_passkey_verified(session: Session, *, now: datetime | None = None) -> None:
     now = now or now_utc()
     session.passkey_verified_at = now
+    session.last_seen_at = now
+    session.locked_at = None
+
+
+def mark_unlocked_by_link(session: Session, *, now: datetime | None = None) -> None:
+    """Link with your phone (invariant 44, owner decision, October 29, 2026): the phone's
+    approval opens this computer unlocked, but it is not a passkey check on the computer, so
+    `passkey_verified_at` is left empty and every step-up route asks for one here first."""
+    now = now or now_utc()
+    session.link_unlocked_at = now
     session.last_seen_at = now
     session.locked_at = None
 

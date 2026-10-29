@@ -385,6 +385,49 @@ written against both.
     device or the server registers it for a time still ahead; a key in `notification_log` is
     never scheduled again.
     `test_alert_delivery_once.py` "a skipped alert comes back…"
+44. **A phone's approval signs a computer in; it is never a passkey check on the computer**
+    (owner decision, October 29, 2026). A Link with your phone session opens unlocked
+    (`sessions.link_unlocked_at`) with `passkey_verified_at` empty, so every `require_step_up`
+    route (and adding a passkey) answers `step_up_required` until the computer itself passes a
+    passkey check; the assertion options leave the browser's "use a phone" choice open (no
+    transports, no platform hint). Found when the phone's check stood in for the computer's and
+    a phished approval had five minutes to add a passkey, change the email or delete the account.
+    `test_device_link.py` "a linked computer opens unlocked with no step-up credit…", "assertion
+    options leave the phone option open" · `passkey-here-offer.test.tsx`
+45. **Removed is not left** (October 29, 2026). The owner removing a member stamps
+    `group_members.removed_at`; such a member gets 403 `removed` on lookup and join with the old
+    code or a new one, and the app says so plainly. Someone who left may rejoin. Found when a
+    removal set the same stamp as leaving and a join reopened it with the unchanged code.
+    `test_group_joins.py` · `groups.test.tsx` "someone the owner removed…"
+46. **A join is counted and written under the person's lock, then the group's** (October 29,
+    2026), like the household's joins (invariant 14). Two joins at once never pass Free's one
+    challenge; two joins of the same group at once both answer the one membership (200), never a
+    500 from the unique constraint. Leave and removal take the same locks.
+    `test_group_joins.py` (parallel requests against Postgres)
+
+41. **Never two plans, however many pages were open** (October 29, 2026). The checkout's 409s
+    hold when a page is paid too: every payment page closes after 31 minutes, opening one closes
+    the person's others first, and a paid page (or a subscription announced before its checkout)
+    that would make a second live plan is ended at Stripe and refunded in full, once, while the
+    plan bought first stays. One helper (`entitlements.purchase_conflict`) answers both.
+    `test_billing_oct29.py` "every payment page closes…", "opening a payment page closes…", "a
+    second paid page is ended and refunded…", "a second subscription announced before…", "a
+    second plan paid by bank…", "a founding payment beside a renewing plan…"
+42. **A dispute pauses only the plan it paid for, and nothing is collected meanwhile**
+    (owner decision, October 29, 2026). The charge is followed to its invoice and subscription;
+    Stripe's collection for it is paused while the dispute is open, resumed if it is won, and
+    the plan ends if it is lost, whichever order the dispute and the checkout arrive in.
+    `test_billing_oct29.py` "a dispute pauses collection…", "a lost dispute pauses first…", "a
+    dispute on an older plan's charge…", "a dispute that lands before the checkout…"
+43. **A refund promised on deletion is recorded as paid only once it is paid** (October 29,
+    2026). While a bank payment is clearing the amount stays due, the settle and the purge wait,
+    and it is refunded against that payment when it arrives; a first payment still clearing
+    (the plan never started) comes back whole, with no fee, and the Delete account screen says
+    that same amount (owner decision, October 29, 2026). A payment that arrives for a deleted
+    account grants nothing.
+    `test_billing_oct29.py` "deleting while a yearly bank payment clears…", "a founding bank
+    payment clearing at the deletion…", "a bank payment that fails after the deletion…", "a
+    page paid after the deletion…"
 
 ## Offline and the way in
 

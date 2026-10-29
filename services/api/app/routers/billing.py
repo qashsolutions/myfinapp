@@ -42,6 +42,8 @@ from app.rules_server.entitlements import (
     is_tester,
     load_plans,
     payment_pending,
+    purchase_conflict,
+    renewing,
     store_entitlements,
     tester_plan,
     trial_settings,
@@ -391,26 +393,12 @@ def checkout(
     if stripe_billing.is_blocked(db, caller.user):
         # A lost dispute or a fraud-warning refund (owner decision, October 24, 2026).
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="purchase_blocked")
-    plan, sub = effective_plan(db, caller.user.id, tester=False)
-    if plan == "founding":
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="already_founding")
-    if payment_pending(db, caller.user.id):
-        # A bank payment is still clearing for a plan already bought: never a second one
-        # beside it (October 28, 2026). The Plan screen says it's on its way.
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="payment_pending")
-    if sub is not None and sub.source in ("apple", "google"):
-        # A live App Store / Google Play plan is changed in the store; Founding may follow
-        # once the store plan is set not to renew, as with a Stripe plan.
-        if body.plan != "founding" or not sub.cancel_at_period_end:
-            raise HTTPException(status.HTTP_409_CONFLICT, detail="manage_in_store")
-    if _renewing(sub):
-        assert sub is not None
-        # Never a second subscription beside a live one: plan changes go through /change.
-        # Founding (one payment) can be bought once the current plan is set not to renew.
-        if body.plan != "founding":
-            raise HTTPException(status.HTTP_409_CONFLICT, detail="already_subscribed")
-        if not sub.cancel_at_period_end:
-            raise HTTPException(status.HTTP_409_CONFLICT, detail="cancel_first")
+    _, sub = effective_plan(db, caller.user.id, tester=False)
+    # Never a second plan beside a live one (Founding, a bank payment still clearing, a store
+    # plan, a renewing subscription): plan changes go through /change, and Founding may follow
+    # a plan set not to renew. One helper, which the webhook asks again when a page is paid.
+    if conflict := purchase_conflict(db, caller.user.id, body.plan):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=conflict)
     if body.plan == "founding" and founding_left(db)[1] <= 0:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="founding_sold_out")
     now_access = access(db, caller.user)
@@ -432,6 +420,8 @@ def checkout(
         ),
     )
     try:
+        # Any page this person opened before is closed first, so only one can ever be paid.
+        stripe_billing.close_open_pages(db, caller.user.id)
         session = stripe_billing.checkout_session(
             caller.user,
             body.plan,
@@ -441,7 +431,9 @@ def checkout(
             trial_ends_at=trial_ends_at,
         )
     except stripe_billing.BillingError as exc:
+        db.commit()  # the pages already closed stay closed
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=exc.code) from exc
+    stripe_billing.remember_page(db, caller.user.id, session)
     record(
         db,
         actor_id=caller.user.id,
@@ -453,15 +445,7 @@ def checkout(
     return UrlOut(url=str(session["url"]))
 
 
-def _renewing(sub: Subscription | None) -> bool:
-    """A live Stripe subscription that bills on a schedule (not Founding, not a store plan)."""
-    return bool(
-        sub
-        and sub.source == "stripe"
-        and sub.interval
-        and sub.external_id
-        and sub.status in ("active", "past_due")
-    )
+_renewing = renewing
 
 
 def _changeable(db: DbSession, caller: Caller) -> Subscription:

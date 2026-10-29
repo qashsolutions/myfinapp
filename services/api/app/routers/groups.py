@@ -204,8 +204,36 @@ def _group_or_404(db: DbSession, group_id: uuid.UUID) -> Group:
 
 def _membership(db: DbSession, group: Group, user_id: uuid.UUID) -> GroupMember | None:
     return db.scalar(
-        select(GroupMember).where(GroupMember.group_id == group.id, GroupMember.user_id == user_id)
+        select(GroupMember)
+        .where(GroupMember.group_id == group.id, GroupMember.user_id == user_id)
+        .execution_options(populate_existing=True)
     )
+
+
+def _lock_person(db: DbSession, user_id: uuid.UUID) -> None:
+    """The lock order for joining (invariant 46, October 29, 2026): the person, then the group,
+    held to the commit. One person's joins run one at a time, so the count against
+    `groups_join_max` and the row it allows are one step; the same order as the household's
+    joins and every deletion path."""
+    db.execute(select(User.id).where(User.id == user_id).with_for_update())
+
+
+def _lock_group(db: DbSession, group_id: uuid.UUID) -> Group | None:
+    """Joins, removals and leaves of one group run one at a time: two joins of the same group
+    at once answer the same membership instead of the second hitting the unique constraint."""
+    return db.scalar(
+        select(Group)
+        .where(Group.id == group_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+
+def _refuse_removed(member: GroupMember | None) -> None:
+    """Invariant 45 (October 29, 2026): someone the owner removed stays out, whatever code they
+    hold, the old one or a new one. Someone who left on their own may come back."""
+    if member is not None and member.removed_at is not None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="removed")
 
 
 def _active_member(db: DbSession, group_id: uuid.UUID, caller: Caller) -> tuple[Group, GroupMember]:
@@ -388,6 +416,7 @@ def lookup_group(
         raise not_found()
     owner = db.get(User, group.owner_id)
     member = _membership(db, group, caller.user.id)
+    _refuse_removed(member)
     return GroupPreview(
         id=group.id,
         name=group.name,
@@ -407,10 +436,18 @@ def join_group(
     request: Request,
     db: Annotated[DbSession, Depends(get_db)],
 ) -> GroupDetail:
-    group = db.scalar(select(Group).where(Group.invite_code == _normalise_code(body.code)))
-    if group is None:
+    code = _normalise_code(body.code)
+    found = db.scalar(select(Group.id).where(Group.invite_code == code))
+    if found is None:
+        raise not_found()
+    # Invariant 46: the count and the row it allows happen under the person's lock, then the
+    # group's; read again under them (a new code, a removal or a join may have landed meanwhile).
+    _lock_person(db, caller.user.id)
+    group = _lock_group(db, found)
+    if group is None or group.invite_code != code:
         raise not_found()
     existing = _membership(db, group, caller.user.id)
+    _refuse_removed(existing)
     if existing is None or existing.left_at is not None:
         active = int(
             db.scalar(
@@ -485,7 +522,9 @@ def leave_group(
     request: Request,
     db: Annotated[DbSession, Depends(get_db)],
 ) -> Response:
+    _lock_person(db, caller.user.id)
     group, me = _active_member(db, group_id, caller)
+    _lock_group(db, group.id)
     if group.owner_id == caller.user.id:
         # Signed off Oct 27, 2026: the owner keeps the group (they can remove members and
         # regenerate the code).
@@ -516,10 +555,13 @@ def remove_member(
     _require_owner(group, caller)
     if user_id == caller.user.id:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="owner_cannot_leave")
+    _lock_group(db, group.id)
     member = _membership(db, group, user_id)
     if member is None or member.left_at is not None:
         raise not_found()
-    member.left_at = _now()
+    now = _now()
+    member.left_at = now
+    member.removed_at = now  # invariant 45: removed is not left; no code lets them back
     member.helped = None  # as on leaving
     record(
         db,

@@ -40,7 +40,7 @@ This policy sets how long Qash Solutions Inc. keeps each kind of data, how it is
 | Notification settings, push addresses, alert schedule, sent-alert record | Database | While the account exists | Push addresses switched off and unsent alerts dropped at once on account deletion; the rest deleted with the account; a push address is switched off as soon as a push service reports it no longer exists | `purge-deleted`; alert dispatch |
 | Security (audit) log | Database | 13 months | Deleted | `stackd-api purge-audit`, daily |
 | Sign-in codes | Database | Expire after 10 minutes; deleted after 1 day (never during an active lockout) | Deleted | `stackd-api purge-expired`, daily |
-| Passkey challenges, bank-link sessions | Database | Minutes; deleted after 1 day | Deleted | `purge-expired` |
+| Passkey challenges, bank-link sessions, open payment pages (Stripe's page reference only) | Database | Minutes; deleted after 1 day | Deleted | `purge-expired` |
 | Sign-in-with-phone requests: the requesting browser and system (for example "Chrome on Mac"), keyed hashes of its code, secret and network address, and who approved it | Database | Expire after 2 minutes; deleted after 1 day | Deleted | `purge-expired` |
 | Rate-limit counters | Database | Deleted after 2 days | Deleted | `purge-expired` |
 | Household invites | Database | 7-day codes; deleted a week after they expire | Deleted | `purge-expired` |

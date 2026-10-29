@@ -5,6 +5,7 @@ from app.models.backup import Backup, BackupKey
 from app.models.base import Base, StackdRow
 from app.models.billing import (
     BillingEvent,
+    CheckoutPage,
     Entitlement,
     PurchaseBlock,
     PurchaseConsent,
@@ -39,6 +40,7 @@ __all__ = [
     "BankConnection",
     "Base",
     "BillingEvent",
+    "CheckoutPage",
     "DeviceLink",
     "Entitlement",
     "Group",

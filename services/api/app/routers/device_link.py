@@ -17,6 +17,8 @@ Each request is answered once: approved or denied, then closed (409 `already_ans
 Trade-off, recorded in the spec and the security plan: the browser's own phone sign-in proves
 the phone is nearby over Bluetooth; this does not, so the approval screen names the device and
 warns on a different network, requests last 2 minutes, and every link is audited and alerted.
+The computer then opens unlocked but with no step-up credit (invariant 44, October 29, 2026):
+anything sensitive asks for a passkey check on the computer itself.
 """
 
 from __future__ import annotations
@@ -185,9 +187,12 @@ def link_status(
     ip = client_ip(request)
     label = device_label(request.headers.get("user-agent"), standalone=False)
     session, token = sessions_svc.create_session(db, user, device_label=label, ip=ip)
-    # The phone's fresh passkey check stands in for this one: the computer opens unlocked, and
-    # its own passkey is offered next (owner: offered, not required).
-    sessions_svc.mark_passkey_verified(session)
+    # The computer opens unlocked, but the phone's passkey check is not one on this computer
+    # (invariant 44, owner decision, October 29, 2026): no step-up credit, so export, deletion,
+    # email change, adding a passkey, plan changes and bank linking ask for a passkey check here
+    # first (the phone's synced passkey through the browser's "use a phone" option, or this
+    # computer's own once it has one; it is offered next, not required).
+    sessions_svc.mark_unlocked_by_link(session)
     row.status = "consumed"
     row.session_id = session.id
     record(db, actor_id=user.id, action=AuditAction.SIGN_IN, target=f"session:{session.id}", ip=ip)

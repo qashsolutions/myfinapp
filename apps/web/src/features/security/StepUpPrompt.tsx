@@ -76,21 +76,35 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Signed in here by the phone's approval and no passkey check on this device yet
+  // (invariant 44): the browser's own choice includes the phone, so say how to use it.
+  const firstHere = !session.info?.passkey_verified_at;
   const value = useMemo<StepUp>(() => ({ confirm }), [confirm]);
   return (
     <StepUpContext.Provider value={value}>
       {children}
       <Sheet open={what !== null} onClose={() => finish(false)} title="Confirm it's you">
         <p className="auth__lead" style={{ textAlign: "center" }}>
-          {what} needs a quick check, even while the app is unlocked.
+          {firstHere
+            ? `${what} needs a quick check on this device first.`
+            : `${what} needs a quick check, even while the app is unlocked.`}
         </p>
+        {firstHere ? (
+          <p className="auth__hint" style={{ textAlign: "center" }}>
+            No passkey here yet? When your browser asks, choose your phone and scan the code.
+          </p>
+        ) : null}
         {error ? (
           <p className="auth__error" role="alert">
             {error}
           </p>
         ) : null}
         <Button block onClick={run} disabled={busy}>
-          {busy ? "Waiting for your device…" : `Confirm with ${bio}`}
+          {busy
+            ? "Waiting for your device…"
+            : firstHere
+              ? "Confirm it's you"
+              : `Confirm with ${bio}`}
         </Button>
         <Button block variant="secondary" onClick={() => finish(false)}>
           Cancel
