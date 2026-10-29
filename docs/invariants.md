@@ -156,6 +156,16 @@ written against both.
     keeps the same Kept as Money in & out.
     `subscription-check.test.tsx` · `fixed-flexible.test.tsx` · `money-month.test.tsx` "Fixed vs
     flexible splits the same Out…"
+29. **An alert key never names a category or an amount** (October 28, 2026). A budget alert
+    leaves the device as a date, the type `budget_pace` and `budget:<YYYY-MM>:<tag>:<level>`,
+    where the tag is 16 letters a–p (`alerts.tag`: FNV-1a over a random value kept on the device
+    and the category's id, so the server cannot work back from it). `alerts.schedule` refuses any
+    other tag and the API refuses any other key shape; the push label is fixed text. "What
+    helped" answers leave as choice ids from the fixed list only, and the group sees totals only,
+    from two answers.
+    golden `alerts.schedule/budget_tag_must_be_letters` · `notifications.test.tsx` "a budget
+    alert carries a month, a tag and a level…" · `test_budget_alerts.py` · `leak-sweep.test.tsx` ·
+    `test_group_helped.py` · `budget-helped.test.tsx` "What helped"
 
 ## Accounts and money on the server
 

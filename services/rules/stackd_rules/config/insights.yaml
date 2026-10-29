@@ -17,3 +17,7 @@ thresholds:
   subscription_renewal_days: 14   # a yearly or quarterly renewal this close is shown and asked
   trial_max_cents: 100            # a first charge of $1.00 or less...
   trial_window_days: 45           # ...followed within 45 days by a larger one is a trial
+# Budget alert levels (October 28, 2026; proposed, awaiting owner sign-off): a budget line is
+# "Close" at the first level and alerts once per level per month (`budget.pace`).
+budget_alerts:
+  levels_bps: [9000, 10000]

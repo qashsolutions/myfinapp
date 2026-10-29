@@ -186,6 +186,10 @@ def _budget_summary(
     return budget.summary(as_of, method, take_home_cents, lines, entries, split_bps)
 
 
+def _budget_pace(month: str, as_of: str, lines: list, levels_bps: list) -> dict:
+    return budget.pace(month, as_of, lines, levels_bps)
+
+
 def _goals_progress(goal: dict, events: list, as_of: str) -> dict:
     return goals.progress(goal, events, as_of)
 
@@ -375,6 +379,10 @@ def _alerts_schedule(inputs: dict) -> dict:
     return alerts.schedule(inputs)
 
 
+def _alerts_tag(value: str, salt: str) -> dict:
+    return {"tag": alerts.tag(value, salt)}
+
+
 def _next_move_set_aside(
     deposits: list, as_of: str, target_cents: int | None, paydays: list
 ) -> dict:
@@ -447,6 +455,7 @@ _BARE: dict[str, Rule] = {
     "budget.targets_split": _budget_targets_split,
     "budget.monthly_take_home": _budget_monthly_take_home,
     "budget.summary": _budget_summary,
+    "budget.pace": _budget_pace,
     "goals.progress": _goals_progress,
     "goals.spend_less_baseline": _goals_spend_less_baseline,
     "goals_custom.jar": _goals_custom_jar,
@@ -476,6 +485,7 @@ _BARE: dict[str, Rule] = {
     "whatif.goal": _whatif_goal,
     "notify.decide": _notify_decide,
     "alerts.schedule": _alerts_schedule,
+    "alerts.tag": _alerts_tag,
     "next_move.set_aside": _next_move_set_aside,
     "next_move.payday_nudge": _next_move_payday_nudge,
     "forecast.typical_daily_spending": _forecast_typical_daily_spending,

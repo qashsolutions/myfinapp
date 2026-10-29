@@ -813,6 +813,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/groups/{group_id}/helped": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Helped
+         * @description The member's own "What helped": up to 3 ids from the fixed list; [] clears it. Open once
+         *     they reached their target or the challenge ended (409 not_yet before).
+         */
+        put: operations["update_helped_api_groups__group_id__helped_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/groups/{group_id}/leave": {
         parameters: {
             query?: never;
@@ -2256,6 +2277,9 @@ export interface components {
              * Format: date
              */
             end_date: string;
+            helped: components["schemas"]["HelpedTotals"] | null;
+            /** Helped Open */
+            helped_open: boolean;
             /**
              * Id
              * Format: uuid
@@ -2269,6 +2293,8 @@ export interface components {
             member_count: number;
             /** Members */
             members: components["schemas"]["MemberOut"][];
+            /** My Helped */
+            my_helped: string[];
             /** My Progress Bps */
             my_progress_bps: number;
             /** Name */
@@ -2327,6 +2353,8 @@ export interface components {
             is_owner: boolean;
             /** Member Count */
             member_count: number;
+            /** My Helped */
+            my_helped: string[];
             /** My Progress Bps */
             my_progress_bps: number;
             /** Name */
@@ -2343,6 +2371,23 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HelpedRequest */
+        HelpedRequest: {
+            /** Choices */
+            choices: string[];
+        };
+        /**
+         * HelpedTotals
+         * @description How many members answered and how many picked each choice: never who picked what.
+         */
+        HelpedTotals: {
+            /** Answered */
+            answered: number;
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
         };
         /** HouseholdBlobIn */
         HouseholdBlobIn: {
@@ -2821,7 +2866,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "upcoming_expense" | "shortfall_risk" | "challenge_checkin" | "goal_behind_pace" | "milestone_reached" | "weekly_recap";
+            type: "upcoming_expense" | "shortfall_risk" | "challenge_checkin" | "goal_behind_pace" | "milestone_reached" | "weekly_recap" | "budget_pace";
         };
         /** ScheduleOut */
         ScheduleOut: {
@@ -4307,6 +4352,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_helped_api_groups__group_id__helped_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HelpedRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

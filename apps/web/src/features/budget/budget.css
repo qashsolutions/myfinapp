@@ -120,6 +120,15 @@
   min-width: 0;
   padding: 8px 0;
 }
+.zb-line__word {
+  align-self: flex-start;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--c-sub);
+}
+.zb-line__word--bad {
+  color: var(--c-danger);
+}
 .zb-line__cover {
   align-self: flex-start;
   font-size: var(--fs-small);

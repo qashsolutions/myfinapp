@@ -1,0 +1,11 @@
+{
+  "month": "2026-10",
+  "days_left": 1,
+  "items": [
+    {
+      "category_id": "a",
+      "level_bps": 10000,
+      "spent_bps": 10000
+    }
+  ]
+}

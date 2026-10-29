@@ -1,5 +1,19 @@
 /* Groups (mockups F4Challenge, F4Join). */
 
+/* "What helped": the group's totals as small bars. */
+.helped-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.helped-totals__row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-small);
+}
+
 .group-actions {
   display: grid;
   gap: 8px;

@@ -36,3 +36,10 @@ def test_every_threshold_is_present() -> None:
     thresholds = build.compile_config()["thresholds"]
     assert set(thresholds) == KEYS
     assert all(isinstance(v, int) and v >= 0 for v in thresholds.values())
+
+
+def test_budget_alert_levels_are_ascending_whole_bps() -> None:
+    levels = build.compile_config()["budget_alerts"]["levels_bps"]
+    assert levels, "at least one level"
+    assert all(isinstance(v, int) and 0 < v <= 100000 for v in levels)
+    assert levels == sorted(set(levels))

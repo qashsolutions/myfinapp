@@ -13,5 +13,11 @@
     "subscription_renewal_days": 14,
     "trial_max_cents": 100,
     "trial_window_days": 45
+  },
+  "budget_alerts": {
+    "levels_bps": [
+      9000,
+      10000
+    ]
   }
 }

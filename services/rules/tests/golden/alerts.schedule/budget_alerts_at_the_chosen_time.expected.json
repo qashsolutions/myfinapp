@@ -1,0 +1,14 @@
+{
+  "alerts": [
+    {
+      "type": "budget_pace",
+      "due_local": "2026-10-22T09:00",
+      "dedupe_key": "budget:2026-10:abcdefghijklmnop:9000"
+    },
+    {
+      "type": "budget_pace",
+      "due_local": "2026-10-22T09:00",
+      "dedupe_key": "budget:2026-10:ponmlkjihgfedcba:10000"
+    }
+  ]
+}

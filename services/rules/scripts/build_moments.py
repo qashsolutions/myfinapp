@@ -88,6 +88,9 @@ def compile_catalog(data: dict) -> dict:
     trial_ends = str(data["push_trial_ends_tomorrow"])
     if PLACEHOLDER.findall(trial_ends):
         raise CatalogError("push_trial_ends_tomorrow takes no values")
+    reached = str(data["push_budget_reached"])
+    if PLACEHOLDER.findall(reached) or re.search(r"[$0-9]", reached):
+        raise CatalogError("push_budget_reached must be fixed text with no amounts")
     founding = {}
     for name in ("push_founding_ends_soon", "push_founding_ended"):
         founding[name] = str(data[name])
@@ -111,6 +114,7 @@ def compile_catalog(data: dict) -> dict:
         "push_summary_one": summary_one,
         "push_plan_ended": plan_ended,
         "push_trial_ends_tomorrow": trial_ends,
+        "push_budget_reached": reached,
         **founding,
         "nudges": nudges,
     }

@@ -3,6 +3,7 @@ import { Word } from "../../app/layout/Word.tsx";
 import type { Category } from "../../data/db.ts";
 import type { Bucket, BudgetSummary } from "../../engine/bridge.ts";
 import { formatCents } from "../../lib/format.ts";
+import { bucketLineId, type PaceWord } from "./pace.ts";
 import { type Split, SUGGESTED } from "./split.ts";
 
 export const BUCKET_LABELS: Record<Bucket, [string, string]> = {
@@ -17,10 +18,13 @@ export function RuleView({
   summary,
   categories,
   split,
+  pace = null,
 }: {
   summary: BudgetSummary;
   categories: Map<string, Category>;
   split?: Split | null;
+  /** "Close" / "Over" per bucket from `budget.pace` (the same reading as the budget alert). */
+  pace?: Map<string, PaceWord> | null;
 }) {
   return (
     <>
@@ -43,7 +47,9 @@ export function RuleView({
                   : "Saving"
                 : over
                   ? "Over"
-                  : "Steady"}
+                  : pace?.get(bucketLineId(b.bucket)) === "Close"
+                    ? "Close"
+                    : "Steady"}
             </Word>
             <div className="bucket__top">
               <span className="bucket__title">

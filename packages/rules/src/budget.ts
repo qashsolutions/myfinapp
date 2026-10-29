@@ -1,8 +1,8 @@
 /** Port of stackd_rules/budget.py: 50/30/20 targets, monthly take-home, and the budget summary. */
 
-import { type Day, iso, monthBounds, parseDate } from "./dates.ts";
+import { type Day, daysUntil, iso, monthBounds, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
-import { allocate, assertInt, mul, roundDiv } from "./money.ts";
+import { allocate, assertInt, mul, ratioBps, roundDiv } from "./money.ts";
 import { compareText } from "./text.ts";
 
 export type Bucket = "need" | "want" | "save";
@@ -233,4 +233,65 @@ export function summary(
     left_to_assign_cents: leftToAssign,
     kept_cents: Math.max(0, takeHome - totalSpent),
   };
+}
+
+const MONTH = /^[0-9]{4}-[0-9]{2}$/;
+const MAX_LEVEL_BPS = 100000;
+
+function levelsOf(raw: unknown): number[] {
+  if (!Array.isArray(raw) || raw.length === 0) throw new RuleError("invalid_levels");
+  const levels: number[] = [];
+  for (const v of raw) {
+    if (typeof v !== "number" || !Number.isInteger(v) || v <= 0 || v > MAX_LEVEL_BPS)
+      throw new RuleError("invalid_levels");
+    const last = levels[levels.length - 1];
+    if (last !== undefined && v <= last) throw new RuleError("invalid_levels");
+    levels.push(v);
+  }
+  return levels;
+}
+
+export interface PaceItem {
+  category_id: string;
+  level_bps: number;
+  spent_bps: number | null;
+}
+
+/** Port of budget.pace: the highest level of its plan each line's spending reached. */
+export function pace(
+  month: unknown,
+  asOf: unknown,
+  rawLines: unknown,
+  levelsBps: unknown,
+): { month: string; days_left: number; items: PaceItem[] } {
+  if (typeof month !== "string" || !MONTH.test(month)) throw new RuleError("invalid_date");
+  const day = parseDate(asOf);
+  if (iso(day).slice(0, 7) !== month) throw new RuleError("invalid_date");
+  const levels = levelsOf(levelsBps);
+  if (!Array.isArray(rawLines)) throw new RuleError("invalid_lines");
+  const [, end] = monthBounds(day);
+  const seen = new Set<string>();
+  const items: PaceItem[] = [];
+  for (const item of rawLines) {
+    if (
+      typeof item !== "object" ||
+      item === null ||
+      Array.isArray(item) ||
+      typeof (item as Record<string, unknown>).category_id !== "string"
+    )
+      throw new RuleError("invalid_line");
+    const l = item as Record<string, unknown>;
+    const id = l.category_id as string;
+    const planned = assertInt(l.planned_cents);
+    const spent = assertInt(l.spent_cents);
+    if (planned < 0) throw new RuleError("invalid_amount");
+    if (seen.has(id)) throw new RuleError("duplicate_line");
+    seen.add(id);
+    if (planned === 0) continue;
+    const crossed = levels.filter((lv) => mul(spent, 10000) >= mul(planned, lv));
+    const top = crossed[crossed.length - 1];
+    if (top === undefined) continue;
+    items.push({ category_id: id, level_bps: top, spent_bps: ratioBps(spent, planned) });
+  }
+  return { month, days_left: daysUntil(day, end) + 1, items };
 }

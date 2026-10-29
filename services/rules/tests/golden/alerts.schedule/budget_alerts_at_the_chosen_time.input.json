@@ -1,0 +1,26 @@
+{
+  "inputs": {
+    "upcoming": [],
+    "shortfall": null,
+    "challenges": [],
+    "goals": [],
+    "milestones": [],
+    "now_local": "2026-10-22T07:30",
+    "budget": [
+      {
+        "tag": "ponmlkjihgfedcba",
+        "level_bps": 10000
+      },
+      {
+        "tag": "abcdefghijklmnop",
+        "level_bps": 9000
+      }
+    ],
+    "prefs": {
+      "budget_pace": {
+        "enabled": true,
+        "time": "09:00"
+      }
+    }
+  }
+}

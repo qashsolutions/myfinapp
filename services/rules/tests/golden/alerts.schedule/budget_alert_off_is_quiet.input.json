@@ -1,0 +1,21 @@
+{
+  "inputs": {
+    "upcoming": [],
+    "shortfall": null,
+    "challenges": [],
+    "goals": [],
+    "milestones": [],
+    "now_local": "2026-10-22T13:05",
+    "budget": [
+      {
+        "tag": "lekdgdiedlbpekao",
+        "level_bps": 9000
+      }
+    ],
+    "prefs": {
+      "budget_pace": {
+        "enabled": false
+      }
+    }
+  }
+}

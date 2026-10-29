@@ -7,17 +7,24 @@
 import {
   type AlertInputs,
   alertsSchedule,
+  alertsTag,
+  type BudgetSummary,
+  budgetPace,
   goalProgress,
   type Projection,
   payInFull,
   type Upcoming,
 } from "../engine/bridge.ts";
+import { alertLevels, paceLines } from "../features/budget/pace.ts";
 import { compareText } from "../lib/order.ts";
 import { backgroundApi, failureOf, type NotificationSettingsOut } from "./api.ts";
 import type { Goal, StackdDb } from "./db.ts";
 
 export const LAST_HASH_KEY = "alerts.last_hash";
 export const NOTIFIED_MILESTONES_KEY = "alerts.notified_milestones";
+/** A random value kept on the device (synced in backups) that budget alert tags are made with,
+ * so the server can't work a category back from its tag. */
+export const TAG_SALT_KEY = "alerts.tag_salt";
 
 export interface ScheduleSources {
   nowLocal: string; // "YYYY-MM-DDTHH:MM" in the user's zone
@@ -27,6 +34,8 @@ export interface ScheduleSources {
   challenges: Array<{ group_id: string; end_date: string }>;
   goals: Goal[];
   milestonesReached: Array<{ goal_id: string; key: string }>;
+  /** This month's budget summary (Budget's own reading), for the budget alert. */
+  budget?: BudgetSummary | null;
   prefs: NotificationSettingsOut["prefs"];
 }
 
@@ -72,6 +81,40 @@ async function cardDueItems(db: StackdDb, asOf: string): Promise<AlertInputs["up
       matched: false,
     });
   }
+  return items;
+}
+
+async function tagSalt(db: StackdDb): Promise<string> {
+  const saved = (await db.settings.get(TAG_SALT_KEY))?.value;
+  if (typeof saved === "string" && saved) return saved;
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  const salt = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  await db.settings.put({ key: TAG_SALT_KEY, value: salt, updated_at: new Date().toISOString() });
+  return salt;
+}
+
+/**
+ * The budget alert's items: each line past a level of its plan this month (`budget.pace`, the
+ * same reading as Budget's "Close" / "Over"), as a tag and a level only. The category, its
+ * name and every amount stay here (invariant 29).
+ */
+async function budgetItems(db: StackdDb, sources: ScheduleSources): Promise<AlertInputs["budget"]> {
+  const summary = sources.budget;
+  const pref = sources.prefs.budget_pace;
+  if (!summary || !pref?.enabled) return [];
+  const month = summary.start.slice(0, 7);
+  if (month !== sources.asOf.slice(0, 7)) return [];
+  const pace = await budgetPace(
+    month,
+    sources.asOf,
+    paceLines(summary),
+    alertLevels(pref.threshold),
+  );
+  if (!pace.items.length) return [];
+  const salt = await tagSalt(db);
+  const items: AlertInputs["budget"] = [];
+  for (const item of pace.items)
+    items.push({ tag: await alertsTag(item.category_id, salt), level_bps: item.level_bps });
   return items;
 }
 
@@ -123,6 +166,7 @@ export async function buildInputs(db: StackdDb, sources: ScheduleSources): Promi
     challenges: sources.challenges,
     goals,
     milestones: sources.milestonesReached,
+    budget: await budgetItems(db, sources),
     prefs: {
       upcoming_expense: {
         enabled: prefs.upcoming_expense?.enabled ?? false,
@@ -139,6 +183,10 @@ export async function buildInputs(db: StackdDb, sources: ScheduleSources): Promi
         periods: prefs.goal_behind_pace?.threshold ?? 1,
       },
       milestone_reached: { enabled: prefs.milestone_reached?.enabled ?? false },
+      budget_pace: {
+        enabled: prefs.budget_pace?.enabled ?? false,
+        time: prefs.budget_pace?.time_of_day ?? "09:00",
+      },
       weekly_recap: {
         enabled: prefs.weekly_recap?.enabled ?? false,
         day: Number((prefs.weekly_recap?.days ?? "0").split(",")[0]),
