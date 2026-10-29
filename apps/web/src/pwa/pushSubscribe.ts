@@ -6,7 +6,7 @@
  */
 
 import { api, failureOf } from "../data/api.ts";
-import { isNativePlatform, isStandalone } from "../lib/platform.ts";
+import { isAppleMobile, isNativePlatform, isStandalone } from "../lib/platform.ts";
 import { subscribeNativePush, unsubscribeNativePush } from "../native/push.ts";
 
 export type PushOutcome =
@@ -29,8 +29,7 @@ export function pushSupported(): boolean {
 /** iPhone Safari offers push only to installed apps; the native shell needs no install. */
 export function needsHomeScreen(): boolean {
   if (isNativePlatform()) return false;
-  const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
-  return /iPhone|iPad|iPod/.test(ua) && !isStandalone();
+  return isAppleMobile() && !isStandalone();
 }
 
 function urlBase64ToBytes(value: string): Uint8Array {

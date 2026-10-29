@@ -6,7 +6,7 @@
  * (`beforeinstallprompt`).
  */
 
-import { isStandalone } from "../lib/platform.ts";
+import { isAppleMobile, isStandalone } from "../lib/platform.ts";
 
 export const VISITS_KEY = "stackd.visits";
 export const DISMISSED_KEY = "stackd.install_dismissed";
@@ -61,7 +61,7 @@ export async function promptInstall(): Promise<"accepted" | "dismissed" | "unava
 export type InstallPlatform = "iphone" | "other";
 
 export function installPlatform(userAgent = navigator.userAgent): InstallPlatform {
-  return /iPhone|iPad|iPod/.test(userAgent) ? "iphone" : "other";
+  return isAppleMobile(userAgent) ? "iphone" : "other";
 }
 
 /**
@@ -72,7 +72,7 @@ export function installPlatform(userAgent = navigator.userAgent): InstallPlatfor
 export type InstallTarget = "iphone_safari" | "iphone_other" | "android" | "desktop";
 
 export function installTarget(userAgent = navigator.userAgent): InstallTarget {
-  if (/iPhone|iPad|iPod/.test(userAgent))
+  if (isAppleMobile(userAgent))
     return /CriOS|FxiOS|EdgiOS|OPiOS|FBAN|FBAV|Instagram|Line\/|GSA\/|Snapchat|LinkedInApp/.test(
       userAgent,
     )

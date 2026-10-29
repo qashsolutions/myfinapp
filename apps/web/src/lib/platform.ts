@@ -47,10 +47,27 @@ export function prefersReducedMotion(): boolean {
   );
 }
 
+function touchPoints(): number {
+  return typeof navigator === "undefined" ? 0 : (navigator.maxTouchPoints ?? 0);
+}
+
+/**
+ * An iPhone, iPod or iPad. iPadOS Safari asks for desktop sites and reports itself as a Mac, so
+ * a "Macintosh" with a touch screen (Macs report no touch points) and no native shell is an iPad
+ * (October 29, 2026). The one place that decides it.
+ */
+export function isAppleMobile(
+  userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent,
+  points = touchPoints(),
+): boolean {
+  if (/iPhone|iPad|iPod/.test(userAgent)) return true;
+  return /Macintosh/.test(userAgent) && points > 1 && !isNativePlatform();
+}
+
 /** What the device will ask for when a passkey is used: wording only, the platform decides. */
 export function biometricName(): string {
   const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
-  if (/iPhone|iPad/.test(ua)) return "Face ID";
+  if (isAppleMobile(ua)) return "Face ID";
   if (/Macintosh/.test(ua)) return "Touch ID";
   if (/Android/.test(ua)) return "your fingerprint or face";
   if (/Windows/.test(ua)) return "Windows Hello";

@@ -32,10 +32,13 @@ export async function renameEntry(
   const name = raw.trim().replace(/\s+/g, " ").slice(0, 60);
   if (!name) return;
   const stamp = now.toISOString();
+  // The entries like this one are found first: finding them asks the engine, which answers from
+  // a worker in a later task, and a transaction awaiting anything but the database commits
+  // early ("Transaction has already completed"; invariant 59).
+  const others = all && entry.clean_description ? await likeThis(db, entry) : [];
   await db.transaction("rw", db.entries, db.merchant_names, async () => {
     await db.entries.update(entry.id, { merchant: name, renamed: true, updated_at: stamp });
     if (!all || !entry.clean_description) return;
-    const others = await likeThis(db, entry);
     for (const e of others)
       await db.entries.update(e.id, { merchant: name, renamed: true, updated_at: stamp });
     const existing = await db.merchant_names.where("match").equals(entry.clean_description).first();

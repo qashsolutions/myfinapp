@@ -2,6 +2,8 @@ import { Button, buttonClass } from "@stackd/ui";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { APP_NAME, PRIVACY_URL, TERMS_URL } from "../../lib/brand.ts";
+import { formatDate } from "../../lib/format.ts";
+import { keptAccount } from "../../lib/keptAccount.ts";
 import { forgetAccount, lastAccount } from "../../lib/lastAccount.ts";
 import { biometricName, isNativePlatform, isStandalone } from "../../lib/platform.ts";
 import { installPlatform } from "../../pwa/install.ts";
@@ -58,7 +60,10 @@ function Icon({ kind }: { kind: string }) {
 export function Welcome() {
   const navigate = useNavigate();
   const session = useSession();
-  const [returning, setReturning] = useState(lastAccount);
+  // An account that closed when its plan ended (invariant 57): its passkey signs nobody in, so
+  // Welcome leads to the data it left here instead of offering that passkey.
+  const [kept] = useState(keptAccount);
+  const [returning, setReturning] = useState(() => (kept ? null : lastAccount()));
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [guide, setGuide] = useState(false);
@@ -69,6 +74,9 @@ export function Welcome() {
   useEffect(() => {
     document.title = APP_NAME;
   }, []);
+  useEffect(() => {
+    if (kept) forgetAccount(); // a device remembered from before the closure
+  }, [kept]);
   useApplyUpdateNow(); // nothing typed here yet, so a waiting update applies straight away
 
   async function passkey() {
@@ -79,6 +87,14 @@ export function Welcome() {
       await session.refresh();
       navigate("/", { replace: true });
     } catch (err) {
+      // An account closed here: never say "no passkey" when the passkey was the closed account's.
+      const closed = keptAccount();
+      if (closed) {
+        setNote(
+          `Your account closed on ${formatDate(closed.closed_at)}, so its passkey no longer signs in. Your data is still on this device.`,
+        );
+        return;
+      }
       // Browsers report "no passkey on this device" and "closed the prompt" the same way (by
       // design, so a site can't probe what is stored), so both get the same friendly way on.
       if (err instanceof PasskeyError && err.code === "cancelled")
@@ -114,6 +130,18 @@ export function Welcome() {
       </Button>
     </div>
   ) : null;
+
+  const keptEntry = kept ? (
+    <section className="auth__back-card sk-card" aria-labelledby="kept-entry">
+      <p className="auth__who" id="kept-entry">
+        Your account closed on {formatDate(kept.closed_at)}. Your data is still on this device.
+      </p>
+      <Link to="/kept" className={buttonClass({ block: true })}>
+        See my data
+      </Link>
+    </section>
+  ) : null;
+  const showPasskey = canPasskey && !kept;
 
   return (
     <AuthLayout brand footer>
@@ -158,6 +186,7 @@ export function Welcome() {
           <p className="auth__lead">
             See money in and out, spot a shortfall before it happens, and save toward what matters.
           </p>
+          {keptEntry}
           {install}
           <ul className="auth__points sk-card">
             {POINTS.map(([icon, title, sub]) => (
@@ -182,7 +211,7 @@ export function Welcome() {
             <Link to="/signin" className={buttonClass({ block: true })}>
               Get started
             </Link>
-            {canPasskey ? (
+            {showPasskey ? (
               <Button variant="secondary" block onClick={passkey} disabled={busy}>
                 <span className="auth__fingerprint">
                   <Icon kind="fingerprint" />
@@ -194,8 +223,8 @@ export function Welcome() {
                 I already have an account
               </Link>
             )}
-            {canPasskey ? <NoBiometricsHelp onUsePhone={passkey} /> : null}
-            <PhoneLinkEntry />
+            {showPasskey ? <NoBiometricsHelp onUsePhone={passkey} /> : null}
+            {kept ? null : <PhoneLinkEntry />}
           </div>
         </>
       )}
