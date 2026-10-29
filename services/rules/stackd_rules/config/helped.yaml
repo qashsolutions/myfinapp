@@ -1,7 +1,9 @@
 # "What helped" in challenges (October 28, 2026; proposed, awaiting owner sign-off): one fixed
 # list of choices a member can pick (up to `max_choices`) once they reached their target or the
 # challenge ended. No free text, by design: instead of a forum. The group sees only totals, and
-# only once `min_answers` members answered. Shared by the API (validation) and the app (labels).
+# a member sees them only once `min_answers` members OTHER than themselves answered (so no
+# one can take their own answer away and read another's). Shared by the API (validation) and
+# the app (labels).
 # Edit, then: uv run python scripts/build_helped.py
 version: 1
 max_choices: 3

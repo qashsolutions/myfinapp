@@ -7,7 +7,8 @@ can show "Former member".
 
 helped is the member's own "What helped" answer: up to 3 ids from the one fixed list
 (stackd_rules/config/helped.yaml), comma separated, never free text. Other members only ever see
-totals across the group.
+totals across the group, and only once at least min_answers members other than the viewer answered
+(invariant 29). Leaving or being removed clears it.
 """
 
 from __future__ import annotations

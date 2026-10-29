@@ -109,7 +109,7 @@ export function WhatHelped({ group, onSaved }: { group: GroupDetail; onSaved: ()
           })}
         </div>
       ) : (
-        <p className="auth__hint">The group's totals show once two members have answered.</p>
+        <p className="auth__hint">The group's totals show once two other members have answered.</p>
       )}
     </Card>
   );

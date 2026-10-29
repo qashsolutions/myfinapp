@@ -141,6 +141,52 @@ describe("credit habits and card spending (October 28, 2026)", () => {
     expect(within(card).getByRole("link", { name: "Set the balance in Accounts" })).toBeVisible();
   });
 
+  it("never says Missed for a due date past what the card's statements reach", async () => {
+    // A statement imported through Oct 20, due on the 25th, today Oct 28: the Oct 25 payment
+    // simply isn't in yet (credit.habits `until`; golden due_dates_past_the_cards_data_are_unknown).
+    vi.setSystemTime(new Date("2026-10-28T12:00:00"));
+    const db = await seedCard();
+    await db.accounts.update(VISA.id, { due_day: 25 });
+    await db.entries.clear();
+    await db.entries.bulkAdd([
+      entry("a1", "2026-08-03", "out", 3000),
+      entry("a2", "2026-08-20", "in", 3000),
+      entry("b1", "2026-09-03", "out", 3000),
+      entry("b2", "2026-09-20", "in", 3000),
+      entry("c1", "2026-10-03", "out", 3000),
+    ]);
+    await db.balance_anchors.add({
+      id: "anc-stmt",
+      account_id: VISA.id,
+      as_of: "2026-10-18",
+      balance_cents: -3000,
+      source: "statement",
+      created_at: "2026-10-28T09:00:00Z",
+    });
+    await db.statement_imports.add({
+      id: "imp-oct",
+      account_id: VISA.id,
+      format: "csv",
+      template_key: null,
+      file_name: "visa-october.csv",
+      period_start: "2026-09-21",
+      period_end: "2026-10-20",
+      ending_balance_cents: -3000,
+      rows_found: 1,
+      rows_added: 1,
+      rows_skipped: 0,
+      file_key: null,
+      status: "done",
+      created_at: "2026-10-28T09:00:00Z",
+    });
+    installFakeApi({ session: readySession() });
+    renderApp("/credit-habits");
+    const card = await screen.findByRole("article", { name: "Visa ••4242" });
+    await waitFor(() => expect(card).toHaveTextContent("2 payments on time in a row"));
+    expect(card).toHaveTextContent("Steady");
+    expect(card).not.toHaveTextContent("Missed");
+  });
+
   it("a card without a due day asks for one, and the due day is the person's own value", async () => {
     const user = userEvent.setup();
     const db = await seedCard();

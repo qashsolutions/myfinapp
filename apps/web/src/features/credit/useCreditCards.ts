@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type Account, ignoreClosed } from "../../data/db.ts";
 import { type CardTrend, type CreditHabits, cardTrend, creditHabits } from "../../engine/bridge.ts";
+import { todayIso } from "../../lib/format.ts";
 import { byLabel, compareText } from "../../lib/order.ts";
 import { THRESHOLDS } from "../insights/thresholds.ts";
+import { LAST_SYNC_KEY } from "../linking/sync.ts";
 
 export interface CreditCardView {
   account: Account;
@@ -22,7 +24,9 @@ const TREND_MONTHS = THRESHOLDS.card_trend_months ?? 6;
  * Every credit card account on this device with its spending against payments
  * (`credit.card_trend`) and its credit habits (`credit.habits`; October 28, 2026). Payments are
  * the card's money in (the transfer side included); due dates are the ones its linked facts
- * showed (`card_due_dates`) or the person's own due day. Education only: nothing leaves the
+ * showed (`card_due_dates`) or the person's own due day. A due date after the last day the
+ * card's data reaches (its latest entry, balance, statement period end or, linked, last sync)
+ * is unknown, never Missed. Education only: nothing leaves the
  * device and no score is involved.
  */
 export function useCreditCards(asOf: string): CreditCardView[] | undefined {
@@ -30,13 +34,24 @@ export function useCreditCards(asOf: string): CreditCardView[] | undefined {
   const source = useLiveQuery(async () => {
     const cards = (await db.accounts.toArray()).filter((a) => a.type === "credit_card");
     const ids = cards.map((a) => a.id);
-    const [entries, details, dues, anchors] = await Promise.all([
+    const [entries, details, dues, anchors, imports, lastSync] = await Promise.all([
       ids.length ? db.entries.where("account_id").anyOf(ids).toArray() : [],
       db.card_details.toArray(),
       db.card_due_dates.toArray(),
       db.balance_anchors.toArray(),
+      ids.length ? db.statement_imports.where("account_id").anyOf(ids).toArray() : [],
+      db.settings.get(LAST_SYNC_KEY),
     ]);
-    return { cards, entries, details, dues, anchors };
+    const synced = typeof lastSync?.value === "string" ? Date.parse(lastSync.value) : Number.NaN;
+    return {
+      cards,
+      entries,
+      details,
+      dues,
+      anchors,
+      imports,
+      lastSyncDay: Number.isNaN(synced) ? null : todayIso(new Date(synced)),
+    };
   }, [db]);
   const [views, setViews] = useState<CreditCardView[] | undefined>(undefined);
 
@@ -101,6 +116,14 @@ export function useCreditCards(asOf: string): CreditCardView[] | undefined {
               (min, e) => (min === null || compareText(e.date, min) < 0 ? e.date : min),
               null,
             ),
+            // How far the card's data reaches: a due date after it may simply have its payment
+            // not imported yet, so it is unknown rather than Missed (credit.habits `until`).
+            until: latestOf([
+              ...mine.map((e) => e.date),
+              ...source.anchors.filter((a) => a.account_id === account.id).map((a) => a.as_of),
+              ...source.imports.filter((i) => i.account_id === account.id).map((i) => i.period_end),
+              account.linked ? source.lastSyncDay : null,
+            ]),
           });
         }
         out.push({ account, habits, trend });
@@ -112,6 +135,13 @@ export function useCreditCards(asOf: string): CreditCardView[] | undefined {
     };
   }, [source, asOf]);
   return views;
+}
+
+/** The latest of these ISO dates (code-point order), or null when there is none. */
+function latestOf(days: Array<string | null>): string | null {
+  let latest: string | null = null;
+  for (const d of days) if (d && (latest === null || compareText(d, latest) > 0)) latest = d;
+  return latest;
 }
 
 const RANK = { missed: 0, building: 1, steady: 2 } as const;

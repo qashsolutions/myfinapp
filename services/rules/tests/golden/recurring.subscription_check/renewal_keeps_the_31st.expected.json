@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "id": "q",
+      "label": "Q",
+      "kind": null,
+      "ask": true,
+      "price_rise": null,
+      "renewal": {
+        "date": "2026-10-31",
+        "cents": 3000
+      },
+      "trial_turned_charge": null,
+      "yearly_cents": 12000,
+      "monthly_cents": 1000
+    }
+  ],
+  "duplicates": []
+}

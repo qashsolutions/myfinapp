@@ -25,6 +25,7 @@ from .errors import RuleError
 from .fingerprint import fnv1a_64
 from .money import _int
 from .notify import fmt_local, parse_clock, parse_local
+from .text import utf8
 
 HORIZON_DAYS = 30
 SEND_TIME = "09:00"  # dated alerts, unless the person picks their own time (`time`)
@@ -43,7 +44,7 @@ def tag(value: object, salt: object) -> str:
     server learning which one (the salt is a random value kept on the device)."""
     if not isinstance(value, str) or not value or not isinstance(salt, str) or not salt:
         raise RuleError("invalid_inputs")
-    digest = fnv1a_64(f"{salt}:{value}".encode())
+    digest = fnv1a_64(utf8(f"{salt}:{value}", "invalid_inputs"))
     return "".join(chr(ord("a") + int(c, 16)) for c in f"{digest:016x}")
 
 

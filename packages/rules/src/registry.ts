@@ -356,6 +356,7 @@ const BARE: Record<string, Rule> = {
         "limit_cents",
         "since",
         "balance_history",
+        "until",
       ],
     );
     return {
@@ -373,6 +374,7 @@ const BARE: Record<string, Rule> = {
         a.guide_bps,
         a.since ?? null,
         a.balance_history ?? null,
+        a.until ?? null,
       ),
     };
   },

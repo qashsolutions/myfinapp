@@ -193,12 +193,14 @@ def habits(
     guide_bps: object,
     since: object = None,
     balance_history: object = None,
+    until: object = None,
 ) -> dict:
     """On-time payments, the share of the limit used and paying in full, for one card.
 
     Due dates are the given ones, those of `statements` ({due_date, balance_cents?,
     minimum_cents?}: what that statement asked for), plus, with `due_day` (1-31), that day of
-    every month clamped to the month's end. A due date is checked when it is on or after as_of
+    every month clamped to the month's end, in the months that have no given or statement due
+    date. A due date is checked when it is on or after as_of
     minus `months` months, on or after `since` when given (the card's history starts there, so
     nothing before it counts as missed) and before as_of (a due date of today is still open).
     It is on time
@@ -214,8 +216,9 @@ def habits(
     or before it plus the entries after the anchor through the due date (forecast.start_balance),
     owed = max(0, -balance). Nothing owed is on time and paid in full; something owed needs a
     payment as above, and paid in full stays unknown. A due date with no anchor on or before
-    it is unknown: left out of `checked` and counted in `unknown`, never missed. We say only
-    what the person's own data shows.
+    it is unknown: left out of `checked` and counted in `unknown`, never missed. So is a due
+    date after `until`, the last day the card's data reaches (its latest import, entry, balance
+    or sync), unless the payments already seen make it on time: its payment may not be in yet. We say only what the person's own data shows.
     """
     today = parse_date(as_of)
     span = _window_months(months)
@@ -229,16 +232,10 @@ def habits(
         raise RuleError("invalid_payments")
     dues = {parse_date(d) for d in due_dates}
     start = add_months(today, -span)
+    last = _opt_date(until)
     day = None if due_day is None else _int(due_day, "invalid_day")
-    if day is not None:
-        if not 1 <= day <= 31:
-            raise RuleError("invalid_day")
-        # From the month before the window (so the first checked one has a previous) through
-        # the month after as_of (so the next due date is known).
-        lead = add_months(start.replace(day=1), -1)
-        for step in range(span + 3):
-            month = add_months(lead, step)
-            dues.add(month.replace(day=min(day, days_in_month(month))))
+    if day is not None and not 1 <= day <= 31:
+        raise RuleError("invalid_day")
     minimum = _opt_int(minimum_cents)
     if minimum is not None and minimum < 0:
         raise RuleError("invalid_amount")
@@ -260,6 +257,17 @@ def habits(
                 if own_min < 0:
                     raise RuleError("invalid_amount")
                 minimum_by_due[due] = own_min
+    if day is not None:
+        # The person's own due day fills only months with no known due date (a statement's
+        # or a given one): one bill a month, never a second, earlier one that looks missed.
+        # From the month before the window (so the first checked one has a previous) through
+        # the month after as_of (so the next due date is known).
+        known = {(d.year, d.month) for d in dues}
+        lead = add_months(start.replace(day=1), -1)
+        for step in range(span + 3):
+            month = add_months(lead, step)
+            if (month.year, month.month) not in known:
+                dues.add(month.replace(day=min(day, days_in_month(month))))
     paid = [_payment(p) for p in payments]
     history = _balance_history(balance_history)
 
@@ -288,6 +296,10 @@ def habits(
         else:
             on_time = total >= need if need else total > 0
             in_full = None if owed is None else total >= owed
+        if not on_time and last is not None and d > last:
+            # Past what the card's data reaches: its payment may simply not be in yet.
+            unknown += 1
+            continue
         results.append({"due_date": d, "on_time": on_time, "in_full": in_full})
 
     streak = 0

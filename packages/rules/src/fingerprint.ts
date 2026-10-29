@@ -7,12 +7,11 @@
 import { iso, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { assertInt } from "./money.ts";
-import { collapseSpaces, trimSpaces } from "./text.ts";
+import { collapseSpaces, trimSpaces, utf8 } from "./text.ts";
 
 const FNV64_OFFSET = 0xcbf29ce484222325n;
 const FNV64_PRIME = 0x100000001b3n;
 const MASK64 = (1n << 64n) - 1n;
-const encoder = new TextEncoder();
 
 export function cleanDescription(text: unknown): string {
   if (typeof text !== "string") throw new RuleError("invalid_description");
@@ -39,6 +38,9 @@ export function fingerprint(
   if (typeof accountId !== "string" || accountId === "") throw new RuleError("invalid_account");
   const day = iso(parseDate(date));
   const cents = assertInt(amountCents);
-  const key = `${accountId}|${day}|${cents}|${cleanDescription(description)}`;
-  return fnv1a64(encoder.encode(key)).toString(16).padStart(16, "0");
+  utf8(accountId, "invalid_account");
+  const clean = cleanDescription(description);
+  utf8(clean, "invalid_description");
+  const key = `${accountId}|${day}|${cents}|${clean}`;
+  return fnv1a64(utf8(key, "invalid_description")).toString(16).padStart(16, "0");
 }
