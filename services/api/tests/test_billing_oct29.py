@@ -531,7 +531,7 @@ def test_a_dispute_that_lands_before_the_checkout_still_pauses_the_plan_then_end
     stripe = Stripe()
     stripe_billing.transport_override = stripe.transport()
     client, user_id = member("racedispute")
-    sub = "sub_race"
+    sub = f"sub_racedispute_{uuid.uuid4().hex[:8]}"  # unique: external ids are session-wide
     stripe.subscription(sub, user_id, "private", "monthly")
     stripe.paid(sub, 300)
     r = post_event(client, _dispute("charge.dispute.created", f"ch_{sub}", f"pi_{sub}"))
