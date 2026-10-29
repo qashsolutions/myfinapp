@@ -250,6 +250,9 @@ function DebtResult({
   const interest = (c: number | null) => (c === null ? undefined : `${formatCents(c)} interest`);
   return (
     <Card as="section" aria-label={`What changes for ${label ?? "your debts"}`}>
+      <Word>{word}</Word>
+      <p role="status">{line}</p>
+      {detail ? <p className="sk-card__eyebrow">{detail}</p> : null}
       <WhatIfTimeline
         what={who}
         before={{
@@ -265,9 +268,6 @@ function DebtResult({
           note: interest(r.after.interest_cents),
         }}
       />
-      <Word>{word}</Word>
-      <p role="status">{line}</p>
-      {detail ? <p className="sk-card__eyebrow">{detail}</p> : null}
     </Card>
   );
 }
@@ -290,6 +290,9 @@ function JarResult({ r, title, add }: { r: WhatIfGoal; title: string; add: numbe
   }
   return (
     <Card as="section" aria-label={`What changes for ${title}`}>
+      <Word>{word}</Word>
+      <p role="status">{line}</p>
+      {detail ? <p className="sk-card__eyebrow">{detail}</p> : null}
       <WhatIfTimeline
         what={`${title} jar done`}
         before={{ label: "At your pace now", months: r.months_now, end: r.finish_now }}
@@ -299,9 +302,6 @@ function JarResult({ r, title, add }: { r: WhatIfGoal; title: string; add: numbe
           end: r.finish_new,
         }}
       />
-      <Word>{word}</Word>
-      <p role="status">{line}</p>
-      {detail ? <p className="sk-card__eyebrow">{detail}</p> : null}
     </Card>
   );
 }

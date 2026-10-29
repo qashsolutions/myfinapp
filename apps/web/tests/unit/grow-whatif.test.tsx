@@ -179,8 +179,11 @@ describe("Goals that grow and What if (October 28, 2026)", () => {
     expect(screen.queryByText(/a week to finish/)).toBeNull();
     // The quick chip is GrowCard's month, never the weekly figure.
     expect(await screen.findByRole("button", { name: "+$500.00" })).toBeInTheDocument();
-    // The bar is two labelled ends, not a progress bar.
-    expect(grows).toHaveTextContent("$2,000.00 today → $2,000.00 by February 2027");
+    // The chart's two labelled ends say today's cost and the cost then; no line repeats them.
+    expect(await within(grows).findByRole("img", { name: /^Cost rising/ })).toHaveAccessibleName(
+      /from \$2,000\.00 today to \$2,000\.00 by February 2027/,
+    );
+    expect(grows).not.toHaveTextContent("today →");
     // What if's jar maths has no growth in it: a grows jar doesn't link there.
     expect(within(grows).queryByRole("link", { name: /What if/ })).toBeNull();
   });
@@ -325,9 +328,9 @@ describe("the visual pass: grows chart and slider, What if timelines (October 29
       "Cost rising from $2,000.00 today to $2,000.00 by February 2027. Saving $500.00 a month comes to $2,000.00 by then.",
     );
     expect(grows).toHaveTextContent("Reaches the cost by February 2027");
-    // The chart comes before the word: picture first.
+    // One word first: the word and its line come before the chart.
     const word = within(grows).getByText("Behind");
-    expect(chart.compareDocumentPosition(word) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(word.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // $250 a month: $1,000 by then, so $1,000 short; 200000 ÷ k <= 25000 first at 8 months.
     const slider = within(grows).getByRole("slider", { name: /If I put in/ });
     fireEvent.change(slider, { target: { value: "25000" } });

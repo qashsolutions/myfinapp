@@ -13,7 +13,7 @@ import {
   growGoalPlan,
   growGoalReach,
 } from "../../engine/bridge.ts";
-import { formatCents, formatMonth } from "../../lib/format.ts";
+import { formatCents } from "../../lib/format.ts";
 import { percentText } from "../../lib/ownValues.ts";
 import { GrowChart } from "./GrowChart.tsx";
 import { growLineOf, growMessage, reachLineOf } from "./grow.ts";
@@ -173,7 +173,7 @@ export function GrowCard({
     <Card as="section" aria-label="Grows over time">
       {state && "plan" in state ? (
         <>
-          {reach && monthly !== null ? <GrowChart reach={reach} monthly={monthly} /> : null}
+          {/* One word first (owner rule): the word, the short line, then the picture. */}
           <Word>{state.plan.already_enough ? "Ahead" : PACE_WORD[state.pace.status]}</Word>
           <p role="status">
             {state.plan.already_enough
@@ -184,14 +184,7 @@ export function GrowCard({
                   goal.end_date,
                 )}
           </p>
-          {/* Two labelled ends, so the bar reads as a cost rising, never as progress. */}
-          <p className="grow-ends">
-            <span>{formatCents(grow.today_cents)} today</span>
-            <span aria-hidden="true"> → </span>
-            <span>
-              {formatCents(state.plan.future_cost_cents)} by {formatMonth(goal.end_date)}
-            </span>
-          </p>
+          {reach && monthly !== null ? <GrowChart reach={reach} monthly={monthly} /> : null}
           {monthly !== null && planMonthly !== null ? (
             <AmountSlider
               label="If I put in"
