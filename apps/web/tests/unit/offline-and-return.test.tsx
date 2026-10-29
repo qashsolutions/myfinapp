@@ -58,10 +58,39 @@ describe("invariant 35: a network failure is an answer", () => {
     api.access = { state: "choose", plan: "free" };
     renderApp("/start");
     const start = await screen.findByRole("button", { name: /^Start my/ });
+    // The network drops once the screen has loaded (Start is enabled once the plans are in;
+    // CI failed when the drop came first and the click hit a disabled button, October 29).
+    await waitFor(() => expect(start).toBeEnabled());
     api.offline = true;
     await user.click(start);
     expect(await screen.findByText("You're offline. Try again when connected.")).toBeVisible();
     expect(start).toBeEnabled();
+  });
+
+  it("Start trial opened with no network says so, then works once the device is back online", async () => {
+    resetEntitlements();
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    api.access = { state: "choose", plan: "free" };
+    // The plans request is the one that meets no network (the session check got through).
+    const served = globalThis.fetch;
+    let down = true;
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (down && new URL(url).pathname === "/api/billing") throw new TypeError("Failed to fetch");
+      return served(input, init);
+    };
+    renderApp("/start");
+    expect(await screen.findByText("You're offline. Try again when connected.")).toBeVisible();
+    expect(screen.getByRole("button", { name: /^Start my/ })).toBeDisabled();
+    down = false;
+    act(() => {
+      window.dispatchEvent(new Event("online"));
+    });
+    const start = await screen.findByRole("button", { name: /^Start my 3-day/ });
+    await waitFor(() => expect(start).toBeEnabled());
+    await user.click(start);
+    await screen.findByRole("heading", { level: 1, name: "Make Qash yours" });
   });
 });
 
