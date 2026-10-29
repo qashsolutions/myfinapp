@@ -89,7 +89,11 @@ written against both.
    `groups.test.tsx` · `notifications.test.tsx` · `receipts-strip.test.ts`
 10. **The two engines agree.** Python and TypeScript answer every golden case the same way, and
    no rule returns an amount past 2^53 − 1 cents (JavaScript's largest exact integer): the growth
-   rules answer `too_large` there, with goldens on both sides of the line. Text and dates are
+   rules answer `too_large` there, with goldens on both sides of the line. A month-by-month loop
+   whose balance can grow (the payoff plan, consolidation, What if's debt lever) stalls instead,
+   before a balance with its month's interest or the total owed passes the line, so a high rate
+   with no payment is "Stalled", never an error (October 29, 2026;
+   `*_stalls_before_the_balance_overflows`, `a_balance_at_the_limit_stalls_in_its_first_month`). Text and dates are
    the known traps (October 27, 2026): strings are ordered by code point (`text.ts`
    `compareText`, never `localeCompare` or `<`), whitespace is one spelled-out list in both
    engines, n-grams count characters, and years 1–99 are those years. Each trap has a golden that
@@ -183,6 +187,27 @@ written against both.
     `month-review.test.tsx` "builds over_plan…" · `budget-helped.test.tsx` "Close follows the
     person's own Tell me at…" · `grow-whatif.test.tsx` "a grows jar shows one monthly amount…",
     "never feeds the flat behind-pace alert", "Spend less never fills a grows jar"
+38. **A month on screen counts up to the day it shows** (October 29, 2026). Stepping to a month
+    (Previous / Next) reads it as of today when it is this month, its last day when it is past,
+    its 1st only when it is still to come (`engine/bridge.monthViewAsOf`); never the 1st of a
+    month that has begun, which left every entry after the 1st out of Budget (Needs read $0.00
+    for the same month). Budget and Money in & out step through it; Fixed vs flexible and the
+    month review take whole months.
+    `budget.test.tsx` "counts the whole of a past month…" · `engine.test.ts` "monthViewAsOf"
+39. **A card statement is read as a card** (October 29, 2026). A PDF whose header says it is a
+    card (minimum payment due, credit limit, payment due date, available credit, a card word),
+    or one imported into a credit-card account, reads purchases as money out, payments and
+    credits as money in and its balances as owed (below zero), so net worth and Credit habits
+    never see a card as money the person has. Header words come only from lines that are not
+    transactions, so a "VISA DEBIT" purchase never turns a checking statement into a card.
+    `pdf-import.test.ts` "a credit-card statement without a running balance…", "a PDF going into
+    a credit-card account…"
+40. **A statement's balance is anchored on its true last row** (October 29, 2026). Whatever
+    order a file lists its rows in (oldest first, newest first, several on one day), the
+    balance taken from a running-balance column is the one after the last thing that happened:
+    the order is read from the running balance, else from the dates (`importFlow.fileOrder`).
+    A printed ending balance (OFX, a PDF's) still wins.
+    `import-flow.test.tsx` "oldest first, newest first and the same day…"
 
 ## Accounts and money on the server
 

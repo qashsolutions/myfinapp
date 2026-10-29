@@ -6,9 +6,10 @@
  */
 
 import { parseAmount } from "../../src/engine/bridge.ts";
+import { parsePdfFile, pdfForAccount } from "../../src/features/imports/importFlow.ts";
 import { extractLines, joinRuns } from "../../src/importers/pdf/extract.ts";
 import { PdfError, parsePdfLines } from "../../src/importers/pdf/templates.ts";
-import { buildPdf, sampleStatementPdf } from "../fixtures/pdf.ts";
+import { buildPdf, sampleCardStatementPdf, sampleStatementPdf } from "../fixtures/pdf.ts";
 
 describe("PDF statement import", () => {
   it("rebuilds lines from positioned runs, top to bottom and left to right", () => {
@@ -121,5 +122,88 @@ describe("PDF statement import", () => {
     );
     expect(statement.rows.map((r) => r.amount_cents)).toEqual([-450, -450, 2000]);
     expect(await extractLines(buildPdf([]))).toEqual([]);
+  });
+
+  // Invariant 39: a card statement reads purchases as money out and its balance as owed.
+  it("a credit-card statement without a running balance: purchases out, payments and credits in, the new balance owed", async () => {
+    const lines = await extractLines(sampleCardStatementPdf());
+    const statement = await parsePdfLines(lines, parseAmount);
+    expect(statement.account).toEqual({ last4: "1173", type: "credit_card" });
+    expect(statement.rows.map((r) => [r.date, r.description, r.amount_cents])).toEqual([
+      ["2026-09-14", "COFFEE SHOP", -5000],
+      ["2026-09-20", "BOOKSTORE", -3000],
+      ["2026-10-01", "PAYMENT THANK YOU", 2000],
+      ["2026-10-03", "BOOKSTORE REFUND", 500],
+    ]);
+    expect(statement.ledger).toEqual({ cents: -5500, as_of: "2026-10-09" });
+    expect(statement.reconciles).toBe(true); // owed 0 − 50 − 30 + 20 + 5 = owed 55
+    const wrong = [...lines.slice(0, -1), "New balance 65.00"];
+    expect((await parsePdfLines(wrong, parseAmount)).reconciles).toBe(false);
+  });
+
+  it("a card statement with a running balance and one the person picked as a card read the same way", async () => {
+    const running = await parsePdfLines(
+      [
+        "Some Card",
+        "Statement period 10/01/2026 - 10/31/2026",
+        "Minimum payment due 25.00",
+        "Previous balance 100.00",
+        "10/02 GROCERY 40.00 140.00",
+        "10/05 PAYMENT 100.00 40.00",
+        "New balance 40.00",
+      ],
+      parseAmount,
+    );
+    expect(running.rows.map((r) => [r.amount_cents, r.balance_cents])).toEqual([
+      [-4000, -14000],
+      [10000, -4000],
+    ]);
+    expect(running.ledger?.cents).toBe(-4000);
+    expect(running.reconciles).toBe(true);
+    // No card words in the header, but the account chosen is a card.
+    const picked = await parsePdfLines(
+      [
+        "Some Bank",
+        "Statement period 10/01/2026 - 10/31/2026",
+        "Previous balance 0.00",
+        "10/02 GROCERY 40.00",
+        "New balance 40.00",
+      ],
+      parseAmount,
+      { card: true },
+    );
+    expect(picked.account.type).toBe("credit_card");
+    expect(picked.rows.map((r) => r.amount_cents)).toEqual([-4000]);
+    expect(picked.ledger?.cents).toBe(-4000);
+    expect(picked.reconciles).toBe(true);
+    // A bank statement whose purchases say VISA is still a bank statement.
+    const bank = await parsePdfLines(
+      [
+        "Some Bank",
+        "Everyday Checking",
+        "Statement period 10/01/2026 - 10/31/2026",
+        "10/02 VISA DEBIT GROCERY -40.00",
+      ],
+      parseAmount,
+    );
+    expect(bank.account.type).toBe("checking");
+    expect(bank.rows.map((r) => r.amount_cents)).toEqual([-4000]);
+  });
+
+  it("a PDF going into a credit-card account is read as a card even when its header doesn't say so", async () => {
+    const bytes = buildPdf([
+      { x: 50, y: 60, text: "Some Bank" },
+      { x: 50, y: 80, text: "Statement period 10/01/2026 - 10/31/2026" },
+      { x: 50, y: 100, text: "Previous balance 0.00" },
+      { x: 50, y: 120, text: "10/02 GROCERY 40.00" },
+      { x: 50, y: 140, text: "New balance 40.00" },
+    ]);
+    const parsed = await parsePdfFile(bytes);
+    expect(parsed.pdf?.rows.map((r) => r.amount_cents)).toEqual([4000]); // as a bank reads it
+    expect(await pdfForAccount(parsed, "checking")).toBe(parsed.pdf);
+    const asCard = await pdfForAccount(parsed, "credit_card");
+    expect(asCard?.rows.map((r) => r.amount_cents)).toEqual([-4000]);
+    expect(asCard?.ledger).toEqual({ cents: -4000, as_of: "2026-10-31" });
+    expect(asCard?.reconciles).toBe(true);
   });
 });

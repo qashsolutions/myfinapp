@@ -265,7 +265,7 @@ export function ForecastScreen() {
                     <dt>
                       Typical daily spending (
                       {view.daily?.basis === "history"
-                        ? "last 90 days, non-recurring"
+                        ? `last ${Math.min(view.daily.days_of_history, 90)} days, non-recurring`
                         : view.daily?.basis === "budget"
                           ? "your budget, until 30 days of history"
                           : "none yet"}
@@ -277,7 +277,7 @@ export function ForecastScreen() {
                   </dl>
                   <p className="auth__hint">
                     Each day: start + pay − bills − your daily spending. It assumes the next days
-                    look like your last 90.
+                    look like your recent ones.
                   </p>
                 </details>
                 {view.account ? (

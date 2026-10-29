@@ -9,7 +9,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { Arranged } from "../../app/layout/Arranged.tsx";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
-import { addMonths } from "../../engine/bridge.ts";
+import { addMonths, monthViewAsOf } from "../../engine/bridge.ts";
 import { formatCents, todayIso } from "../../lib/format.ts";
 import { useLookups } from "../entries/useEntries.ts";
 import { FixedFlexibleMonthCard } from "../fixed/FixedFlexibleCard.tsx";
@@ -89,7 +89,7 @@ export function MoneyScreen() {
     if (!view.bounds) return;
     // Money in & out counts what happened: never a month after this one (Next looks ahead).
     if (delta > 0 && view.bounds.end >= today) return;
-    setAsOf(await addMonths(view.bounds.start, delta));
+    setAsOf(await monthViewAsOf(await addMonths(view.bounds.start, delta), today));
   }
 
   const transferNote =

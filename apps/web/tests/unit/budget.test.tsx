@@ -324,4 +324,37 @@ describe("Budget", () => {
     await waitFor(() => expect(tile).toHaveTextContent("Budget · 50/30/20"));
     await waitFor(() => expect(tile).toHaveTextContent("Needs $462.00 over"));
   });
+
+  // Invariant 38: a month on screen counts the month up to the day it shows, never only its 1st.
+  it("counts the whole of a past month and all of this month so far after stepping months", async () => {
+    const user = userEvent.setup();
+    const db = await seedOctober();
+    await db.entries.bulkAdd([
+      entry("s01", "2026-09-01", 165000, "out", "cat-rent", "Rent"),
+      entry("s02", "2026-09-20", 10000, "out", "cat-groceries", "Groceries"),
+    ]);
+    await createBudget(db, "2026-09", "50_30_20", 520000);
+    await createBudget(db, "2026-10", "50_30_20", 520000);
+    await renderSignedIn("/budget");
+    await screen.findByText("October 2026 · $5,200.00 take-home · 50/30/20");
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Needs 50%" })).toHaveTextContent(
+        "$3,062.00 of $2,600.00",
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "Previous month" }));
+    await screen.findByText("September 2026 · $5,200.00 take-home · 50/30/20");
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Needs 50%" })).toHaveTextContent(
+        "$1,750.00 of $2,600.00",
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "Next month" }));
+    await screen.findByText("October 2026 · $5,200.00 take-home · 50/30/20");
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Needs 50%" })).toHaveTextContent(
+        "$3,062.00 of $2,600.00",
+      ),
+    );
+  });
 });

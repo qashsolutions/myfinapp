@@ -65,3 +65,31 @@ export function sampleStatementPdf(): Uint8Array {
   lines.push({ x: 50, y: 240, text: "Ending balance 2,260.12" });
   return buildPdf(lines);
 }
+
+/**
+ * A credit-card statement with no running balance (invariant 39): purchases printed unsigned,
+ * a payment with a minus, a refund with CR, and the card's "New balance" as what is owed.
+ */
+export function sampleCardStatementPdf(): Uint8Array {
+  const rows: Array<[string, string, string]> = [
+    ["09/14", "COFFEE SHOP", "50.00"],
+    ["09/20", "BOOKSTORE", "30.00"],
+    ["10/01", "PAYMENT THANK YOU", "-20.00"],
+    ["10/03", "BOOKSTORE REFUND", "5.00 CR"],
+  ];
+  const lines: PdfLine[] = [
+    { x: 50, y: 60, text: "Example Card Services" },
+    { x: 50, y: 80, text: "Account ending in 1173" },
+    { x: 50, y: 100, text: "Statement period 09/10/2026 - 10/09/2026" },
+    { x: 50, y: 116, text: "Previous balance 0.00" },
+    { x: 50, y: 132, text: "Payment due date 11/05/2026   Minimum payment due 25.00" },
+    { x: 50, y: 148, text: "Credit limit 2,000.00" },
+    { x: 50, y: 170, text: "Date   Description   Amount" },
+  ];
+  rows.forEach((r, i) => {
+    const y = 190 + i * 16;
+    lines.push({ x: 50, y, text: r[0] }, { x: 110, y, text: r[1] }, { x: 400, y, text: r[2] });
+  });
+  lines.push({ x: 50, y: 270, text: "New balance 55.00" });
+  return buildPdf(lines);
+}

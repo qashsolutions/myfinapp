@@ -177,13 +177,15 @@ describe("Upcoming + forecast", () => {
       .sort();
     expect(flagged).toEqual(["n1", "n2", "n3", "p1", "p2", "p3", "r1", "r2", "r3"]);
 
-    // The forecast: start $2,055.00 (anchor $2,100 on Oct 5 − $45 since), $4.50 a day
-    // (non-recurring $405 over 90 days), Netflix + car insurance Oct 14, pay Oct 16 and 30, rent Oct 25
+    // The forecast: start $2,055.00 (anchor $2,100 on Oct 5 − $45 since), $4.55 a day
+    // (non-recurring $405 over the 89 days of history, Jul 14 – Oct 10: 455.06¢ → 455¢; owner
+    // decision October 29, 2026), Netflix + car insurance Oct 14, pay Oct 16 and 30, rent Oct 25.
+    // Lowest on Oct 15, 5 days out: $2,055.00 − 5 × $4.55 − $195.49 = $1,836.76
     await user.click(screen.getByRole("link", { name: "Back" }));
     expect(
       await screen.findByRole("heading", { level: 1, name: "Next 30 days" }),
     ).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText("Lowest $1,837.01 · Oct 15")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Lowest $1,836.76 · Oct 15")).toBeInTheDocument());
     expect(screen.queryByRole("region", { name: "Shortfall" })).toBeNull();
     const upcoming = screen.getByRole("region", { name: "Upcoming" });
     const rows = within(upcoming)
@@ -199,23 +201,23 @@ describe("Upcoming + forecast", () => {
     expect(rows[3]).toContain("Rent");
     expect(rows[3]).toContain("$1,650.00");
     expect(rows[4]).toContain("Oct 30");
-    expect(screen.getByRole("img", { name: /Lowest \$1,837\.01 on Oct 15/ })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Lowest \$1,836\.76 on Oct 15/ })).toBeInTheDocument();
     const stored = await db.forecasts.get("2026-10-10");
     expect(stored).toMatchObject({
-      lowest_cents: 183701,
+      lowest_cents: 183676,
       lowest_date: "2026-10-15",
       shortfall: false,
       rules_version: RULES_VERSION,
     });
 
-    // A $2,500 buffer: today's $2,055 is already under it, and the dip is $662.99 below
+    // A $2,500 buffer: today's $2,055 is already under it, and the dip is $663.24 below ($2,500 − $1,836.76)
     await user.click(screen.getByRole("button", { name: "Cushion $0.00" }));
     const buffer = await screen.findByRole("dialog", { name: "Your cushion" });
     await user.type(within(buffer).getByLabelText("Cushion"), "2500");
     await user.click(within(buffer).getByRole("button", { name: "Save cushion" }));
     const warn = await screen.findByRole("region", { name: "Shortfall" });
     // Each number with its own date: first under the buffer Oct 10, deepest Oct 15
-    expect(warn).toHaveTextContent("Below your cushion from Oct 10, short up to $662.99 by Oct 15");
+    expect(warn).toHaveTextContent("Below your cushion from Oct 10, short up to $663.24 by Oct 15");
   });
 
   it("asks for a balance when there is no anchor, then forecasts from the entered one; Home shows the card", async () => {
@@ -233,9 +235,9 @@ describe("Upcoming + forecast", () => {
     await waitFor(() =>
       expect(screen.getByRole("region", { name: "Estimated balance" })).toBeInTheDocument(),
     );
-    // No confirmed series: everything is ordinary spending, $5,401.47 over 90 days = $60.02 a day,
-    // so $2,000 falls to $199.40 by Nov 9
-    await waitFor(() => expect(screen.getByText(/^Lowest \$199\.40 · Nov 9$/)).toBeInTheDocument());
+    // No confirmed series: everything is ordinary spending, $5,401.47 over the 89 days of history
+    // = $60.69 a day (6069.07¢), so $2,000 falls to $2,000 − 30 × $60.69 = $179.30 by Nov 9
+    await waitFor(() => expect(screen.getByText(/^Lowest \$179\.30 · Nov 9$/)).toBeInTheDocument());
     const anchors = await db.balance_anchors.toArray();
     expect(anchors).toHaveLength(1);
     expect(anchors[0]).toMatchObject({
@@ -248,7 +250,7 @@ describe("Upcoming + forecast", () => {
     renderApp("/");
     const card = await screen.findByRole("link", { name: "Open the next 30 days" });
     await waitFor(() =>
-      expect(card).toHaveTextContent("Lowest $199.40 around Nov 9 · no shortfall expected"),
+      expect(card).toHaveTextContent("Lowest $179.30 around Nov 9 · no shortfall expected"),
     );
   });
 

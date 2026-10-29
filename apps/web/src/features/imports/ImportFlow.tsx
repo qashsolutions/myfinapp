@@ -12,7 +12,13 @@ import { parseAmount } from "../../engine/bridge.ts";
 import { applyMapping } from "../../importers/csv.ts";
 import { ColumnMapper } from "./ColumnMapper.tsx";
 import { ImportPreview } from "./ImportPreview.tsx";
-import { commitImport, mappingFor, type Prepared, prepareRows } from "./importFlow.ts";
+import {
+  commitImport,
+  mappingFor,
+  type Prepared,
+  pdfForAccount,
+  prepareRows,
+} from "./importFlow.ts";
 import { type Chosen, UploadStatement } from "./UploadStatement.tsx";
 
 type Step = 1 | 2 | 3;
@@ -58,8 +64,8 @@ export function ImportFlow() {
       await review(await prepareRows(db, account.id, ofx.rows, ofx.ledger));
       return;
     }
-    if (chosen.parsed.pdf) {
-      const pdf = chosen.parsed.pdf;
+    const pdf = await pdfForAccount(chosen.parsed, account.type);
+    if (pdf) {
       if (!account.last4 && pdf.account.last4) {
         await db.accounts.update(account.id, {
           last4: pdf.account.last4,

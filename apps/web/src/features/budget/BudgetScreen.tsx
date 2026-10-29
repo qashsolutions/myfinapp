@@ -8,7 +8,7 @@ import { buttonClass, Card } from "@stackd/ui";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
-import { addMonths, ratioBps } from "../../engine/bridge.ts";
+import { addMonths, monthViewAsOf, ratioBps } from "../../engine/bridge.ts";
 import { formatCents, formatMonth, todayIso } from "../../lib/format.ts";
 import { cardText } from "../../moments/catalog.ts";
 import { useLookups } from "../entries/useEntries.ts";
@@ -47,7 +47,7 @@ export function BudgetScreen() {
 
   async function shift(delta: number) {
     if (!view.bounds) return;
-    setAsOf(await addMonths(view.bounds.start, delta));
+    setAsOf(await monthViewAsOf(await addMonths(view.bounds.start, delta), todayIso()));
   }
 
   const summary = view.summary;

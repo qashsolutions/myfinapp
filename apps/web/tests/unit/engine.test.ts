@@ -9,6 +9,7 @@ import {
   EngineError,
   engine,
   monthBounds,
+  monthViewAsOf,
   parseAmount,
   type WorkerLike,
 } from "../../src/engine/bridge.ts";
@@ -163,5 +164,16 @@ describe("engine bridge", () => {
     ]);
     expect(results.map((r) => r.cents)).toEqual([100, 200, 300]);
     e.terminate();
+  });
+});
+
+// Invariant 38: a month view counts up to today, a past month's last day, a later month's 1st.
+describe("monthViewAsOf", () => {
+  it("never answers the 1st of a month that has begun", async () => {
+    expect(await monthViewAsOf("2026-10-01", "2026-10-20")).toBe("2026-10-20");
+    expect(await monthViewAsOf("2026-09-01", "2026-10-20")).toBe("2026-09-30");
+    expect(await monthViewAsOf("2026-02-01", "2026-10-20")).toBe("2026-02-28");
+    expect(await monthViewAsOf("2026-11-01", "2026-10-20")).toBe("2026-11-01");
+    expect(await monthViewAsOf("2026-10-31", "2026-10-31")).toBe("2026-10-31");
   });
 });
