@@ -106,7 +106,14 @@ export function HelpedChart({
  * bar chart ("6 of 9 said Packed lunch"), shown only once two other members answered, so no
  * answer is anyone's.
  */
-export function WhatHelped({ group, onSaved }: { group: GroupDetail; onSaved: () => void }) {
+export function WhatHelped({
+  group,
+  onSaved,
+}: {
+  group: GroupDetail;
+  /** The group as the save answered it, totals and my picks included. */
+  onSaved: (detail: GroupDetail) => void;
+}) {
   const ids = useId();
   const [picked, setPicked] = useState<string[]>(group.my_helped);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -167,7 +174,7 @@ export function WhatHelped({ group, onSaved }: { group: GroupDetail; onSaved: ()
           const saved = await saveHelped(group.id, picked);
           if (!saved) return setStatus("failed");
           setStatus("saved");
-          onSaved();
+          onSaved(saved);
         }}
       >
         Save
