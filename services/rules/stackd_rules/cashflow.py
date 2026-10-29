@@ -252,13 +252,27 @@ def _category_order(c: dict, cents_key: str) -> tuple:
     return (-c[cents_key], c["category_id"] is None, c["category_id"] or "")
 
 
-def fixed_flexible(start: str, end: str, entries: list) -> dict:
+OVERRIDE_PARTS = ("fixed", "flexible")
+
+
+def _overrides(raw: object) -> dict:
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict) or any(v not in OVERRIDE_PARTS for v in raw.values()):
+        raise RuleError("invalid_overrides")
+    return raw
+
+
+def fixed_flexible(start: str, end: str, entries: list, overrides: object = None) -> dict:
     """Fixed vs flexible money out and the kept rate (docs/spec.md "Fixed vs flexible").
 
     Fixed is counted money out of entries in a confirmed bill or subscription run
-    (`is_recurring`); flexible is the rest. A refund (money in with an expense category) nets
-    against its own part, bucket and category, as in Month Out. Transfers never count.
+    (`is_recurring`); flexible is the rest. The person's own call per category (`overrides`,
+    category id -> "fixed" | "flexible") wins over the run mark for every entry in it. A refund
+    (money in with an expense category) nets against its own part, bucket and category, as in
+    Month Out. Transfers never count.
     """
+    calls = _overrides(overrides)
     first = dates.parse_date(start)
     last = dates.parse_date(end)
     if last < first:
@@ -280,7 +294,8 @@ def fixed_flexible(start: str, end: str, entries: list) -> dict:
             continue
         # money out, or a refund netting against it
         cents = e["cents"] if e["direction"] == "out" else -e["cents"]
-        part = "fixed" if e["is_recurring"] else "flexible"
+        call = calls.get(e["category_id"]) if e["category_id"] is not None else None
+        part = call or ("fixed" if e["is_recurring"] else "flexible")
         bucket = "none" if e["bucket"] is None else e["bucket"]
         parts[part][bucket] += cents
         cat = by_category.setdefault(

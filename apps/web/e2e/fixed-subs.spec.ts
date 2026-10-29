@@ -1,5 +1,20 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { isoInDays, readyAccount } from "./helpers.ts";
+
+/** With SHOTS_PREFIX set (a local run only), full-page shots in light and dark for review. */
+async function shots(page: Page, name: string) {
+  const prefix = process.env.SHOTS_PREFIX;
+  if (!prefix) return;
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.waitForTimeout(400);
+    await page.screenshot({
+      path: `${prefix}${name}-${test.info().project.name}-${colorScheme}.png`,
+      fullPage: true,
+    });
+  }
+  await page.emulateMedia({ colorScheme: "light" });
+}
 
 /**
  * Three months of subscriptions and rent, with Spotify's price going up today and two video
@@ -143,4 +158,27 @@ test("@phone the subscription check asks, shows the price rise and two video ser
   const categories = page.getByRole("region", { name: "Each category" });
   await expect(categories.getByRole("row", { name: /Groceries/ })).toContainText("$42.17");
   await expect(categories.getByRole("row", { name: /Subscriptions/ })).toContainText("$0.00");
+  // The month as a ring with the kept rate in its middle, and the kept rate by month
+  await expect(page.getByRole("img", { name: /% kept\. Fixed \$/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /^Kept rate by month/ })).toBeVisible();
+  await shots(page, "fixed-flexible");
+
+  // Adjust: the person's own call, groceries treated as fixed
+  await page.getByRole("button", { name: "Adjust" }).click();
+  const adjust = page.getByRole("dialog", { name: "Adjust fixed vs flexible" });
+  const groceries = adjust.getByRole("group", { name: "Groceries" });
+  await groceries.getByText("Fixed", { exact: true }).click();
+  await expect(groceries.getByRole("radio", { name: "Fixed" })).toBeChecked();
+  await shots(page, "fixed-flexible-adjust");
+  await adjust.getByRole("button", { name: "Done" }).click();
+  await expect(categories.getByRole("row", { name: /Groceries/ })).toContainText(
+    "Groceries$42.17$0.00",
+  );
+
+  // A room category opens What if → Spend less on it; under $25 the amount is the spending itself
+  const room = page.getByRole("region", { name: "Most room" });
+  await room.getByRole("link", { name: /^Dining \$8\.50/ }).click();
+  await expect(page).toHaveURL(/\/what-if\?lever=spend&category=cat-dining&amount=850$/);
+  const spend = page.getByRole("region", { name: "Spend less" });
+  await expect(spend.getByRole("combobox", { name: "Category" })).toHaveValue("cat-dining");
 });

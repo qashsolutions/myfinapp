@@ -109,15 +109,27 @@ describe("Your month", () => {
     expect(await screen.findByRole("heading", { name: "Your month", level: 1 })).toBeVisible();
 
     const how = await screen.findByRole("region", { name: "How it went" });
-    await waitFor(() => expect(how).toHaveTextContent("40% kept"));
+    await waitFor(() => expect(how).toHaveTextContent("40% of what came in"));
     // 40% in October against 67% in September
     expect(how).toHaveTextContent("Down");
-    expect(how).toHaveTextContent("Kept $1,190.00");
+    // Kept is the hero; in against out as bars; the kept rate by month (months with nothing
+    // before September are left off), October drawn full strength
+    expect(how.querySelector(".sk-card__hero")).toHaveTextContent("$1,190.00 kept");
+    expect(how).toHaveTextContent("In$3,000.00");
+    expect(how).toHaveTextContent("Out$1,810.00");
     expect(how).toHaveTextContent("September 2026: 67% kept");
+    expect(within(how).getByRole("img")).toHaveAccessibleName(
+      "Kept rate by month: September 2026 67%, October 2026 40%",
+    );
+    expect(how.querySelectorAll(".kept-trend__bar--on")).toHaveLength(1);
 
     const budget = screen.getByRole("region", { name: "Budget" });
     await waitFor(() => expect(budget).toHaveTextContent("1 line over · Dining $120.00 over"));
     expect(budget).toHaveTextContent("Over");
+    // The same marked bar as Budget: the plan's end is a tick on the track
+    const dining = within(budget).getByRole("progressbar", { name: "Dining spent of planned" });
+    expect(dining.getAttribute("aria-valuetext")).toMatch(/^\$310\.00 of \$190\.00 · /);
+    expect(budget.querySelectorAll(".sk-progress__mark").length).toBeGreaterThan(0);
 
     // Fixed vs flexible inside the review: the bar and the room line only; the word and the
     // kept rate are How it went's, said once.
@@ -140,6 +152,11 @@ describe("Your month", () => {
       expect(change).toHaveTextContent("Dining $120 less a month → $1,440 a year"),
     );
     expect(change).toHaveTextContent("not advice");
+    const year = within(change).getByRole("list", { name: "A month against a year" });
+    expect(year).toHaveTextContent("A month$120");
+    expect(year).toHaveTextContent("A year$1,440");
+    // Each jar with new money: a ring of how far along it was at the month's end
+    expect(jars).toHaveTextContent("Bike+$500.00 new100% of its target");
     expect(within(change).getByRole("link", { name: "Try it in What if" })).toHaveAttribute(
       "href",
       "/what-if?lever=spend&amount=12000&category=cat-dining",
@@ -151,7 +168,9 @@ describe("Your month", () => {
     expect(screen.getByRole("button", { name: "Later ›" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "‹ Earlier" }));
     await waitFor(() =>
-      expect(screen.getByRole("region", { name: "How it went" })).toHaveTextContent("67% kept"),
+      expect(screen.getByRole("region", { name: "How it went" })).toHaveTextContent(
+        "67% of what came in",
+      ),
     );
     expect(screen.getByRole("button", { name: "‹ Earlier" })).toBeDisabled();
     // September had no budget: the section is left out
@@ -182,6 +201,66 @@ describe("Your month", () => {
     renderApp("/");
     await screen.findByRole("link", { name: /Kept this month/ });
     expect(screen.queryByRole("link", { name: /Your month:/ })).toBeNull();
+  });
+
+  it("Adjust: the person picks how long Home shows the card, or switches it off", async () => {
+    vi.setSystemTime(new Date("2026-11-10T12:00:00"));
+    const db = await seedMonths();
+    const user = userEvent.setup();
+    installFakeApi({ session: readySession() });
+    renderApp("/month-review");
+    await screen.findByRole("region", { name: "How it went" });
+    await user.click(screen.getByRole("button", { name: "Adjust" }));
+    const sheet = await screen.findByRole("dialog", { name: "Adjust Your month" });
+    // 7 days until they pick (signed off October 29, 2026)
+    expect(within(sheet).getByRole("radio", { name: "7 days" })).toBeChecked();
+    await user.click(within(sheet).getByRole("radio", { name: "14 days" }));
+    await waitFor(async () =>
+      expect((await db.settings.get("month_review.show_days"))?.value).toBe(14),
+    );
+    // Their own number, 1 to 28
+    const own = within(sheet).getByRole("textbox", { name: "Your own number of days" });
+    await user.type(own, "40");
+    await user.click(within(sheet).getByRole("button", { name: "Use" }));
+    expect(within(sheet).getByRole("alert")).toHaveTextContent("from 1 to 28");
+    await user.clear(own);
+    await user.type(own, "12");
+    await user.click(within(sheet).getByRole("button", { name: "Use" }));
+    await waitFor(async () =>
+      expect((await db.settings.get("month_review.show_days"))?.value).toBe(12),
+    );
+    await user.click(within(sheet).getByRole("button", { name: "Done" }));
+    // The 10th is inside their 12 days: Home shows the card
+    await user.click(screen.getByRole("link", { name: "Back" }));
+    await user.click(await screen.findByRole("link", { name: /^Home/ }));
+    expect(
+      await screen.findByRole("link", { name: /Your month: October 2026: \$1,190.00 kept/ }),
+    ).toBeVisible();
+  });
+
+  it("Adjust: off keeps the card off Home in the first days too", async () => {
+    const db = await seedMonths();
+    await db.settings.put({ key: "month_review.home_card", value: false, updated_at: STAMP });
+    installFakeApi({ session: readySession() });
+    renderApp("/");
+    await screen.findByRole("link", { name: /Kept this month/ });
+    expect(screen.queryByRole("link", { name: /Your month:/ })).toBeNull();
+  });
+
+  it("the sections follow the person's own order, and a hidden one is left out", async () => {
+    const db = await seedMonths();
+    await db.settings.put({
+      key: "month_review.layout",
+      value: { order: ["change", "budget"], hidden: ["fixed"] },
+      updated_at: STAMP,
+    });
+    installFakeApi({ session: readySession() });
+    renderApp("/month-review");
+    const change = await screen.findByRole("region", { name: "One change" });
+    const budget = await screen.findByRole("region", { name: "Budget" });
+    expect(change.compareDocumentPosition(budget) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Fixed vs flexible" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Customize Your month" })).toBeVisible();
   });
 
   it("opens from Insights", async () => {
@@ -224,7 +303,19 @@ describe("Your month", () => {
     // The month leads as the value; "Debt-free" is the line, never a green word about today.
     await waitFor(() => expect(debt).toHaveTextContent(/[A-Z][a-z]{2} \d{4}/));
     expect(debt).toHaveTextContent("Debt-free at this pace");
-    expect(within(debt).getByText(/^[A-Z][a-z]{2} \d{4}$/)).toHaveClass("word--plain");
+    const word = debt.querySelector(".word");
+    expect(word).toHaveTextContent(/^Mar 2027$/);
+    expect(word).toHaveClass("word--plain");
+    // The balance on today's plan as a short line down to the debt-free month
+    expect(within(debt).getByRole("img")).toHaveAccessibleName(
+      "Debt balance going down to nothing by Mar 2027",
+    );
+    // The one change's before and after: the debt-free month moving earlier
+    const sooner = within(change).getByRole("list", {
+      name: "Debt-free date, now and with the extra",
+    });
+    expect(sooner).toHaveTextContent("NowMar 2027");
+    expect(sooner).toHaveTextContent("+$50 a monthFeb 2027");
     expect(screen.queryByRole("region", { name: "Budget" })).toBeNull();
   });
 
@@ -290,7 +381,9 @@ describe("Your month", () => {
     await waitFor(() => expect(change).toHaveTextContent("Check 1 subscription → $216 a year"));
     await user.click(screen.getByRole("button", { name: "‹ Earlier" }));
     await waitFor(() =>
-      expect(screen.getByRole("region", { name: "How it went" })).toHaveTextContent("67% kept"),
+      expect(screen.getByRole("region", { name: "How it went" })).toHaveTextContent(
+        "67% of what came in",
+      ),
     );
     await waitFor(() => expect(screen.queryByRole("region", { name: "One change" })).toBeNull());
     expect(screen.queryByRole("region", { name: "Subscriptions" })).toBeNull();

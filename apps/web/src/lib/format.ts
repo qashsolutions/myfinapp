@@ -43,6 +43,12 @@ export function formatMonthShort(iso: string): string {
   return `${SHORT[m - 1]} ${y}`;
 }
 
+/** "2026-10-01" → "Oct" (a chart's month label). */
+export function formatMonthAbbr(iso: string): string {
+  const [, m] = parts(iso);
+  return SHORT[m - 1] ?? "";
+}
+
 /** "$120" when the cents add nothing, else "$120.50" (short lines that compare two amounts). */
 export function formatCentsTidy(cents: number): string {
   return formatCents(cents).replace(/\.00$/, "");

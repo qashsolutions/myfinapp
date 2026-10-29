@@ -22,7 +22,7 @@ export function ChallengeDetail() {
   const { db } = useDb();
   const navigate = useNavigate();
   const today = todayIso();
-  const { group, error, refresh } = useGroup(id);
+  const { group, error, refresh, accept } = useGroup(id);
   const goal = useGroupGoal(id);
   const view = useGoalProgress(goal ?? null, today);
   const [invite, setInvite] = useState(false);
@@ -156,7 +156,7 @@ export function ChallengeDetail() {
           }}
         />
       </Card>
-      {group.helped_open ? <WhatHelped group={group} onSaved={() => void refresh()} /> : null}
+      {group.helped_open ? <WhatHelped group={group} onSaved={accept} /> : null}
       <p className="auth__fineprint">
         Members see your name and % only, never your dollars. Your target and deposits stay on this
         device.

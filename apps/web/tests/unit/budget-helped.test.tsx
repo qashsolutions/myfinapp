@@ -7,6 +7,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Entry, openDb, seedDefaults } from "../../src/data/db.ts";
 import { createBudget } from "../../src/features/budget/useBudget.ts";
+import { helpedErrorText } from "../../src/features/groups/WhatHelped.tsx";
 import {
   defaultNotifications,
   fakeMember,
@@ -183,6 +184,40 @@ describe("What helped", () => {
     expect(card).toHaveTextContent("2 answered. Pick up to 5 of your own.");
     // Nothing names who chose what
     expect(card).not.toHaveTextContent(/Dev|Nia/);
+  });
+
+  it("a refused save says what's wrong; only a network failure asks to try again online", async () => {
+    expect(helpedErrorText({ status: 0, code: "network" })).toBe(
+      "Couldn't save. Try again when you're online.",
+    );
+    expect(helpedErrorText({ status: 409, code: "not_yet" })).toBe(
+      "You can answer once you reach your target or the challenge ends.",
+    );
+    expect(helpedErrorText({ status: 422, code: "invalid_choices" })).toBe(
+      "Pick up to 5 from the list.",
+    );
+    expect(helpedErrorText({ status: 429, code: "rate_limited" })).toBe(
+      "Too many changes this hour. Try again later.",
+    );
+
+    // The server says not yet (its reached mark is not in): the card says so, not "offline"
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const group = {
+      ...mayasGroup(),
+      id: "g-early",
+      members: [{ ...fakeMember(ME, "Nia", 10000), reached_at: null }],
+    };
+    installFakeApi({ session: readySession(), groups: [group] });
+    renderApp("/groups/g-early");
+    const card = await screen.findByRole("region", { name: "What helped" });
+    await user.click(within(card).getByRole("checkbox", { name: "Packed lunch" }));
+    await user.click(within(card).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(within(card).getByRole("status")).toHaveTextContent(
+        "You can answer once you reach your target or the challenge ends.",
+      ),
+    );
+    expect(card).not.toHaveTextContent("online");
   });
 
   it("is not offered before the target is reached", async () => {

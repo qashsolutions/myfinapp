@@ -7,7 +7,13 @@ import type { MonthTotals } from "../../engine/bridge.ts";
 import { formatCents, formatMonth } from "../../lib/format.ts";
 import { InOutBars, InsightCard } from "../insights/InsightCard.tsx";
 import { useMonthTotals } from "../money/useMonthTotals.ts";
-import { dayOfMonth, doneKey, MONTH_REVIEW_PATH, SHOW_DAYS } from "./monthReview.ts";
+import {
+  dayOfMonth,
+  doneKey,
+  homeCardDue,
+  MONTH_REVIEW_PATH,
+  useMonthReviewPrefs,
+} from "./monthReview.ts";
 import { type MonthSpan, useMonthSpan } from "./useMonthReview.ts";
 
 /** "October 2026: $420 kept" for the month reviewed. */
@@ -54,13 +60,15 @@ function HomeCardFor({ span }: { span: MonthSpan }) {
 }
 
 /**
- * Home's card (HOME_CARDS "month_review"; October 28, 2026, proposed): during the first
- * `month_review.show_days` days of a month, for the month just ended once it has entries, until
- * the person taps Done on the review.
+ * Home's card (HOME_CARDS "month_review"; October 28, 2026, signed off October 29, 2026): during
+ * the first days of a month (the person's own number from Adjust, else the config's
+ * `month_review.show_days`), for the month just ended once it has entries, until the person taps
+ * Done on the review, and never when they switched it off.
  */
 export function MonthReviewHomeCard({ today }: { today: string }) {
   const span = useMonthSpan(null, today);
-  if (!span || dayOfMonth(today) > SHOW_DAYS) return null;
+  const prefs = useMonthReviewPrefs();
+  if (!span || !prefs || !homeCardDue(prefs, dayOfMonth(today))) return null;
   return <HomeCardFor span={span} />;
 }
 

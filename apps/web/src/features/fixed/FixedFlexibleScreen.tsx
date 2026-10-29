@@ -1,15 +1,22 @@
 import "./fixed.css";
 import "../insights/insights.css";
 
-import { Card } from "@stackd/ui";
-import { useSearchParams } from "react-router";
+import { Button, Card } from "@stackd/ui";
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
 import { formatCents, formatMonth, todayIso } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
 import { useLookups } from "../entries/useEntries.ts";
-import { categoryName, FixedBar, FixedKey, keptRateText, roomText } from "./FixedFlexibleCard.tsx";
-import { useFixedFlexible } from "./useFixedFlexible.ts";
+import { FixedAdjustSheet } from "./FixedAdjustSheet.tsx";
+import { categoryName } from "./FixedFlexibleCard.tsx";
+import { FixedDonut, KeptTrend } from "./FixedVisuals.tsx";
+import { roomAmount, roomWhatIfLink } from "./room.ts";
+import { useFixedFlexible, useFixedOverrides } from "./useFixedFlexible.ts";
+
+/** "Most room" stays the two largest flexible wants (signed off by the owner, October 29, 2026). */
+const ROOM_SHOWN = 2;
 
 const BUCKET_NAMES: Record<string, string> = {
   need: "Needs",
@@ -25,21 +32,34 @@ const BUCKET_NAMES: Record<string, string> = {
  */
 export function FixedFlexibleScreen() {
   const today = todayIso();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const [adjust, setAdjust] = useState(params.get("adjust") === "1");
+  const overrides = useFixedOverrides();
   const asked = params.get("month");
   const asOf =
     asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) && compareText(asked, today) <= 0 ? asked : today;
   const view = useFixedFlexible(asOf, today);
   const lookups = useLookups();
   const current = view?.current;
-  const maxRate = Math.max(
-    1,
-    ...(view?.months ?? []).map((m) => Math.abs(m.result.kept_rate_bps ?? 0)),
-  );
+  const closeAdjust = () => {
+    setAdjust(false);
+    if (params.has("adjust")) {
+      params.delete("adjust");
+      setParams(params, { replace: true });
+    }
+  };
 
   return (
     <>
-      <ScreenHeader title="Fixed vs flexible" back="/insights" actions={null} />
+      <ScreenHeader
+        title="Fixed vs flexible"
+        back="/insights"
+        actions={
+          <Button size="sm" variant="secondary" onClick={() => setAdjust(true)}>
+            Adjust
+          </Button>
+        }
+      />
       {!view || !current ? (
         <p className="range-note">Adding it up…</p>
       ) : view.word === "Start" ? (
@@ -51,29 +71,65 @@ export function FixedFlexibleScreen() {
         <>
           <Card as="section" aria-label={`${formatMonth(asOf)}, fixed vs flexible`}>
             <Word>{view.word}</Word>
-            <p className="fixed-line">{keptRateText(current)} of what came in</p>
-            <FixedBar result={current} />
-            <FixedKey />
+            <p className="fixed-line">Bills against everything else you spent</p>
+            <FixedDonut result={current} label={formatMonth(asOf)} />
             <dl className="fixed-totals">
-              <div>
-                <dt>Fixed</dt>
-                <dd>{formatCents(current.fixed_cents)}</dd>
-              </div>
-              <div>
-                <dt>Flexible</dt>
-                <dd>{formatCents(current.flexible_cents)}</dd>
-              </div>
               <div>
                 <dt>Kept</dt>
                 <dd className={current.kept_cents < 0 ? "insight-neg" : undefined}>
                   {formatCents(current.kept_cents)}
                 </dd>
               </div>
+              <div>
+                <dt>In</dt>
+                <dd>{formatCents(current.in_cents)}</dd>
+              </div>
+              <div>
+                <dt>Out</dt>
+                <dd>{formatCents(current.out_cents)}</dd>
+              </div>
             </dl>
-            {roomText(current, lookups?.categories) ? (
-              <p className="fixed-room">{roomText(current, lookups?.categories)}</p>
-            ) : null}
           </Card>
+
+          {current.room.length ? (
+            <section aria-labelledby="fixed-room">
+              <h2 className="range-h" id="fixed-room">
+                Most room
+              </h2>
+              <Card>
+                <p className="fixed-line">Flexible wants, largest first. Tap one to try it.</p>
+                <ul className="fixed-room-list">
+                  {current.room.slice(0, ROOM_SHOWN).map((r) =>
+                    r.category_id ? (
+                      <li key={r.category_id}>
+                        <Link
+                          to={roomWhatIfLink(r.category_id, r.flexible_cents)}
+                          aria-label={`${categoryName(r.category_id, lookups?.categories)} ${formatCents(r.flexible_cents)}: try ${formatCents(roomAmount(r.flexible_cents))} less a month in What if`}
+                        >
+                          <span className="fixed-room-list__name">
+                            {categoryName(r.category_id, lookups?.categories)}
+                          </span>
+                          <span>{formatCents(r.flexible_cents)}</span>
+                          <span className="fixed-room-list__try" aria-hidden="true">
+                            Try ›
+                          </span>
+                        </Link>
+                      </li>
+                    ) : null,
+                  )}
+                </ul>
+              </Card>
+            </section>
+          ) : null}
+
+          <section aria-labelledby="fixed-months">
+            <h2 className="range-h" id="fixed-months">
+              Kept rate by month
+            </h2>
+            <Card>
+              <KeptTrend months={view.months} highlight={current.start} />
+            </Card>
+          </section>
 
           <section aria-labelledby="fixed-buckets">
             <h2 className="range-h" id="fixed-buckets">
@@ -130,40 +186,21 @@ export function FixedFlexibleScreen() {
               </table>
             </Card>
           </section>
-
-          <section aria-labelledby="fixed-months">
-            <h2 className="range-h" id="fixed-months">
-              Kept rate by month
-            </h2>
-            <Card>
-              <ul className="fixed-months">
-                {view.months.map(({ start, result }) => {
-                  const bps = result.kept_rate_bps;
-                  return (
-                    <li key={start} className="fixed-months__row">
-                      <span className="fixed-months__name">{formatMonth(start)}</span>
-                      <span className="fixed-months__track" aria-hidden="true">
-                        <span
-                          className={`fixed-months__fill${bps !== null && bps < 0 ? " fixed-months__fill--neg" : ""}`}
-                          style={{ width: `${(Math.abs(bps ?? 0) / maxRate) * 100}%` }}
-                        />
-                      </span>
-                      <span className="fixed-months__value">
-                        {bps === null ? "No money in" : `${Math.round(bps / 100)}%`}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Card>
-          </section>
         </>
       )}
       <p className="auth__fineprint">
         Fixed is money out on bills and subscriptions you confirmed; flexible is everything else you
         spent. Kept rate is what you kept of what came in. From your own entries on this device;
-        transfers and "Don't count" entries are left out.
+        transfers and "Don't count" entries are left out. Adjust sets a category fixed or flexible
+        by your own call.
       </p>
+      <FixedAdjustSheet
+        open={adjust}
+        onClose={closeAdjust}
+        result={current}
+        overrides={overrides}
+        categories={lookups?.categories}
+      />
     </>
   );
 }

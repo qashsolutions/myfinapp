@@ -1,7 +1,20 @@
-/* Your month (October 28, 2026): the sections reuse the cards' own classes; only spacing here. */
+/* Your month (October 28, 2026; pictures October 29, 2026): token variables only. */
 .review-month__line {
   margin: 0 0 8px;
   font-size: var(--fs-body);
+}
+
+.review-month__hero {
+  margin: 4px 0 4px;
+}
+
+.review-month__compare {
+  color: var(--c-sub);
+  font-size: var(--fs-small);
+}
+
+.review-month__trend-h {
+  margin: 12px 0 0;
 }
 
 .review-month__list {
@@ -9,4 +22,157 @@
   padding-left: 18px;
   font-size: var(--fs-small);
   color: var(--c-sub);
+}
+
+.review-budget {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.review-budget__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: var(--fs-small);
+}
+.review-budget__name {
+  font-weight: 600;
+}
+.review-budget__over {
+  color: var(--c-danger);
+  font-weight: 700;
+}
+
+.review-bars {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.review-bars__row {
+  display: grid;
+  grid-template-columns: minmax(5em, 9em) 1fr auto;
+  gap: 8px;
+  align-items: center;
+  font-size: var(--fs-small);
+}
+.review-bars__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--c-sub);
+}
+.review-bars__track {
+  display: block;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--c-line);
+  overflow: hidden;
+}
+.review-bars__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+.review-bars__fill--now {
+  background: var(--c-sub);
+}
+.review-bars__fill--after {
+  background: var(--c-success);
+}
+.review-bars__fill--in {
+  background: var(--c-success);
+}
+.review-bars__fill--out {
+  background: var(--c-danger);
+}
+.review-bars__value {
+  font-weight: 700;
+  text-align: right;
+}
+
+.review-line {
+  width: 100%;
+  margin: 4px 0 8px;
+}
+.review-line svg {
+  display: block;
+}
+.review-line__base {
+  stroke: var(--c-line);
+}
+.review-line__path {
+  stroke: var(--c-a1);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.review-line__label {
+  font-size: var(--fs-caption);
+  fill: var(--c-sub);
+}
+.review-line__label--end {
+  text-anchor: end;
+  fill: var(--c-ink);
+  font-weight: 700;
+}
+
+.review-jars {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.review-jars__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.review-jars__row .insight-ring {
+  width: 52px;
+  height: 52px;
+  font-size: var(--fs-caption);
+  flex: none;
+}
+.review-jars__dot {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 6px solid var(--c-line);
+  flex: none;
+}
+.review-jars__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.review-jars__new {
+  font-size: var(--fs-small);
+  font-weight: 700;
+  color: var(--c-success);
+}
+
+.review-count {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 8px;
+  font-size: var(--fs-small);
+  color: var(--c-sub);
+}
+.review-count__n {
+  display: inline-grid;
+  place-items: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--c-a1);
+  color: var(--c-on-accent);
+  font-size: var(--fs-title);
+  font-weight: 800;
 }

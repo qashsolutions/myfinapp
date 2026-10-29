@@ -334,8 +334,28 @@ function byCentsThenCategory(
   return compareText(a.category_id ?? "", b.category_id ?? "");
 }
 
+type Part = "fixed" | "flexible";
+
+/** The person's own call per category; null means none. An array is never a record. */
+function overridesOf(raw: unknown): Map<string, Part> {
+  const calls = new Map<string, Part>();
+  if (raw === null || raw === undefined) return calls;
+  if (typeof raw !== "object" || Array.isArray(raw)) throw new RuleError("invalid_overrides");
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (value !== "fixed" && value !== "flexible") throw new RuleError("invalid_overrides");
+    calls.set(key, value);
+  }
+  return calls;
+}
+
 /** Port of cashflow.fixed_flexible: fixed vs flexible money out and the kept rate. */
-export function fixedFlexible(start: unknown, end: unknown, rawEntries: unknown): FixedFlexible {
+export function fixedFlexible(
+  start: unknown,
+  end: unknown,
+  rawEntries: unknown,
+  overrides: unknown = null,
+): FixedFlexible {
+  const calls = overridesOf(overrides);
   const first = parseDate(start);
   const last = parseDate(end);
   if (daysUntil(first, last) < 0) throw new RuleError("invalid_range");
@@ -363,7 +383,8 @@ export function fixedFlexible(start: unknown, end: unknown, rawEntries: unknown)
     }
     // money out, or a refund netting against it
     const cents = e.direction === "out" ? e.cents : -e.cents;
-    const part = e.is_recurring ? "fixed" : "flexible";
+    const call = e.category_id === null ? undefined : calls.get(e.category_id);
+    const part: Part = call ?? (e.is_recurring ? "fixed" : "flexible");
     parts[part][e.bucket ?? "none"] += cents;
     let cat = byCategory.get(e.category_id);
     if (!cat) {

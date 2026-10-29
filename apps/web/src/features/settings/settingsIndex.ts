@@ -274,6 +274,18 @@ export const ENTRIES: SettingEntry[] = [
     words: "customize home dashboard cards order drag rearrange hide show layout",
   },
   {
+    label: "Your month on Home",
+    group: "look",
+    path: "/month-review?adjust=1",
+    words: "your month review monthly look back home card days show hide start of month",
+  },
+  {
+    label: "Fixed or flexible categories",
+    group: "data",
+    path: "/insights/fixed-flexible?adjust=1",
+    words: "fixed flexible bills category treat rent phone kept rate room nice to have",
+  },
+  {
     label: "Install Qash",
     group: "look",
     path: "/me",

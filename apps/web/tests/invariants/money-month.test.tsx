@@ -469,9 +469,11 @@ describe("a month through every money path (docs/invariants.md)", () => {
       return Math.round(Number(dd.replace(/[^0-9.-]/g, "")) * 100);
     };
     await waitFor(() => expect(cents("Kept")).toBe(156800));
-    expect(cents("Fixed") + cents("Flexible")).toBe(143200);
+    // The ring's three parts (fixed, flexible, flexible wants) add up to the same Out
+    expect(cents("Out")).toBe(143200);
+    expect(cents("Fixed") + cents("Flexible") + cents("Wants (room)")).toBe(143200);
     // 1,568 ÷ 3,000 = 5226.67 bps → 52%
-    expect(card).toHaveTextContent("52% kept of what came in");
+    expect(within(card).getByRole("img", { name: /: 52% kept\./ })).toBeVisible();
   });
 
   it("the jars hold what the goal screens say: $200 and $100", async () => {

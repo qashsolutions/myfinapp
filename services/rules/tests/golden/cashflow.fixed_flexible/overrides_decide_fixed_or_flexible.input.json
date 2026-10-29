@@ -1,0 +1,83 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-31",
+  "entries": [
+    {
+      "id": "e1",
+      "date": "2026-10-01",
+      "amount_cents": 200000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-paycheck",
+      "category_kind": "income",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": null
+    },
+    {
+      "id": "e2",
+      "date": "2026-10-01",
+      "amount_cents": 120000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-rent",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": "need"
+    },
+    {
+      "id": "e3",
+      "date": "2026-10-04",
+      "amount_cents": 6000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-phone",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": true,
+      "bucket": "need"
+    },
+    {
+      "id": "e4",
+      "date": "2026-10-09",
+      "amount_cents": 1000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-phone",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": true,
+      "bucket": "need"
+    },
+    {
+      "id": "e5",
+      "date": "2026-10-12",
+      "amount_cents": 30000,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-dining",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": "want"
+    },
+    {
+      "id": "e6",
+      "date": "2026-10-15",
+      "amount_cents": 1500,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-streaming",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": true,
+      "bucket": "want"
+    }
+  ],
+  "overrides": {
+    "cat-rent": "fixed",
+    "cat-phone": "flexible",
+    "cat-gym": "fixed"
+  }
+}

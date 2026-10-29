@@ -159,6 +159,20 @@ describe("accessibility (axe-core)", () => {
     });
   });
 
+  // Adjust sheets (October 29, 2026): `?adjust=1` opens them; the sheet is a portal on the body.
+  it.each([
+    ["/month-review?adjust=1", "Adjust Your month"],
+    ["/insights/fixed-flexible?adjust=1", "Adjust fixed vs flexible"],
+  ])("%s (the Adjust sheet) has no axe violations", async (path, title) => {
+    await seed();
+    installFakeApi({ session: readySession() });
+    renderApp(path);
+    const sheet = await screen.findByRole("dialog", { name: title });
+    await within(sheet).findByRole("button", { name: "Done" });
+    const results = await axe.run(sheet, { rules: { "color-contrast": { enabled: false } } });
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  });
+
   // One screen per test: two renders in one test put two <main> landmarks on the page.
   it("/start (pick a free trial) has no axe violations", async () => {
     resetEntitlements();
