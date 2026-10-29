@@ -1,4 +1,5 @@
 import "../auth/auth.css";
+import "../budget/budget.css";
 import "../goals/goals.css";
 import "../groups/groups.css";
 import "../home/home.css";
@@ -8,7 +9,7 @@ import "../ranges/ranges.css";
 import "../fixed/fixed.css";
 import "./monthreview.css";
 
-import { Button, Card } from "@stackd/ui";
+import { Button, Card, ProgressBar } from "@stackd/ui";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
@@ -26,12 +27,15 @@ import {
   todayIso,
 } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
+import { PaceBar } from "../budget/PaceBar.tsx";
+import { bucketLineId } from "../budget/pace.ts";
 import { BUCKET_LABELS } from "../budget/RuleView.tsx";
+import { useAlertMarks } from "../budget/useAlertMarks.ts";
 import { useLookups } from "../entries/useEntries.ts";
 import { categoryName, FixedFlexibleMonthCard, keptRateText } from "../fixed/FixedFlexibleCard.tsx";
 import { activeMonths, KeptTrend, ratePct } from "../fixed/FixedVisuals.tsx";
 import { HeroBars } from "../home/HomeVisuals.tsx";
-import { BucketBars, Ring } from "../insights/InsightCard.tsx";
+import { Ring } from "../insights/InsightCard.tsx";
 import { MonthReviewAdjust } from "./MonthReviewAdjust.tsx";
 import {
   bucketsOver,
@@ -124,6 +128,58 @@ function HowItWent({ review }: { review: MonthReview }) {
   );
 }
 
+interface BudgetBar {
+  /** The line id Budget's alert uses: the category, or `bucket:<need|want|save>`. */
+  id: string;
+  name: string;
+  planned: number;
+  spent: number;
+  save: boolean;
+  overTone: "warning" | "danger";
+}
+
+/**
+ * The month's budget lines with the same marked bar Budget draws (`PaceBar`: the "Tell me at"
+ * tick and the plan's end), so the review and the Budget tab read alike. Save lines have no
+ * alert and keep a plain bar, as on Budget.
+ */
+function BudgetBars({ bars }: { bars: BudgetBar[] }) {
+  const { levelBps, alerting } = useAlertMarks();
+  return (
+    <ul className="review-budget">
+      {bars.map((b) => {
+        const over = b.planned > 0 && b.spent > b.planned;
+        const valueText = `${formatCents(b.spent)} of ${formatCents(b.planned)}`;
+        return (
+          <li key={b.id} className="review-budget__row">
+            <span className="review-budget__head">
+              <span className="review-budget__name">{b.name}</span>
+              <span className={over ? "review-budget__over" : undefined}>{valueText}</span>
+            </span>
+            {b.save || b.planned <= 0 ? (
+              <ProgressBar
+                fraction={b.planned > 0 ? b.spent / b.planned : 0}
+                label={`${b.name} spent of planned`}
+                valueText={valueText}
+              />
+            ) : (
+              <PaceBar
+                spentCents={b.spent}
+                plannedCents={b.planned}
+                levelBps={levelBps}
+                alerts={alerting(b.id)}
+                label={`${b.name} spent of planned`}
+                valueText={valueText}
+                tone={over ? b.overTone : undefined}
+              />
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function BudgetSection({
   review,
   categories,
@@ -143,12 +199,15 @@ function BudgetSection({
           .filter((c) => (c.planned_cents ?? 0) > 0)
           .sort((a, b) => b.spent_cents - a.spent_cents)
           .slice(0, 3);
-    const bars = shown
+    const bars: BudgetBar[] = shown
       .filter((c) => c !== undefined)
       .map((c) => ({
-        bucket: categoryName(c.category_id, categories),
-        planned_cents: c.planned_cents ?? 0,
-        spent_cents: c.spent_cents,
+        id: c.category_id,
+        name: categoryName(c.category_id, categories),
+        planned: c.planned_cents ?? 0,
+        spent: c.spent_cents,
+        save: c.bucket === "save",
+        overTone: "warning",
       }));
     return (
       <Section
@@ -161,7 +220,7 @@ function BudgetSection({
             : "Every line on plan"
         }
       >
-        {bars.length ? <BucketBars buckets={bars} /> : null}
+        {bars.length ? <BudgetBars bars={bars} /> : null}
       </Section>
     );
   }
@@ -177,7 +236,16 @@ function BudgetSection({
           : "Needs and wants on plan"
       }
     >
-      <BucketBars buckets={summary.buckets} />
+      <BudgetBars
+        bars={summary.buckets.map((b) => ({
+          id: bucketLineId(b.bucket),
+          name: BUCKET_LABELS[b.bucket][0],
+          planned: b.planned_cents,
+          spent: b.spent_cents,
+          save: b.bucket === "save",
+          overTone: "danger",
+        }))}
+      />
     </Section>
   );
 }

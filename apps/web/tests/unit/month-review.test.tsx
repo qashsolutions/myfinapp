@@ -126,6 +126,10 @@ describe("Your month", () => {
     const budget = screen.getByRole("region", { name: "Budget" });
     await waitFor(() => expect(budget).toHaveTextContent("1 line over · Dining $120.00 over"));
     expect(budget).toHaveTextContent("Over");
+    // The same marked bar as Budget: the plan's end is a tick on the track
+    const dining = within(budget).getByRole("progressbar", { name: "Dining spent of planned" });
+    expect(dining.getAttribute("aria-valuetext")).toMatch(/^\$310\.00 of \$190\.00 · /);
+    expect(budget.querySelectorAll(".sk-progress__mark").length).toBeGreaterThan(0);
 
     // Fixed vs flexible inside the review: the bar and the room line only; the word and the
     // kept rate are How it went's, said once.

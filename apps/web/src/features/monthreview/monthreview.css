@@ -24,6 +24,28 @@
   color: var(--c-sub);
 }
 
+.review-budget {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.review-budget__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: var(--fs-small);
+}
+.review-budget__name {
+  font-weight: 600;
+}
+.review-budget__over {
+  color: var(--c-danger);
+  font-weight: 700;
+}
+
 .review-bars {
   list-style: none;
   margin: 8px 0;
