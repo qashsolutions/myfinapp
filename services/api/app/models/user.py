@@ -60,6 +60,12 @@ class User(Base, StackdRow):
     # The day the last friendly reminder went out in the 7 days after a plan ended (October 20,
     # 2026: one a day; migration 0027).
     lapsed_reminded_on: Mapped[date | None]
+    # A household of two is one plan (owner decision, October 29, 2026; migration 0039): when
+    # its shared plan stopped covering this person (they left, or its holder left or closed),
+    # which starts their 7 days; and the last Founding reminder stage (30, 7, 1) sent to them
+    # for the holder's term, keyed by `ending_notice_for` = that term's end.
+    household_cover_ended_at: Mapped[datetime | None]
+    shared_reminded_days: Mapped[int | None]
     # Tester tools (owner decision, October 18, 2026; migration 0022): the plan an admin chose to
     # test with, free of charge. Ignored unless the account's email is in STACKD_ADMIN_EMAILS.
     tester_plan: Mapped[str | None] = mapped_column(String(16))

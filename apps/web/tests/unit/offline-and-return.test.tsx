@@ -274,6 +274,30 @@ describe("invariant 37: signing in returns where the link pointed", () => {
     expect(screen.getByLabelText("Invite code")).toHaveValue("STK-4F9Q");
   });
 
+  it("a new partner's invite skips the trial pick: the household's plan will cover them (invariant 54)", async () => {
+    resetEntitlements();
+    const user = userEvent.setup();
+    const KEY = "HouseholdKeyNeverSentAnywhere0123456789abcdef";
+    const api = installFakeApi({ session: signedOut(), households: emptyHouseholds() });
+    api.access = { state: "choose", plan: "free" };
+    renderApp(`/household/join?code=HH-ABC123#k=${KEY}`);
+    await user.click(await screen.findByRole("link", { name: "Get started" }));
+    await user.type(screen.getByLabelText("Email address"), "ben@example.com");
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+    await user.click(await screen.findByLabelText("6-digit code"));
+    await user.paste(VALID_CODE);
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(await screen.findByRole("button", { name: "Create passkey" }));
+    await user.click(await screen.findByRole("button", { name: "Continue to setup" }));
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Join a household" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Start my/ })).toBeNull();
+    expect(api.calls.some((c) => c.path === "/api/billing/trial")).toBe(false);
+    expect(screen.queryByText(/This link is missing its key/)).toBeNull();
+    expect(sessionStorage.getItem("stackd.return_to")).toBeNull(); // taken once
+  });
+
   it("a household invite opened signed out keeps its #k= key on the device and lands on it", async () => {
     resetEntitlements();
     const user = userEvent.setup();

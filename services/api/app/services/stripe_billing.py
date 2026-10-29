@@ -29,7 +29,9 @@ from app.models.billing import (
 )
 from app.models.user import User
 from app.rules_server.entitlements import (
+    access,
     founding_taken,
+    household_pair,
     is_tester,
     load_plans,
     purchase_conflict,
@@ -45,6 +47,8 @@ from app.services.email import (
     fraud_admin_message,
     fraud_refund_message,
     get_sender,
+    household_plan_paused_message,
+    household_plan_resumed_message,
     plan_ended_dispute_lost_message,
     plan_link,
     plan_paused_message,
@@ -1347,9 +1351,30 @@ def _dispute(db: DbSession, kind: str, obj: dict[str, Any], *, now: datetime) ->
         user = db.get(User, user_id)
         if user is not None and user.deleted_at is None and message is not None:
             get_sender().send(message(user.email, plan_link()))
+        # The partner the plan covers is paused and back with it (invariant 54); a lost
+        # dispute ends the shared plan, and the plan job tells them as for any end.
+        if outcome in ("disputed", "dispute_won"):
+            _tell_covered_partner(db, user_id, outcome)
     if kind == "charge.dispute.created":
         _tell_admins_of_dispute(obj, matched=True)
     return outcome
+
+
+def _tell_covered_partner(db: DbSession, user_id: uuid.UUID, outcome: str) -> None:
+    """A household of two is one plan: the partner it covers hears it paused or came back."""
+    pair = household_pair(db, user_id)
+    for other_id in pair or ():
+        other = db.get(User, other_id)
+        if other is None or other.id == user_id or other.deleted_at is not None:
+            continue
+        if access(db, other).get("shared") != "covered":
+            continue
+        message = (
+            household_plan_paused_message
+            if outcome == "disputed"
+            else household_plan_resumed_message
+        )
+        get_sender().send(message(other.email, plan_link()))
 
 
 def _collects(row: Subscription) -> bool:

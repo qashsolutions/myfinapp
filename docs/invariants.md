@@ -464,6 +464,26 @@ written against both.
     `test_billing_oct29.py` "deleting while a yearly bank payment clears…", "a founding bank
     payment clearing at the deletion…", "a bank payment that fails after the deletion…", "a
     page paid after the deletion…"
+54. **A household of two is one plan** (owner decision, October 29, 2026). While the holder's
+    plan is live the partner is covered by it (`access.shared`): no trial clock, card ask,
+    lockout or reminders of their own, nothing to buy. When it ends it ends for both, with the
+    same notices and the same 7 days, and both close in one run; a dispute pauses both and closes
+    neither. Whoever subscribes in the 7 days holds it for both. Leaving or deleting never ends
+    the holder's plan; whoever it covered gets their own 7 days and an email. One helper
+    (`entitlements.access`, through `household_holder`) answers the app, the limits
+    (`effective_plan`), checkout and the plan job; the cover is read before a deletion ends any
+    billing.
+    `test_household_one_plan.py` · `household-plan.test.tsx` "an invite opens before any trial…"
+55. **Shared jars travel soon** (October 29, 2026). A change to a shared jar, by any path, is
+    published 2 s after the last change, not on the next 2-minute round; the app pulls on
+    returning to the foreground and every 15 s while shared jars are on screen.
+    `household-plan.test.tsx` "a deposit into a shared jar is published within seconds…",
+    "pulls on coming back to the foreground…"
+56. **An ended challenge is over** (October 29, 2026). Past its last day nobody new can look it
+    up or join (409 `ended`), its screen says Ended with the final board and no deposit,
+    check-in or invite, and its jar no longer holds a place on the plan. One helper on the
+    device (`challengeEnded`) answers the cap, the jar's screen and the lists.
+    `test_group_ended.py` (all five types) · `challenge-ended.test.tsx`
 
 ## Offline and the way in
 

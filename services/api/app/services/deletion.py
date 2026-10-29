@@ -269,6 +269,13 @@ def soft_delete(
     until the person decides (owner, October 20, 2026); every other deletion erases them."""
     now = now or datetime.now(UTC)
     _lock_person(db, user.id)
+    from app.routers.household import (  # noqa: PLC0415 - avoids a router import cycle
+        covered_in_household,
+        leave_households,
+    )
+
+    # Read before the plan ends below: a partner this plan covered gets their own 7 days.
+    covered = covered_in_household(db, user.id, now=now)
     if not cancel_billing(db, user.id, now=now):
         # Stripe couldn't be reached: `settle_billing` (hourly) tries again, as of this moment,
         # so the person is never charged on for the 30 days until the purge.
@@ -313,9 +320,7 @@ def soft_delete(
             group.owner_id = successor
     # The encrypted backup goes now (docs/spec.md "Delete account"); the device wipes its own copy.
     backup_store.delete_all(db, user.id)
-    from app.routers.household import leave_households  # noqa: PLC0415 - avoids a router import cycle
-
-    leave_households(db, user.id, now=now)
+    leave_households(db, user.id, now=now, covered=covered)
     from app.routers.linking import revoke_all  # noqa: PLC0415 - same cycle as above
 
     revoke_all(db, user.id)

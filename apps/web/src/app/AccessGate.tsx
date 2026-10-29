@@ -1,13 +1,20 @@
 import { type ReactNode, useEffect } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { type Access, useEntitlements } from "../features/billing/entitlements.ts";
-import { takeReturn } from "../lib/returnTo.ts";
+import { forgetReturn, pendingReturn, takeReturn } from "../lib/returnTo.ts";
+
+/**
+ * Joining a household is a way in (invariant 54): the partner's plan covers both, so an invite
+ * opens before picking a trial and while no plan is live, never sending them through /start.
+ */
+const JOIN_HOUSEHOLD = "/household/join";
 
 /**
  * Open while there is no plan to use: the plan (to subscribe, and receipts), Me, Money & data
- * (export) and deletion. Every other screen sends the person to `home` for their state.
+ * (export), deletion, and joining a household whose plan would cover them.
+ * Every other screen sends the person to `home` for their state.
  */
-export const LAPSED_OPEN = new Set(["/me/plan", "/me", "/me/data", "/me/delete"]);
+export const LAPSED_OPEN = new Set(["/me/plan", "/me", "/me/data", "/me/delete", JOIN_HOUSEHOLD]);
 
 /**
  * Where each access state may go, and where it is sent otherwise (null = anywhere).
@@ -25,7 +32,10 @@ export function accessRoutes(access: Access | null | undefined): {
     case "choose":
       return access.trial_used
         ? { home: "/start", open: new Set([...LAPSED_OPEN, "/start"]) }
-        : { home: "/start", open: new Set(["/start", "/me", "/me/data", "/me/delete"]) };
+        : {
+            home: "/start",
+            open: new Set(["/start", "/me", "/me/data", "/me/delete", JOIN_HOUSEHOLD]),
+          };
     // A plan that ended, a disputed payment (October 24, 2026) and a lost dispute (October 25,
     // 2026): subscribe (where allowed), export or delete; never deleted for a dispute.
     case "lapsed":
@@ -57,6 +67,15 @@ export function AccessGate({ children }: { children: ReactNode }) {
     const target = takeReturn();
     if (target) navigate(target, { replace: true });
   }, [open, navigate]);
+  // A link this state may already open goes there now, before any trial pick: a household
+  // invite, since the partner's plan covers them (invariant 54).
+  const pending = routes ? pendingReturn() : null;
+  const pendingPath = pending ? new URL(pending, window.location.origin).pathname : null;
+  const goBack = pending && pendingPath && routes?.open.has(pendingPath) ? pending : null;
+  useEffect(() => {
+    if (goBack && pathname === pendingPath) forgetReturn();
+  }, [goBack, pathname, pendingPath]);
+  if (goBack && pathname !== pendingPath) return <Navigate to={goBack} replace />;
   if (routes && !routes.open.has(pathname)) return <Navigate to={routes.home} replace />;
   // /start is only for picking a trial or being told it was used.
   if (known && access?.state !== "choose" && pathname === "/start")

@@ -288,8 +288,18 @@ describe("trials", () => {
       state,
       delete_at: null,
       trial_used,
+      shared: null,
     });
-    const routes = ["/", "/budget", "/start", "/me", "/me/plan", "/me/data", "/me/delete"];
+    const routes = [
+      "/",
+      "/budget",
+      "/start",
+      "/me",
+      "/me/plan",
+      "/me/data",
+      "/me/delete",
+      "/household/join",
+    ];
     const where = (a: Access | null) =>
       Object.fromEntries(
         routes.map((r) => {
@@ -306,6 +316,8 @@ describe("trials", () => {
       "/me/plan": "→ /start",
       "/me/data": "open",
       "/me/delete": "open",
+      // Invariant 54: a household's plan covers the partner, so an invite opens before a trial.
+      "/household/join": "open",
     });
     // choose with the trial used, lapsed, paused, ended: the plan, export and delete
     const noPlan = {
@@ -316,6 +328,7 @@ describe("trials", () => {
       "/me/plan": "open",
       "/me/data": "open",
       "/me/delete": "open",
+      "/household/join": "open",
     };
     expect(where(make("choose", true))).toEqual({
       ...noPlan,

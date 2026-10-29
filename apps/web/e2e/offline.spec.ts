@@ -58,8 +58,9 @@ test("a household invite opened signed out lands on the invite after sign-up, ke
     .getByRole("button", { name: /Continue|Go|Start|Done/ })
     .first()
     .click();
-  await page.getByRole("button", { name: "Start my 3-day free trial" }).click();
+  // No trial pick (invariant 54): the household's plan will cover the partner.
   await expect(page.getByRole("heading", { level: 1, name: "Join a household" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start my 3-day free trial" })).toBeHidden();
   await expect(page.getByText(/This link is missing its key/)).toBeHidden();
   expect(page.url()).toContain(`#k=${KEY}`);
   for (const r of seen.filter((s) => s.includes("/api/"))) expect(r).not.toContain(KEY);

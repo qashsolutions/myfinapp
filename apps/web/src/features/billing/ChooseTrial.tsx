@@ -38,7 +38,7 @@ const CHOICES: Array<{
     points: [
       ["link", "Link 3 banks or cards, read-only"],
       ["jar", "10 jars & goals"],
-      ["heart", "Couples & shared jars"],
+      ["heart", "Couples: one price covers you both"],
     ],
   },
 ];

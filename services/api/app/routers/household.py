@@ -38,7 +38,13 @@ from app.models.household import (
 from app.models.user import User
 from app.routers.backup import B64, decode_b64url, encode_b64url
 from app.routers.groups import CODE_ALPHABET, _shown_name
-from app.rules_server.entitlements import entitlements, require_feature
+from app.rules_server.entitlements import (
+    access,
+    entitlements,
+    household_pair,
+    require_feature,
+    store_entitlements,
+)
 from app.security.audit import AuditAction, record
 from app.security.authz import not_found
 from app.security.client import client_ip
@@ -320,6 +326,7 @@ def join(
     row.used_by = caller.user.id
     row.used_at = now
     db.flush()
+    store_entitlements(db, caller.user.id)  # both now ride the holder's plan (invariant 54)
     record(
         db,
         actor_id=caller.user.id,
@@ -331,13 +338,42 @@ def join(
     return _out(db, household, caller.user.id)
 
 
-def leave_households(db: DbSession, user_id: uuid.UUID, *, now: datetime | None = None) -> int:
+def covered_in_household(db: DbSession, user_id: uuid.UUID, *, now: datetime) -> list[User]:
+    """Who in this person's household of two the shared plan covers right now (invariant 54).
+    Read before anything changes the plan, since closing an account ends its billing first."""
+    covered: list[User] = []
+    for uid in household_pair(db, user_id) or ():
+        person = db.get(User, uid)
+        if person is None or person.deleted_at is not None:
+            continue
+        state = access(db, person, now=now)
+        if state.get("shared") == "covered" and state["state"] == "subscribed":
+            covered.append(person)
+    return covered
+
+
+def leave_households(
+    db: DbSession,
+    user_id: uuid.UUID,
+    *,
+    now: datetime | None = None,
+    covered: list[User] | None = None,
+) -> int:
     """Leave every household (one at most): own blobs go, an empty household is removed, and
     one the leaver owned passes to the partner, so its plan is the partner's from now on (like
-    a challenge's owner, groups.py; October 28, 2026)."""
+    a challenge's owner, groups.py; October 28, 2026).
+
+    A household of two is one plan (invariant 54): whoever the shared plan covered when it
+    splits up (the one leaving, or the one left when its holder goes; `covered`, read by the
+    caller before it ended any billing) is on their own from now, `household_cover_ended_at`,
+    so their 7 days to pick a plan start here, with an email from the plan job. The holder's
+    own plan carries on."""
     now = now or _now()
     count = 0
     _lock_person(db, user_id)
+    if covered is None:
+        covered = covered_in_household(db, user_id, now=now)
+    members = household_pair(db, user_id) or (user_id,)
     for m in db.scalars(
         select(HouseholdMember).where(
             HouseholdMember.user_id == user_id, HouseholdMember.left_at.is_(None)
@@ -363,7 +399,11 @@ def leave_households(db: DbSession, user_id: uuid.UUID, *, now: datetime | None 
                 )
             )
         count += 1
+    for person in covered:
+        person.household_cover_ended_at = now
     db.flush()
+    for member_id in members:  # each on their own plan again (invariant 54)
+        store_entitlements(db, member_id)
     return count
 
 

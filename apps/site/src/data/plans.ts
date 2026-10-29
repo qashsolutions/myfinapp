@@ -57,7 +57,7 @@ export const PLANS: Plan[] = [
     features: [
       { icon: "link", t: "Link 3 banks or cards, read-only" },
       { icon: "jar", t: "10 jars & goals" },
-      { icon: "heart", t: "Couples & shared jars" },
+      { icon: "heart", t: "Couples: one price covers you both" },
       { icon: "check", t: "Everything in Private" },
     ],
     cta: "Start 3 days free",

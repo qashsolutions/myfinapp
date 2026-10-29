@@ -112,33 +112,51 @@ def weekly_recap_message(to: str, link: str) -> Message:
     )
 
 
-def plan_ending_message(to: str, end: str, link: str, trial: bool) -> Message:
+# A household of two is one plan (owner decision, October 29, 2026; invariant 54): every note
+# about that plan ending says so, to both of them.
+SHARED_NOTE = (
+    "This is the plan you share in your household: one price covers both of you, so it ends "
+    "for both of you on the same day. Either of you can pick a plan that covers you both.\n\n"
+)
+
+
+def plan_ending_message(
+    to: str, end: str, link: str, trial: bool, *, shared: bool = False
+) -> Message:
     """The day before a free trial or a cancelled plan ends (owner decision, October 14, 2026;
     friendly, not a warning: October 20, 2026)."""
     what = "Your free trial" if trial else "Your Qash plan"
+    if shared:
+        what = "Your shared free trial" if trial else "Your shared Qash plan"
     return Message(
         to=to,
         subject=f"{what} wraps up on {end}",
         text=(
             f"Hi! {what} wraps up on {end}.\n\n"
-            f"Want to keep going? Pick a plan here:\n{link}\n\n"
+            + (SHARED_NOTE if shared else "")
+            + f"Want to keep going? Pick a plan here:\n{link}\n\n"
             "No pressure. If you don't, you'll have 7 more days to choose a plan or download "
             "your data, and what's on your device stays there until you decide.\n"
         ),
     )
 
 
-def plan_ended_message(to: str, delete_on: str, link: str, *, trial: bool = True) -> Message:
+def plan_ended_message(
+    to: str, delete_on: str, link: str, *, trial: bool = True, shared: bool = False
+) -> Message:
     """The trial or paid period has ended with no subscription: the first of the daily notes.
     A paid plan's note never says "trial" (October 28, 2026)."""
     what = "trial" if trial else "plan"
     return Message(
         to=to,
-        subject=f"Your Qash {what} has wrapped up",
+        subject=f"Your shared Qash {what} has wrapped up"
+        if shared
+        else f"Your Qash {what} has wrapped up",
         text=(
             f"Thanks for {'trying' if trial else 'using'} Qash. Your {what} has wrapped up, and "
             "nothing has been deleted.\n\n"
-            f"Keep going: {link}\n\n"
+            + (SHARED_NOTE if shared else "")
+            + f"Keep going: {link}\n\n"
             "Or take your data with you: open the app, then Me → Download all my data.\n\n"
             f"Your account stays open until {delete_on}. After that we close it, and what's on "
             "your phone stays there until you choose to download it or erase it.\n"
@@ -163,34 +181,42 @@ def founding_choice() -> str:
     return " or ".join(parts)
 
 
-def founding_ending_message(to: str, end: str, link: str, *, tomorrow: bool) -> Message:
+def founding_ending_message(
+    to: str, end: str, link: str, *, tomorrow: bool, shared: bool = False
+) -> Message:
     """30, 7 and 1 day before a Founding membership's 4 years end (owner decision, October 28,
-    2026): a thank-you and the plans to keep going with; nothing is charged unless they choose."""
+    2026): a thank-you and the plans to keep going with; nothing is charged unless they choose.
+    `shared`: the membership covers a household of two, and both get this (invariant 54)."""
     when = f"tomorrow, {end}" if tomorrow else f"on {end}"
     years = _founding_years()
+    whose = "Your household's" if shared else "Your"
     return Message(
         to=to,
-        subject="Your Founding membership ends tomorrow"
+        subject=f"{whose} Founding membership ends tomorrow"
         if tomorrow
-        else f"Your Founding membership ends on {end}",
+        else f"{whose} Founding membership ends on {end}",
         text=(
-            f"Your {years} years of Founding end {when}. Thank you for being one of the first.\n\n"
-            f"To keep going, pick {founding_choice()}. Nothing is charged unless you choose.\n\n"
+            f"{whose} {years} years of Founding end {when}. Thank you for being one of the "
+            "first.\n\n"
+            + (SHARED_NOTE if shared else "")
+            + f"To keep going, pick {founding_choice()}. Nothing is charged unless you choose.\n\n"
             f"Pick a plan: {link}\n"
         ),
     )
 
 
-def founding_ended_message(to: str, delete_on: str, link: str) -> Message:
+def founding_ended_message(to: str, delete_on: str, link: str, *, shared: bool = False) -> Message:
     """The day a Founding membership's term ends (owner decision, October 28, 2026)."""
     years = _founding_years()
+    whose = "Your household's" if shared else "Your"
     return Message(
         to=to,
-        subject="Your Founding membership has ended",
+        subject=f"{whose} Founding membership has ended",
         text=(
-            f"Your {years} years of Founding have ended. Thank you for being with Qash from the "
-            "start.\n\n"
-            f"You have 7 days, until {delete_on}, to pick a plan or download your data. To keep "
+            f"{whose} {years} years of Founding have ended. Thank you for being with Qash from "
+            "the start.\n\n"
+            + (SHARED_NOTE if shared else "")
+            + f"You have 7 days, until {delete_on}, to pick a plan or download your data. To keep "
             f"going, pick {founding_choice()}; nothing is charged unless you choose.\n\n"
             f"Pick a plan: {link}\n\n"
             "Or take your data with you: open the app, then Me → Download all my data. What's on "
@@ -205,7 +231,9 @@ def _founding_years() -> int:
     return int(load_plans()["founding"]["term_years"])
 
 
-def plan_lapsed_reminder_message(to: str, delete_on: str, days_left: int, link: str) -> Message:
+def plan_lapsed_reminder_message(
+    to: str, delete_on: str, days_left: int, link: str, *, shared: bool = False
+) -> Message:
     """One a day for the rest of the 7 days after a plan ended (owner, October 20, 2026)."""
     days = "1 day" if days_left == 1 else f"{days_left} days"
     return Message(
@@ -213,18 +241,46 @@ def plan_lapsed_reminder_message(to: str, delete_on: str, days_left: int, link: 
         subject=f"A friendly reminder: {days} left to keep your Qash account",
         text=(
             f"Just a friendly note: your Qash account stays open for {days} more, until "
-            f"{delete_on}.\n\nKeep going: {link}\n\n"
+            f"{delete_on}.\n\n"
+            + (
+                "Your household's shared plan has ended, so this goes to both of you. Either of "
+                "you can pick a plan that covers you both.\n\n"
+                if shared
+                else ""
+            )
+            + f"Keep going: {link}\n\n"
             "Or download your data in the app (Me → Download all my data). Either way, what's "
             "on your device stays there until you decide.\n"
         ),
     )
 
 
-def account_deleted_after_plan_message(to: str, *, welcome_back: bool = True) -> Message:
+def household_cover_ended_message(to: str, delete_on: str, link: str) -> Message:
+    """The household's shared plan no longer covers this person: they left the household, or
+    the partner whose plan it is left or closed their account (owner decision, October 29,
+    2026; invariant 54). Their own 7 days start now."""
+    return Message(
+        to=to,
+        subject="Your household's plan no longer covers you",
+        text=(
+            "You're no longer in a household with the person whose plan covered you both, so "
+            "that plan doesn't cover you any more. Nothing has been deleted.\n\n"
+            f"Keep going with a plan of your own: {link}\n\n"
+            "Or take your data with you: open the app, then Me → Download all my data.\n\n"
+            f"Your account stays open until {delete_on}. After that we close it, and what's on "
+            "your device stays there until you choose to download it or erase it.\n"
+        ),
+    )
+
+
+def account_deleted_after_plan_message(
+    to: str, *, welcome_back: bool = True, shared: bool = False
+) -> Message:
     """`welcome_back` False: the inbox may not buy again (a lost dispute or a fraud warning), so
-    the note doesn't invite signing up again."""
+    the note doesn't invite signing up again. `shared`: the household's plan ended, and both
+    accounts closed together (invariant 54)."""
     again = (
-        "You're welcome back any time. Sign up again on the same phone and Qash offers to "
+        "You're welcome back any time. Sign up again on the same device and Qash offers to "
         "bring that data into your new account.\n"
         if welcome_back
         else "Questions? Write to support@qash.solutions.\n"
@@ -233,9 +289,14 @@ def account_deleted_after_plan_message(to: str, *, welcome_back: bool = True) ->
         to=to,
         subject="Your Qash account has closed",
         text=(
-            "Your Qash plan ended 7 days ago, so we've closed your account and removed what we "
-            "kept on our servers, as we said we would.\n\n"
-            "What's on your device is still there. Open Qash to download it or erase it, "
+            (
+                "The plan you shared in your household ended 7 days ago, so we've closed both "
+                "accounts and removed what we kept on our servers, as we said we would.\n\n"
+                if shared
+                else "Your Qash plan ended 7 days ago, so we've closed your account and removed "
+                "what we kept on our servers, as we said we would.\n\n"
+            )
+            + "What's on your device is still there. Open Qash to download it or erase it, "
             "whenever you like.\n\n" + again
         ),
     )
@@ -334,6 +395,33 @@ def plan_resumed_message(to: str, link: str) -> Message:
         text=(
             "The payment dispute is closed, and your Qash plan is back, just as you left it.\n\n"
             f"Your plan: {link}\n"
+        ),
+    )
+
+
+def household_plan_paused_message(to: str, link: str) -> Message:
+    """The partner of someone whose payment is disputed (invariant 54): the plan they share is
+    paused too. It says why only as "its payment", since the payment is the other person's."""
+    return Message(
+        to=to,
+        subject="Your household's Qash plan is paused",
+        text=(
+            "The plan you share in your household is paused for now, while a question about its "
+            "payment is settled with the bank. Nothing is deleted: everything stays on your "
+            "device, and you can still open the app and download your data.\n\n"
+            "When it's settled, the plan comes back for both of you by itself.\n\n"
+            f"Your plan: {link}\n"
+        ),
+    )
+
+
+def household_plan_resumed_message(to: str, link: str) -> Message:
+    return Message(
+        to=to,
+        subject="Your household's Qash plan is back",
+        text=(
+            "The plan you share in your household is back, for both of you, just as you left "
+            f"it.\n\nYour plan: {link}\n"
         ),
     )
 

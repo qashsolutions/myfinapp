@@ -32,6 +32,8 @@ from app.models.billing import PurchaseConsent, Subscription
 from app.models.linking import BankConnection
 from app.models.plan_event import PlanEvent
 from app.models.trial_claim import TrialClaim, trial_hashes
+from app.models.user import User
+from app.routers.groups import _shown_name
 from app.routers.linking import revoke_all
 from app.rules_server.entitlements import (
     TRIAL_PLANS,
@@ -39,6 +41,7 @@ from app.rules_server.entitlements import (
     effective_plan,
     entitlements,
     founding_left,
+    household_pair,
     is_tester,
     load_plans,
     payment_pending,
@@ -93,6 +96,12 @@ class BillingOut(BaseModel):
     trials: dict[str, int] = {}
     # A US bank payment is still clearing (October 24, 2026): the plan starts when it does.
     payment_pending: bool = False
+    # A household of two is one plan (owner decision, October 29, 2026; invariant 54): "holder"
+    # when this person's plan covers the household, "covered" when the partner's covers them
+    # (nothing to buy while it does), null outside a household of two.
+    shared: Literal["holder", "covered"] | None = None
+    # covered only: the partner whose plan it is, as other members see them.
+    shared_by: str | None = None
 
 
 class ConsentIn(BaseModel):
@@ -256,7 +265,19 @@ def _out(db: DbSession, caller: Caller) -> BillingOut:
         downgrade_after_days=int(plans["changes"]["downgrade_after_days"]),
         tester=is_tester(caller.user),
         tester_plan=tester_plan(caller.user),
+        **_shared(db, caller),
     )
+
+
+def _shared(db: DbSession, caller: Caller) -> dict[str, Any]:
+    state = access(db, caller.user)
+    shared = state.get("shared")
+    if shared != "covered":
+        return {"shared": shared}
+    pair = household_pair(db, caller.user.id)
+    other = next((u for u in pair or () if u != caller.user.id), None)
+    person = db.get(User, other) if other else None
+    return {"shared": shared, "shared_by": _shown_name(person)[0] if person else None}
 
 
 def _downgrade_from(sub: Subscription | None, caller: Caller) -> datetime | None:
@@ -393,6 +414,10 @@ def checkout(
     if stripe_billing.is_blocked(db, caller.user):
         # A lost dispute or a fraud-warning refund (owner decision, October 24, 2026).
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="purchase_blocked")
+    now_access = access(db, caller.user)
+    if now_access.get("shared") == "covered" and now_access["state"] == "subscribed":
+        # One price covers both of a household (invariant 54): nothing to buy while it does.
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="household_covered")
     _, sub = effective_plan(db, caller.user.id, tester=False)
     # Never a second plan beside a live one (Founding, a bank payment still clearing, a store
     # plan, a renewing subscription): plan changes go through /change, and Founding may follow
@@ -401,7 +426,6 @@ def checkout(
         raise HTTPException(status.HTTP_409_CONFLICT, detail=conflict)
     if body.plan == "founding" and founding_left(db)[1] <= 0:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="founding_sold_out")
-    now_access = access(db, caller.user)
     trial_ends_at = now_access.get("trial_ends_at") if now_access["state"] == "trial" else None
     _record_consent(
         db,
