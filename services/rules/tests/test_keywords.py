@@ -14,8 +14,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from build_keywords import TARGETS, render  # noqa: E402
 
 from stackd_rules import categorize  # noqa: E402
-from stackd_rules.fingerprint import clean_description  # noqa: E402
-from stackd_rules.recurring import OTHER_KIND, contains_word  # noqa: E402
+from stackd_rules.fingerprint import clean_description, merchant_key  # noqa: E402
+from stackd_rules.recurring import OTHER_KIND, contains_word, longest_word  # noqa: E402
 
 VALID_CATEGORIES = {
     "cat-rent",
@@ -97,20 +97,16 @@ def test_subscription_kinds_are_well_formed() -> None:
     assert {e["kind"] for e in kinds} == set(SUBSCRIPTION_KINDS)
 
 
-def test_no_word_is_hidden_by_an_earlier_one() -> None:
-    """A word that an earlier word of another kind already matches (as a whole word) could
-    never be reached: first match wins."""
-    kinds = json.loads(render())["subscription_kinds"]
-    for i, later in enumerate(kinds):
-        for earlier in kinds[:i]:
-            if earlier["kind"] != later["kind"]:
-                assert not contains_word(later["match"], earlier["match"]), (earlier, later)
+def test_every_kind_word_reaches_its_own_kind() -> None:
+    """The sweep (invariant 50: the longest word found decides, ties by order): each word, as a
+    payee of its own, lands in its own kind, so no word is hidden by another."""
+    for entry in json.loads(render())["subscription_kinds"]:
+        assert _kind_of(entry["match"]) == entry["kind"], entry
 
 
 def _kind_of(payee: str) -> str | None:
     table = [(e["match"], e["kind"]) for e in json.loads(render())["subscription_kinds"]]
-    clean = clean_description(payee)
-    return next((k for word, k in table if contains_word(clean, word)), None)
+    return longest_word(clean_description(payee), merchant_key(payee), table)
 
 
 def test_common_payees_get_their_kind() -> None:

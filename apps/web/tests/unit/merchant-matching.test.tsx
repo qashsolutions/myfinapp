@@ -17,6 +17,7 @@ import { DEFAULT_CATEGORIES } from "../../src/data/defaults.ts";
 import { detectRecurring, merchantKey, upcomingItems } from "../../src/engine/bridge.ts";
 import { likeThis, renameEntry } from "../../src/features/entries/entryActions.ts";
 import {
+  backfillSeriesDays,
   confirmSuggestion,
   removeSeries,
   seriesInput,
@@ -325,6 +326,56 @@ describe("pay and bills on their days (invariant 49)", () => {
     expect(bill).toMatchObject({ day: 31, next_date: "2027-02-28" });
     const up = await upcomingItems([seriesInput(bill)], [], "2027-02-10", 90);
     expect(up.items.map((i) => i.date)).toEqual(["2027-02-28", "2027-03-31", "2027-04-30"]);
+  });
+});
+
+describe("a bill confirmed before it kept its day (invariant 49)", () => {
+  it("reads its day once from its own charges and leaves the 28th it drifted to", async () => {
+    const db = await seed();
+    await db.entries.bulkAdd([
+      entry("r1", "2026-11-30", 150000, "RENT CO", { is_recurring: true }),
+      entry("r2", "2026-12-31", 150000, "RENT CO", { is_recurring: true }),
+      entry("r3", "2027-01-31", 150000, "RENT CO", { is_recurring: true }),
+      entry("r4", "2027-02-28", 150000, "RENT CO", { is_recurring: true }),
+    ]);
+    // Confirmed before series kept a day: stepped from Feb 28 it had drifted to Mar 28.
+    await db.recurring_series.add({
+      id: "old-rent",
+      payee: "RENT CO",
+      label: "Rent",
+      kind: "bill",
+      expected_cents: 150000,
+      interval: "monthly",
+      next_date: "2027-03-28",
+      status: "confirmed",
+      source: "detected",
+      account_id: null,
+      created_at: "2026-12-01T00:00:00Z",
+      updated_at: "2026-12-01T00:00:00Z",
+    });
+    const before = await db.recurring_series.toArray();
+    const [fixed] = await backfillSeriesDays(db, before, await db.entries.toArray(), "2027-03-10");
+    expect(fixed).toMatchObject({ day: 31, next_date: "2027-03-31" });
+    expect(await db.recurring_series.get("old-rent")).toMatchObject({
+      day: 31,
+      next_date: "2027-03-31",
+    });
+    const up = await upcomingItems(
+      [seriesInput(fixed as NonNullable<typeof fixed>)],
+      [],
+      "2027-03-10",
+      60,
+    );
+    expect(up.items.map((i) => i.date)).toEqual(["2027-03-31", "2027-04-30"]);
+    // Stored once: a second pass changes nothing.
+    const stamp = (await db.recurring_series.get("old-rent"))?.updated_at;
+    await backfillSeriesDays(
+      db,
+      await db.recurring_series.toArray(),
+      await db.entries.toArray(),
+      "2027-03-10",
+    );
+    expect((await db.recurring_series.get("old-rent"))?.updated_at).toBe(stamp);
   });
 });
 

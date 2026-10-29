@@ -1,3 +1,4 @@
+import { daysInMonthOf } from "@stackd/rules/dates";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
 import { recordDeletion } from "../../data/backup/snapshot.ts";
@@ -216,6 +217,46 @@ export async function updateSeries(db: StackdDb, id: string, draft: SeriesDraft)
     day: kept ? (row.day ?? dayOf(draft)) : dayOf(draft),
     updated_at: new Date().toISOString(),
   });
+}
+
+/**
+ * Bills confirmed before series kept their day (invariant 49, October 29, 2026) have none, and
+ * one may already have drifted to the 28th. Each such month-based series reads its day once from
+ * its own charges: the recurring rule over the bank rows of the same merchant and direction gives
+ * the run's most common day (the last day = 31). It is stored, and a next date that drifted off
+ * it moves back onto it in its own month (clamped). A series whose charges no longer make a run
+ * of the same interval keeps its next date's day. Asked once per series; returns the rows as stored.
+ */
+export async function backfillSeriesDays(
+  db: StackdDb,
+  series: RecurringSeries[],
+  entries: Entry[],
+  asOf: string,
+): Promise<RecurringSeries[]> {
+  const missing = series.filter((s) => MONTH_BASED.has(s.interval) && s.day == null);
+  if (missing.length === 0) return series;
+  const rows = bankRows(entries);
+  const keys = await merchantKeys([...rows.map(bankText), ...missing.map((s) => s.payee)]);
+  const out = new Map<string, RecurringSeries>();
+  for (const s of missing) {
+    const direction = s.kind === "income" ? "in" : "out";
+    const own = rows.filter(
+      (e) => e.direction === direction && keys.get(bankText(e)) === keys.get(s.payee),
+    );
+    const run = (await detectRecurring(own.map(toRecurringEntry), asOf)).find(
+      (d) => d.interval === s.interval && d.day !== null,
+    );
+    // No run of the same interval: its next date's day, so it is asked only once.
+    const day = run?.day ?? Number(s.next_date.slice(8, 10));
+    const y = Number(s.next_date.slice(0, 4));
+    const m = Number(s.next_date.slice(5, 7));
+    const due = Math.min(day, daysInMonthOf(y, m));
+    const next = `${s.next_date.slice(0, 8)}${String(due).padStart(2, "0")}`;
+    const changes = { day, next_date: next, updated_at: new Date().toISOString() };
+    await db.recurring_series.update(s.id, changes);
+    out.set(s.id, { ...s, ...changes });
+  }
+  return series.map((s) => out.get(s.id) ?? s);
 }
 
 /** Removing a bill forgets it; its entries become ordinary spending again. */

@@ -622,6 +622,10 @@
       "kind": "video"
     },
     {
+      "match": "AMAZON PRIME VIDEO",
+      "kind": "video"
+    },
+    {
       "match": "APPLE TV",
       "kind": "video"
     },

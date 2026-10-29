@@ -54,6 +54,7 @@ def fingerprint(account_id: str, date: str, amount_cents: int, description: str)
 # the same"). The key never enters the fingerprint, so re-imports stay idempotent.
 PROCESSOR_PREFIXES = ("SQ", "TST", "SP", "PAYPAL", "PP", "GOOGLE")
 WEB_ENDINGS = (".COM", ".NET", ".ORG")
+# PROCESSOR_PREFIXES and NUMBERED_WORDS: signed off by the owner, October 29, 2026.
 NUMBERED_WORDS = ("CHECK", "CHK", "CHEQUE")  # the number names the item, so it is kept
 
 

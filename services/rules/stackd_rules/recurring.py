@@ -116,7 +116,7 @@ LAST_DAY = 31  # a day of the month that means the month's last day
 # and 15th, the 15th and the last day), moved a few days by weekends and holidays.
 SEMIMONTHLY = "semimonthly"
 SEMIMONTHLY_GAPS = (10, 20)  # days between paydays once weekends and holidays move them
-SEMIMONTHLY_MIN_RUN = 4
+SEMIMONTHLY_MIN_RUN = 4  # 4+ paydays 10-20 days apart: signed off by the owner, October 29, 2026
 
 
 def day_of_month(day: date) -> int:
@@ -389,6 +389,19 @@ def contains_word(text: str, word: str) -> bool:
     return False
 
 
+def longest_word(clean: str, key: str, words: list[tuple[str, str]]) -> str | None:
+    """Which word decides (invariant 50, October 29, 2026; the same rule as categorize): of the
+    words found as a whole word in the cleaned text or its merchant key, the longest (in code
+    points); a tie goes to the earlier one. Returns its value, or None."""
+    best: tuple[int, str] | None = None
+    for word, value in words:
+        if (contains_word(clean, word) or contains_word(key, word)) and (
+            best is None or len(word) > best[0]
+        ):
+            best = (len(word), value)
+    return best[1] if best is not None else None
+
+
 OTHER_KIND = "other"  # the person's "Other": no kind, whatever the table says
 
 
@@ -476,8 +489,8 @@ def subscription_check(
     builtin = {k for _, k in table}
     known = builtin | _own_kinds(own_kinds, builtin)
     # The person's words first, so their call wins over the table; a kind set by hand wins over
-    # both.
-    words = _own_words(own_words, known) + table
+    # both. Within each, the longest word found wins, ties by order (invariant 50).
+    mine = _own_words(own_words, known)
     if not isinstance(subscriptions, list):
         raise RuleError("invalid_series")
     items = []
@@ -561,10 +574,9 @@ def subscription_check(
             # The cleaned payee or its merchant key ("UBER *EATS" reads as UBER EATS).
             clean = clean_description(payee)
             key = merchant_key(payee)
-            kind = next(
-                (k for word, k in words if contains_word(clean, word) or contains_word(key, word)),
-                None,
-            )
+            kind = longest_word(clean, key, mine)
+            if kind is None:
+                kind = longest_word(clean, key, table)
         items.append(
             {
                 "id": sid,

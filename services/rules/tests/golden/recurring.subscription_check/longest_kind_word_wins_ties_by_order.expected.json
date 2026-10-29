@@ -1,0 +1,49 @@
+{
+  "items": [
+    {
+      "id": "s2",
+      "label": "Hulu Live",
+      "kind": "video",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 24000,
+      "monthly_cents": 2000
+    },
+    {
+      "id": "s1",
+      "label": "Prime Video",
+      "kind": "video",
+      "ask": false,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 12000,
+      "monthly_cents": 1000
+    }
+  ],
+  "duplicates": [
+    {
+      "kind": "video",
+      "count": 2,
+      "monthly_total_cents": 3000,
+      "ids": [
+        "s2",
+        "s1"
+      ]
+    }
+  ],
+  "by_kind": [
+    {
+      "kind": "video",
+      "count": 2,
+      "yearly_cents": 36000,
+      "monthly_cents": 3000,
+      "ids": [
+        "s2",
+        "s1"
+      ]
+    }
+  ]
+}

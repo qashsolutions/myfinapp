@@ -135,7 +135,7 @@ export const LAST_DAY = 31;
 // days by weekends and holidays.
 export const SEMIMONTHLY = "semimonthly";
 const SEMIMONTHLY_GAPS: [number, number] = [10, 20];
-const SEMIMONTHLY_MIN_RUN = 4;
+const SEMIMONTHLY_MIN_RUN = 4; // 4+ paydays 10-20 days apart: signed off by the owner, October 29, 2026
 
 /** The day of the month a date stands for: its own, or 31 when it is the month's last day. */
 export function dayOfMonth(day: Day): number {
@@ -439,6 +439,28 @@ export function containsWord(text: string, word: string): boolean {
   return false;
 }
 
+/**
+ * Which word decides (invariant 50, October 29, 2026; the same rule as categorize): of the words
+ * found as a whole word in the cleaned text or its merchant key, the longest (in code points); a
+ * tie goes to the earlier one. Returns its value, or null.
+ */
+export function longestWord(
+  clean: string,
+  key: string,
+  words: Array<[string, string]>,
+): string | null {
+  let best: [number, string] | null = null;
+  for (const [word, value] of words) {
+    const length = Array.from(word).length;
+    if (
+      (containsWord(clean, word) || containsWord(key, word)) &&
+      (best === null || length > best[0])
+    )
+      best = [length, value];
+  }
+  return best === null ? null : best[1];
+}
+
 /** The person's "Other": no kind, whatever the table says. */
 export const OTHER_KIND = "other";
 
@@ -535,7 +557,8 @@ export function subscriptionCheck(
   const builtin = new Set(table.map(([, k]) => k));
   const known = new Set([...builtin, ...ownKinds(ownKindsRaw, builtin)]);
   // The person's words first, so their call wins over the table; a kind set by hand wins over both.
-  const words = [...ownWords(ownWordsRaw, known), ...table];
+  // Within each, the longest word found wins, ties by order (invariant 50).
+  const mine = ownWords(ownWordsRaw, known);
   if (!Array.isArray(subscriptions)) throw new RuleError("invalid_series");
   const items: SubscriptionCheckItem[] = [];
   for (const raw of subscriptions) {
@@ -610,8 +633,7 @@ export function subscriptionCheck(
       // The cleaned payee or its merchant key ("UBER *EATS" reads as UBER EATS).
       const clean = cleanDescription(r.payee);
       const key = merchantKey(r.payee);
-      kind =
-        words.find(([word]) => containsWord(clean, word) || containsWord(key, word))?.[1] ?? null;
+      kind = longestWord(clean, key, mine) ?? longestWord(clean, key, table);
     }
     items.push({
       id: r.id,

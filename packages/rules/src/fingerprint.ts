@@ -49,6 +49,7 @@ export function fingerprint(
 // the same"). The key never enters the fingerprint, so re-imports stay idempotent.
 export const PROCESSOR_PREFIXES = ["SQ", "TST", "SP", "PAYPAL", "PP", "GOOGLE"];
 const WEB_ENDINGS = [".COM", ".NET", ".ORG"];
+// PROCESSOR_PREFIXES and NUMBERED_WORDS: signed off by the owner, October 29, 2026.
 const NUMBERED_WORDS = ["CHECK", "CHK", "CHEQUE"]; // the number names the item, so it is kept
 
 /** Only ASCII digits and punctuation, or the masking dot: a store, terminal, phone or card

@@ -241,19 +241,24 @@ written against both.
     confirmed as one monthly bill per day. A month-based bill keeps its usual day (`day`, 31 =
     the last day) and every reader of a confirmed series passes it to `forecast.upcoming`
     (`useRecurring.seriesInput`), so rent on the 31st is Feb 28 and then Mar 31, never Mar 28;
-    a bill made before this reads its next date's day.
+    a bill confirmed before this reads its day once from its own charges (the same rule) and
+    a next date that drifted to the 28th moves back onto it (`useRecurring.backfillSeriesDays`).
     `merchant-matching.test.tsx` "pay on the 15th and the last day…", "a twice-a-month bill…",
-    "rent on the 30th, 31st and 31st…" · goldens `recurring.detect` "twice_a_month_*",
+    "rent on the 30th, 31st and 31st…", "reads its day once from its own charges…" · goldens `recurring.detect` "twice_a_month_*",
     "true_every_two_weeks_stays_every_two_weeks", "rent_on_the_last_day_keeps_day_31"
-50. **A keyword is a whole word, and the longest one wins** (October 29, 2026). A category rule
-    or keyword matches only as a whole word (`recurring.contains_word`), in the cleaned text or
-    its merchant key, and the longest match wins, ties by order: UBER EATS is dining wherever
+50. **A keyword is a whole word, and the longest one wins** (October 29, 2026). One rule decides
+    which word counts, for category rules and keywords and for subscription kinds (the person's
+    own words first, then the table; `recurring.longest_word`): a whole word
+    (`recurring.contains_word`), in the cleaned text or its merchant key, the longest match
+    winning, ties by order: UBER EATS is dining wherever
     UBER sits in the table, RENT never hits PARENT or ENTERPRISE RENTALS and SHELL never hits
     SHELLS SEAFOOD. The screens that move entries along with a new rule (the entry editor's
     "Always put…", Sort your spending) ask the engine the same question (`bridge.matchesRule`).
     `services/rules/tests/test_keywords.py` "every keyword reaches its own category", "no keyword
-    hits inside another word" · `merchant-matching.test.tsx` "an import sorts UBER EATS…" ·
-    goldens `categorize.match`
+    hits inside another word", "every kind word reaches its own kind" ·
+    `merchant-matching.test.tsx` "an import sorts UBER EATS…" · goldens `categorize.match`,
+    `recurring.subscription_check` "longest_kind_word_wins_ties_by_order",
+    "longest_own_word_wins_and_own_words_come_first"
 
 ## Accounts and money on the server
 
