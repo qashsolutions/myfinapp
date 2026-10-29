@@ -1,0 +1,83 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-28",
+  "in_cents": 300000,
+  "out_cents": 264099,
+  "fixed_cents": 151599,
+  "flexible_cents": 112500,
+  "fixed_by_bucket": {
+    "need": 150000,
+    "want": 1599,
+    "save": 0,
+    "none": 0
+  },
+  "flexible_by_bucket": {
+    "need": 42000,
+    "want": 48000,
+    "save": 20000,
+    "none": 2500
+  },
+  "kept_cents": 35901,
+  "kept_rate_bps": 1197,
+  "by_category": [
+    {
+      "category_id": "cat-rent",
+      "bucket": "need",
+      "fixed_cents": 150000,
+      "flexible_cents": 0,
+      "out_cents": 150000
+    },
+    {
+      "category_id": "cat-groceries",
+      "bucket": "need",
+      "fixed_cents": 0,
+      "flexible_cents": 42000,
+      "out_cents": 42000
+    },
+    {
+      "category_id": "cat-dining",
+      "bucket": "want",
+      "fixed_cents": 0,
+      "flexible_cents": 31000,
+      "out_cents": 31000
+    },
+    {
+      "category_id": "cat-savings",
+      "bucket": "save",
+      "fixed_cents": 0,
+      "flexible_cents": 20000,
+      "out_cents": 20000
+    },
+    {
+      "category_id": "cat-shopping",
+      "bucket": "want",
+      "fixed_cents": 0,
+      "flexible_cents": 17000,
+      "out_cents": 17000
+    },
+    {
+      "category_id": null,
+      "bucket": null,
+      "fixed_cents": 0,
+      "flexible_cents": 2500,
+      "out_cents": 2500
+    },
+    {
+      "category_id": "cat-subscriptions",
+      "bucket": "want",
+      "fixed_cents": 1599,
+      "flexible_cents": 0,
+      "out_cents": 1599
+    }
+  ],
+  "room": [
+    {
+      "category_id": "cat-dining",
+      "flexible_cents": 31000
+    },
+    {
+      "category_id": "cat-shopping",
+      "flexible_cents": 17000
+    }
+  ]
+}

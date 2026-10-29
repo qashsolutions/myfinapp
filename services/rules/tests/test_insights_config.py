@@ -17,6 +17,10 @@ KEYS = {
     "lumpy_month_cents",
     "seasonal_increase_cents",
     "seasonal_increase_bps",
+    "subscription_ask_days",
+    "subscription_renewal_days",
+    "trial_max_cents",
+    "trial_window_days",
 }
 
 

@@ -437,5 +437,195 @@
       "category_id": "cat-debt-payoff",
       "direction": "out"
     }
+  ],
+  "subscription_kinds": [
+    {
+      "match": "NETFLIX",
+      "kind": "video"
+    },
+    {
+      "match": "HULU",
+      "kind": "video"
+    },
+    {
+      "match": "DISNEY PLUS",
+      "kind": "video"
+    },
+    {
+      "match": "DISNEYPLUS",
+      "kind": "video"
+    },
+    {
+      "match": "HBO MAX",
+      "kind": "video"
+    },
+    {
+      "match": "PEACOCK",
+      "kind": "video"
+    },
+    {
+      "match": "PARAMOUNT",
+      "kind": "video"
+    },
+    {
+      "match": "YOUTUBE PREMIUM",
+      "kind": "video"
+    },
+    {
+      "match": "YOUTUBE TV",
+      "kind": "video"
+    },
+    {
+      "match": "SLING",
+      "kind": "video"
+    },
+    {
+      "match": "PRIME VIDEO",
+      "kind": "video"
+    },
+    {
+      "match": "APPLE TV",
+      "kind": "video"
+    },
+    {
+      "match": "SPOTIFY",
+      "kind": "music"
+    },
+    {
+      "match": "APPLE MUSIC",
+      "kind": "music"
+    },
+    {
+      "match": "PANDORA",
+      "kind": "music"
+    },
+    {
+      "match": "TIDAL",
+      "kind": "music"
+    },
+    {
+      "match": "SIRIUSXM",
+      "kind": "music"
+    },
+    {
+      "match": "AUDIBLE",
+      "kind": "music"
+    },
+    {
+      "match": "ICLOUD",
+      "kind": "cloud storage"
+    },
+    {
+      "match": "GOOGLE ONE",
+      "kind": "cloud storage"
+    },
+    {
+      "match": "GOOGLE STORAGE",
+      "kind": "cloud storage"
+    },
+    {
+      "match": "DROPBOX",
+      "kind": "cloud storage"
+    },
+    {
+      "match": "ONEDRIVE",
+      "kind": "cloud storage"
+    },
+    {
+      "match": "BACKBLAZE",
+      "kind": "cloud storage"
+    },
+    {
+      "match": "NYTIMES",
+      "kind": "news"
+    },
+    {
+      "match": "NY TIMES",
+      "kind": "news"
+    },
+    {
+      "match": "WSJ",
+      "kind": "news"
+    },
+    {
+      "match": "WASHINGTON POST",
+      "kind": "news"
+    },
+    {
+      "match": "WASHPOST",
+      "kind": "news"
+    },
+    {
+      "match": "SUBSTACK",
+      "kind": "news"
+    },
+    {
+      "match": "PELOTON",
+      "kind": "fitness"
+    },
+    {
+      "match": "PLANET FITNESS",
+      "kind": "fitness"
+    },
+    {
+      "match": "STRAVA",
+      "kind": "fitness"
+    },
+    {
+      "match": "CLASSPASS",
+      "kind": "fitness"
+    },
+    {
+      "match": "GYM",
+      "kind": "fitness"
+    },
+    {
+      "match": "DASHPASS",
+      "kind": "food delivery"
+    },
+    {
+      "match": "UBER ONE",
+      "kind": "food delivery"
+    },
+    {
+      "match": "GRUBHUB",
+      "kind": "food delivery"
+    },
+    {
+      "match": "INSTACART",
+      "kind": "food delivery"
+    },
+    {
+      "match": "HELLOFRESH",
+      "kind": "food delivery"
+    },
+    {
+      "match": "ADOBE",
+      "kind": "software"
+    },
+    {
+      "match": "MICROSOFT 365",
+      "kind": "software"
+    },
+    {
+      "match": "MSFT 365",
+      "kind": "software"
+    },
+    {
+      "match": "CANVA",
+      "kind": "software"
+    },
+    {
+      "match": "1PASSWORD",
+      "kind": "software"
+    },
+    {
+      "match": "NOTION",
+      "kind": "software"
+    },
+    {
+      "match": "GITHUB",
+      "kind": "software"
+    }
   ]
 }

@@ -11,6 +11,7 @@ import { CategoriesScreen } from "../features/categories/CategoriesScreen.tsx";
 import { EmergencyScreen } from "../features/emergency/EmergencyScreen.tsx";
 import { AddEntrySheet } from "../features/entries/AddEntrySheet.tsx";
 import { TagDetail, TagsScreen } from "../features/entries/TagScreens.tsx";
+import { FixedFlexibleScreen } from "../features/fixed/FixedFlexibleScreen.tsx";
 import { ForecastScreen } from "../features/forecast/ForecastScreen.tsx";
 import { GoalBuilder } from "../features/goals/GoalBuilder.tsx";
 import { GoalDetail } from "../features/goals/GoalDetail.tsx";
@@ -90,6 +91,7 @@ export function AppRoutes() {
           <Route path="groups/:id" element={<ChallengeDetail />} />
           <Route path="insights" element={<InsightsHub />} />
           <Route path="insights/spending" element={<SpendingScreen />} />
+          <Route path="insights/fixed-flexible" element={<FixedFlexibleScreen />} />
           <Route path="subscriptions" element={<SubscriptionsScreen />} />
           <Route path="insights/later" element={<LaterScreen />} />
           <Route path="what-if" element={<WhatIfScreen />} />

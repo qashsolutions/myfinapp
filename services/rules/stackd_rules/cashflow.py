@@ -230,3 +230,95 @@ def match_transfers(entries: list, window_days: int = 5) -> list[dict]:
             used.add(best["id"])
             pairs.append({"out_id": o["id"], "in_id": best["id"], "days_apart": best_key[0]})
     return pairs
+
+
+BUCKETS = ("need", "want", "save", None)
+BUCKET_KEYS = ("need", "want", "save", "none")
+
+
+def _flex_entry(raw: object) -> dict:
+    e = _entry(raw)
+    assert isinstance(raw, dict)
+    recurring = raw.get("is_recurring")
+    if not isinstance(recurring, bool):
+        raise RuleError("invalid_entry")
+    bucket = raw.get("bucket")
+    if bucket not in BUCKETS:
+        raise RuleError("invalid_bucket")
+    return {**e, "is_recurring": recurring, "bucket": bucket}
+
+
+def _category_order(c: dict, cents_key: str) -> tuple:
+    return (-c[cents_key], c["category_id"] is None, c["category_id"] or "")
+
+
+def fixed_flexible(start: str, end: str, entries: list) -> dict:
+    """Fixed vs flexible money out and the kept rate (docs/spec.md "Fixed vs flexible").
+
+    Fixed is counted money out of entries in a confirmed bill or subscription run
+    (`is_recurring`); flexible is the rest. A refund (money in with an expense category) nets
+    against its own part, bucket and category, as in Month Out. Transfers never count.
+    """
+    first = dates.parse_date(start)
+    last = dates.parse_date(end)
+    if last < first:
+        raise RuleError("invalid_range")
+    if not isinstance(entries, list):
+        raise RuleError("invalid_entries")
+    rows = [e for e in (_flex_entry(r) for r in entries) if first <= e["date"] <= last]
+    in_cents = 0
+    parts = {
+        "fixed": dict.fromkeys(BUCKET_KEYS, 0),
+        "flexible": dict.fromkeys(BUCKET_KEYS, 0),
+    }
+    by_category: dict[str | None, dict] = {}
+    for e in rows:
+        if e["is_transfer"]:
+            continue
+        if e["direction"] == "in" and e["category_kind"] != "expense":
+            in_cents += e["cents"]
+            continue
+        # money out, or a refund netting against it
+        cents = e["cents"] if e["direction"] == "out" else -e["cents"]
+        part = "fixed" if e["is_recurring"] else "flexible"
+        bucket = "none" if e["bucket"] is None else e["bucket"]
+        parts[part][bucket] += cents
+        cat = by_category.setdefault(
+            e["category_id"],
+            {
+                "category_id": e["category_id"],
+                "bucket": e["bucket"],
+                "fixed_cents": 0,
+                "flexible_cents": 0,
+            },
+        )
+        if cat["bucket"] != e["bucket"]:
+            raise RuleError("invalid_bucket")
+        cat[f"{part}_cents"] += cents
+    fixed = sum(parts["fixed"].values())
+    flexible = sum(parts["flexible"].values())
+    kept = in_cents - fixed - flexible
+    categories = [
+        {**c, "out_cents": c["fixed_cents"] + c["flexible_cents"]} for c in by_category.values()
+    ]
+    categories.sort(key=lambda c: _category_order(c, "out_cents"))
+    room = [
+        {"category_id": c["category_id"], "flexible_cents": c["flexible_cents"]}
+        for c in categories
+        if c["bucket"] == "want" and c["flexible_cents"] > 0
+    ]
+    room.sort(key=lambda c: _category_order(c, "flexible_cents"))
+    return {
+        "start": first.isoformat(),
+        "end": last.isoformat(),
+        "in_cents": in_cents,
+        "out_cents": fixed + flexible,
+        "fixed_cents": fixed,
+        "flexible_cents": flexible,
+        "fixed_by_bucket": parts["fixed"],
+        "flexible_by_bucket": parts["flexible"],
+        "kept_cents": kept,
+        "kept_rate_bps": money.ratio_bps(kept, in_cents) if in_cents else None,
+        "by_category": categories,
+        "room": room,
+    }

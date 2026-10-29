@@ -1,0 +1,75 @@
+{
+  "as_of": "2026-10-28",
+  "subscriptions": [
+    {
+      "id": "s-a",
+      "label": "Box",
+      "payee": "BOX CO",
+      "interval": "yearly",
+      "expected_cents": 9900,
+      "next_date": "2025-11-05",
+      "checked_at": "2026-10-01",
+      "charges": [
+        {
+          "date": "2025-11-05",
+          "cents": 9900
+        }
+      ]
+    },
+    {
+      "id": "s-b",
+      "label": "Docs",
+      "payee": "DOCS INC",
+      "interval": "quarterly",
+      "expected_cents": 3000,
+      "next_date": "2026-11-11",
+      "checked_at": "2026-08-01",
+      "charges": [
+        {
+          "date": "2026-05-11",
+          "cents": 3000
+        },
+        {
+          "date": "2026-08-11",
+          "cents": 3000
+        }
+      ]
+    },
+    {
+      "id": "s-c",
+      "label": "Far",
+      "payee": "FAR",
+      "interval": "yearly",
+      "expected_cents": 5000,
+      "next_date": "2026-11-12",
+      "checked_at": "2026-07-30",
+      "charges": []
+    },
+    {
+      "id": "s-d",
+      "label": "Future",
+      "payee": "FUTURE",
+      "interval": "monthly",
+      "expected_cents": 500,
+      "next_date": "2026-11-20",
+      "checked_at": "2026-10-30",
+      "charges": [
+        {
+          "date": "2026-10-20",
+          "cents": 500
+        },
+        {
+          "date": "2026-10-31",
+          "cents": 900
+        }
+      ]
+    }
+  ],
+  "kinds": [],
+  "thresholds": {
+    "subscription_ask_days": 90,
+    "subscription_renewal_days": 14,
+    "trial_max_cents": 100,
+    "trial_window_days": 45
+  }
+}

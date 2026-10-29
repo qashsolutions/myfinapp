@@ -329,6 +329,8 @@ export interface RecurringSeries {
   account_id: string | null;
   /** The person's call (October 27, 2026): true / false; unset = from the payee's category. */
   subscription?: boolean | null;
+  /** The last "Keep it" on the subscription check (October 28, 2026), a date; unset = never. */
+  checked_at?: string | null;
   created_at: string;
   updated_at: string;
 }
