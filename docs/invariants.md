@@ -561,7 +561,7 @@ written against both.
     issuer sent none (asked once). A hand-added debt the person paired with a linked card is
     that card (one row, the bank's balance), and net worth leaves it out beside the account.
     Found when Debt payoff showed linked cards on top and "No cards or loans yet" below.
-    Rates typed by hand are 0% to 40% (`bills/apr.ts`). `debt-linked-cards.test.tsx`
+    A card's rate typed by hand is 0% to 40%; any other debt's 0% to 400%, asked once above 40% (`bills/apr.ts`). `debt-linked-cards.test.tsx`
 66. **A count says only what changed, or what is still to do** (October 29, 2026). A linked
     sync counts a row as updated only when it differs from what is stored (a row sent again
     as it is is not written at all), a pending row posting is one update, and split parts and

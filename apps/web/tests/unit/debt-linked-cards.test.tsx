@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Account, type CardDetail, openDb, seedDefaults } from "../../src/data/db.ts";
+import { payoffPlan, whatIfDebt } from "../../src/engine/bridge.ts";
 import { readPlanDebts } from "../../src/features/bills/debtPlan.ts";
 import { installFakeApi, privateBilling, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
@@ -153,6 +154,62 @@ describe("linked cards in the payoff plan (invariant 65)", () => {
     expect(await within(sheet).findByRole("alert")).toHaveTextContent(
       "Card rates are between 0% and 40%.",
     );
+  });
+
+  it("a loan takes up to 400%: above 40% it asks once, then saves; past 400% is refused", async () => {
+    const user = userEvent.setup();
+    const db = await seed();
+    connected();
+    renderApp("/bills?tab=debt");
+    await screen.findByRole("list", { name: "Debts, highest rate first" });
+    await user.click(screen.getByRole("button", { name: "+ Add" }));
+    const sheet = await screen.findByRole("dialog", { name: "Add a card or loan" });
+    await user.type(within(sheet).getByLabelText("Name"), "Payday loan");
+    // The name made it a loan; the person can change the kind.
+    expect(within(sheet).getByRole("radio", { name: "Loan" })).toBeChecked();
+    await user.type(within(sheet).getByLabelText("Balance"), "500");
+    const apr = within(sheet).getByLabelText("APR %");
+    await user.type(apr, "401");
+    await user.click(within(sheet).getByRole("button", { name: "Add" }));
+    expect(await within(sheet).findByRole("alert")).toHaveTextContent(
+      "Rates are between 0% and 400%.",
+    );
+    await user.clear(apr);
+    await user.type(apr, "300");
+    await user.click(within(sheet).getByRole("button", { name: "Add" }));
+    const ask = await within(sheet).findByRole("group", { name: "Check the rate" });
+    expect(ask).toHaveTextContent("That's a very high rate. Is it right?");
+    expect(await db.debts.count()).toBe(0); // nothing saved before the answer
+    await user.click(within(ask).getByRole("button", { name: "Fix it" }));
+    expect(within(sheet).queryByRole("group", { name: "Check the rate" })).toBeNull();
+    await user.click(within(sheet).getByRole("button", { name: "Add" }));
+    await user.click(
+      within(await within(sheet).findByRole("group", { name: "Check the rate" })).getByRole(
+        "button",
+        { name: "Yes, it's right" },
+      ),
+    );
+    await waitFor(async () =>
+      expect(await db.debts.toArray()).toMatchObject([
+        { label: "Payday loan", apr_bps: 30000, kind: "loan" },
+      ]),
+    );
+    // Saved and closed.
+    expect(screen.queryByRole("dialog", { name: "Add a card or loan" })).toBeNull();
+  });
+
+  it("the plan and What if take a 400% loan without breaking: it stalls", async () => {
+    const debts = [
+      { id: "p", label: "Payday", balance_cents: 50000, apr_bps: 40000, min_payment_cents: 5000 },
+    ];
+    // 400% a year is a third of the balance a month: $166.67 interest on $500 > $50 paid.
+    const plan = await payoffPlan(debts, 0, "2026-10-10", "avalanche");
+    expect(plan).toMatchObject({ stalled: true, months: null, debt_free_month: null });
+    const what = await whatIfDebt(debts, 0, 10000, "2026-10-10", "avalanche");
+    expect(what.status).toBe("stalled");
+    // With enough on top it ends: $500 at a third a month, paying $50 + $300 a month.
+    const paid = await payoffPlan(debts, 30000, "2026-10-10", "avalanche");
+    expect(paid.stalled).toBe(false);
   });
 
   it("a card also added by hand counts once after the person pairs them", async () => {

@@ -446,6 +446,9 @@ export interface Debt {
   /** October 29, 2026 (invariant 65): the person said this hand-added debt is that linked card,
    * so the plan counts it once, at the bank's balance. Not indexed, so no new Dexie version. */
   account_id?: string | null;
+  /** October 29, 2026: card, loan or other, as the person picked (else from the label). A card
+   * takes 0% to 40%, any other debt 0% to 400%. Not indexed, so no new Dexie version. */
+  kind?: "card" | "loan" | "other";
   created_at: string;
   updated_at: string;
 }
