@@ -103,6 +103,9 @@ export function BillsScreen() {
           <LinkedCards />
           <CardSpending />
           <PayoffPlan />
+          <p className="sk-card__eyebrow">
+            <Link to="/what-if?lever=loan">What if I put more on one loan?</Link>
+          </p>
           <ConsolidationCalc />
           <DebtList onEdit={(d) => setEditingDebt(d)} />
         </>

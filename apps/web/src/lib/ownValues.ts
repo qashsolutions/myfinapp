@@ -38,3 +38,23 @@ export function parseCheckpoints(text: string): number[] | null {
 export function checkpointsText(bps: number[]): string {
   return bps.map((b) => `${b / 100}%`).join(", ");
 }
+
+/** The largest yearly rate the growth rules take (500%, as `growth.MAX_RATE_BPS`). */
+export const MAX_RATE_BPS = 50000;
+
+/**
+ * "4.5" or "4.5%" → 450 basis points: a yearly percent from 0 to 500 with up to two decimals,
+ * read from the digits (never a float). Null when anything else is typed.
+ */
+export function parsePercentBps(text: string): number | null {
+  const t = trimSpaces(text).replace(/%$/, "");
+  const m = /^([0-9]{1,3})(?:\.([0-9]{1,2}))?$/.exec(trimSpaces(t));
+  if (!m) return null;
+  const bps = Number(m[1]) * 100 + Number((m[2] ?? "").padEnd(2, "0"));
+  return bps <= MAX_RATE_BPS ? bps : null;
+}
+
+/** 450 → "4.5%". */
+export function percentText(bps: number): string {
+  return `${bps / 100}%`;
+}

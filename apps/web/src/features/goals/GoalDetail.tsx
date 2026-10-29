@@ -4,7 +4,7 @@ import "../auth/auth.css";
 import { Button, Card, Chip } from "@stackd/ui";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router";
+import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
@@ -19,6 +19,7 @@ import { isEmergencyJar } from "../home/useHome.ts";
 import { useHouseholdStatus } from "../household/useHousehold.ts";
 import { goalSentence } from "./GoalCard.tsx";
 import { GoalExtras } from "./GoalExtras.tsx";
+import { GrowCard } from "./GrowCard.tsx";
 import { useGoalCaps } from "./useGoalCaps.ts";
 import {
   addGoalEvent,
@@ -167,6 +168,10 @@ export function GoalDetail() {
 
       {isEmergencyJar(goal) && p ? <EmergencySection savedCents={p.current} /> : null}
 
+      {goal.kind === "save" && goal.grow && p ? (
+        <GrowCard goal={goal} savedCents={p.current} today={today} />
+      ) : null}
+
       <GoalExtras
         goal={goal}
         events={view.events}
@@ -283,6 +288,13 @@ export function GoalDetail() {
                   ? `${p.weekly_pace} ${p.weekly_pace === 1 ? "day" : "days"} a week to finish`
                   : `${formatCents(p.weekly_pace)} a week to finish${p.end_date ? ` by ${formatDay(p.end_date)}` : ""}`}
           </p>
+          {goal.kind === "save" && !goal.grow && p.status !== "reached" ? (
+            <p className="sk-card__eyebrow">
+              <Link to={`/what-if?goal=${encodeURIComponent(goal.id)}`}>
+                What if I spent less and put it here?
+              </Link>
+            </p>
+          ) : null}
         </Card>
       ) : null}
 

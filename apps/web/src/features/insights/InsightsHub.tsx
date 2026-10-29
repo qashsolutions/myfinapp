@@ -10,6 +10,7 @@ import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { useBudget } from "../budget/useBudget.ts";
 import { habitLines, habitsWord } from "../credit/CreditHabits.tsx";
 import { leadCard, useCreditCards } from "../credit/useCreditCards.ts";
+import { FixedFlexibleInsight } from "../fixed/FixedFlexibleCard.tsx";
 import { useForecast } from "../forecast/useForecast.ts";
 import { useRecurringSeries } from "../forecast/useRecurring.ts";
 import { useGoals } from "../goals/useGoals.ts";
@@ -37,12 +38,14 @@ export const INSIGHT_CARDS = [
   ["money", "Money in & out", "This month in and out"],
   ["sorted", "Auto-sorted spending", "How much is sorted"],
   ["spending", "Biggest & most often", "Top amounts and merchants"],
+  ["fixed", "Fixed vs flexible", "Bills against the rest, and what you keep"],
   ["bills", "Bills & subscriptions", "What's coming up"],
   ["safe", "Safe to spend", "Room before payday"],
   ["budget", "Budget & jars", "Your plan and jars"],
   ["worth", "Net worth", "Own minus owe"],
   ["later", "Later", "Savings by the age you choose"],
   ["credit", "Credit habits", "On-time payments and limit used"],
+  ["whatif", "What if", "Move one thing, see what changes"],
 ] as const;
 type InsightId = (typeof INSIGHT_CARDS)[number][0];
 
@@ -306,6 +309,8 @@ export function InsightsHub() {
             ) : null}
           </InsightCard>
         );
+      case "fixed":
+        return <FixedFlexibleInsight today={asOf} />;
       case "later":
         return (
           <InsightCard
@@ -345,6 +350,15 @@ export function InsightsHub() {
               </span>
             ) : null}
           </InsightCard>
+        );
+      case "whatif":
+        return (
+          <InsightCard
+            title="What if"
+            to="/what-if"
+            word="Try"
+            line="More on a loan, less on one thing"
+          />
         );
     }
   };

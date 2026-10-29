@@ -12,6 +12,7 @@ import { useDb } from "../../data/DbProvider.tsx";
 import { addMonths } from "../../engine/bridge.ts";
 import { formatCents, todayIso } from "../../lib/format.ts";
 import { useLookups } from "../entries/useEntries.ts";
+import { FixedFlexibleMonthCard } from "../fixed/FixedFlexibleCard.tsx";
 import { ByAccount } from "../insights/ByAccount.tsx";
 import { MoreThanUsual } from "../insights/MoreThanUsual.tsx";
 import { RangeBars } from "../ranges/RangeBars.tsx";
@@ -33,6 +34,7 @@ import { useMonthTotals } from "./useMonthTotals.ts";
 export const MONEY_CARDS = [
   ["summary", "In, out and kept", "The month's totals"],
   ["weeks", "In vs out by week", "A bar per week"],
+  ["fixed", "Fixed vs flexible", "Bills against the rest, and what you keep"],
   ["details", "Categories and transactions", "Where it went, entry by entry"],
 ] as const;
 type MoneyCardId = (typeof MONEY_CARDS)[number][0];
@@ -121,6 +123,8 @@ export function MoneyScreen() {
             ) : null}
           </>
         );
+      case "fixed":
+        return <FixedFlexibleMonthCard asOf={asOf} today={today} />;
       case "details":
         return (
           <>

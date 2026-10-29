@@ -1,0 +1,30 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-31",
+  "entries": [
+    {
+      "id": "e1",
+      "date": "2026-10-01",
+      "amount_cents": 20000,
+      "direction": "in",
+      "is_transfer": false,
+      "category_id": "cat-paycheck",
+      "category_kind": "income",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": null
+    },
+    {
+      "id": "e2",
+      "date": "2026-10-02",
+      "amount_cents": 19999,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": null
+    }
+  ]
+}

@@ -20,6 +20,10 @@ KEYS = {
     "card_trend_months",
     "credit_habits_months",
     "credit_guide_bps",
+    "subscription_ask_days",
+    "subscription_renewal_days",
+    "trial_max_cents",
+    "trial_window_days",
 }
 
 

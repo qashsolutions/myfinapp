@@ -1,0 +1,37 @@
+{
+  "items": [
+    {
+      "id": "s-h",
+      "label": "HuluB",
+      "kind": "video",
+      "ask": true,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 12,
+      "monthly_cents": 1
+    },
+    {
+      "id": "s-n",
+      "label": "NetA",
+      "kind": "video",
+      "ask": true,
+      "price_rise": null,
+      "renewal": null,
+      "trial_turned_charge": null,
+      "yearly_cents": 6,
+      "monthly_cents": 0
+    }
+  ],
+  "duplicates": [
+    {
+      "kind": "video",
+      "count": 2,
+      "monthly_total_cents": 2,
+      "ids": [
+        "s-h",
+        "s-n"
+      ]
+    }
+  ]
+}

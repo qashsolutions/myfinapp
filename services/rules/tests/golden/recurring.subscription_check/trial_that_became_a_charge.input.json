@@ -1,0 +1,63 @@
+{
+  "as_of": "2026-10-28",
+  "subscriptions": [
+    {
+      "id": "s-gym",
+      "label": "Gym",
+      "payee": "CITY GYM",
+      "interval": "monthly",
+      "expected_cents": 1499,
+      "next_date": "2026-11-01",
+      "checked_at": "2026-09-02",
+      "charges": [
+        {
+          "date": "2026-07-01",
+          "cents": 100
+        },
+        {
+          "date": "2026-09-01",
+          "cents": 1499
+        }
+      ]
+    },
+    {
+      "id": "s-fit",
+      "label": "Fit",
+      "payee": "PELOTON APP",
+      "interval": "monthly",
+      "expected_cents": 1499,
+      "next_date": "2026-11-03",
+      "checked_at": null,
+      "charges": [
+        {
+          "date": "2026-09-03",
+          "cents": 0
+        },
+        {
+          "date": "2026-10-03",
+          "cents": 1499
+        }
+      ]
+    }
+  ],
+  "kinds": [
+    {
+      "match": "NETFLIX",
+      "kind": "video"
+    },
+    {
+      "match": "hulu",
+      "kind": "video"
+    },
+    {
+      "match": "SPOTIFY",
+      "kind": "music"
+    }
+  ],
+  "thresholds": {
+    "subscription_ask_days": 90,
+    "subscription_renewal_days": 14,
+    "trial_max_cents": 100,
+    "trial_window_days": 45
+  }
+}

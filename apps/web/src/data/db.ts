@@ -244,9 +244,20 @@ export interface Goal {
   priority?: number | null; // the user's order; lower first
   why_text?: string | null; // the user's own reason, shown on the card
   milestones_bps?: number[]; // checkpoints as basis points of the target (2500 = 25%)
+  // October 28, 2026: a save jar that grows over time; target_cents is then its future cost
+  grow?: GoalGrow | null;
   status: GoalStatus;
   created_at: string;
   updated_at: string;
+}
+
+/** A goal that grows (growth.goal_plan): today's cost priced on a date, rising yearly, with the
+ * person's own yearly growth rate for what they save. */
+export interface GoalGrow {
+  today_cents: number;
+  cost_rise_bps: number;
+  return_bps: number;
+  priced_on: string; // the day today_cents was today's cost
 }
 
 export type GoalCadence = "weekly" | "biweekly" | "monthly" | "payday";
@@ -321,6 +332,8 @@ export interface RecurringSeries {
   account_id: string | null;
   /** The person's call (October 27, 2026): true / false; unset = from the payee's category. */
   subscription?: boolean | null;
+  /** The last "Keep it" on the subscription check (October 28, 2026), a date; unset = never. */
+  checked_at?: string | null;
   created_at: string;
   updated_at: string;
 }

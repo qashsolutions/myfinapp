@@ -12,3 +12,8 @@ thresholds:
   card_trend_months: 6            # Card spending vs payments looks back six whole months
   credit_habits_months: 12        # Credit habits checks the due dates of the last 12 months
   credit_guide_bps: 3000          # under 30% of the limit used is the guide line
+  # Subscription check (October 28, 2026; proposed, awaiting owner sign-off)
+  subscription_ask_days: 90       # ask "still using it?" again 90 days after the last Keep
+  subscription_renewal_days: 14   # a yearly or quarterly renewal this close is shown and asked
+  trial_max_cents: 100            # a first charge of $1.00 or less...
+  trial_window_days: 45           # ...followed within 45 days by a larger one is a trial
