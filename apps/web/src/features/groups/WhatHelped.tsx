@@ -127,9 +127,6 @@ export function WhatHelped({ group, onSaved }: { group: GroupDetail; onSaved: ()
 
   return (
     <Card as="section" aria-label="What helped">
-      {group.helped && totals.length ? (
-        <HelpedChart rows={totals} of={group.helped.answered} mine={group.my_helped} />
-      ) : null}
       <Word>{group.my_helped.length ? "Shared" : "Helped"}</Word>
       <h2 className="sk-card__title">What helped?</h2>
       <p>
@@ -137,6 +134,9 @@ export function WhatHelped({ group, onSaved }: { group: GroupDetail; onSaved: ()
           ? `${group.helped.answered} answered. Pick up to ${HELPED.max_choices} of your own.`
           : `Pick up to ${HELPED.max_choices}. The group sees totals only, never who chose what.`}
       </p>
+      {group.helped && totals.length ? (
+        <HelpedChart rows={totals} of={group.helped.answered} mine={group.my_helped} />
+      ) : null}
       <fieldset className="chips" style={{ border: 0, margin: 0, padding: "4px 0 12px" }}>
         <legend className="sr-only">What helped you</legend>
         {HELPED.choices.map((c) => {

@@ -20,12 +20,6 @@ import { SubscriptionCheckCard } from "./SubscriptionCheckCard.tsx";
 import { AdjustCheckSheet, KindSheet } from "./SubscriptionSheets.tsx";
 import { keepSubscription, setSubscription, useSubscriptions } from "./useSubscriptions.ts";
 
-function renewsText(days: number, date: string): string {
-  if (days <= 0) return `Renews today, ${formatDay(date)}`;
-  if (days === 1) return `Renews tomorrow, ${formatDay(date)}`;
-  return `Renews in ${days} days, ${formatDay(date)}`;
-}
-
 function countdown(days: number): string {
   if (days <= 0) return "Today";
   if (days === 1) return "Tomorrow";
@@ -75,16 +69,16 @@ export function SubscriptionsScreen() {
         </Card>
       ) : (
         <Card as="section" aria-label="A year of subscriptions">
-          <KindBar rows={view.check.by_kind} />
-          <Word>Yearly</Word>
           <p className="sk-card__hero">
             {formatCents(view.totals.yearly_cents)}
             <span className="sk-card__hero-unit"> a year</span>
           </p>
           <p className="sk-card__eyebrow">
-            {formatCents(view.totals.monthly_cents)} a month across {view.subscriptions.length}{" "}
-            {view.subscriptions.length === 1 ? "subscription" : "subscriptions"}
+            {view.subscriptions.length}{" "}
+            {view.subscriptions.length === 1 ? "subscription" : "subscriptions"} ·{" "}
+            {formatCents(view.totals.monthly_cents)} a month
           </p>
+          <KindBar rows={view.check.by_kind} />
           <KindLegend rows={view.check.by_kind} />
         </Card>
       )}
@@ -139,11 +133,7 @@ export function SubscriptionsScreen() {
                 <strong>{formatCents(monthly_cents)}</strong> a month · {formatCents(yearly_cents)}{" "}
                 a year
               </p>
-              <p className="sk-card__eyebrow">
-                {formatCents(series.expected_cents)}{" "}
-                {INTERVAL_LABELS[series.interval].toLowerCase()} ·{" "}
-                {renewsText(days, series.next_date)}
-              </p>
+              <p className="sk-card__eyebrow">Renews {formatDay(series.next_date)}</p>
               <div className="install-actions">
                 <Button size="sm" variant="secondary" onClick={() => setCancelling(series)}>
                   How to cancel
