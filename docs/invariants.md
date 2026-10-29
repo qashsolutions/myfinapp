@@ -339,6 +339,30 @@ written against both.
     never scheduled again.
     `test_alert_delivery_once.py` "a skipped alert comes back…"
 
+41. **Never two plans, however many pages were open** (October 29, 2026). The checkout's 409s
+    hold when a page is paid too: every payment page closes after 31 minutes, opening one closes
+    the person's others first, and a paid page (or a subscription announced before its checkout)
+    that would make a second live plan is ended at Stripe and refunded in full, once, while the
+    plan bought first stays. One helper (`entitlements.purchase_conflict`) answers both.
+    `test_billing_oct29.py` "every payment page closes…", "opening a payment page closes…", "a
+    second paid page is ended and refunded…", "a second subscription announced before…", "a
+    second plan paid by bank…", "a founding payment beside a renewing plan…"
+42. **A dispute pauses only the plan it paid for, and nothing is collected meanwhile**
+    (owner decision, October 29, 2026). The charge is followed to its invoice and subscription;
+    Stripe's collection for it is paused while the dispute is open, resumed if it is won, and
+    the plan ends if it is lost, whichever order the dispute and the checkout arrive in.
+    `test_billing_oct29.py` "a dispute pauses collection…", "a lost dispute pauses first…", "a
+    dispute on an older plan's charge…", "a dispute that lands before the checkout…"
+43. **A refund promised on deletion is recorded as paid only once it is paid** (October 29,
+    2026). While a bank payment is clearing the amount stays due, the settle and the purge wait,
+    and it is refunded against that payment when it arrives; a first payment still clearing
+    (the plan never started) comes back whole, with no fee, and the Delete account screen says
+    that same amount (owner decision, October 29, 2026). A payment that arrives for a deleted
+    account grants nothing.
+    `test_billing_oct29.py` "deleting while a yearly bank payment clears…", "a founding bank
+    payment clearing at the deletion…", "a bank payment that fails after the deletion…", "a
+    page paid after the deletion…"
+
 ## Offline and the way in
 
 35. **A call that never reaches the server is an answer, not a hang** (October 29, 2026). The

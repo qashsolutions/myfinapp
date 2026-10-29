@@ -33,24 +33,34 @@ test.afterEach(async () => {
   clock = "";
 });
 
+/** As the Plan screen's change sheet does: the preview's own lines, sent back ticked (the
+ * server builds the wording and refuses any other text with 409 consent_mismatch). */
 async function change(page: Parameters<typeof appFetch>[0], plan: string, interval: string) {
   const preview = await page.evaluate(
     async ([p, i]) => {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const r = await fetch("/api/billing/change/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: p, interval: i }),
+        body: JSON.stringify({ plan: p, interval: i, tz }),
       });
-      return { status: r.status, body: await r.json() };
+      return { status: r.status, body: await r.json(), tz };
     },
     [plan, interval] as const,
   );
   if (preview.status !== 200) return { preview, result: null };
+  const shown = preview.body.consent as { version: string; lines: string[]; agreement: string };
   const result = await appFetch(page, "/api/billing/change", {
     plan,
     interval,
     proration_date: preview.body.proration_date,
-    consent: CONSENT,
+    consent: {
+      version: shown.version,
+      lines: shown.lines,
+      agreement: shown.agreement,
+      tz: preview.tz,
+      accepted: true,
+    },
   });
   return { preview, result };
 }

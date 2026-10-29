@@ -103,6 +103,9 @@ def cancel_billing(
         try:
             if sub.refund_due_cents is None:
                 sub.refund_due_cents = stripe_billing.deletion_refund(sub, now, as_of=as_of)[0]
+                if sub.first_payment == "pending":
+                    # Never started: all of it comes back when it clears (October 29, 2026).
+                    sub.first_payment = stripe_billing.REFUND_ALL
                 db.flush()
             if sub.interval:
                 stripe_billing.cancel_now(sub.external_id)  # we refund what's due ourselves
@@ -131,6 +134,20 @@ def cancel_billing(
                 sub.refund_due_cents = 0
             except stripe_billing.BillingError:
                 ended = False
+    for sub in rows:  # a first bank payment clearing at the deletion: all of it, no fee
+        if sub.first_payment != stripe_billing.REFUND_ALL or not sub.refund_due_cents:
+            continue
+        if sub.disputed_at is not None or not sub.external_id:
+            sub.refund_due_cents = 0  # the bank has the money (or there is nothing to refund)
+            continue
+        try:
+            if sub.customer_id and stripe_billing.charges_clearing(sub.customer_id):
+                continue  # still on its way: stays due, the hourly settle comes back
+            if invoice := stripe_billing.first_invoice_of(sub.external_id):
+                stripe_billing.refund_invoice(invoice, key=f"deletion_all:{sub.id}")
+            sub.refund_due_cents = 0
+        except stripe_billing.BillingError:
+            ended = False
     disputed = _disputed(rows)
     for r in rows:
         if r.interval and r.refund_due_cents and r.customer_id in disputed:
@@ -139,7 +156,12 @@ def cancel_billing(
             r.refund_due_cents = 0
     for customer_id in sorted({r.customer_id for r in rows if r.customer_id} - disputed):
         owed = [
-            r for r in rows if r.customer_id == customer_id and r.interval and r.refund_due_cents
+            r
+            for r in rows
+            if r.customer_id == customer_id
+            and r.interval
+            and r.refund_due_cents
+            and r.first_payment != stripe_billing.REFUND_ALL
         ]
         if late and ended:
             # First, so the refund of unused months below goes to charges made before deletion.
@@ -151,6 +173,11 @@ def cancel_billing(
                 ended = False
                 continue
         try:
+            if owed and stripe_billing.charges_clearing(customer_id):
+                # A bank payment is still on its way (October 29, 2026, invariant 43): what it
+                # pays can't be refunded yet, so the refund stays due (never marked paid) and
+                # the hourly settle pays it once the payment arrives. The purge waits for it.
+                continue
             stripe_billing.refund_credit(
                 customer_id,
                 key=f"closeout:{user_id}",
@@ -188,6 +215,12 @@ def refund_preview(
     for sub in _live_stripe(db, user_id, now):
         cents, until = stripe_billing.deletion_refund(sub, now)
         kept = until or kept
+        if sub.first_payment == "pending":
+            # The first bank payment is still clearing, so the plan never started: all of it
+            # comes back once it clears, with no fee (owner decision, October 29, 2026).
+            total += cents
+            gross += cents
+            continue
         if sub.interval is None:  # Founding: its own refund, its own fee
             method = (
                 stripe_billing.payment_method_of_intent(sub.external_id)
@@ -198,6 +231,20 @@ def refund_preview(
             gross += cents
         elif sub.customer_id:
             by_customer[sub.customer_id] = by_customer.get(sub.customer_id, 0) + cents
+    for sub in db.scalars(
+        select(Subscription).where(
+            Subscription.user_id == user_id,
+            Subscription.source == "stripe",
+            Subscription.plan == "founding",
+            Subscription.status == "incomplete",
+            Subscription.disputed_at.is_(None),
+        )
+    ):
+        # A Founding place held while its bank payment clears: refunded in full when it lands
+        # (`_founding_after_deletion`), no fee.
+        cents = stripe_billing.clearing_refund(sub)
+        total += cents
+        gross += cents
     disputed = _disputed(
         db.scalars(
             select(Subscription).where(
@@ -395,6 +442,13 @@ def _purge_one(db: DbSession, user: User, now: datetime) -> int:
         return 0
     # Never drop an account Stripe may still charge: retry, and wait if it still fails.
     if not cancel_billing(db, user.id, now=now, as_of=user.deleted_at):
+        return 0
+    # Nor one still owed a refund (a bank payment clearing): the row holds what is due.
+    if db.scalar(
+        select(Subscription.id).where(
+            Subscription.user_id == user.id, Subscription.refund_due_cents > 0
+        )
+    ):
         return 0
     user_id = user.id
     db.delete(user)
