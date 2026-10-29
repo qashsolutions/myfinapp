@@ -10,13 +10,14 @@ import { formatCents, formatDay } from "../../lib/format.ts";
 import {
   confirmSuggestion,
   dismissSuggestion,
-  INTERVAL_LABELS,
+  suggestionInterval,
   useRecurringSuggestions,
 } from "../forecast/useRecurring.ts";
 
 const PAY_FREQUENCY: Record<string, PayFrequency | undefined> = {
   weekly: "weekly",
   biweekly: "biweekly",
+  semimonthly: "semimonthly",
   monthly: "monthly",
 };
 
@@ -64,11 +65,20 @@ export function FoundCard({ asOf }: { asOf: string }) {
   async function usePay() {
     if (!paycheck) return;
     const frequency = PAY_FREQUENCY[paycheck.interval] as PayFrequency;
+    // Twice a month and monthly keep the days found (invariant 49): the 15th and the last day
+    // are 24 paychecks a year, never 26.
+    const days =
+      frequency === "semimonthly"
+        ? paycheck.days
+        : frequency === "monthly" && paycheck.day
+          ? [paycheck.day]
+          : null;
     const settings: PaySettings = {
       amount_cents: paycheck.expected_cents,
       frequency,
       next_payday: paycheck.next_date,
       monthly_cents: await monthlyTakeHome(paycheck.expected_cents, frequency),
+      ...(days ? { days } : {}),
     };
     await db.settings.put({ key: "pay", value: settings, updated_at: new Date().toISOString() });
     // The pay settings carry the paycheck into the forecast; a confirmed series would count it twice.
@@ -103,7 +113,7 @@ export function FoundCard({ asOf }: { asOf: string }) {
             <li key={s.payee} className="found__item">
               <span className="found__name">{s.label}</span>
               <span className="found__meta">
-                {formatCents(s.expected_cents)} · {INTERVAL_LABELS[s.interval]} · next{" "}
+                {formatCents(s.expected_cents)} · {suggestionInterval(s.interval)} · next{" "}
                 {formatDay(s.next_date)}
               </span>
             </li>
@@ -118,7 +128,7 @@ export function FoundCard({ asOf }: { asOf: string }) {
       {offerPay && paycheck ? (
         <Button block variant={bills.length > 0 ? "secondary" : "primary"} onClick={usePay}>
           Use {formatCents(paycheck.expected_cents)}{" "}
-          {INTERVAL_LABELS[paycheck.interval].toLowerCase()} as my pay
+          {suggestionInterval(paycheck.interval).toLowerCase()} as my pay
         </Button>
       ) : null}
       {bills.length > 0 ? (

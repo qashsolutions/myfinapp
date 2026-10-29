@@ -263,15 +263,16 @@ async function applyOnce(
     if (!account) continue; // a loan or brokerage account the device does not track
     const direction = txn.direction as Direction;
     const description = maskNumbers(txn.description.trim());
-    const fp = await engine.call<{ fingerprint: string; clean_description: string }>(
-      "fingerprint.row",
-      {
-        account_id: account.id,
-        date: txn.date,
-        amount_cents: direction === "out" ? -txn.amount_cents : txn.amount_cents,
-        description,
-      },
-    );
+    const fp = await engine.call<{
+      fingerprint: string;
+      clean_description: string;
+      merchant_key: string;
+    }>("fingerprint.row", {
+      account_id: account.id,
+      date: txn.date,
+      amount_cents: direction === "out" ? -txn.amount_cents : txn.amount_cents,
+      description,
+    });
 
     // The entry itself, never a split part (parts split before October 25, 2026 copied the id).
     const byProvider = (providerId: string) =>
@@ -301,7 +302,7 @@ async function applyOnce(
         merchant:
           known.source !== "linked" || known.renamed
             ? known.merchant
-            : (names.get(fp.clean_description) ?? (description || known.merchant)),
+            : (names.get(fp.merchant_key) ?? (description || known.merchant)),
         clean_description: fp.clean_description,
         raw_description: description,
         fingerprint,
@@ -338,7 +339,7 @@ async function applyOnce(
       amount_cents: txn.amount_cents,
       direction,
       merchant:
-        names.get(fp.clean_description) ??
+        names.get(fp.merchant_key) ??
         (description || (direction === "in" ? "Money in" : "Money out")),
       clean_description: fp.clean_description,
       raw_description: description,

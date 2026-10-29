@@ -18,6 +18,7 @@ import {
   confirmSuggestion,
   dismissSuggestion,
   INTERVAL_LABELS,
+  suggestionInterval,
   useRecurringSeries,
   useRecurringSuggestions,
 } from "../forecast/useRecurring.ts";
@@ -122,7 +123,7 @@ export function BillsScreen() {
               <div className="goal-card__top">
                 <span className="goal-card__title">
                   {s.label} · {formatCents(s.expected_cents)}{" "}
-                  {INTERVAL_LABELS[s.interval].toLowerCase()}
+                  {suggestionInterval(s.interval).toLowerCase()}
                 </span>
                 <span className="up-row__kind">next ~{formatDay(s.next_date)}</span>
               </div>

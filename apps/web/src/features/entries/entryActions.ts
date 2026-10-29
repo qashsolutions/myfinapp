@@ -5,15 +5,20 @@
  */
 
 import { recordDeletion } from "../../data/backup/snapshot.ts";
-import { type Entry, newId, type StackdDb } from "../../data/db.ts";
+import { bankText, type Entry, newId, type StackdDb } from "../../data/db.ts";
+import { merchantKey, merchantKeys } from "../../engine/bridge.ts";
+import { compareText } from "../../lib/order.ts";
 
-/** Entries with the same cleaned bank text as this one, itself excluded. */
+/**
+ * Entries of the same merchant as this one, itself excluded: the same merchant key of the bank's
+ * text (owner, October 29, 2026: NETFLIX, netflix and Netflix.com are one; invariant 47).
+ */
 export async function likeThis(db: StackdDb, entry: Entry): Promise<Entry[]> {
-  const key = entry.clean_description;
-  if (!key) return [];
-  return (await db.entries.toArray()).filter(
-    (e) => e.id !== entry.id && e.clean_description === key,
-  );
+  if (!entry.clean_description) return [];
+  const key = await merchantKey(entry.clean_description);
+  const rows = (await db.entries.toArray()).filter((e) => e.id !== entry.id && bankText(e));
+  const keys = await merchantKeys(rows.map(bankText));
+  return rows.filter((e) => keys.get(bankText(e)) === key);
 }
 
 /** Renames one entry, or every entry like it plus future imports and syncs when `all`. */
@@ -51,9 +56,17 @@ export async function forgetName(db: StackdDb, id: string): Promise<void> {
   });
 }
 
-/** The saved names by cleaned bank text, for imports and syncs. */
+/**
+ * The saved names by merchant key, for imports and syncs (look up a row's `merchant_key` from
+ * `fingerprint.row`). Each name is stored with the bank text it was made from; the newest name
+ * wins when two texts share a key.
+ */
 export async function savedNames(db: StackdDb): Promise<Map<string, string>> {
-  return new Map((await db.merchant_names.toArray()).map((n) => [n.match, n.name]));
+  const rows = (await db.merchant_names.toArray()).sort((a, b) =>
+    compareText(a.updated_at, b.updated_at),
+  );
+  const keys = await merchantKeys(rows.map((n) => n.match));
+  return new Map(rows.map((n) => [keys.get(n.match) as string, n.name]));
 }
 
 export async function setCounted(

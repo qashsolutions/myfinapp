@@ -1,0 +1,53 @@
+{
+  "as_of": "2026-09-20",
+  "entries": [
+    {
+      "id": "q1",
+      "date": "2026-07-01",
+      "amount_cents": 200000,
+      "direction": "in",
+      "is_transfer": false,
+      "payee": "CITY PAYROLL"
+    },
+    {
+      "id": "q2",
+      "date": "2026-07-15",
+      "amount_cents": 200000,
+      "direction": "in",
+      "is_transfer": false,
+      "payee": "CITY PAYROLL"
+    },
+    {
+      "id": "q3",
+      "date": "2026-07-31",
+      "amount_cents": 200000,
+      "direction": "in",
+      "is_transfer": false,
+      "payee": "CITY PAYROLL"
+    },
+    {
+      "id": "q4",
+      "date": "2026-08-14",
+      "amount_cents": 200000,
+      "direction": "in",
+      "is_transfer": false,
+      "payee": "CITY PAYROLL"
+    },
+    {
+      "id": "q5",
+      "date": "2026-09-01",
+      "amount_cents": 200000,
+      "direction": "in",
+      "is_transfer": false,
+      "payee": "CITY PAYROLL"
+    },
+    {
+      "id": "q6",
+      "date": "2026-09-15",
+      "amount_cents": 200000,
+      "direction": "in",
+      "is_transfer": false,
+      "payee": "CITY PAYROLL"
+    }
+  ]
+}

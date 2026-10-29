@@ -1,0 +1,53 @@
+{
+  "as_of": "2026-11-20",
+  "entries": [
+    {
+      "id": "r1",
+      "date": "2026-09-04",
+      "amount_cents": 180000,
+      "direction": "in",
+      "is_transfer": false,
+      "payee": "ACME PAYROLL"
+    },
+    {
+      "id": "r2",
+      "date": "2026-09-18",
+      "amount_cents": 180000,
+      "direction": "in",
+      "is_transfer": false,
+      "payee": "ACME PAYROLL"
+    },
+    {
+      "id": "r3",
+      "date": "2026-10-02",
+      "amount_cents": 180000,
+      "direction": "in",
+      "is_transfer": false,
+      "payee": "ACME PAYROLL"
+    },
+    {
+      "id": "r4",
+      "date": "2026-10-16",
+      "amount_cents": 180000,
+      "direction": "in",
+      "is_transfer": false,
+      "payee": "ACME PAYROLL"
+    },
+    {
+      "id": "r5",
+      "date": "2026-10-30",
+      "amount_cents": 180000,
+      "direction": "in",
+      "is_transfer": false,
+      "payee": "ACME PAYROLL"
+    },
+    {
+      "id": "r6",
+      "date": "2026-11-13",
+      "amount_cents": 180000,
+      "direction": "in",
+      "is_transfer": false,
+      "payee": "ACME PAYROLL"
+    }
+  ]
+}

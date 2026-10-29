@@ -7,9 +7,9 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { recordDeletion } from "../../data/backup/snapshot.ts";
 import { useDb } from "../../data/DbProvider.tsx";
-import { type Direction, type Entry, newId } from "../../data/db.ts";
+import { bankText, type Direction, type Entry, newId } from "../../data/db.ts";
 import { deleteReceipts, deleteReceiptsOf } from "../../data/receipts.ts";
-import { cleanDescription, EngineError, parseAmount } from "../../engine/bridge.ts";
+import { cleanDescription, EngineError, matchesRule, parseAmount } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { emitMoment } from "../../moments/bus.ts";
 import { CategorySheet } from "../categories/CategorySheet.tsx";
@@ -126,7 +126,8 @@ export function AddEntrySheet() {
   /** Writes the rule and moves past uncategorized entries that match it. */
   async function applyAlwaysRule(entryId: string, chosenCategory: string) {
     if (!alwaysRule || !correctionOffer || !existing) return;
-    const match = existing.merchant.trim();
+    // The bank's text, so a renamed entry's rule still meets the next import (invariant 47).
+    const match = bankText(existing).trim();
     const stamp = new Date().toISOString();
     await db.merchant_rules.put({
       id: newId(),
@@ -140,10 +141,8 @@ export function AddEntrySheet() {
       .filter((row) => row.category_id === null && !row.is_transfer && row.id !== entryId)
       .toArray();
     const moved: string[] = [];
-    for (const row of candidates) {
-      const cleaned = await cleanDescription(row.clean_description || row.merchant);
-      if (cleaned.includes(cleanedMatch)) moved.push(row.id);
-    }
+    // Exactly as the categorizer reads the rule: a whole word, cleaned or as a merchant key.
+    for (const row of candidates) if (await matchesRule(bankText(row), match)) moved.push(row.id);
     if (moved.length > 0) {
       await db.entries
         .where("id")

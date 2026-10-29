@@ -1,0 +1,21 @@
+{
+  "series": [
+    {
+      "payee": "RENT CO",
+      "kind": "bill",
+      "direction": "out",
+      "expected_cents": 150000,
+      "interval": "monthly",
+      "day": 31,
+      "days": null,
+      "last_date": "2027-01-31",
+      "next_date": "2027-02-28",
+      "occurrences": 3,
+      "entry_ids": [
+        "t1",
+        "t2",
+        "t3"
+      ]
+    }
+  ]
+}

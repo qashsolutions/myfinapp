@@ -118,7 +118,13 @@ const BARE: Record<string, Rule> = {
     return {
       fingerprint: fingerprint.fingerprint(account_id, date, amount_cents, description),
       clean_description: fingerprint.cleanDescription(description),
+      // A separate output (October 29, 2026): the fingerprint itself never changes.
+      merchant_key: fingerprint.merchantKey(description),
     };
+  },
+  "fingerprint.merchant_key": (input) => {
+    const { text } = args(input, ["text"]);
+    return { key: fingerprint.merchantKey(text) };
   },
   "categorize.match": (input) => {
     const { description, direction, user_rules, keywords } = args(input, [

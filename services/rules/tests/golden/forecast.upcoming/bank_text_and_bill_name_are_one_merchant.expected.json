@@ -1,0 +1,15 @@
+{
+  "start": "2026-11-10",
+  "end": "2026-12-10",
+  "items": [
+    {
+      "date": "2026-11-14",
+      "series_id": "s1",
+      "payee": "NETFLIX",
+      "kind": "bill",
+      "amount_cents": 1549,
+      "matched": true,
+      "entry_id": "e1"
+    }
+  ]
+}

@@ -756,7 +756,12 @@ export interface DetectedSeries {
   kind: "bill" | "income";
   direction: "in" | "out";
   expected_cents: number;
-  interval: "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly";
+  /** "semimonthly" (twice a month) is a suggestion only: confirmed as one monthly series per day. */
+  interval: "weekly" | "biweekly" | "semimonthly" | "monthly" | "quarterly" | "yearly";
+  /** A monthly, quarterly or yearly run's usual day of the month (31 = the last day). */
+  day: number | null;
+  /** Twice a month: the two days (31 = the last day). */
+  days: number[] | null;
   last_date: string;
   next_date: string;
   occurrences: number;
@@ -962,6 +967,39 @@ export async function cleanDescription(text: string): Promise<string> {
     text,
   });
   return cleaned;
+}
+
+/**
+ * One merchant, one key (owner, October 29, 2026): "NETFLIX", "netflix" and "Netflix.com" are
+ * all NETFLIX. For matching only; never shown, never in a fingerprint.
+ */
+export async function merchantKey(text: string): Promise<string> {
+  const { key } = await engine.call<{ key: string }>("fingerprint.merchant_key", { text });
+  return key;
+}
+
+/**
+ * Whether a category rule's text ("Always put X in …") matches a description exactly as the
+ * categorizer reads it: a whole word, in the cleaned text or its merchant key (invariant 50).
+ * The screens that move entries along with a new rule use this, so they never disagree with the
+ * next import.
+ */
+export async function matchesRule(description: string, match: string): Promise<boolean> {
+  if (!match.trim()) return false;
+  const r = await engine.call<{ matched_by: string | null }>("categorize.match", {
+    description,
+    direction: "out",
+    user_rules: [{ match, category_id: "rule" }],
+    keywords: { transfer: [], keywords: [] },
+  });
+  return r.matched_by === "user";
+}
+
+/** Merchant keys for many texts, each text asked once. */
+export async function merchantKeys(texts: Iterable<string>): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  for (const text of texts) if (!out.has(text)) out.set(text, await merchantKey(text));
+  return out;
 }
 
 export async function addDays(date: string, days: number): Promise<string> {

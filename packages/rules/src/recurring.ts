@@ -1,8 +1,18 @@
 /** Port of stackd_rules/recurring.py: recurring series detection (bills and income). */
 
-import { addDays, addMonths, type Day, daysInMonth, daysUntil, iso, parseDate } from "./dates.ts";
+import {
+  addDays,
+  addMonths,
+  type Day,
+  daysInMonth,
+  daysInMonthOf,
+  daysUntil,
+  iso,
+  parseDate,
+  weekday,
+} from "./dates.ts";
 import { RuleError } from "./errors.ts";
-import { cleanDescription } from "./fingerprint.ts";
+import { cleanDescription, merchantKey } from "./fingerprint.ts";
 import { assertInt, mul, roundDiv } from "./money.ts";
 import { compareText } from "./text.ts";
 
@@ -51,7 +61,7 @@ function entry(raw: unknown): RecurringEntry {
     cents,
     direction: r.direction,
     is_transfer: r.is_transfer,
-    payee: cleanDescription(r.payee),
+    payee: merchantKey(r.payee),
   };
 }
 
@@ -107,11 +117,126 @@ export interface Series {
   kind: "bill" | "income";
   direction: "in" | "out";
   expected_cents: number;
-  interval: Interval;
+  /** "semimonthly" (twice a month) is a suggestion only: it is confirmed as one monthly series
+   * per day. */
+  interval: Interval | typeof SEMIMONTHLY;
+  /** A monthly, quarterly or yearly run's usual day of the month (31 = the last day). */
+  day: number | null;
+  /** Twice a month: the two days (31 = the last day), sorted. */
+  days: number[] | null;
   last_date: string;
   next_date: string;
   occurrences: number;
   entry_ids: string[];
+}
+
+export const LAST_DAY = 31;
+// Twice a month (October 29, 2026, invariant 49): pay on two fixed days of the month, moved a few
+// days by weekends and holidays.
+export const SEMIMONTHLY = "semimonthly";
+const SEMIMONTHLY_GAPS: [number, number] = [10, 20];
+const SEMIMONTHLY_MIN_RUN = 4;
+
+/** The day of the month a date stands for: its own, or 31 when it is the month's last day. */
+export function dayOfMonth(day: Day): number {
+  return day.d === daysInMonth(day) ? LAST_DAY : day.d;
+}
+
+/** The run's most common day of the month; a tie goes to the one the latest occurrence had. */
+export function usualDay(run: RecurringEntry[]): number {
+  const counts = new Map<number, number>();
+  const lastSeen = new Map<number, number>();
+  run.forEach((e, index) => {
+    const d = dayOfMonth(e.date);
+    counts.set(d, (counts.get(d) ?? 0) + 1);
+    lastSeen.set(d, index);
+  });
+  let best: number | null = null;
+  for (const [d, n] of counts) {
+    if (
+      best === null ||
+      n > (counts.get(best) as number) ||
+      (n === counts.get(best) && (lastSeen.get(d) as number) > (lastSeen.get(best) as number))
+    )
+      best = d;
+  }
+  return best as number;
+}
+
+function target(y: number, m: number, keep: number): Day {
+  return { y, m, d: Math.min(keep, daysInMonthOf(y, m)) };
+}
+
+/** Days between a payday and its due date; 0 when a weekend moved it to the Friday before or
+ * the Monday after. */
+function offBy(day: Day, due: Day): number {
+  const gap = daysUntil(due, day);
+  const wd = weekday(due); // Monday 0 ... Sunday 6
+  if (wd === 5 && (gap === -1 || gap === 2)) return 0;
+  if (wd === 6 && (gap === -2 || gap === 1)) return 0;
+  return Math.abs(gap);
+}
+
+function nearest(day: Day, keep: number): [number, Day] {
+  let best: [number, Day] | null = null;
+  for (const month of [addMonths(day, -1), day, addMonths(day, 1)]) {
+    const due = target(month.y, month.m, keep);
+    const off = offBy(day, due);
+    if (best === null || off < best[0] || (off === best[0] && daysUntil(best[1], due) < 0))
+      best = [off, due];
+  }
+  return best as [number, Day];
+}
+
+/** [off-by total, day] for one half of a twice-a-month run; a tie goes to the later day. */
+function bestDay(half: Day[]): [number, number] {
+  let best: [number, number] | null = null;
+  for (let keep = 1; keep <= LAST_DAY; keep += 1) {
+    const total = half.reduce((sum, d) => sum + nearest(d, keep)[0], 0);
+    if (best === null || total <= best[0]) best = [total, keep];
+  }
+  return best as [number, number];
+}
+
+function everyTwoWeeksOffBy(run: Day[]): number {
+  const first = run[0] as Day;
+  const offsets = run.map((d, i) => daysUntil(first, d) - 14 * i);
+  const sorted = [...offsets].sort((a, b) => a - b);
+  const middle = sorted[Math.floor((sorted.length - 1) / 2)] as number;
+  return offsets.reduce((sum, o) => sum + Math.abs(o - middle), 0);
+}
+
+function semimonthly(
+  items: RecurringEntry[],
+): { run: RecurringEntry[]; days: number[]; next: Day } | null {
+  const [lo, hi] = SEMIMONTHLY_GAPS;
+  let start = items.length - 1;
+  while (start > 0) {
+    const gap = daysUntil(
+      (items[start - 1] as RecurringEntry).date,
+      (items[start] as RecurringEntry).date,
+    );
+    if (gap < lo || gap > hi) break;
+    start -= 1;
+  }
+  const run = items.slice(start);
+  if (run.length < SEMIMONTHLY_MIN_RUN) return null;
+  const days = run.map((e) => e.date);
+  const [offA, dayA] = bestDay(days.filter((_, i) => i % 2 === 0));
+  const [offB, dayB] = bestDay(days.filter((_, i) => i % 2 === 1));
+  if (dayA === dayB || offA + offB >= everyTwoWeeksOffBy(days)) return null;
+  const keeps = [dayA, dayB].sort((a, b) => a - b);
+  const lastKeep = (run.length - 1) % 2 === 0 ? dayA : dayB;
+  const due = nearest(days[days.length - 1] as Day, lastKeep)[1];
+  const after = addMonths(due, 1);
+  let next: Day | null = null;
+  for (const month of [due, after]) {
+    for (const keep of keeps) {
+      const t = target(month.y, month.m, keep);
+      if (daysUntil(due, t) > 0 && (next === null || daysUntil(t, next) > 0)) next = t;
+    }
+  }
+  return { run, days: keeps, next: next as Day };
 }
 
 export function detect(rawEntries: unknown, asOf: unknown): { series: Series[] } {
@@ -140,6 +265,28 @@ export function detect(rawEntries: unknown, asOf: unknown): { series: Series[] }
         compareText(a.id ?? "", b.id ?? ""),
     );
     if (items.length < 2) continue;
+    const twice = semimonthly(items);
+    if (twice !== null) {
+      const run = twice.run;
+      const expected = medianCents(run.map((e) => e.cents));
+      if (run.every((e) => withinTenPercent(e.cents, expected))) {
+        const first = run[0] as RecurringEntry;
+        series.push({
+          payee: first.payee,
+          kind: first.direction === "in" ? "income" : "bill",
+          direction: first.direction,
+          expected_cents: expected,
+          interval: SEMIMONTHLY,
+          day: null,
+          days: twice.days,
+          last_date: iso((run[run.length - 1] as RecurringEntry).date),
+          next_date: iso(twice.next),
+          occurrences: run.length,
+          entry_ids: run.map((e) => e.id).filter((id): id is string => id !== null),
+        });
+        continue;
+      }
+    }
     const lastGap = daysUntil(
       (items[items.length - 2] as RecurringEntry).date,
       (items[items.length - 1] as RecurringEntry).date,
@@ -162,14 +309,21 @@ export function detect(rawEntries: unknown, asOf: unknown): { series: Series[] }
     if (!run.every((e) => withinTenPercent(e.cents, expected))) continue;
     const last = (run[run.length - 1] as RecurringEntry).date;
     const first = run[0] as RecurringEntry;
+    // A month-based bill keeps its usual day (October 29, 2026, invariant 49).
+    const keep =
+      interval === "monthly" || interval === "quarterly" || interval === "yearly"
+        ? usualDay(run)
+        : null;
     series.push({
       payee: first.payee,
       kind: first.direction === "in" ? "income" : "bill",
       direction: first.direction,
       expected_cents: expected,
       interval,
+      day: keep,
+      days: null,
       last_date: iso(last),
-      next_date: iso(step(last, interval)),
+      next_date: iso(stepKeepingDay(last, interval, keep)),
       occurrences: run.length,
       entry_ids: run.map((e) => e.id).filter((id): id is string => id !== null),
     });
@@ -273,6 +427,7 @@ function isWordChar(ch: string): boolean {
  * UTF-16 positions give the same answer as Python's code points.
  */
 export function containsWord(text: string, word: string): boolean {
+  if (word === "") return false; // never a word (and indexOf("") would never end)
   let start = text.indexOf(word);
   while (start !== -1) {
     const end = start + word.length;
@@ -452,8 +607,11 @@ export function subscriptionCheck(
     let kind: string | null;
     if (own !== null) kind = own === OTHER_KIND ? null : own;
     else {
+      // The cleaned payee or its merchant key ("UBER *EATS" reads as UBER EATS).
       const clean = cleanDescription(r.payee);
-      kind = words.find(([word]) => containsWord(clean, word))?.[1] ?? null;
+      const key = merchantKey(r.payee);
+      kind =
+        words.find(([word]) => containsWord(clean, word) || containsWord(key, word))?.[1] ?? null;
     }
     items.push({
       id: r.id,

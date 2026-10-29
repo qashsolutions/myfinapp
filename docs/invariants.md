@@ -212,6 +212,48 @@ written against both.
     the order is read from the running balance, else from the dates (`importFlow.fileOrder`).
     A printed ending balance (OFX, a PDF's) still wins.
     `import-flow.test.tsx` "oldest first, newest first and the same day…"
+47. **One merchant, one key, on the bank's own text** (October 29, 2026; owner: "NETFLIX,
+    netflix, Netflix.com: they are all the same"). Every matcher of a merchant (bill and income
+    detection, upcoming bills against entries, subscriptions and their kinds, Rename all like
+    this and saved names, category rules and keywords) compares `fingerprint.merchant_key`
+    (cleaned like a fingerprint, then "WWW.", ".COM" / ".NET" / ".ORG", a processor prefix
+    before "*", a reference after it and number-only words dropped) of the entry's bank text,
+    `db.bankText` (its `clean_description`, else its name for an entry typed by hand), never a
+    name the person gave it: renaming "NETFLIX.COM" to anything keeps it on its bill (matched
+    as paid, so not taken off twice), its subscription and its saved name. Editing a found bill's
+    label keeps its payee; a category rule is made from the bank text. The fingerprint never
+    changes, so re-imports stay idempotent.
+    `merchant-matching.test.tsx` "renaming a bill's charges…", "rename all like this and a saved
+    name…" · goldens `fingerprint.merchant_key`, `forecast.upcoming`
+    "bank_text_and_bill_name_are_one_merchant", `recurring.detect`
+    "one_payee_however_it_is_written"
+48. **An upload never duplicates a linked row** (October 29, 2026). A statement row going into
+    an account whose bank sync already wrote a row on the same date with the same amount and
+    direction is "already in Qash · skipped", one file row for one synced row (two coffees that
+    day, one synced, leave one new), exactly as a sync adopts an earlier upload in the other
+    order (`importFlow.prepareRows`, `sync.uploadedTwin`).
+    `merchant-matching.test.tsx` "synced first, then the statement…", "the statement first, then
+    the sync…" · `linked-sync.test.tsx` "never counts an uploaded entry twice…"
+49. **Pay and bills keep the days they are paid on** (October 29, 2026). Pay on two fixed days
+    of the month, moved by weekends, is twice a month (`recurring.detect` `semimonthly` with
+    its `days`), never every 2 weeks: "Use … as my pay" saves twice a month with those days, so
+    $2,500 on the 15th and last day is $5,000 a month, not $5,416.67, and a twice-a-month bill is
+    confirmed as one monthly bill per day. A month-based bill keeps its usual day (`day`, 31 =
+    the last day) and every reader of a confirmed series passes it to `forecast.upcoming`
+    (`useRecurring.seriesInput`), so rent on the 31st is Feb 28 and then Mar 31, never Mar 28;
+    a bill made before this reads its next date's day.
+    `merchant-matching.test.tsx` "pay on the 15th and the last day…", "a twice-a-month bill…",
+    "rent on the 30th, 31st and 31st…" · goldens `recurring.detect` "twice_a_month_*",
+    "true_every_two_weeks_stays_every_two_weeks", "rent_on_the_last_day_keeps_day_31"
+50. **A keyword is a whole word, and the longest one wins** (October 29, 2026). A category rule
+    or keyword matches only as a whole word (`recurring.contains_word`), in the cleaned text or
+    its merchant key, and the longest match wins, ties by order: UBER EATS is dining wherever
+    UBER sits in the table, RENT never hits PARENT or ENTERPRISE RENTALS and SHELL never hits
+    SHELLS SEAFOOD. The screens that move entries along with a new rule (the entry editor's
+    "Always put…", Sort your spending) ask the engine the same question (`bridge.matchesRule`).
+    `services/rules/tests/test_keywords.py` "every keyword reaches its own category", "no keyword
+    hits inside another word" · `merchant-matching.test.tsx` "an import sorts UBER EATS…" ·
+    goldens `categorize.match`
 
 ## Accounts and money on the server
 

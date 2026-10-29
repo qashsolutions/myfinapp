@@ -1,11 +1,11 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
-import { ignoreClosed, type RecurringSeries, type StackdDb } from "../../data/db.ts";
+import { bankText, ignoreClosed, type RecurringSeries, type StackdDb } from "../../data/db.ts";
 import {
-  cleanDescription,
   daysUntil,
   engine,
+  merchantKey,
   type SubscriptionCheck,
   type SubscriptionCheckInput,
   subscriptionCheck,
@@ -39,17 +39,18 @@ export interface SubscriptionsView {
 }
 
 /**
- * The payee each entry text cleans to (`fingerprint.clean_description`), kept for the session:
- * the rule is pure, so a text always cleans the same way, and Home, the month review and
- * Subscriptions each read every charge out. Only texts not seen yet go to the engine, together.
+ * The merchant key each text has (`fingerprint.merchant_key`: NETFLIX, netflix and Netflix.com
+ * are one; owner, October 29, 2026), kept for the session: the rule is pure, so a text always
+ * keys the same way, and Home, the month review and Subscriptions each read every charge out.
+ * Only texts not seen yet go to the engine, together.
  */
-const CLEANED = new Map<string, string>();
+const KEYS = new Map<string, string>();
 
 async function payeesOf(texts: Iterable<string>): Promise<Map<string, string>> {
-  const missing = [...new Set(texts)].filter((t) => !CLEANED.has(t));
-  const done = await Promise.all(missing.map(async (t) => [t, await cleanDescription(t)] as const));
-  for (const [t, payee] of done) CLEANED.set(t, payee);
-  return CLEANED;
+  const missing = [...new Set(texts)].filter((t) => !KEYS.has(t));
+  const done = await Promise.all(missing.map(async (t) => [t, await merchantKey(t)] as const));
+  for (const [t, payee] of done) KEYS.set(t, payee);
+  return KEYS;
 }
 
 /**
@@ -61,12 +62,15 @@ async function splitBills(db: StackdDb, bills: RecurringSeries[]) {
   // Every counted charge out by payee, recurring or not: a price rise or the end of a trial is
   // often the charge the ±10% run left out. Only the bills' own payees are kept.
   const charges = new Map<string, Array<{ date: string; cents: number }>>();
-  if (bills.length === 0) return { subs: [], others: [], charges };
-  const wanted = new Set(bills.map((s) => s.payee));
+  const keyOf = (s: RecurringSeries) => KEYS.get(s.payee) as string;
+  if (bills.length === 0) return { subs: [], others: [], charges, keyOf };
+  await payeesOf(bills.map((s) => s.payee));
+  const wanted = new Set(bills.map(keyOf));
   const out = await db.entries.filter((e) => e.direction === "out").toArray();
-  const cleaned = await payeesOf(out.map((e) => e.merchant || e.clean_description));
+  // The bank's text, never the person's rename (invariant 47).
+  const cleaned = await payeesOf(out.map(bankText));
   for (const e of out) {
-    const payee = cleaned.get(e.merchant || e.clean_description) as string;
+    const payee = cleaned.get(bankText(e)) as string;
     if (!wanted.has(payee)) continue;
     if (!e.is_transfer && !e.not_counted) {
       const list = charges.get(payee);
@@ -81,10 +85,10 @@ async function splitBills(db: StackdDb, bills: RecurringSeries[]) {
   const subs: RecurringSeries[] = [];
   const others: RecurringSeries[] = [];
   for (const s of bills) {
-    const counted = s.subscription ?? latest.get(s.payee)?.category === SUBSCRIPTIONS_CATEGORY;
+    const counted = s.subscription ?? latest.get(keyOf(s))?.category === SUBSCRIPTIONS_CATEGORY;
     (counted ? subs : others).push(s);
   }
-  return { subs, others, charges };
+  return { subs, others, charges, keyOf };
 }
 
 /** The Subscriptions view (owner, October 27, 2026): yearly cost from `recurring.yearly_cost`. */
@@ -106,7 +110,7 @@ export function useSubscriptions(today: string): SubscriptionsView | undefined {
     if (!bills || !intervals || !own) return;
     let alive = true;
     void (async () => {
-      const { subs, others, charges } = await splitBills(db, bills);
+      const { subs, others, charges, keyOf } = await splitBills(db, bills);
       const totals = await yearlyCost(
         subs.map((s) => ({
           id: s.id,
@@ -134,7 +138,7 @@ export function useSubscriptions(today: string): SubscriptionsView | undefined {
             expected_cents: s.expected_cents,
             next_date: s.next_date,
             checked_at: s.checked_at ?? null,
-            charges: charges.get(s.payee) ?? [],
+            charges: charges.get(keyOf(s)) ?? [],
             // A kind removed on another device before this row synced reads from the name.
             own_kind:
               s.subscription_kind && isKnownKind(s.subscription_kind, own.labels)

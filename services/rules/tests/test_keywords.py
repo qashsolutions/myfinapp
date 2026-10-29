@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from build_keywords import TARGETS, render  # noqa: E402
 
+from stackd_rules import categorize  # noqa: E402
 from stackd_rules.fingerprint import clean_description  # noqa: E402
 from stackd_rules.recurring import OTHER_KIND, contains_word  # noqa: E402
 
@@ -175,3 +176,65 @@ def test_contains_word() -> None:
     assert contains_word("ESPN+ 800", "ESPN+")
     assert not contains_word("BIGYM", "GYM")
     assert not contains_word("", "GYM")
+    assert not contains_word("GYM", "")  # an empty word is never in anything
+
+
+def _category_of(description: str, direction: str = "out") -> str | None:
+    return categorize.match(description, direction, [], json.loads(render()))["category_id"]
+
+
+def test_every_keyword_reaches_its_own_category() -> None:
+    """The sweep (October 29, 2026, invariant 50): each keyword, as a description of its own,
+    lands in its own category, so no keyword is hidden by another, shorter or earlier one."""
+    for entry in json.loads(render())["keywords"]:
+        direction = "in" if entry["direction"] == "in" else "out"
+        assert _category_of(entry["match"], direction) == entry["category_id"], entry
+
+
+def test_no_keyword_hits_inside_another_word() -> None:
+    """Every keyword that sits inside a longer word of another keyword (RENT in PARENT, MKT in
+    MKTP) is a whole word only: that longer text never takes the short keyword's category."""
+    table = json.loads(render())["keywords"]
+    for short in table:
+        for other in table:
+            text = other["match"]
+            word = short["match"]
+            if word in text and not contains_word(text, word):
+                assert _category_of(text, other["direction"]) == other["category_id"], (
+                    short,
+                    other,
+                )
+
+
+def test_common_payees_get_their_category() -> None:
+    cases = {
+        ("UBER EATS PENDING", "out"): "cat-dining",
+        ("UBER *EATS", "out"): "cat-dining",
+        ("UBER *TRIP", "out"): "cat-transport",
+        ("ENTERPRISE RENT-A-CAR #1234", "out"): "cat-transport",
+        ("SHELLS SEAFOOD RESTAURANT", "out"): "cat-dining",
+        ("SHELL OIL 57444", "out"): "cat-transport",
+        ("AMZN MKTP US*2K3L45", "out"): "cat-shopping",
+        ("Netflix.com", "out"): "cat-subscriptions",
+        ("www.netflix.com", "out"): "cat-subscriptions",
+        ("SUPERMARKET 21", "out"): "cat-groceries",
+        ("CITY GROCERY", "out"): "cat-groceries",
+        ("ACME DIRECT DEPOSIT", "in"): "cat-paycheck",
+        ("TRADER JOES #552", "out"): "cat-groceries",
+        ("MCDONALDS F1234", "out"): "cat-dining",
+        ("JUNE RENT", "out"): "cat-rent",
+    }
+    for (payee, direction), category in cases.items():
+        assert _category_of(payee, direction) == category, payee
+
+
+def test_short_keywords_never_hit_inside_other_words() -> None:
+    for payee in (
+        "SHELLS SEAFOOD",  # SHELL
+        "PARENT TEACHER ASSOC",  # RENT
+        "ENTERPRISE RENTALS",  # RENT
+        "METROPCS WIRELESS",  # METRO
+        "CAFETERIA",  # CAFE
+        "TARGETED ADS LLC",  # TARGET
+    ):
+        assert _category_of(payee) is None, payee
