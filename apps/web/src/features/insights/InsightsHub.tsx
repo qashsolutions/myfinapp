@@ -8,6 +8,7 @@ import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { ratioBps } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { useBudget } from "../budget/useBudget.ts";
+import { FixedFlexibleInsight } from "../fixed/FixedFlexibleCard.tsx";
 import { useForecast } from "../forecast/useForecast.ts";
 import { useRecurringSeries } from "../forecast/useRecurring.ts";
 import { useGoals } from "../goals/useGoals.ts";
@@ -35,6 +36,7 @@ export const INSIGHT_CARDS = [
   ["money", "Money in & out", "This month in and out"],
   ["sorted", "Auto-sorted spending", "How much is sorted"],
   ["spending", "Biggest & most often", "Top amounts and merchants"],
+  ["fixed", "Fixed vs flexible", "Bills against the rest, and what you keep"],
   ["bills", "Bills & subscriptions", "What's coming up"],
   ["safe", "Safe to spend", "Room before payday"],
   ["budget", "Budget & jars", "Your plan and jars"],
@@ -301,6 +303,8 @@ export function InsightsHub() {
             ) : null}
           </InsightCard>
         );
+      case "fixed":
+        return <FixedFlexibleInsight today={asOf} />;
       case "later":
         return (
           <InsightCard

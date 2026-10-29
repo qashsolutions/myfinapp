@@ -184,6 +184,10 @@ const BARE: Record<string, Rule> = {
     const { start, end, step, entries } = args(input, ["start", "end", "step", "entries"]);
     return { ...cashflow.series(start, end, step, entries) };
   },
+  "cashflow.fixed_flexible": (input) => {
+    const { start, end, entries } = args(input, ["start", "end", "entries"]);
+    return { ...cashflow.fixedFlexible(start, end, entries) };
+  },
   "cashflow.net_change": (input) => {
     const { net_cents, previous_net_cents } = args(input, ["net_cents", "previous_net_cents"]);
     return { delta_cents: cashflow.netChange(net_cents, previous_net_cents) };
@@ -390,6 +394,15 @@ const BARE: Record<string, Rule> = {
   "recurring.yearly_cost": (input) => {
     const { series } = args(input, ["series"]);
     return { ...recurring.yearlyCost(series) };
+  },
+  "recurring.subscription_check": (input) => {
+    const { as_of, subscriptions, kinds, thresholds } = args(input, [
+      "as_of",
+      "subscriptions",
+      "kinds",
+      "thresholds",
+    ]);
+    return { ...recurring.subscriptionCheck(as_of, subscriptions, kinds, thresholds) };
   },
   "forecast.typical_daily_spending": (input) => {
     const { entries, as_of, fallback_monthly_cents } = args(input, [

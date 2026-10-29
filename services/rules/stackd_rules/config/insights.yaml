@@ -8,3 +8,8 @@ thresholds:
   lumpy_month_cents: 30000        # a month with $300+ of quarterly / yearly bills is "big"
   seasonal_increase_cents: 10000  # last year's same month ran $100+ over...
   seasonal_increase_bps: 2000     # ...and 20% over the usual month
+  # Subscription check (October 28, 2026; proposed, awaiting owner sign-off)
+  subscription_ask_days: 90       # ask "still using it?" again 90 days after the last Keep
+  subscription_renewal_days: 14   # a yearly or quarterly renewal this close is shown and asked
+  trial_max_cents: 100            # a first charge of $1.00 or less...
+  trial_window_days: 45           # ...followed within 45 days by a larger one is a trial

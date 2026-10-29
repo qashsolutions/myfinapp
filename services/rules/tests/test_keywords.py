@@ -54,3 +54,24 @@ def test_table_is_well_formed() -> None:
             "cat-other-income",
         }
         assert entry["direction"] == ("in" if income else "out"), entry
+
+
+SUBSCRIPTION_KINDS = {
+    "video",
+    "music",
+    "cloud storage",
+    "news",
+    "fitness",
+    "food delivery",
+    "software",
+}
+
+
+def test_subscription_kinds_are_well_formed() -> None:
+    data = json.loads(render())
+    kinds = data["subscription_kinds"]
+    assert kinds
+    for entry in kinds:
+        assert entry["match"] and entry["match"] == entry["match"].strip(), entry
+        assert entry["kind"] in SUBSCRIPTION_KINDS, entry
+    assert len({e["match"] for e in kinds}) == len(kinds)

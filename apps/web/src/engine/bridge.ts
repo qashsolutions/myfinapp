@@ -249,6 +249,48 @@ export async function periodTotals(
   return engine.call<MonthTotals>("cashflow.period_totals", { start, end, entries });
 }
 
+// Fixed vs flexible (October 28, 2026): a rule entry plus its run mark and its category's bucket.
+export interface FlexRuleEntry extends RuleEntry {
+  is_recurring: boolean;
+  bucket: "need" | "want" | "save" | null;
+}
+
+export interface BucketCents {
+  need: number;
+  want: number;
+  save: number;
+  none: number;
+}
+
+export interface FixedFlexible {
+  start: string;
+  end: string;
+  in_cents: number;
+  out_cents: number;
+  fixed_cents: number;
+  flexible_cents: number;
+  fixed_by_bucket: BucketCents;
+  flexible_by_bucket: BucketCents;
+  kept_cents: number;
+  kept_rate_bps: number | null;
+  by_category: Array<{
+    category_id: string | null;
+    bucket: "need" | "want" | "save" | null;
+    fixed_cents: number;
+    flexible_cents: number;
+    out_cents: number;
+  }>;
+  room: Array<{ category_id: string | null; flexible_cents: number }>;
+}
+
+export async function fixedFlexible(
+  start: string,
+  end: string,
+  entries: FlexRuleEntry[],
+): Promise<FixedFlexible> {
+  return engine.call<FixedFlexible>("cashflow.fixed_flexible", { start, end, entries });
+}
+
 // Time ranges (October 20, 2026): a range split into weeks, months or quarters.
 export type SeriesStepKind = "week" | "month" | "quarter";
 
@@ -701,6 +743,49 @@ export async function yearlyCost(
   series: Array<{ id: string; label: string; interval: string; expected_cents: number }>,
 ): Promise<YearlyCost> {
   return engine.call<YearlyCost>("recurring.yearly_cost", { series });
+}
+
+// Subscription check (October 28, 2026): facts from the person's own charges, and when to ask.
+export interface SubscriptionCheckInput {
+  id: string;
+  label: string;
+  payee: string;
+  interval: string;
+  expected_cents: number;
+  next_date: string;
+  checked_at: string | null;
+  charges: Array<{ date: string; cents: number }>;
+}
+
+export interface SubscriptionCheckItem {
+  id: string;
+  label: string;
+  kind: string | null;
+  ask: boolean;
+  price_rise: { from_cents: number; to_cents: number; date: string } | null;
+  renewal: { date: string; cents: number } | null;
+  trial_turned_charge: { trial_cents: number; cents: number; date: string } | null;
+  yearly_cents: number;
+  monthly_cents: number;
+}
+
+export interface SubscriptionCheck {
+  items: SubscriptionCheckItem[];
+  duplicates: Array<{ kind: string; count: number; monthly_total_cents: number; ids: string[] }>;
+}
+
+export async function subscriptionCheck(
+  asOf: string,
+  subscriptions: SubscriptionCheckInput[],
+  kinds: Array<{ match: string; kind: string }>,
+  thresholds: Record<string, number>,
+): Promise<SubscriptionCheck> {
+  return engine.call<SubscriptionCheck>("recurring.subscription_check", {
+    as_of: asOf,
+    subscriptions,
+    kinds,
+    thresholds,
+  });
 }
 
 export interface SpendingRuleEntry {

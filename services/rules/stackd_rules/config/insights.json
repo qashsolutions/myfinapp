@@ -5,6 +5,10 @@
     "usual_increase_bps": 2500,
     "lumpy_month_cents": 30000,
     "seasonal_increase_cents": 10000,
-    "seasonal_increase_bps": 2000
+    "seasonal_increase_bps": 2000,
+    "subscription_ask_days": 90,
+    "subscription_renewal_days": 14,
+    "trial_max_cents": 100,
+    "trial_window_days": 45
   }
 }

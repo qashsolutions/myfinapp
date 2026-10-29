@@ -24,6 +24,7 @@ export const GOOD_WORDS: ReadonlySet<string> = new Set([
   "Found",
   "Done",
   "Clear",
+  "All good",
 ]);
 
 export function wordTone(word: string): "good" | "bad" | "plain" {

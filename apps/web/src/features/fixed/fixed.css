@@ -1,0 +1,127 @@
+/* Fixed vs flexible (October 28, 2026): token variables only, the same in every look. */
+.fixed-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--c-line);
+}
+.fixed-bar__seg {
+  display: block;
+  height: 100%;
+}
+.fixed-bar__seg--fixed {
+  background: var(--c-sub);
+}
+.fixed-bar__seg--flex {
+  background: var(--c-a2);
+}
+.fixed-bar__seg--room {
+  background: var(--c-a1);
+}
+.fixed-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}
+.fixed-key > span::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  margin-right: 4px;
+}
+.fixed-key__fixed::before {
+  background: var(--c-sub);
+}
+.fixed-key__flex::before {
+  background: var(--c-a2);
+}
+.fixed-key__room::before {
+  background: var(--c-a1);
+}
+.fixed-room {
+  display: block;
+  margin: 6px 0 0;
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--c-ink);
+}
+.fixed-line {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.fixed-more {
+  margin: 8px 0 0;
+  font-size: var(--fs-small);
+}
+.fixed-totals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.fixed-totals dt {
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}
+.fixed-totals dd {
+  margin: 0;
+  font-weight: 700;
+}
+.fixed-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-small);
+}
+.fixed-table th,
+.fixed-table td {
+  padding: 6px 0;
+  text-align: right;
+  border-bottom: 1px solid var(--c-line);
+}
+.fixed-table th:first-child {
+  text-align: left;
+  font-weight: 600;
+}
+.fixed-table thead th {
+  color: var(--c-sub);
+  font-weight: 600;
+}
+.fixed-months {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.fixed-months__row {
+  display: grid;
+  grid-template-columns: 9em 1fr 6em;
+  gap: 8px;
+  align-items: center;
+  font-size: var(--fs-small);
+}
+.fixed-months__track {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--c-line);
+  overflow: hidden;
+}
+.fixed-months__fill {
+  display: block;
+  height: 100%;
+  background: var(--c-success);
+}
+.fixed-months__fill--neg {
+  background: var(--c-danger);
+}
+.fixed-months__value {
+  text-align: right;
+  font-weight: 600;
+}

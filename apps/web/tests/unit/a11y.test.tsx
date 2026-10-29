@@ -90,6 +90,7 @@ const signedIn: Array<[string, string | RegExp]> = [
   ["/emergency", "Emergency fund"],
   ["/insights", "Insights"],
   ["/insights/spending", "Biggest & most often"],
+  ["/insights/fixed-flexible", "Fixed vs flexible"],
   ["/subscriptions", "Subscriptions"],
   ["/insights/later", "Later"],
   ["/review", "Sort your spending"],

@@ -1,0 +1,45 @@
+{
+  "as_of": "2026-10-28",
+  "subscriptions": [
+    {
+      "id": "s-n",
+      "label": "NetA",
+      "payee": "NETFLIX",
+      "interval": "yearly",
+      "expected_cents": 6,
+      "next_date": "2027-06-01",
+      "checked_at": null,
+      "charges": []
+    },
+    {
+      "id": "s-h",
+      "label": "HuluB",
+      "payee": "HULU",
+      "interval": "quarterly",
+      "expected_cents": 3,
+      "next_date": "2027-01-01",
+      "checked_at": null,
+      "charges": []
+    }
+  ],
+  "kinds": [
+    {
+      "match": "NETFLIX",
+      "kind": "video"
+    },
+    {
+      "match": "hulu",
+      "kind": "video"
+    },
+    {
+      "match": "SPOTIFY",
+      "kind": "music"
+    }
+  ],
+  "thresholds": {
+    "subscription_ask_days": 90,
+    "subscription_renewal_days": 14,
+    "trial_max_cents": 100,
+    "trial_window_days": 45
+  }
+}

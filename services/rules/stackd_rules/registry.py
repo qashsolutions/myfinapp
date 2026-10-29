@@ -146,6 +146,10 @@ def _cashflow_series(start: str, end: str, step: str, entries: list) -> dict:
     return cashflow.series(start, end, step, entries)
 
 
+def _cashflow_fixed_flexible(start: str, end: str, entries: list) -> dict:
+    return cashflow.fixed_flexible(start, end, entries)
+
+
 def _cashflow_net_change(net_cents: int, previous_net_cents: int) -> dict:
     return {"delta_cents": cashflow.net_change(net_cents, previous_net_cents)}
 
@@ -223,6 +227,12 @@ def _recurring_detect(entries: list, as_of: str) -> dict:
 
 def _recurring_yearly_cost(series: list) -> dict:
     return recurring.yearly_cost(series)
+
+
+def _recurring_subscription_check(
+    as_of: str, subscriptions: list, kinds: list, thresholds: dict
+) -> dict:
+    return recurring.subscription_check(as_of, subscriptions, kinds, thresholds)
 
 
 def _next_move_pick(facts: dict, config: dict, as_of: str) -> dict:
@@ -365,6 +375,7 @@ _BARE: dict[str, Rule] = {
     "cashflow.month_totals": _cashflow_month_totals,
     "cashflow.period_totals": _cashflow_period_totals,
     "cashflow.series": _cashflow_series,
+    "cashflow.fixed_flexible": _cashflow_fixed_flexible,
     "cashflow.net_change": _cashflow_net_change,
     "cashflow.match_transfers": _cashflow_match_transfers,
     "budget.targets_50_30_20": _budget_targets,
@@ -382,6 +393,7 @@ _BARE: dict[str, Rule] = {
     "household.combine_totals": _household_combine_totals,
     "recurring.detect": _recurring_detect,
     "recurring.yearly_cost": _recurring_yearly_cost,
+    "recurring.subscription_check": _recurring_subscription_check,
     "next_move.pick": _next_move_pick,
     "emergency.summary": _emergency_summary,
     "networth.history": _networth_history,

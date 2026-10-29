@@ -26,7 +26,7 @@ describe("Customize Home (owner decision, October 19, 2026)", () => {
     // Next 30 days up to the top: it is 6th, five moves up
     for (let i = 0; i < 5; i++)
       await user.click(within(sheet).getByRole("button", { name: "Move Next 30 days up" }));
-    expect(within(sheet).getByRole("status")).toHaveTextContent("Next 30 days moved to 1 of 11");
+    expect(within(sheet).getByRole("status")).toHaveTextContent("Next 30 days moved to 1 of 12");
 
     // Switch "Make Qash yours" off
     await user.click(within(sheet).getByRole("switch", { name: /Make Qash yours/ }));

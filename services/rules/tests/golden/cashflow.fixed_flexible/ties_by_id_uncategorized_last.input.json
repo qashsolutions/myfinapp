@@ -1,0 +1,42 @@
+{
+  "start": "2026-10-01",
+  "end": "2026-10-31",
+  "entries": [
+    {
+      "id": "e1",
+      "date": "2026-10-05",
+      "amount_cents": 500,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-b",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": "want"
+    },
+    {
+      "id": "e2",
+      "date": "2026-10-05",
+      "amount_cents": 500,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": null,
+      "category_kind": null,
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": "want"
+    },
+    {
+      "id": "e3",
+      "date": "2026-10-05",
+      "amount_cents": 500,
+      "direction": "out",
+      "is_transfer": false,
+      "category_id": "cat-a",
+      "category_kind": "expense",
+      "account_id": "acc-1",
+      "is_recurring": false,
+      "bucket": "want"
+    }
+  ]
+}
