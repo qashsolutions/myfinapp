@@ -12,7 +12,7 @@ from app.models import Base
 def test_head_is_latest_migration(migrated: Engine) -> None:
     with migrated.connect() as conn:
         current, head = migration_status(conn)
-    assert head == "0037"
+    assert head == "0038"
     assert current == head
 
 

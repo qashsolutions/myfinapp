@@ -3,7 +3,8 @@
 progress_bps is percent of the member's own target in basis points (10000 = 100%); the target
 itself never leaves the device. reached_at is the first time the member hit 100% (the rank
 tie-break). A row with left_at set is a former member; a deleted user's row stays so the group
-can show "Former member".
+can show "Former member". removed_at is set too when the owner removed them (invariant 45,
+October 29, 2026): a removed member can't come back with any code, while one who left may.
 
 helped is the member's own "What helped" answer: up to 5 ids (3 until October 29, 2026) from the
 one fixed list (stackd_rules/config/helped.yaml), comma separated, never free text. Other members
@@ -41,6 +42,7 @@ class GroupMember(Base, StackdRow):
     )
     joined_at: Mapped[datetime]
     left_at: Mapped[datetime | None]
+    removed_at: Mapped[datetime | None]  # the owner removed them; never cleared (migration 0038)
     progress_bps: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     progress_updated_at: Mapped[datetime | None]
     reached_at: Mapped[datetime | None]

@@ -370,6 +370,8 @@ export interface FakeGroup
   answers?: Record<string, string[]>;
   /** The challenge has ended (the server reads its end date). */
   ended?: boolean;
+  /** Members the owner removed (invariant 45): lookup and join answer 403 `removed`. */
+  removed?: string[];
 }
 
 export const ME = "u1";
@@ -592,7 +594,8 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       if (!link) return json({ detail: "not_found" }, 404);
       if (link.status !== "approved") return json({ status: link.status, session: null });
       state.deviceLink = null; // picked up once
-      state.session = readySession();
+      // Unlocked, but no passkey check on this computer yet (invariant 44): step-up asks first.
+      state.session = readySession({ passkey_verified_at: null });
       return json({ status: "approved", session: state.session });
     }
     if (method === "POST" && path === "/api/auth/signout") {
@@ -606,6 +609,11 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     }
 
     if (method === "POST" && path === "/api/security/passkeys/register/options") {
+      // A passkey after the first needs a fresh check on this device, as on the server.
+      const at = state.session.passkey_verified_at;
+      const fresh = at !== null && at !== undefined && Date.now() - Date.parse(at) < 300_000;
+      if (state.session.has_passkeys && (!fresh || state.stepUpStale))
+        return json({ detail: "step_up_required" }, 403);
       return json({ options: { challenge: "c1", rp: { id: "localhost" } } });
     }
     if (method === "POST" && path === "/api/security/passkeys/register/verify") {
@@ -1388,6 +1396,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     if (method === "POST" && path === "/api/groups/lookup") {
       const g = byCode(String(b.code ?? ""));
       if (!g) return json({ detail: "not_found" }, 404);
+      if (g.removed?.includes(ME)) return json({ detail: "removed" }, 403);
       const owner = g.members.find((m) => m.user_id === g.owner_id);
       return json({
         id: g.id,
@@ -1403,6 +1412,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     if (method === "POST" && path === "/api/groups/join") {
       const g = byCode(String(b.code ?? ""));
       if (!g) return json({ detail: "not_found" }, 404);
+      if (g.removed?.includes(ME)) return json({ detail: "removed" }, 403);
       if (!g.members.some((m) => m.user_id === ME)) {
         const joinMax = limits?.groups_join_max;
         if (typeof joinMax === "number" && myGroups().length >= joinMax)

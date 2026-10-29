@@ -17,6 +17,9 @@ import { isFailure, joinGroup, lookupGroup, setDisplayName } from "./useGroups.t
 
 const CODE = /^STK-[A-Z0-9]{4}$/;
 
+/** Invariant 45: the owner removed this person, so no code lets them back in. */
+export const REMOVED_MESSAGE = "The owner removed you from this challenge, so you can't rejoin it.";
+
 function normaliseCode(text: string): string {
   const raw = text
     .toUpperCase()
@@ -56,9 +59,11 @@ export function JoinGroup() {
         setLookupError(
           result.status === 404
             ? "No group with that code. Check it and try again."
-            : result.status === 429
-              ? "Too many tries. Wait a few minutes."
-              : failureText(result, "Couldn't look that up. Try again."),
+            : result.code === "removed"
+              ? REMOVED_MESSAGE
+              : result.status === 429
+                ? "Too many tries. Wait a few minutes."
+                : failureText(result, "Couldn't look that up. Try again."),
         );
       } else setPreview(result);
     });
@@ -101,9 +106,11 @@ export function JoinGroup() {
         setError(
           result.code === "plan_limit"
             ? "Your plan joins one challenge at a time. Leave the other first, or choose a bigger plan."
-            : result.status === 404
-              ? "That code no longer works."
-              : failureText(result, "Couldn't join. Try again."),
+            : result.code === "removed"
+              ? REMOVED_MESSAGE
+              : result.status === 404
+                ? "That code no longer works."
+                : failureText(result, "Couldn't join. Try again."),
         );
         return;
       }
