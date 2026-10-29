@@ -66,6 +66,8 @@ class Subscription(Base, StackdRow):
     # A subscription's first payment by US bank (October 24, 2026): Stripe marks it active while
     # the debit is still clearing, so the plan waits on this: "pending" until the checkout's
     # async_payment_succeeded ("paid"), "failed" if it doesn't go through. Null for cards.
+    # "refused" (October 29, 2026): a second plan paid beside a live one, ended at once and
+    # refunded in full; like "failed", it never started.
     first_payment: Mapped[str | None] = mapped_column(String(16))
 
 
@@ -119,6 +121,20 @@ class PurchaseConsent(Base, StackdRow):
     # refund still blocks the inbox after the account is deleted or purged.
     inbox_key: Mapped[str | None] = mapped_column(String(64))
     stripe_customer_id: Mapped[str | None] = mapped_column(String(64), index=True)
+
+
+class CheckoutPage(Base, StackdRow):
+    """A Stripe payment page opened for the person (October 29, 2026): kept only while it can
+    still be paid, so opening a new one first closes the others and two pages can never both
+    be paid for. No amounts; deleted by `purge-expired` a day after it closes."""
+
+    __tablename__ = "checkout_pages"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    session_id: Mapped[str] = mapped_column(String(120))
+    expires_at: Mapped[datetime]
 
 
 BLOCK_REASONS = ("dispute_lost", "fraud_warning")

@@ -20,12 +20,19 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session as DbSession
 
 from app.config import get_settings
-from app.models.billing import BillingEvent, PurchaseBlock, PurchaseConsent, Subscription
+from app.models.billing import (
+    BillingEvent,
+    CheckoutPage,
+    PurchaseBlock,
+    PurchaseConsent,
+    Subscription,
+)
 from app.models.user import User
 from app.rules_server.entitlements import (
     founding_taken,
     is_tester,
     load_plans,
+    purchase_conflict,
     store_entitlements,
 )
 from app.security.hashing import pseudonym
@@ -42,6 +49,7 @@ from app.services.email import (
     plan_link,
     plan_paused_message,
     plan_resumed_message,
+    second_plan_refunded_message,
 )
 from app.services.otp import canonical_email
 
@@ -161,6 +169,29 @@ def _get(path: str, params: dict[str, str] | None = None) -> dict[str, Any]:
     return response.json()
 
 
+def _get_or_none(path: str, params: dict[str, str] | None = None) -> dict[str, Any] | None:
+    """As `_get`, but a 404 (Stripe has no such object) is None rather than an error."""
+    if params:
+        path = f"{path}?{urlencode(params)}"
+    response = _request("GET", path)
+    if response.status_code == 404:
+        return None
+    if response.status_code >= 400:
+        raise BillingError("stripe_error")
+    return response.json()
+
+
+def set_collection_paused(subscription_id: str, paused: bool) -> None:
+    """Pause or resume collecting payment on one subscription (owner decision, October 29,
+    2026: while a payment on it is disputed). Paused, Stripe voids each invoice it would have
+    charged, so nothing is taken for a plan that isn't working. A subscription Stripe no
+    longer has (404) needs neither."""
+    form = {"pause_collection[behavior]": "void"} if paused else {"pause_collection": ""}
+    response = _request("POST", f"/subscriptions/{subscription_id}", form)
+    if response.status_code >= 400 and response.status_code != 404:
+        raise BillingError("stripe_error")
+
+
 def cancel_now(subscription_id: str, *, prorate: bool = False) -> None:
     """End a subscription at once (account deletion). With `prorate`, the unused part of the
     paid period goes onto the customer's credit balance, which `refund_credit` then pays back.
@@ -179,10 +210,14 @@ def cancel_now(subscription_id: str, *, prorate: bool = False) -> None:
 # first charge is today. consent_text repeats both values and says the same.
 TRIAL_END_MIN = timedelta(hours=49)
 ANCHOR_MIN = timedelta(minutes=31)
-CHECKOUT_MAX = timedelta(hours=24)  # Stripe's longest payment page
+CHECKOUT_MAX = timedelta(hours=24)  # Stripe's longest payment page (and its default)
 
-
-FOUNDING_CHECKOUT_MINUTES = timedelta(minutes=31)  # Stripe refuses under 30 from its clock
+# Every payment page closes after this (Stripe refuses under 30 minutes from its clock): a
+# Founding one so open pages can't outlast the places left (October 24, 2026), and every
+# subscription one (October 29, 2026) so a page left open in another tab can't be paid a day
+# later beside a plan bought since. Equal to ANCHOR_MIN, so a trial's anchored page always
+# closes before the anchor.
+CHECKOUT_MINUTES = ANCHOR_MIN
 
 CARD_NOTE = (
     "A credit or debit card issued by a US bank (Visa, Mastercard, Amex, Discover), or a US bank "
@@ -221,11 +256,11 @@ def checkout_session(
     # configuration rather than payment_method_types; without one, the Dashboard decides.
     if config := get_settings().stripe_payment_method_config:
         form["payment_method_configuration"] = config
+    # A short window (Stripe's minimum) for every page; the webhook checks again what a paid
+    # page may grant (the Founding places left, a plan bought since).
+    expires = datetime.now(UTC) + CHECKOUT_MINUTES
+    form["expires_at"] = str(int(expires.timestamp()))
     if plan == "founding":
-        # A short window (Stripe's minimum), so open pages can't outlast the places left; the
-        # webhook checks the count again (October 24, 2026).
-        expires = datetime.now(UTC) + FOUNDING_CHECKOUT_MINUTES
-        form["expires_at"] = str(int(expires.timestamp()))
         # So a fraud warning that lands before the checkout's own webhook still finds the person.
         form["payment_intent_data[metadata][user_id]"] = str(user.id)
     if plan != "founding":
@@ -238,9 +273,9 @@ def checkout_session(
         elif trial_ends_at is not None and left is not None and left >= ANCHOR_MIN:
             form["subscription_data[billing_cycle_anchor]"] = str(int(trial_ends_at.timestamp()))
             form["subscription_data[proration_behavior]"] = "none"
-            if left < CHECKOUT_MAX:
-                # The page closes by the trial end, so it is never paid after the anchor.
-                form["expires_at"] = str(int(trial_ends_at.timestamp()))
+            # The page closes by the trial end, so it is never paid after the anchor.
+            close = min(expires, trial_ends_at)
+            form["expires_at"] = str(int(close.timestamp()))
     if customer_id:
         form["customer"] = customer_id
     else:
@@ -250,6 +285,40 @@ def checkout_session(
             # member could never open receipts in the portal (found by the payments e2e).
             form["customer_creation"] = "always"
     return _post("/checkout/sessions", form)
+
+
+def expire_checkout(session_id: str) -> None:
+    """Close one payment page so it can no longer be paid. A page Stripe has already closed
+    (paid, expired, or unknown) answers 4xx, which is fine; no answer, or a 5xx, raises, so a
+    new page is never opened while an older one may still be paid."""
+    response = _request("POST", f"/checkout/sessions/{session_id}/expire")
+    if response.status_code >= 500:
+        raise BillingError("stripe_error")
+
+
+def close_open_pages(db: DbSession, user_id: uuid.UUID, *, now: datetime | None = None) -> int:
+    """Before a new payment page opens, close every other page this person may still pay
+    (October 29, 2026): two pages opened at once (two tabs, two devices) could otherwise both
+    be paid, each checked only against the plans that existed when it opened. Returns how
+    many were closed."""
+    now = now or datetime.now(UTC)
+    pages = db.scalars(
+        select(CheckoutPage).where(CheckoutPage.user_id == user_id, CheckoutPage.expires_at > now)
+    ).all()
+    for page in pages:
+        expire_checkout(page.session_id)
+        page.expires_at = now  # closed: never asked again
+    db.flush()
+    return len(pages)
+
+
+def remember_page(db: DbSession, user_id: uuid.UUID, session: dict[str, Any]) -> None:
+    """Keep the page just opened until it closes (`expires_at`, Stripe's or ours)."""
+    if not session.get("id"):
+        return
+    closes = _epoch(session.get("expires_at")) or datetime.now(UTC) + CHECKOUT_MAX
+    db.add(CheckoutPage(user_id=user_id, session_id=str(session["id"]), expires_at=closes))
+    db.flush()
 
 
 def portal_session(customer_id: str, origin: str) -> dict[str, Any]:
@@ -424,6 +493,10 @@ def deletion_refund(
     credit for the unused time is taken back to that day."""
     if sub.disputed_at is not None:
         return 0, None
+    if sub.first_payment in ("pending", REFUND_ALL):
+        # The first bank payment hadn't cleared, so the plan never started (owner decision,
+        # October 29, 2026): all of it comes back once it clears, no months, no fee.
+        return clearing_refund(sub), None
     when = as_of or now
     if sub.interval is None:
         start, end = sub.created_at, sub.ends_at
@@ -452,6 +525,26 @@ def deletion_refund(
     paid = int((first_item(live).get("price") or {}).get("unit_amount") or prices["yearly"])
     used = months_used(start, kept) * int(prices["monthly"])
     return max(0, min(unused, paid - used)), kept
+
+
+# A row whose first bank payment was still clearing when the account was deleted: its refund
+# is the whole payment, paid once it clears (owner decision, October 29, 2026).
+REFUND_ALL = "refund_all"
+
+
+def clearing_refund(sub: Subscription) -> int:
+    """The whole first payment of a plan that never started: Founding's price, or the plan's
+    price for its interval (as charged: the first item's price at Stripe when it answers)."""
+    plans = load_plans()
+    if sub.interval is None:
+        return int(plans["founding"]["one_time_cents"])
+    listed = int(plans["plans"][sub.plan]["price_cents"][sub.interval])
+    if not sub.external_id:
+        return listed
+    live = _get_or_none(f"/subscriptions/{sub.external_id}") or {}
+    items = (live.get("items") or {}).get("data") or []
+    amount = ((items[0].get("price") or {}).get("unit_amount")) if items else None
+    return int(amount) if amount else listed
 
 
 def refund_fee_cents(cents: int, method: str = "card") -> int:
@@ -487,9 +580,21 @@ def _newest_paid(charges: list[dict[str, Any]]) -> dict[str, Any] | None:
 
 
 def payment_method_of_customer(customer_id: str) -> str:
-    """ "card" or "bank": how the customer's newest payment was made."""
+    """ "card" or "bank": how the customer's newest payment was made (one still clearing
+    counts, so the fee promised is the one taken once it clears)."""
     charges = _get("/charges", {"customer": customer_id, "limit": "100"}).get("data") or []
-    return _method_of(_newest_paid(charges))
+    paid = _newest_paid(charges)
+    if paid is None:
+        clearing = [c for c in charges if c.get("status") == "pending"]
+        paid = max(clearing, key=lambda c: int(c.get("created") or 0)) if clearing else None
+    return _method_of(paid)
+
+
+def charges_clearing(customer_id: str) -> bool:
+    """True while a payment of this customer is still on its way (a US bank debit takes up to
+    4 business days, October 29, 2026): what it pays can't be refunded until it arrives."""
+    charges = _get("/charges", {"customer": customer_id, "limit": "100"}).get("data") or []
+    return any(c.get("status") == "pending" for c in charges)
 
 
 # Every refund we make carries this metadata tag (October 24, 2026). Before refunding we look
@@ -535,6 +640,46 @@ def refund_payment(payment_intent: str, cents: int, *, key: str, fee: bool = Tru
     if any((r.get("metadata") or {}).get(REFUND_TAG) == key for r in done):
         return
     _refund({"payment_intent": payment_intent}, cents, key)
+
+
+def _invoice_payments(invoice_id: str) -> list[dict[str, Any]]:
+    """The payments made on one invoice that have arrived (`paid`), from Stripe's invoice
+    payments (a charge no longer names its invoice)."""
+    data = _get("/invoice_payments", {"invoice": invoice_id, "limit": "10"}).get("data") or []
+    return [p for p in data if p.get("status") == "paid"]
+
+
+def refund_invoice(invoice_id: str, *, key: str) -> int:
+    """Refund in full, with no fee (our doing), every payment that arrived on one invoice, at
+    most once for `key` per payment. A payment still clearing is refunded when it arrives (the
+    caller asks again then). Returns cents refunded now."""
+    total = 0
+    for payment in _invoice_payments(invoice_id):
+        intent = str((payment.get("payment") or {}).get("payment_intent") or "")
+        cents = int(payment.get("amount_paid") or 0)
+        if not intent or cents <= 0:
+            continue
+        tag = f"{key}:{intent}"
+        done = _tagged_refunds({"payment_intent": intent})
+        if any((r.get("metadata") or {}).get(REFUND_TAG) == tag for r in done):
+            continue
+        _refund({"payment_intent": intent}, cents, tag)
+        total += cents
+    return total
+
+
+def first_invoice_of(subscription_id: str, hint: Any = None) -> str | None:
+    """The invoice a new subscription opened with: the one Stripe named (a checkout's
+    `invoice`, a subscription's `latest_invoice`), else the subscription's latest."""
+    if isinstance(hint, dict):
+        hint = hint.get("id")
+    if isinstance(hint, str) and hint:
+        return hint
+    sub = _get_or_none(f"/subscriptions/{subscription_id}")
+    latest = (sub or {}).get("latest_invoice")
+    if isinstance(latest, dict):
+        latest = latest.get("id")
+    return str(latest) if latest else None
 
 
 def refund_charges_since(customer_id: str, since: datetime, *, key: str) -> int:
@@ -748,6 +893,15 @@ def _checkout_completed(
         person = db.get(User, user_id)
         if person is None or person.deleted_at is not None:
             return _founding_after_deletion(db, person, external_id, held, customer, paid, now)
+        if held is not None and held.first_payment == "refused":
+            if paid:  # refused as a second plan; a bank payment that cleared since comes back
+                _refund_second(external_id, "founding", None)
+            return "second_plan"
+        if purchase_conflict(db, user_id, "founding", exclude=external_id):
+            # Two pages were open and both were paid (October 29, 2026): this one is refunded.
+            return _refuse_second_plan(
+                db, person, external_id, "founding", None, customer, held, None, paid, now
+            )
         # Every grant passes the cap: a new purchase, and one whose place was given back (a
         # failed bank payment, `expired`). Only a place still held (`incomplete`) skips it.
         holds_place = held is not None and held.status != "expired"
@@ -801,6 +955,21 @@ def _checkout_completed(
         return "ignored"
     external_id = str(obj["subscription"])
     row = db.scalar(select(Subscription).where(Subscription.external_id == external_id))
+    if row is not None and row.first_payment == "refused":
+        if paid:  # refused as a second plan; a bank payment that cleared since comes back
+            _refund_second(external_id, plan, obj.get("invoice"))
+        return "second_plan"
+    person = db.get(User, user_id)
+    if person is None or person.deleted_at is not None:
+        return _subscription_after_deletion(
+            db, person, external_id, plan, interval, customer, row, obj.get("invoice"), paid, now
+        )
+    if purchase_conflict(db, user_id, plan, exclude=external_id):
+        # Two pages were open and both were paid (October 29, 2026): the plan bought first
+        # stays, this one ends now and its payment comes back in full.
+        return _refuse_second_plan(
+            db, person, external_id, plan, interval, customer, row, obj.get("invoice"), paid, now
+        )
     if not paid:
         # A US bank payment still clearing (October 24, 2026). Stripe calls the subscription
         # active meanwhile, so the plan waits on first_payment until async_payment_succeeded.
@@ -862,6 +1031,110 @@ def _checkout_completed(
     return "subscribed"
 
 
+def _refund_second(external_id: str, plan: str, invoice: Any) -> None:
+    """Refund a refused second plan's payment in full, no fee (our doing), at most once."""
+    key = f"second_plan:{external_id}"
+    if plan == "founding":
+        intent = _get(f"/payment_intents/{external_id}")
+        cents = int(intent.get("amount_received") or 0) or int(
+            load_plans()["founding"]["one_time_cents"]
+        )
+        refund_payment(external_id, cents, key=key, fee=False)
+        return
+    if first := first_invoice_of(external_id, invoice):
+        refund_invoice(first, key=key)
+
+
+def _refuse_second_plan(
+    db: DbSession,
+    person: User,
+    external_id: str,
+    plan: str,
+    interval: str | None,
+    customer: Any,
+    row: Subscription | None,
+    invoice: Any,
+    paid: bool,
+    now: datetime,
+) -> str:
+    """A purchase paid while another plan was already live (two pages open at once, October
+    29, 2026; invariant 41): the earlier plan stays; this one is ended at Stripe now, its
+    payment refunded in full (a bank payment once it clears), and its row kept as `refused`,
+    which never started. The person is told once, in plain words."""
+    if plan != "founding":
+        cancel_now(external_id)
+    told = row is not None and row.first_payment == "refused"
+    row = _upsert(
+        db,
+        external_id=external_id,
+        user_id=person.id,
+        plan=plan,
+        status="expired" if plan == "founding" else "canceled",
+        interval=interval,
+        customer_id=customer,
+        renews_at=None,
+        ends_at=now,
+        cancel_at_period_end=False,
+    )
+    row.stripe_status = "canceled"  # final: no later event reopens it
+    row.first_payment = "refused"
+    row.refund_due_cents = 0
+    db.flush()
+    if paid:
+        _refund_second(external_id, plan, invoice)
+    store_entitlements(db, person.id)
+    if not told:
+        get_sender().send(second_plan_refunded_message(person.email, plan_link()))
+    return "second_plan"
+
+
+def _subscription_after_deletion(
+    db: DbSession,
+    person: User | None,
+    external_id: str,
+    plan: str,
+    interval: str | None,
+    customer: Any,
+    row: Subscription | None,
+    invoice: Any,
+    paid: bool,
+    now: datetime,
+) -> str:
+    """A subscription payment that lands after the account was deleted (a page paid after
+    the deletion, or a bank payment that was clearing then; October 29, 2026, invariant 43):
+    nothing is granted, the plan ends at Stripe, and what the deletion promised is refunded
+    now through the deletion's own settling (`deletion.cancel_billing`, as of the deletion
+    day: a payment made after it in full, the months after the kept one for a payment made
+    before it). A Stripe error leaves it to the hourly settle."""
+    if person is None:  # purged: no account to settle for, so it all goes back
+        cancel_now(external_id)
+        if paid and (first := first_invoice_of(external_id, invoice)):
+            refund_invoice(first, key=f"after_purge:{external_id}")
+        return "account_deleted"
+    if row is None:
+        row = _upsert(
+            db,
+            external_id=external_id,
+            user_id=person.id,
+            plan=plan,
+            status="active",
+            interval=interval,
+            customer_id=customer,
+            renews_at=None,
+            ends_at=None,
+            cancel_at_period_end=False,
+        )
+        row.first_payment = None if paid else "pending"
+    # A row still "pending" stays so: the plan never started, so the deletion's settling
+    # refunds the whole payment now that it has arrived (owner decision, October 29, 2026).
+    row.customer_id = row.customer_id or customer
+    db.flush()
+    from app.services import deletion  # noqa: PLC0415 - deletion imports this module
+
+    deletion.cancel_billing(db, person.id, now=now, as_of=person.deleted_at)
+    return "account_deleted"
+
+
 def _bank_payment_failed(db: DbSession, obj: dict[str, Any]) -> str:
     """A delayed (bank) payment that did not go through: no plan, a Founding place given back,
     and the person told in plain words."""
@@ -918,6 +1191,9 @@ def _bank_payment_failed(db: DbSession, obj: dict[str, Any]) -> str:
             row.first_payment = "failed"
             row.status, row.stripe_status = "canceled", "canceled"
             row.ends_at = row.ends_at or datetime.now(UTC)
+            # Nothing arrived, so a refund a deletion was waiting to pay from it is due no more
+            # (the settle would otherwise wait on it for ever; October 29, 2026).
+            row.refund_due_cents = 0
         db.flush()
     user = db.get(User, user_id)
     if user is not None and user.deleted_at is None:
@@ -926,24 +1202,75 @@ def _bank_payment_failed(db: DbSession, obj: dict[str, Any]) -> str:
     return "payment_failed"
 
 
-def _rows_for_charge(db: DbSession, obj: dict[str, Any]) -> list[Subscription]:
-    """The plans a disputed charge paid for: Founding by its payment intent, a subscription by
-    the charge's customer (Stripe's dispute names the charge, not the subscription)."""
+def subscription_of_charge(charge: dict[str, Any]) -> str | None:
+    """The subscription one charge paid for: through its invoice (the charge's own `invoice`
+    on older API versions, else the invoice payment of its payment intent) to the invoice's
+    subscription. None for a payment that isn't a subscription's (Founding) or Stripe can't
+    say."""
+    invoice_id = charge.get("invoice")
+    if isinstance(invoice_id, dict):
+        invoice_id = invoice_id.get("id")
+    intent = charge.get("payment_intent")
+    if isinstance(intent, dict):
+        intent = intent.get("id")
+    if not invoice_id and intent:
+        found = _get_or_none(
+            "/invoice_payments",
+            {"payment[type]": "payment_intent", "payment[payment_intent]": str(intent)},
+        )
+        data = (found or {}).get("data") or []
+        invoice_id = data[0].get("invoice") if data else None
+    if not invoice_id:
+        return None
+    invoice = _get_or_none(f"/invoices/{invoice_id}") or {}
+    sub = invoice.get("subscription") or (
+        ((invoice.get("parent") or {}).get("subscription_details") or {}).get("subscription")
+    )
+    if isinstance(sub, dict):
+        sub = sub.get("id")
+    return str(sub) if sub else None
+
+
+def _rows_for_charge(db: DbSession, obj: dict[str, Any]) -> tuple[list[Subscription], str | None]:
+    """The plan a disputed (or flagged) charge paid for, and the subscription Stripe says it
+    paid for (October 29, 2026): Founding by its payment intent, a subscription through the
+    charge's invoice, so another plan of the same customer is never touched. Only when Stripe
+    can't name the subscription are the customer's Stripe plans used."""
     intent = str(obj.get("payment_intent") or "")
     rows = list(db.scalars(select(Subscription).where(Subscription.external_id == intent)))
     if rows or not obj.get("charge"):
-        return rows
+        return rows, None
     charge = _get(f"/charges/{obj['charge']}")
+    if sub_id := subscription_of_charge(charge):
+        rows = list(db.scalars(select(Subscription).where(Subscription.external_id == sub_id)))
+        return rows, sub_id
     customer = charge.get("customer")
     if not customer:
-        return []
-    return list(
+        return [], None
+    rows = list(
         db.scalars(
             select(Subscription).where(
                 Subscription.customer_id == str(customer), Subscription.source == "stripe"
             )
         )
     )
+    return rows, None
+
+
+def _row_from_stripe(db: DbSession, sub_id: str, now: datetime) -> Subscription | None:
+    """A dispute on a subscription whose own events haven't arrived yet (Stripe's test cards
+    dispute within seconds, October 29, 2026): the row is made from the subscription as Stripe
+    holds it, so the pause applies and the late checkout completion finds it paused."""
+    live = _get_or_none(f"/subscriptions/{sub_id}")
+    if not live or live.get("id") != sub_id:
+        return None
+    owner = _user_id((live.get("metadata") or {}).get("user_id"))
+    if owner is None or db.get(User, owner) is None:
+        return None
+    created = _epoch(live.get("created")) or now
+    kind = "customer.subscription.updated"
+    _subscription_event(db, kind, live, created=created, now=now)
+    return db.scalar(select(Subscription).where(Subscription.external_id == sub_id))
 
 
 def _charge_customer(obj: dict[str, Any]) -> str | None:
@@ -959,7 +1286,10 @@ def _dispute(db: DbSession, kind: str, obj: dict[str, Any], *, now: datetime) ->
     it paid for ends today, a subscription at Stripe so nothing is charged again, and the
     account is `ended`: open, never closed for it (owner, October 25, 2026). Nothing is ever
     deleted because of a dispute."""
-    rows = _rows_for_charge(db, obj)
+    rows, sub_id = _rows_for_charge(db, obj)
+    if not rows and sub_id and kind == "charge.dispute.created":
+        made = _row_from_stripe(db, sub_id, now)
+        rows = [made] if made is not None else []
     if not rows:
         if kind == "charge.dispute.closed" and str(obj.get("status") or "") == "lost":
             # The account is gone (purged): no plan to end, but the inbox it bought with and
@@ -982,12 +1312,20 @@ def _dispute(db: DbSession, kind: str, obj: dict[str, Any], *, now: datetime) ->
     if kind == "charge.dispute.created":
         for r in rows:
             r.disputed_at = r.disputed_at or now
+            # Nothing is charged for a plan that isn't working (owner decision, October 29,
+            # 2026): Stripe voids its renewals until the dispute closes.
+            if _collects(r):
+                assert r.external_id is not None
+                set_collection_paused(r.external_id, True)
         outcome, message = "disputed", plan_paused_message
     else:
         status = str(obj.get("status") or "")
         if status in ("won", "warning_closed"):
             for r in rows:
                 r.disputed_at = None
+                if _collects(r):
+                    assert r.external_id is not None
+                    set_collection_paused(r.external_id, False)
             outcome, message = "dispute_won", plan_resumed_message
         else:  # lost: the money went back to the person; every plan it paid for ends today
             # (a renewing one at Stripe, Founding here). The account is `ended`, not paused
@@ -1012,6 +1350,17 @@ def _dispute(db: DbSession, kind: str, obj: dict[str, Any], *, now: datetime) ->
     if kind == "charge.dispute.created":
         _tell_admins_of_dispute(obj, matched=True)
     return outcome
+
+
+def _collects(row: Subscription) -> bool:
+    """A Stripe subscription that still bills (not Founding, not ended)."""
+    return bool(
+        row.source == "stripe"
+        and row.interval
+        and row.external_id
+        and row.status in ("active", "past_due")
+        and row.stripe_status != "canceled"
+    )
 
 
 def _tell_admins_of_dispute(obj: dict[str, Any], *, matched: bool) -> None:
@@ -1046,7 +1395,7 @@ def _fraud_warning(db: DbSession, obj: dict[str, Any], *, now: datetime) -> str:
     if not charge_id:
         return "ignored"
     charge = _get(f"/charges/{charge_id}")
-    rows = _rows_for_charge(db, obj)
+    rows, _ = _rows_for_charge(db, obj)
     # The warning can arrive before the checkout's own webhooks (seen in test mode): then the
     # plan isn't here yet, so the person and their subscriptions are found at Stripe, the
     # subscriptions are ended there (their deletion webhook follows), and the block below
@@ -1383,6 +1732,20 @@ def _subscription_event(
     # Stripe calls a subscription active while its first bank debit is still clearing; when its
     # creation arrives before the checkout says so, the first invoice tells (October 25, 2026).
     clearing = row is None and status == "active" and _first_invoice_open(obj)
+    if row is None and status in ("active", "past_due"):
+        # A new subscription announced before its checkout (October 29, 2026): the same checks
+        # as the checkout's completion, so neither a deleted account nor a second plan beside
+        # a live one ever starts, whichever event comes first.
+        person = db.get(User, user_id)
+        customer, invoice = obj.get("customer"), obj.get("latest_invoice")
+        if person is None or person.deleted_at is not None:
+            return _subscription_after_deletion(
+                db, person, external_id, plan, interval, customer, None, invoice, not clearing, now
+            )
+        if purchase_conflict(db, user_id, plan, exclude=external_id):
+            return _refuse_second_plan(
+                db, person, external_id, plan, interval, customer, None, invoice, True, now
+            )
     row = _upsert(
         db,
         external_id=external_id,

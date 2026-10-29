@@ -52,9 +52,14 @@ def limits_for(plan: str) -> dict[str, Any]:
 
 
 def active_subscription(
-    db: DbSession, user_id: uuid.UUID, *, now: datetime | None = None
+    db: DbSession,
+    user_id: uuid.UUID,
+    *,
+    now: datetime | None = None,
+    exclude: str | None = None,
 ) -> Subscription | None:
-    """The live subscription, newest first; a cancelled one still counts until it ends."""
+    """The live subscription, newest first; a cancelled one still counts until it ends.
+    `exclude`: a purchase (its Stripe id) to leave out, to ask what else is live beside it."""
     now = now or datetime.now(UTC)
     rows = db.scalars(
         select(Subscription)
@@ -62,9 +67,11 @@ def active_subscription(
         .order_by(Subscription.created_at.desc())
     ).all()
     for row in rows:
+        if exclude is not None and row.external_id == exclude:
+            continue
         if row.disputed_at is not None:
             continue  # paused while a payment on it is disputed
-        if row.first_payment in ("pending", "failed"):
+        if row.first_payment in ("pending", "failed", "refund_all"):
             continue  # a first bank payment that hasn't cleared (or never did)
         if row.status in ("active", "past_due"):
             if row.plan == "founding" and row.ends_at is not None and row.ends_at <= now:
@@ -76,12 +83,21 @@ def active_subscription(
 
 
 def never_started(row: Subscription) -> bool:
-    """A purchase whose money never arrived: a first bank debit that failed, or a Founding
-    place given back (`expired`). It leaves the account where it was (October 28, 2026)."""
-    return row.first_payment == "failed" or (row.plan == "founding" and row.status == "expired")
+    """A purchase whose money never arrived (a first bank debit that failed, or a Founding
+    place given back, `expired`), or that was refunded in full as a second plan (`refused`).
+    It leaves the account where it was (October 28, 2026)."""
+    return row.first_payment in ("failed", "refused") or (
+        row.plan == "founding" and row.status == "expired"
+    )
 
 
-def payment_pending(db: DbSession, user_id: uuid.UUID, *, now: datetime | None = None) -> bool:
+def payment_pending(
+    db: DbSession,
+    user_id: uuid.UUID,
+    *,
+    now: datetime | None = None,
+    exclude: str | None = None,
+) -> bool:
     """A web purchase whose bank payment is still clearing: a subscription waiting on its
     first debit, or a Founding place held (`incomplete`). The plan waits for it, so does any
     other purchase (one helper for the Plan screen's "on its way" and checkout's 409). Two
@@ -94,10 +110,47 @@ def payment_pending(db: DbSession, user_id: uuid.UUID, *, now: datetime | None =
                 Subscription.source == "stripe",
                 or_(Subscription.status == "incomplete", Subscription.first_payment == "pending"),
                 Subscription.created_at >= since,
+                *([Subscription.external_id.is_distinct_from(exclude)] if exclude else []),
             )
         )
         is not None
     )
+
+
+def renewing(sub: Subscription | None) -> bool:
+    """A live Stripe subscription that bills on a schedule (not Founding, not a store plan)."""
+    return bool(
+        sub
+        and sub.source == "stripe"
+        and sub.interval
+        and sub.external_id
+        and sub.status in ("active", "past_due")
+    )
+
+
+def purchase_conflict(
+    db: DbSession, user_id: uuid.UUID, plan: str, *, exclude: str | None = None
+) -> str | None:
+    """Why buying `plan` now would make a second plan beside a live one (the 409 code), or
+    None. Never two plans at once (October 17, 2026): checkout asks before a payment page
+    opens, and the webhook asks again when one is paid (`exclude` = that purchase), since two
+    pages opened at once could both be paid (October 29, 2026). Founding may follow a plan
+    set not to renew; everything else waits until nothing else is live."""
+    sub = active_subscription(db, user_id, exclude=exclude)
+    if sub is not None and sub.plan == "founding":
+        return "already_founding"
+    if payment_pending(db, user_id, exclude=exclude):
+        return "payment_pending"
+    if sub is not None and sub.source in ("apple", "google"):
+        if plan != "founding" or not sub.cancel_at_period_end:
+            return "manage_in_store"
+    if renewing(sub):
+        assert sub is not None
+        if plan != "founding":
+            return "already_subscribed"
+        if not sub.cancel_at_period_end:
+            return "cancel_first"
+    return None
 
 
 TRIAL_PLANS = ("private", "connected")

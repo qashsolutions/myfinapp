@@ -8,7 +8,7 @@
   (403 `removed` on lookup and join, whatever the code); someone who left may come back.
 
 Revision ID: 0038
-Revises: 0036 (0037 is another change of the same day; whichever merges second points this at it)
+Revises: 0037
 Create Date: 2026-10-29
 
 Written by hand from app/models/session.py and app/models/group_member.py. Nullable columns
@@ -21,7 +21,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "0038"
-down_revision = "0036"
+down_revision = "0037"
 branch_labels = None
 depends_on = None
 
