@@ -70,6 +70,30 @@
   flex: 1;
 }
 
+/* Keep your data safe (October 29, 2026): a browser that may erase this device's data. */
+.storage-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1.5px solid color-mix(in srgb, var(--c-a1) 35%, var(--c-line));
+}
+.storage-card__title {
+  margin: 0;
+  font-size: var(--fs-title);
+  font-weight: 700;
+  color: var(--c-ink);
+}
+.storage-card__sub {
+  margin: 0;
+  font-size: var(--fs-small);
+  color: var(--c-sub);
+}
+.storage-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* Home visuals (October 19, 2026): headline first, bars beside numbers, token colours only. */
 .home__hero-word {
   font-size: var(--fs-hero);

@@ -455,6 +455,31 @@ written against both.
     origin); the household key is never put in a query string or a request. Found when a
     challenge link landed on Home after sign-up.
     `offline-and-return.test.tsx` invariant 37 · `e2e/offline.spec.ts`
+57. **A closed account is never offered a sign-in that can't work** (October 29, 2026). The
+    server reports a closure once; the device's own record (`qash.kept_account`) carries it
+    after that. The closure forgets the remembered account (`stackd.last_account`); while the
+    record exists, every signed-out open of the app leads to `/kept` (download, erase, start
+    again), Welcome shows "Your account closed on <date>. Your data is still on this device."
+    in place of the passkey buttons, and no passkey message says "no passkey" for it. A second
+    report of the same closure keeps the first date. Found when the second open after a
+    closure offered "Continue with Touch ID" and then said "No Qash passkey on this device".
+    `kept-and-storage.test.tsx` invariant 57 · `e2e/kept.spec.ts`
+58. **A browser that may erase this device's data says so before it does** (October 29,
+    2026). In an iPhone browser tab (not the Home Screen app, not a native shell) Home shows
+    "Keep your data safe" from day 1 until the person adds the app to the Home Screen, turns on
+    backup or downloads a copy (good for 30 days); elsewhere the export reminder
+    (`shouldNudgeExport`) shows where the browser hasn't promised to keep the data and there
+    is no backup. "Not now" quiets it for 3 days, but a gap of 5 days since the last open
+    always shows it (`data/persist.ts` `storageRisk`). Found when an iPhone tab user could
+    lose everything after 7 days unused with nothing said.
+    `kept-and-storage.test.tsx` invariant 58
+59. **A device transaction awaits only the database** (October 29, 2026). Inside
+    `db.transaction(...)` nothing awaits the engine, the network, crypto or a timer: the
+    worker answers in a later task, IndexedDB commits the transaction meanwhile, and the next
+    write fails with "Transaction has already completed". Work out what needs the engine first,
+    then write in one transaction. Found when "rename every entry like this" asked the engine
+    for merchant keys inside its transaction.
+    `transaction-scope.test.ts` (the engine answering a task later, as the worker does)
 
 ## Working to these rules
 

@@ -5,7 +5,9 @@ import { useState } from "react";
 import { api, type ExportOut, failureOf } from "../../data/api.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { collectExport, downloadBytes, zipStore } from "../../data/export.ts";
+import { recordExport } from "../../data/persist.ts";
 import { todayIso } from "../../lib/format.ts";
+import { useSession } from "../auth/useSession.tsx";
 import { useStepUp } from "../security/StepUpPrompt.tsx";
 
 /** The last ZIP built, for tests and the confirmation line (no download in jsdom). */
@@ -15,8 +17,16 @@ export const exportState: { lastZip: Uint8Array | null; lastName: string | null 
 };
 
 /** "Download all my data": step-up, one server request, then the ZIP is built and saved here. */
-export function ExportData({ label = "Download all my data" }: { label?: string }) {
+export function ExportData({
+  label = "Download all my data",
+  onSaved,
+}: {
+  label?: string;
+  /** After the file was handed to the browser (the "keep it safe" card hides then). */
+  onSaved?: () => void;
+}) {
   const { db } = useDb();
+  const userId = useSession().info?.user?.id ?? null;
   const stepUp = useStepUp();
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -41,6 +51,8 @@ export function ExportData({ label = "Download all my data" }: { label?: string 
       exportState.lastZip = zip;
       exportState.lastName = name;
       const saved = downloadBytes(zip, name);
+      if (saved && userId) recordExport(userId);
+      if (saved) onSaved?.();
       setStatus(
         saved
           ? `Saved ${name} (${files.length} files). Keep it somewhere safe; it holds your money data. Your backup and household keys aren't in it: they stay on this device, and nothing changes for you.`
