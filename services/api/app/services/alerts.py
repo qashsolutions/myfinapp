@@ -159,8 +159,14 @@ def enqueue(
     dedupe_key: str,
     *,
     from_device: bool,
+    now: datetime | None = None,
 ) -> AlertSchedule | None:
-    """One pending alert per (user, key); a key already sent or scheduled is left alone."""
+    """One pending alert per (user, key); a key already sent or scheduled is left alone.
+
+    A key that was skipped and never sent (the type was off, or alerts were paused, when it
+    came due) is scheduled again when it arrives with a due time still ahead (invariant 34,
+    October 29, 2026): turning the type back on brings its alerts back. A sent key never
+    repeats: its log row answers first."""
     if db.scalar(
         select(NotificationLog.id).where(
             NotificationLog.user_id == user_id, NotificationLog.dedupe_key == dedupe_key
@@ -173,6 +179,13 @@ def enqueue(
         )
     )
     if existing is not None:
+        if existing.status == "skipped" and due_at > (now or datetime.now(UTC)):
+            existing.status = "pending"
+            existing.due_at = due_at
+            existing.type = kind
+            existing.generic_label = label_for(kind, dedupe_key)
+            existing.from_device = from_device
+            db.flush()
         return existing
     row = AlertSchedule(
         user_id=user_id,

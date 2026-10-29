@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     # Native billing (Phase 2, chunk 2.4). The Apple root pin ships with the API
     # (app/services/apple_root_ca_g3.pem); the setting overrides it (tests use their own).
     apple_root_ca: str | None = None  # PEM; None = the bundled Apple Root CA - G3
+    # Off (owner decision, October 13, 2026: subscriptions are sold on the web through Stripe
+    # only). While off, the Apple and Google webhooks answer 404 and /native/sync 503, so no
+    # store-signed payload can grant a plan (October 29, 2026).
+    store_billing: bool = False
     play_service_account: SecretStr | None = None  # Play Developer API service-account JSON
     play_package: str = "com.stackd.app"  # the Android application id (apps/mobile)
     # Stripe (hosted Checkout + Customer Portal + webhooks). Billing is off without the key.

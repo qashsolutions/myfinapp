@@ -7,6 +7,7 @@
  */
 
 import type { EngineRequest, EngineResponse } from "@stackd/rules/engine";
+import { compareText } from "@stackd/rules/text";
 import { answer } from "./answer.ts";
 
 export class EngineError extends Error {
@@ -209,6 +210,18 @@ export async function addMonths(date: string, months: number): Promise<string> {
     months,
   });
   return result;
+}
+
+/**
+ * The day a month view counts up to (invariant 38): today in this month, the last day of a past
+ * month, the 1st of a month still to come. Never the 1st of a month that has begun, which would
+ * leave out every entry after it.
+ */
+export async function monthViewAsOf(anyDay: string, today: string): Promise<string> {
+  const b = await monthBounds(anyDay);
+  if (compareText(b.end, today) < 0) return b.end;
+  if (compareText(b.start, today) > 0) return b.start;
+  return today;
 }
 
 // cashflow (chunk 1.3c)

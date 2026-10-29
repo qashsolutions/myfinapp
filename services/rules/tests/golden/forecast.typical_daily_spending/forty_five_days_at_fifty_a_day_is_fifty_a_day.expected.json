@@ -1,0 +1,5 @@
+{
+  "cents_per_day": 5000,
+  "basis": "history",
+  "days_of_history": 45
+}

@@ -68,8 +68,17 @@ def _seconds_until(when: datetime, now: datetime) -> int:
 
 
 def _latest(db: DbSession, email: str) -> OtpCode | None:
+    """The address's newest code, locked until the caller commits (invariant 32): guesses sent
+    at once are judged one after another, each seeing the attempts the one before counted, so
+    the lockout comes after the fifth wrong code however many arrive together, and a code is
+    consumed once. `populate_existing` reads the row as the lock found it."""
     stmt = (
-        select(OtpCode).where(OtpCode.email == email).order_by(OtpCode.created_at.desc()).limit(1)
+        select(OtpCode)
+        .where(OtpCode.email == email)
+        .order_by(OtpCode.created_at.desc())
+        .limit(1)
+        .with_for_update()
+        .execution_options(populate_existing=True)
     )
     return db.scalars(stmt).first()
 

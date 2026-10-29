@@ -50,6 +50,14 @@ def avalanche_order(debts: object) -> dict:
 MAX_MONTHS = 600  # fifty years: past this the plan is not a plan
 
 
+def _accrue(balance: int, apr_bps: int) -> int | None:
+    """A month's interest, or None when the balance with it would pass 2^53 - 1 cents: a balance
+    growing faster than it is paid is stalled before any number leaves what the device can
+    count exactly (invariant 10)."""
+    accrued = money.round_div(balance * apr_bps, 120000)
+    return None if balance + accrued > money.MAX_SAFE else accrued
+
+
 def _month_label(as_of: str, months_ahead: int) -> str:
     first = parse_date(as_of).replace(day=1)
     return add_months(first, months_ahead).isoformat()[:7]  # strftime skips the zero pad on glibc
@@ -90,34 +98,40 @@ def payoff_plan(debts: object, extra_cents: object, as_of: str, order: object = 
     paid_month: dict[str, int] = {d["id"]: 0 for d in order if d["balance_cents"] == 0}
     series: list[int] = []
     month = 0
+
+    def stalled() -> dict:
+        return {
+            "stalled": True,
+            "months": None,
+            "debt_free_month": None,
+            "monthly_budget_cents": budget,
+            "total_interest_cents": None,
+            "total_paid_cents": None,
+            "series_cents": [],
+            "order": [
+                {
+                    "id": d["id"],
+                    "label": d["label"],
+                    "rank": d["rank"],
+                    "payoff_month": None,
+                    "months": None,
+                    "interest_cents": None,
+                }
+                for d in order
+            ],
+        }
+
     while len(paid_month) < len(order):
         month += 1
         if month > MAX_MONTHS:
-            return {
-                "stalled": True,
-                "months": None,
-                "debt_free_month": None,
-                "monthly_budget_cents": budget,
-                "total_interest_cents": None,
-                "total_paid_cents": None,
-                "series_cents": [],
-                "order": [
-                    {
-                        "id": d["id"],
-                        "label": d["label"],
-                        "rank": d["rank"],
-                        "payoff_month": None,
-                        "months": None,
-                        "interest_cents": None,
-                    }
-                    for d in order
-                ],
-            }
+            return stalled()
         remaining = budget
         for d in order:
             if d["id"] in paid_month:
                 continue
-            accrued = money.round_div(balances[d["id"]] * d["apr_bps"], 120000)
+            accrued = _accrue(balances[d["id"]], d["apr_bps"])
+            if accrued is None:
+                return stalled()
             interest[d["id"]] += accrued
             balances[d["id"]] += accrued
             payment = min(d["min_payment_cents"], balances[d["id"]], remaining)
@@ -132,7 +146,10 @@ def payoff_plan(debts: object, extra_cents: object, as_of: str, order: object = 
         for d in order:
             if d["id"] not in paid_month and balances[d["id"]] == 0:
                 paid_month[d["id"]] = month
-        series.append(sum(balances.values()))
+        owed = sum(balances.values())
+        if owed > money.MAX_SAFE:
+            return stalled()
+        series.append(owed)
     total_interest = sum(interest.values())
     return {
         "stalled": False,
@@ -191,7 +208,10 @@ def consolidation(debts: object, offer: object, payment_cents: object, as_of: st
             stalled = True
             break
         rate = promo_apr if month <= promo_months else apr
-        accrued = money.round_div(balance * rate, 120000)
+        accrued = _accrue(balance, rate)
+        if accrued is None:
+            stalled = True
+            break
         interest += accrued
         balance += accrued
         balance -= min(payment, balance)

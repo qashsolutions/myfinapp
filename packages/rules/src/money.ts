@@ -84,6 +84,15 @@ export function parseAmount(text: unknown): number {
  * numerator may be an exact BigInt product (`mul`); the answer must safeNumber in MAX_SAFE.
  */
 export function roundDiv(numerator: unknown, denominator: unknown): number {
+  return safeNumber(roundDivExact(numerator, denominator));
+}
+
+/**
+ * The same rounding as `roundDiv`, answered as a BigInt for a caller that must compare the result
+ * with the limit itself (Python's big integers do this for free), such as a balance stalled
+ * before it passes MAX_SAFE (invariant 10).
+ */
+export function roundDivExact(numerator: unknown, denominator: unknown): bigint {
   const n = typeof numerator === "bigint" ? numerator : BigInt(assertInt(numerator));
   const d0 = BigInt(assertInt(denominator));
   if (d0 === 0n) throw new RuleError("division_by_zero");
@@ -97,7 +106,7 @@ export function roundDiv(numerator: unknown, denominator: unknown): number {
   }
   const twice = r * 2n;
   if (twice > d || (twice === d && q % 2n !== 0n)) q += 1n;
-  return safeNumber(q);
+  return q;
 }
 
 /** bps/10000 of cents, half-even. */

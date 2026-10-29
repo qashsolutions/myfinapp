@@ -20,7 +20,7 @@ from app.config import get_settings
 from app.models.notification import AlertSchedule, NotificationLog, NotificationPref
 from app.models.user import User
 from app.rules_server import notify as notify_rules
-from app.services import email
+from app.services import email, ops_alerts
 from app.services.alerts import enqueue, ensure_settings
 
 
@@ -51,23 +51,33 @@ def enqueue_due(db: DbSession, *, now: datetime | None = None) -> int:
     ).all()
     count = 0
     for pref in prefs:
-        settings = ensure_settings(db, pref.user_id)
-        now_local = notify_rules.to_local(now, settings.timezone)
-        weekday = int((pref.days or "0").split(",")[0])
-        due_local = next_occurrence(now_local, weekday, pref.time_of_day or "09:00")
-        key = f"recap:{due_local[:10]}"
-        already = db.scalar(
-            select(AlertSchedule.id).where(
-                AlertSchedule.user_id == pref.user_id, AlertSchedule.dedupe_key == key
-            )
-        )
-        if already is not None:
-            continue
-        due_at = notify_rules.from_local(due_local, settings.timezone)
-        if enqueue(db, pref.user_id, "weekly_recap", due_at, key, from_device=False) is not None:
-            count += 1
+        # One person at a time (invariant 33): a bad preference is reported and skipped, and
+        # never stops the dispatcher that runs after this from sending anyone's alerts.
+        try:
+            with db.begin_nested():
+                count += _enqueue_one(db, pref, now)
+        except Exception as exc:  # noqa: BLE001 - reported, and the run goes on
+            ops_alerts.report("recap_enqueue_failed", "weekly_recap.enqueue_due", exc)
     db.commit()
     return count
+
+
+def _enqueue_one(db: DbSession, pref: NotificationPref, now: datetime) -> int:
+    settings = ensure_settings(db, pref.user_id)
+    now_local = notify_rules.to_local(now, settings.timezone)
+    weekday = int((pref.days or "0").split(",")[0])
+    due_local = next_occurrence(now_local, weekday, pref.time_of_day or "09:00")
+    key = f"recap:{due_local[:10]}"
+    already = db.scalar(
+        select(AlertSchedule.id).where(
+            AlertSchedule.user_id == pref.user_id, AlertSchedule.dedupe_key == key
+        )
+    )
+    if already is not None:
+        return 0
+    due_at = notify_rules.from_local(due_local, settings.timezone)
+    row = enqueue(db, pref.user_id, "weekly_recap", due_at, key, from_device=False)
+    return int(row is not None)
 
 
 def recap_link() -> str:

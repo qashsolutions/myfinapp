@@ -1,0 +1,19 @@
+{
+  "stalled": true,
+  "months": null,
+  "debt_free_month": null,
+  "monthly_budget_cents": 0,
+  "total_interest_cents": null,
+  "total_paid_cents": null,
+  "series_cents": [],
+  "order": [
+    {
+      "id": "c",
+      "label": "Card",
+      "rank": 1,
+      "payoff_month": null,
+      "months": null,
+      "interest_cents": null
+    }
+  ]
+}

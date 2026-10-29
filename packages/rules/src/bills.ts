@@ -2,7 +2,7 @@
 
 import { addMonths, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
-import { assertInt, mul, roundDiv } from "./money.ts";
+import { assertInt, MAX_SAFE, mul, roundDiv, roundDivExact } from "./money.ts";
 import { compareText } from "./text.ts";
 
 export interface Debt {
@@ -58,6 +58,16 @@ export function avalancheOrder(debts: unknown): AvalancheOrder {
 }
 
 const MAX_MONTHS = 600; // fifty years: past this the plan is not a plan
+
+/**
+ * Port of bills._accrue: a month's interest, or null when the balance with it would pass
+ * 2^53 − 1 cents, so a balance growing faster than it is paid stalls before any number leaves
+ * what both engines count exactly.
+ */
+function accrue(balance: number, aprBps: number): number | null {
+  const accrued = roundDivExact(mul(balance, aprBps), 120000);
+  return BigInt(balance) + accrued > BigInt(MAX_SAFE) ? null : Number(accrued);
+}
 
 export interface PayoffDebt {
   id: string;
@@ -147,7 +157,8 @@ export function payoffPlan(
     for (const d of order) {
       if (paidMonth.has(d.id)) continue;
       const balance = balances.get(d.id) ?? 0;
-      const accrued = roundDiv(mul(balance, d.apr_bps), 120000);
+      const accrued = accrue(balance, d.apr_bps);
+      if (accrued === null) return stalled();
       interest.set(d.id, (interest.get(d.id) ?? 0) + accrued);
       const withInterest = balance + accrued;
       const payment = Math.min(d.min_payment_cents, withInterest, remaining);
@@ -165,6 +176,8 @@ export function payoffPlan(
       if (!paidMonth.has(d.id) && balances.get(d.id) === 0) paidMonth.set(d.id, month);
     let total = 0;
     for (const v of balances.values()) total += v;
+    // Each balance is within MAX_SAFE, so a float sum past it is past it exactly too.
+    if (total > MAX_SAFE) return stalled();
     series.push(total);
   }
   let totalInterest = 0;
@@ -237,7 +250,11 @@ export function consolidation(
       break;
     }
     const rate = month <= promoMonths ? promoApr : apr;
-    const accrued = roundDiv(mul(balance, rate), 120000);
+    const accrued = accrue(balance, rate);
+    if (accrued === null) {
+      stalled = true;
+      break;
+    }
     interest += accrued;
     balance += accrued;
     balance -= Math.min(payment, balance);

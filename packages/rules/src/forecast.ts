@@ -69,7 +69,9 @@ export function typicalDailySpending(
       days_of_history: daysOfHistory,
     };
   }
-  const windowStart = iso(addDays(today, -89));
+  // The window is the history there is, up to 90 days (owner decision, October 29, 2026).
+  const window = Math.min(daysOfHistory, 90);
+  const windowStart = iso(addDays(today, -(window - 1)));
   let spent = 0;
   for (const r of rows) {
     const d = iso(r.day);
@@ -82,7 +84,11 @@ export function typicalDailySpending(
     )
       spent += r.cents;
   }
-  return { cents_per_day: roundDiv(spent, 90), basis: "history", days_of_history: daysOfHistory };
+  return {
+    cents_per_day: roundDiv(spent, window),
+    basis: "history",
+    days_of_history: daysOfHistory,
+  };
 }
 
 export interface StartBalance {

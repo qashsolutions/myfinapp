@@ -34,7 +34,16 @@ export interface PdfTemplate {
   institution: string | null;
   /** Does this statement look like the institution's? Header lines only. */
   matches: (lines: string[]) => boolean;
-  parse: (lines: string[], parseAmount: (text: string) => Promise<number>) => Promise<PdfStatement>;
+  parse: (
+    lines: string[],
+    parseAmount: (text: string) => Promise<number>,
+    options?: ParseOptions,
+  ) => Promise<PdfStatement>;
+}
+
+export interface ParseOptions {
+  /** The person picked a credit-card account: read it as a card even without card words. */
+  card?: boolean;
 }
 
 const US_DATE = /^(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?$/;
@@ -64,8 +73,12 @@ function parseIso(text: string, fallbackYear: number | null): string | null {
   return m ? isoDate(m[1] ?? "", m[2] ?? "", m[3] ?? null, fallbackYear) : null;
 }
 
-/** "(54.10)", "54.10-", "-54.10", "54.10 CR": a signed amount for the rules engine's parser. */
-function normaliseMoney(text: string): string {
+/**
+ * "(54.10)", "54.10-", "-54.10", "54.10 CR": a signed amount for the rules engine's parser.
+ * On a card statement (invariant 39) CR marks a credit, so it reads as minus there, as a payment's
+ * printed minus does; the caller then turns the card's sign around.
+ */
+function normaliseMoney(text: string, card = false): string {
   let t = text.trim().replace(/\$/g, "");
   let negative = false;
   if (/^\(.*\)$/.test(t)) {
@@ -77,10 +90,13 @@ function normaliseMoney(text: string): string {
     t = t.slice(0, -1);
   }
   if (/\s?DR$/i.test(t)) {
-    negative = true;
+    negative = !card;
     t = t.replace(/\s?DR$/i, "");
   }
-  t = t.replace(/\s?CR$/i, "");
+  if (/\s?CR$/i.test(t)) {
+    negative = card;
+    t = t.replace(/\s?CR$/i, "");
+  }
   if (t.startsWith("-")) {
     negative = !negative;
     t = t.slice(1);
@@ -102,12 +118,33 @@ export function typeFromHeader(header: string): "checking" | "savings" | "credit
   return null;
 }
 
+/**
+ * Words only a credit-card statement prints (invariant 39), read from the header's lines that are
+ * not transactions, so a "VISA DEBIT" purchase on a checking statement never makes it a card.
+ */
+const CARD_WORDS = /minimum payment due|credit limit|payment due date|available credit/i;
+
+export function isCardStatement(header: string): boolean {
+  return CARD_WORDS.test(header) || typeFromHeader(header) === "credit_card";
+}
+
 export const GENERIC: PdfTemplate = {
   key: "generic_lines",
   institution: null,
   matches: () => true,
-  async parse(lines, parseAmount) {
-    const header = lines.slice(0, 40).join("\n");
+  async parse(lines, parseAmount, options = {}) {
+    const header = lines
+      .slice(0, 40)
+      .filter((l) => !US_DATE.test(l.split(" ")[0] ?? ""))
+      .join("\n");
+    // A card statement prints what is owed: purchases unsigned, payments and credits with a minus
+    // or CR, the new balance as a positive number. Read as printed, then turned around, so a
+    // purchase is money out and the balance is owed (below zero), as every card account is.
+    const card = options.card === true || isCardStatement(header);
+    const money = async (text: string) => {
+      const printed = await parseAmount(normaliseMoney(text, card));
+      return card ? 0 - printed : printed;
+    };
     const periodMatch = PERIOD.exec(header);
     const period = {
       start: periodMatch ? parseIso(periodMatch[1] ?? "", null) : null,
@@ -123,7 +160,7 @@ export const GENERIC: PdfTemplate = {
     const openingMatch = OPENING.exec(lines.join("\n"));
     let opening: number | null = null;
     try {
-      opening = openingMatch ? await parseAmount(normaliseMoney(openingMatch[1] ?? "")) : null;
+      opening = openingMatch ? await money(openingMatch[1] ?? "") : null;
     } catch {
       opening = null;
     }
@@ -148,10 +185,10 @@ export const GENERIC: PdfTemplate = {
         continue;
       }
       try {
-        let amount = await parseAmount(normaliseMoney(tail[0] ?? ""));
+        let amount = await money(tail[0] ?? "");
         let balance: number | null = null;
         if (tail.length === 2) {
-          balance = await parseAmount(normaliseMoney(tail[1] ?? ""));
+          balance = await money(tail[1] ?? "");
           if (previousBalance !== null) amount = balance - previousBalance;
           previousBalance = balance;
         }
@@ -171,7 +208,7 @@ export const GENERIC: PdfTemplate = {
     if (endingMatch && (period.end || rows.length)) {
       try {
         ledger = {
-          cents: await parseAmount(normaliseMoney(endingMatch[1] ?? "")),
+          cents: await money(endingMatch[1] ?? ""),
           as_of: period.end ?? (rows[rows.length - 1]?.date as string),
         };
       } catch {
@@ -183,7 +220,7 @@ export const GENERIC: PdfTemplate = {
       institution,
       account: {
         last4: accountMatch ? last4(accountMatch[1]) : null,
-        type: typeFromHeader(header),
+        type: card ? "credit_card" : typeFromHeader(header),
       },
       rows,
       ledger,
@@ -219,11 +256,12 @@ export class PdfError extends Error {
 export async function parsePdfLines(
   lines: string[],
   parseAmount: (text: string) => Promise<number>,
+  options: ParseOptions = {},
 ): Promise<PdfStatement> {
   if (lines.length === 0) throw new PdfError("no_text");
   const header = lines.slice(0, 40);
   const template = TEMPLATES.find((t) => t.matches(header)) ?? GENERIC;
-  const statement = await template.parse(lines, parseAmount);
+  const statement = await template.parse(lines, parseAmount, options);
   if (statement.rows.length === 0) throw new PdfError("unsupported_layout");
   return statement;
 }
