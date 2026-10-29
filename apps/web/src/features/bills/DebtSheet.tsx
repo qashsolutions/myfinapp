@@ -6,6 +6,7 @@ import { recordDeletion } from "../../data/backup/snapshot.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type Debt, newId } from "../../data/db.ts";
 import { parseAmount } from "../../engine/bridge.ts";
+import { aprProblem } from "./apr.ts";
 
 /** Add or edit a card or loan: label, balance, APR, minimum payment. Nothing is moved. */
 export function DebtSheet({
@@ -54,6 +55,12 @@ export function DebtSheet({
     }
     if (balanceCents < 0 || aprBps < 0 || minCents < 0) {
       setError("Amounts can't be negative.");
+      return;
+    }
+    // One range for every rate typed by hand, cards and loans (owner decision, October 29, 2026).
+    const problem = aprProblem(aprBps);
+    if (problem) {
+      setError(problem);
       return;
     }
     const stamp = new Date().toISOString();

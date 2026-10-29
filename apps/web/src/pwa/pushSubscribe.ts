@@ -134,7 +134,11 @@ function permissionNow(): NotificationPermission {
   }
 }
 
-/** Asks for permission; a browser that throws or answers nothing reads as what it holds now. */
+/**
+ * Asks for permission; a browser that throws or answers nothing reads as what it holds now.
+ * Never timed (owner decision, October 29, 2026): the person takes as long as they like over
+ * the browser's question; only the technical steps after it get PUSH_STEP_TIMEOUT_MS.
+ */
 async function askPermission(): Promise<NotificationPermission> {
   try {
     return (await Notification.requestPermission()) ?? permissionNow();

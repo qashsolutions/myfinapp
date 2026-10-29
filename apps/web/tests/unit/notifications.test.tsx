@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { openDb, seedDefaults } from "../../src/data/db.ts";
 import { createBudget } from "../../src/features/budget/useBudget.ts";
+import { PUSH_STEP_TIMEOUT_MS, subscribeToPush } from "../../src/pwa/pushSubscribe.ts";
 import { installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 
@@ -147,6 +148,37 @@ describe("Notifications", () => {
     await user.click(within(sheet).getByRole("button", { name: "Close" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.getByRole("status")).toHaveTextContent("Private windows can't get them");
+  });
+
+  it("the browser's Allow question has no time limit; only the technical steps do (owner, October 29, 2026)", async () => {
+    installFakeApi({ session: readySession() });
+    const browser = fakePushBrowser();
+    vi.useFakeTimers(); // every timer, so a 15-second limit would fire
+    let answer: (v: string) => void = () => {};
+    Object.defineProperty(window, "Notification", {
+      value: {
+        permission: "default",
+        requestPermission: vi.fn(() => new Promise<string>((r) => (answer = r))),
+      },
+      configurable: true,
+    });
+    const outcome = subscribeToPush();
+    await vi.advanceTimersByTimeAsync(60_000); // the person takes a minute to decide
+    answer("granted");
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(outcome).resolves.toBe("subscribed");
+    expect(browser.pushManager.subscribe).toHaveBeenCalledTimes(1);
+
+    // A push service that never answers is given up on after 15 seconds.
+    browser.pushManager.getSubscription.mockResolvedValue(null);
+    browser.pushManager.subscribe.mockImplementation(() => new Promise(() => {}));
+    Object.defineProperty(window, "Notification", {
+      value: { permission: "granted", requestPermission: vi.fn(async () => "granted") },
+      configurable: true,
+    });
+    const stuck = subscribeToPush();
+    await vi.advanceTimersByTimeAsync(PUSH_STEP_TIMEOUT_MS);
+    await expect(stuck).resolves.toBe("push_failed");
   });
 
   it("a push service that throws, then answers, ends in a message and a working Try again (invariant 63)", async () => {

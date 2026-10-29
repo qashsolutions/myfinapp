@@ -543,7 +543,7 @@ written against both.
     push service, the native shell or the network can refuse is an outcome of
     `subscribeToPush` (`blocked`, `denied`, `dismissed`, `push_failed`, `offline`,
     `not_saved`, `unsupported`, `unavailable`, `needs_home_screen`), never a throw or a wait
-    without end (the service worker and the push service get 15 seconds); the "Stay on track"
+    without end (the service worker, the push service and the server each get 15 seconds; the browser's permission question has no limit, owner decision October 29, 2026); the "Stay on track"
     sheet says what happened and what to try (`pushOutcomeText`), offers Try again only where
     another tap can help, and never leaves a disabled button. Found when a Chrome private
     window refused push and the sheet stayed open saying nothing.
@@ -561,7 +561,7 @@ written against both.
     issuer sent none (asked once). A hand-added debt the person paired with a linked card is
     that card (one row, the bank's balance), and net worth leaves it out beside the account.
     Found when Debt payoff showed linked cards on top and "No cards or loans yet" below.
-    `debt-linked-cards.test.tsx`
+    Rates typed by hand are 0% to 40% (`bills/apr.ts`). `debt-linked-cards.test.tsx`
 66. **A count says only what changed, or what is still to do** (October 29, 2026). A linked
     sync counts a row as updated only when it differs from what is stored (a row sent again
     as it is is not written at all), a pending row posting is one update, and split parts and

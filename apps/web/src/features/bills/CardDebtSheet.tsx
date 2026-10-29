@@ -5,8 +5,9 @@ import { useEffect, useId, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
 import { parseAmount } from "../../engine/bridge.ts";
 import { formatCents } from "../../lib/format.ts";
-import { ChoiceChips } from "../goals/CustomValueSheet.tsx";
+import { ChipsOrOwn, ChoiceChips } from "../goals/CustomValueSheet.tsx";
 import { bankName } from "../linking/anchorText.ts";
+import { APR_SUGGESTIONS, aprProblem, readAprText } from "./apr.ts";
 import { aprText } from "./DebtList.tsx";
 import { type CardInPlan, cardName, pairDebt, saveCardChoice } from "./debtPlan.ts";
 
@@ -20,7 +21,8 @@ export async function readOwnRate(
     const min = minimum.trim() ? await parseAmount(minimum) : null;
     if ((aprBps !== null && aprBps < 0) || (min !== null && min < 0))
       return "Amounts can't be negative.";
-    if (aprBps !== null && aprBps > 100_00) return "An APR is between 0 and 100%.";
+    const problem = aprBps === null ? null : aprProblem(aprBps);
+    if (problem) return problem;
     return { apr_bps: aprBps, min_payment_cents: min };
   } catch {
     return "Enter an APR like 27.99 and a minimum like 35.";
@@ -75,6 +77,10 @@ export function CardDebtSheet({
 
   async function save() {
     setError(null);
+    if (askApr && !apr.trim()) {
+      setError("Pick a rate or type your card's own.");
+      return;
+    }
     const read = await readOwnRate(askApr ? apr : "", askMin ? minimum : "");
     if (typeof read === "string") {
       setError(read);
@@ -100,16 +106,34 @@ export function CardDebtSheet({
           : ""}
       </p>
       {askApr ? (
-        <label className="auth__field">
-          <span className="auth__label">APR % (the issuer didn't send it)</span>
-          <input
-            className="auth__input"
-            inputMode="decimal"
-            placeholder="27.99"
-            value={apr}
-            onChange={(e) => setApr(e.target.value)}
-          />
-        </label>
+        <ChipsOrOwn
+          name={`${ids}-apr`}
+          legend="APR (the issuer didn't send it)"
+          options={APR_SUGGESTIONS}
+          value={apr}
+          display={(v) => `${v}%`}
+          onPick={async (v) => {
+            // Checked as the engine reads it: 0% to 40% (owner decision, October 29, 2026).
+            setError(null);
+            try {
+              const problem = aprProblem(await parseAmount(v));
+              if (problem) {
+                setError(problem);
+                return;
+              }
+            } catch {
+              setError("Enter a rate like 24.99.");
+              return;
+            }
+            setApr(v);
+          }}
+          own={{
+            label: "Your card's APR %",
+            placeholder: "e.g. 22.49",
+            inputMode: "decimal",
+            parse: readAprText,
+          }}
+        />
       ) : null}
       {askMin ? (
         <label className="auth__field">

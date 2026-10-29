@@ -110,24 +110,49 @@ describe("linked cards in the payoff plan (invariant 65)", () => {
     expect((await readPlanDebts(db)).debts).toEqual([]);
     await user.click(within(need).getByRole("button", { name: "Add APR" }));
     const sheet = await screen.findByRole("dialog", { name: "Card ••3333" });
-    const box = within(sheet).getByLabelText("APR % (the issuer didn't send it)");
-    await user.type(box, "150");
+    // Suggestions plus the card's own rate, 0% to 40% (owner decision, October 29, 2026).
     await user.click(within(sheet).getByRole("button", { name: "Save" }));
     expect(await within(sheet).findByRole("alert")).toHaveTextContent(
-      "An APR is between 0 and 100%.",
+      "Pick a rate or type your card's own.",
+    );
+    const box = within(sheet).getByLabelText("Your card's APR %");
+    await user.type(box, "45");
+    await user.click(within(sheet).getByRole("button", { name: "Use" }));
+    expect(await within(sheet).findByRole("alert")).toHaveTextContent(
+      "Card rates are between 0% and 40%.",
     );
     await user.clear(box);
-    await user.type(box, "24");
+    await user.type(box, "40");
+    await user.click(within(sheet).getByRole("button", { name: "Use" }));
+    await waitFor(() => expect(within(sheet).queryByRole("alert")).toBeNull());
+    await user.click(within(sheet).getByRole("radio", { name: "24.99%" }));
     await user.click(within(sheet).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(await db.settings.get("debt.card.acct-cc")).toMatchObject({ value: { apr_bps: 2400 } });
+    expect(await db.settings.get("debt.card.acct-cc")).toMatchObject({ value: { apr_bps: 2499 } });
     const list = await screen.findByRole("list", { name: "Debts, highest rate first" });
     expect(
       await within(list).findByRole("button", {
-        name: "Card ••3333, 24.00% APR, balance $200.00, rank 1",
+        name: "Card ••3333, 24.99% APR, balance $200.00, rank 1",
       }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Card ••3333 needs details" })).toBeNull();
+  });
+
+  it("a debt added by hand takes the same 0% to 40% range", async () => {
+    const user = userEvent.setup();
+    await seed();
+    connected();
+    renderApp("/bills?tab=debt");
+    await screen.findByRole("list", { name: "Debts, highest rate first" });
+    await user.click(screen.getByRole("button", { name: "+ Add" }));
+    const sheet = await screen.findByRole("dialog", { name: "Add a card or loan" });
+    await user.type(within(sheet).getByLabelText("Name"), "Store card");
+    await user.type(within(sheet).getByLabelText("Balance"), "500");
+    await user.type(within(sheet).getByLabelText("APR %"), "41");
+    await user.click(within(sheet).getByRole("button", { name: "Add" }));
+    expect(await within(sheet).findByRole("alert")).toHaveTextContent(
+      "Card rates are between 0% and 40%.",
+    );
   });
 
   it("a card also added by hand counts once after the person pairs them", async () => {
