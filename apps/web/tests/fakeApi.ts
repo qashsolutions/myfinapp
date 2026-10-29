@@ -185,6 +185,9 @@ export interface FakeBilling {
   /** Tester tools (admins only, October 18, 2026) and the plan being tested. */
   tester?: boolean;
   tester_plan?: "free" | "private" | "connected" | "founding" | null;
+  /** A household of two is one plan (invariant 54): whose plan covers whom. */
+  shared?: "holder" | "covered" | null;
+  shared_by?: string | null;
 }
 
 export function freeBilling(): FakeBilling {
@@ -1088,8 +1091,19 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       if (!h) return json({ detail: "not_found" }, 404);
       if (h.members.filter((m) => m.left_at === null).length >= 2)
         return json({ detail: "household_full" }, 409);
+      const owner = h.members.find((m) => m.left_at === null);
       h.members.push(memberRow());
       if (h.invite) h.invite.used = true;
+      // Like the server (invariant 54): the owner's plan covers whoever joins, from now on.
+      if (state.access !== null && state.billing.plan !== "connected") {
+        state.billing = {
+          ...state.billing,
+          plan: "connected",
+          shared: "covered",
+          shared_by: owner?.display_name ?? null,
+        };
+        state.access = { state: "subscribed", plan: "connected", shared: "covered" };
+      }
       return json(householdOut(h));
     }
     if (method === "POST" && path === "/api/household/leave") {
@@ -1397,6 +1411,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       const g = byCode(String(b.code ?? ""));
       if (!g) return json({ detail: "not_found" }, 404);
       if (g.removed?.includes(ME)) return json({ detail: "removed" }, 403);
+      if (g.ended) return json({ detail: "ended" }, 409); // invariant 56
       const owner = g.members.find((m) => m.user_id === g.owner_id);
       return json({
         id: g.id,
@@ -1413,6 +1428,8 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       const g = byCode(String(b.code ?? ""));
       if (!g) return json({ detail: "not_found" }, 404);
       if (g.removed?.includes(ME)) return json({ detail: "removed" }, 403);
+      if (!g.members.some((m) => m.user_id === ME) && g.ended)
+        return json({ detail: "ended" }, 409); // invariant 56
       if (!g.members.some((m) => m.user_id === ME)) {
         const joinMax = limits?.groups_join_max;
         if (typeof joinMax === "number" && myGroups().length >= joinMax)

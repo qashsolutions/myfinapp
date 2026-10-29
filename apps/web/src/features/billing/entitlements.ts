@@ -28,6 +28,12 @@ export interface Access {
   delete_at: string | null;
   /** choose only: this inbox already had its free trial (signing up again), so only buying is left. */
   trial_used: boolean;
+  /**
+   * A household of two is one plan (owner decision, October 29, 2026; invariant 54): "holder"
+   * when this person's plan covers both, "covered" when the partner's does (then `subscribed`
+   * with no trial clock or card ask, or the holder's end: `lapsed` / `paused` together).
+   */
+  shared: "holder" | "covered" | null;
 }
 
 export interface Entitlements {
@@ -89,6 +95,7 @@ function parseAccess(raw: unknown): Access | null {
     card_from: text(r.card_from),
     delete_at: text(r.delete_at),
     trial_used: r.trial_used === true,
+    shared: r.shared === "holder" || r.shared === "covered" ? r.shared : null,
   };
 }
 

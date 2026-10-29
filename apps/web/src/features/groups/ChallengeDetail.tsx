@@ -10,6 +10,7 @@ import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import { rankMembers } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
+import { compareText } from "../../lib/order.ts";
 import { useGoalProgress } from "../goals/useGoals.ts";
 import { GroupInvite } from "./GroupInvite.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
@@ -82,6 +83,8 @@ export function ChallengeDetail() {
     );
   }
   const p = view?.progress ?? null;
+  // Past its last day (invariant 56): the final board, and nothing more to log or invite to.
+  const ended = compareText(group.end_date, today) < 0;
 
   return (
     <>
@@ -89,20 +92,24 @@ export function ChallengeDetail() {
         title={group.name}
         back="/goals"
         actions={
-          <Button size="sm" variant="secondary" onClick={() => setInvite(true)}>
-            Invite
-          </Button>
+          ended ? null : (
+            <Button size="sm" variant="secondary" onClick={() => setInvite(true)}>
+              Invite
+            </Button>
+          )
         }
       />
       <Card tone="accent" as="section" aria-label="Your progress">
         <div className="hero-split">
           <span className="sk-card__eyebrow">
-            Group · {group.member_count} {group.member_count === 1 ? "person" : "people"} · ends{" "}
-            {formatDay(group.end_date)}
+            Group · {group.member_count} {group.member_count === 1 ? "person" : "people"} ·{" "}
+            {ended ? "ended" : "ends"} {formatDay(group.end_date)}
           </span>
           <span className="sk-card__eyebrow">You: {myRank === null ? "–" : `#${myRank}`}</span>
         </div>
-        {goal ? (
+        {ended ? (
+          <Word>Ended</Word>
+        ) : goal ? (
           <Word>
             {!p || p.current <= 0 ? "Start" : p.display_bps >= 10000 ? "Reached" : "Saving"}
           </Word>
@@ -134,19 +141,28 @@ export function ChallengeDetail() {
               label="Your progress"
               valueText={p ? `${Math.round(p.display_bps / 100)}% of your target` : ""}
             />
-            <Link to={`/goals/${goal.id}`} className="auth__link" style={{ color: "inherit" }}>
-              {goal.kind === "habit"
-                ? "Check in for today"
-                : goal.kind === "spend_less"
-                  ? "See this month's dining"
-                  : "Log a deposit"}
-            </Link>
+            {ended ? (
+              <p>
+                {p && p.display_bps >= 10000
+                  ? "You reached your target. Here's how everyone finished."
+                  : "Here's how everyone finished."}
+              </p>
+            ) : (
+              <Link to={`/goals/${goal.id}`} className="auth__link" style={{ color: "inherit" }}>
+                {goal.kind === "habit"
+                  ? "Check in for today"
+                  : goal.kind === "spend_less"
+                    ? "See this month's dining"
+                    : "Log a deposit"}
+              </Link>
+            )}
           </>
         ) : goal === null ? (
           <p>Your target for this challenge lives on the device you joined from.</p>
         ) : null}
       </Card>
-      <Card as="section" aria-label="Leaderboard">
+      <Card as="section" aria-label={ended ? "Final leaderboard" : "Leaderboard"}>
+        {ended ? <h2 className="sk-card__title">Final leaderboard</h2> : null}
         <Leaderboard
           members={group.members}
           isOwner={group.is_owner}

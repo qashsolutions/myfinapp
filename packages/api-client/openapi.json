@@ -455,6 +455,32 @@
             ],
             "title": "Renews At"
           },
+          "shared": {
+            "anyOf": [
+              {
+                "enum": [
+                  "holder",
+                  "covered"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared"
+          },
+          "shared_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared By"
+          },
           "source": {
             "anyOf": [
               {

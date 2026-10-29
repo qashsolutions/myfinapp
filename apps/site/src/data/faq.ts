@@ -40,6 +40,10 @@ export const FAQ: Array<{ q: string; a: string }> = [
     a: "Yes, in the app: Me → Plan. Switching up starts at once and you pay only the difference for the time left. Switching down starts at once too, from 30 days after you start or last switch, and the unused part becomes credit for your next bills. Switching down to Private disconnects linked banks, because Private never links.",
   },
   {
+    q: "Do my partner and I each need a plan?",
+    a: "No. One Connected plan covers both of you in a household: your partner joins with your invite link and needs no trial or card of their own. Each of you keeps your own sign-in and your own private data. If the plan ends, it ends for both of you: we email you both first, and you both get the same 7 days to pick a plan or download your data. Either of you can pick a plan that covers you both again. If one of you leaves the household, the plan stays with whoever it came with, and the other gets 7 days to choose a plan of their own.",
+  },
+  {
     q: "Do I get money back if I delete my account?",
     a: "Yes. Your plan ends at once. On a yearly plan, the months you used, this one included, cost the monthly price, and the rest of what you paid for the year comes back to your card, plus any credit, less Stripe's card fee (2.9% + 30¢), which Stripe keeps on a refund. The app shows the amount before you confirm. If your first bank payment is still clearing when you delete, you get all of it back.",
   },

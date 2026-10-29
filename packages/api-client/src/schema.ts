@@ -1795,6 +1795,10 @@ export interface components {
             };
             /** Renews At */
             renews_at: string | null;
+            /** Shared */
+            shared?: ("holder" | "covered") | null;
+            /** Shared By */
+            shared_by?: string | null;
             /** Source */
             source: string | null;
             /** Status */

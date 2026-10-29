@@ -8,6 +8,7 @@ import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { api, failureOf, failureText } from "../../data/api.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { useSession } from "../auth/useSession.tsx";
+import { loadEntitlements } from "../billing/entitlements.ts";
 import { isFailure, joinHousehold, useHouseholdLocal } from "./useHousehold.ts";
 
 /**
@@ -70,6 +71,9 @@ export function JoinHousehold() {
       );
       return;
     }
+    // The partner's plan now covers this account too (invariant 54): ask the server again so
+    // the app opens to it at once, trial clock and card ask gone.
+    if (info?.user?.id) await loadEntitlements(info.user.id, true);
     navigate("/me/household", { replace: true });
   }
 
@@ -91,6 +95,10 @@ export function JoinHousehold() {
               {preview.initial}
             </span>
             <strong>{preview.invited_by}</strong> invited you to share a household.
+          </p>
+          <p className="auth__hint">
+            One price covers both of you: {preview.invited_by}'s plan becomes yours too, with no
+            trial or card of your own. If it ends, it ends for both of you, with an email first.
           </p>
           <p className="auth__hint">
             You'll each keep your own private data. Jars you choose to share show who added what.

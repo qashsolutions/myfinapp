@@ -16,11 +16,11 @@ import { useSession } from "../auth/useSession.tsx";
 import { PlanLimit } from "../billing/PlanLimit.tsx";
 import { EmergencySection } from "../emergency/EmergencySection.tsx";
 import { isEmergencyJar } from "../home/useHome.ts";
-import { useHouseholdStatus } from "../household/useHousehold.ts";
+import { useHouseholdCloseSync, useHouseholdStatus } from "../household/useHousehold.ts";
 import { goalSentence } from "./GoalCard.tsx";
 import { GoalExtras } from "./GoalExtras.tsx";
 import { GrowCard, useGrowMonthly } from "./GrowCard.tsx";
-import { useGoalCaps } from "./useGoalCaps.ts";
+import { challengeEnded, useGoalCaps } from "./useGoalCaps.ts";
 import {
   addGoalEvent,
   moveMoney,
@@ -51,6 +51,7 @@ export function GoalDetail() {
   const { info } = useSession();
   const userId = info?.user?.id ?? "";
   const { status: householdStatus } = useHouseholdStatus();
+  useHouseholdCloseSync(!!goal?.household_id); // a shared jar: pull every 15 s while open
   const [custom, setCustom] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -73,7 +74,10 @@ export function GoalDetail() {
   }
   const p = view.progress;
   const pct = p ? Math.round(p.display_bps / 100) : 0;
-  const readOnly = caps.readOnly.has(goal.id);
+  // A challenge past its last day takes no more deposits or check-ins (invariant 56).
+  const ended = challengeEnded(goal, today);
+  const overCap = !ended && caps.readOnly.has(goal.id);
+  const readOnly = overCap || ended;
 
   async function log(cents: number) {
     setError(null);
@@ -214,7 +218,13 @@ export function GoalDetail() {
         )}
       />
 
-      {readOnly ? (
+      {ended ? (
+        <Card as="section" aria-label="Challenge ended">
+          <Word>Ended</Word>
+          <p>This challenge has ended. Everything here is kept, and it no longer uses a place.</p>
+        </Card>
+      ) : null}
+      {overCap ? (
         <PlanLimit>
           Read-only: your plan has room for {caps.max} jars and goals, and this one came after them.
           Everything here is kept. Finish or remove another, or choose a bigger plan.

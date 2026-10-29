@@ -54,6 +54,11 @@ function yearlySavingPercent(billing: BillingOut): number {
 
 function currentLine(billing: BillingOut, access: Access | null): string {
   const { plan, interval, renews_at, ends_at, cancel_at_period_end, founding } = billing;
+  // A household of two is one plan (owner decision, October 29, 2026; invariant 54).
+  if (billing.shared === "covered" && access?.state === "subscribed")
+    return `Shared with ${billing.shared_by ?? "your partner"} · one price covers you both`;
+  if (billing.shared === "covered" && access?.state === "paused")
+    return "Paused while a question about its payment is settled";
   if (access?.state === "trial" && access.trial_ends_at)
     return `Free trial · until ${formatDate(access.trial_ends_at)}, no card needed`;
   if (access?.state === "lapsed" && access.delete_at)
@@ -453,7 +458,7 @@ export function PlanScreen() {
       features: [
         "Link 3 banks or cards, read-only",
         "10 jars & goals",
-        "Couples & shared jars",
+        "Couples: one price covers you both",
         "Everything in Private",
       ],
     },
@@ -557,6 +562,12 @@ export function PlanScreen() {
           {billing.interval ? ` · ${billing.interval}` : ""}
         </p>
         <p>{currentLine(billing, access)}</p>
+        {billing.shared === "holder" ? (
+          <p>This plan covers you and your partner in your household: one price for both.</p>
+        ) : null}
+        {billing.shared && access?.state === "lapsed" ? (
+          <p>It ended for both of you. Either of you can pick a plan that covers you both.</p>
+        ) : null}
         {credit && credit.credit_cents > 0 ? (
           <p>{formatCents(credit.credit_cents)} credit on your account, used for your next bills</p>
         ) : null}
@@ -675,7 +686,15 @@ export function PlanScreen() {
         </List>
       ) : null}
 
-      {access?.state === "ended" ? null : founding ? (
+      {access?.state === "ended" ? null : billing.shared === "covered" &&
+        access?.state === "subscribed" ? (
+        <Card as="section" aria-label="Shared plan">
+          <p>
+            Your plan comes with {billing.shared_by ?? "your partner"}'s, so there's nothing to buy.
+            If it ends, it ends for both of you, and we'll email you both first.
+          </p>
+        </Card>
+      ) : founding ? (
         <Card>
           <p>Before your term ends you'll choose a plan. Nothing is deleted either way.</p>
         </Card>

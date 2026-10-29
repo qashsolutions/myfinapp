@@ -11,7 +11,7 @@ import { useDb } from "../../data/DbProvider.tsx";
 import { type CombinedTotals, combineTotals, splitContributions } from "../../engine/bridge.ts";
 import { formatCents, formatMonth, todayIso } from "../../lib/format.ts";
 import { useSession } from "../auth/useSession.tsx";
-import { useEntitlements } from "../billing/entitlements.ts";
+import { loadEntitlements, useEntitlements } from "../billing/entitlements.ts";
 import { PlanLimit } from "../billing/PlanLimit.tsx";
 import { ensureHouseholdKey, inviteLink, myMonthSummary } from "./householdSync.ts";
 import {
@@ -19,6 +19,7 @@ import {
   isFailure,
   leaveHousehold,
   setShareSummary,
+  useHouseholdCloseSync,
   useHouseholdLocal,
   useHouseholdStatus,
 } from "./useHousehold.ts";
@@ -34,6 +35,7 @@ export function HouseholdScreen() {
   const navigate = useNavigate();
   const userId = info?.user?.id ?? "";
   const { entitlements } = useEntitlements();
+  useHouseholdCloseSync(true); // the shared jars are on screen: pull every 15 s
   const { status, error, refresh } = useHouseholdStatus();
   const local = useHouseholdLocal();
   const [link, setLink] = useState<string | null>(null);
@@ -170,6 +172,8 @@ export function HouseholdScreen() {
     setLink(null);
     setNote("You left the household. Your shared jars kept your own deposits.");
     await refresh();
+    // The shared plan no longer covers whoever it covered (invariant 54): ask again.
+    if (userId) await loadEntitlements(userId, true);
   }
 
   const nameOf = (id: string) =>
@@ -201,6 +205,10 @@ export function HouseholdScreen() {
       {status && !household ? (
         <Card as="section" aria-label="Invite your partner">
           <h2 className="sk-card__title">Invite your partner</h2>
+          <p>
+            One price covers both of you: your plan becomes your partner's too, with no trial or
+            card of their own. If it ends, it ends for both of you, and we email you both first.
+          </p>
           <p>
             A household is the two of you. Shared jars and goals are encrypted with a key made on
             this device and passed in the invite link, never to our server. Everything else stays
@@ -342,6 +350,10 @@ export function HouseholdScreen() {
           <li>Each of you keeps a copy of every shared jar, holding your own deposits.</li>
           <li>Your partner's deposits leave this device; yours leave theirs.</li>
           <li>Month totals stop being shared.</li>
+          <li>
+            One plan covered you both. Whoever it came with keeps it; the other has 7 days to pick a
+            plan of their own or download their data.
+          </li>
         </ul>
         <Button block onClick={() => setConfirmLeave(false)}>
           Stay

@@ -305,6 +305,21 @@ def _helped_list(member: GroupMember) -> list[str]:
     return member.helped.split(",") if member.helped else []
 
 
+def _ended(group: Group, now: datetime | None = None) -> bool:
+    """A challenge is over once its last day (`end_date`, a local date) is over everywhere: from
+    noon UTC the day after, when it ends at UTC-12 (invariant 56). Every type has an end date:
+    the calendar month, the week, the weekend, the 52 weeks. After that nobody can look it up
+    or join (409 `ended`); members keep its final board."""
+    now = now or _now()
+    over = datetime.combine(group.end_date + timedelta(days=1), datetime.min.time(), tzinfo=UTC)
+    return now >= over + timedelta(hours=12)
+
+
+def _refuse_ended(group: Group) -> None:
+    if _ended(group):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="ended")
+
+
 def _helped_open(group: Group, me: GroupMember) -> bool:
     return me.reached_at is not None or me.progress_bps >= 10000 or _now().date() > group.end_date
 
@@ -417,6 +432,7 @@ def lookup_group(
     owner = db.get(User, group.owner_id)
     member = _membership(db, group, caller.user.id)
     _refuse_removed(member)
+    _refuse_ended(group)
     return GroupPreview(
         id=group.id,
         name=group.name,
@@ -449,6 +465,7 @@ def join_group(
     existing = _membership(db, group, caller.user.id)
     _refuse_removed(existing)
     if existing is None or existing.left_at is not None:
+        _refuse_ended(group)  # a member already in keeps the board; nobody new comes in
         active = int(
             db.scalar(
                 select(func.count())

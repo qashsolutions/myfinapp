@@ -213,6 +213,9 @@ export function useBilling(): {
 /** The Me row's second line: "Renews Oct 9, 2027 · $20.00", or the limits on Free. */
 export function summaryLine(b: BillingOut): string {
   const access = parseEntitlements(b.entitlements)?.access;
+  // A household of two is one plan (invariant 54): the partner's comes with the holder's.
+  if (b.shared === "covered" && access?.state === "subscribed")
+    return `Shared with ${b.shared_by ?? "your partner"} · one price covers you both`;
   if (access?.state === "trial" && access.trial_ends_at)
     return `Free trial until ${formatDate(access.trial_ends_at)}`;
   if (access?.state === "lapsed" && access.delete_at)

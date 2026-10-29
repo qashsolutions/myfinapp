@@ -17,6 +17,12 @@
 - Seven days later: the account is closed through `deletion.soft_delete(plan_ended=True)`, and
   a last email says so; devices keep what they hold until the person decides (not erased).
 Emails carry a link and dates, never amounts.
+
+A household of two is one plan (owner decision, October 29, 2026; invariant 54): the partner the
+holder's plan covers gets the same notices for that plan (ending soon, Founding's stages, ended,
+the daily reminders), each saying it is the plan they share, and the same 7 days; the two
+accounts close in the same run. Someone the shared plan stopped covering (they left, or its
+holder did) gets the ended note for that and their own 7 days.
 """
 
 from __future__ import annotations
@@ -28,10 +34,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
 from app.models.billing import Subscription
+from app.models.household import HouseholdMember
 from app.models.user import User
 from app.rules_server.entitlements import (
     access,
     active_subscription,
+    household_holder,
+    household_pair,
     load_plans,
     trial_settings,
 )
@@ -91,6 +100,9 @@ def run(
     candidates = {
         *db.scalars(select(User.id).where(User.deleted_at.is_(None), User.trial_plan.is_not(None))),
         *db.scalars(select(Subscription.user_id).distinct()),
+        # A household's partner may have no plan of their own (invariant 54).
+        *db.scalars(select(HouseholdMember.user_id).where(HouseholdMember.left_at.is_(None))),
+        *db.scalars(select(User.id).where(User.household_cover_ended_at.is_not(None))),
     }
     sender = email.get_sender()
     for user_id in sorted(candidates if only is None else candidates & only):
@@ -118,47 +130,88 @@ def _one(
     user = db.get(User, user_id)
     if user is None or user.deleted_at is not None:
         return
+    state = access(db, user, now=now)
+    shared = "shared" in state  # in a household of two: the notices say it's the plan they share
+    if state.get("shared") == "covered" and state["state"] == "subscribed":
+        _covered_notices(db, user, now, before, sender, counts)
+        return
     sub = active_subscription(db, user.id, now=now)
     if sub is not None and sub.plan == "founding" and sub.ends_at is not None:
-        _founding_reminder(db, user, sub, now, sender, counts)
+        _founding_reminder(db, user, sub, now, sender, counts, shared=shared)
         return
     ending = _ending(db, user, now)
     if ending is not None:
         end, trial = ending
         if end - now <= before and user.ending_notice_for != end:
-            sender.send(email.plan_ending_message(user.email, _day(end), plan_link(), trial))
+            sender.send(
+                email.plan_ending_message(user.email, _day(end), plan_link(), trial, shared=shared)
+            )
             if trial:
                 # Beside the email, once (owner, October 28, 2026); nothing daily in a trial.
                 _push(db, user.id, now, body=TRIAL_ENDS_TOMORROW_LABEL, tag="trial-ends")
             user.ending_notice_for = end
             counts["ending_soon"] += 1
         return
-    state = access(db, user, now=now)
     if state["state"] != "lapsed":
         return
     ended, delete_at = state["ended_at"], state["delete_at"]
     # The payment was refunded as possible fraud and this inbox may not buy again: honest
     # notes with no "keep going" (October 25, 2026).
     blocked = is_blocked(db, user)
+    # The plan that ended: this person's own, or the one the household shared (its holder's).
+    pair = household_pair(db, user.id)
+    plan_of = [user.id, *(pair or ())]
     if now >= delete_at:
-        address = user.email
-        record(db, actor_id=user.id, action=AuditAction.DELETE_REQUESTED, target="plan_lapsed")
-        soft_delete(db, user, now=now, plan_ended=True)
-        sender.send(email.account_deleted_after_plan_message(address, welcome_back=not blocked))
-        counts["deleted"] += 1
+        # Both accounts of a household close together (invariant 54): a partner whose 7 days
+        # are over too goes in this run, read before this closing splits the household.
+        together = [user]
+        for other_id in pair or ():
+            other = db.get(User, other_id)
+            if other is None or other.id == user.id or other.deleted_at is not None:
+                continue
+            theirs = access(db, other, now=now)
+            if theirs["state"] == "lapsed" and now >= theirs["delete_at"]:
+                together.append(other)
+        for person in together:
+            address, welcome_back = person.email, not is_blocked(db, person)
+            record(
+                db, actor_id=person.id, action=AuditAction.DELETE_REQUESTED, target="plan_lapsed"
+            )
+            soft_delete(db, person, now=now, plan_ended=True)
+            sender.send(
+                email.account_deleted_after_plan_message(
+                    address, welcome_back=welcome_back, shared=shared
+                )
+            )
+            counts["deleted"] += 1
     elif user.lapsed_notice_for != ended:
+        left = user.household_cover_ended_at is not None and user.household_cover_ended_at == ended
+        founding = _founding_ended(db, plan_of, ended)
         if blocked:
             sender.send(email.plan_ended_payment_returned_message(user.email, _day(delete_at)))
-        elif _founding_ended(db, user, ended):
-            sender.send(email.founding_ended_message(user.email, _day(delete_at), plan_link()))
-        else:
-            trial = user.trial_ends_at is not None and user.trial_ends_at == ended
+        elif left and not shared:
             sender.send(
-                email.plan_ended_message(user.email, _day(delete_at), plan_link(), trial=trial)
+                email.household_cover_ended_message(user.email, _day(delete_at), plan_link())
+            )
+        elif founding:
+            sender.send(
+                email.founding_ended_message(
+                    user.email, _day(delete_at), plan_link(), shared=shared
+                )
+            )
+        else:
+            sender.send(
+                email.plan_ended_message(
+                    user.email,
+                    _day(delete_at),
+                    plan_link(),
+                    trial=_trial_ended(db, plan_of, ended),
+                    shared=shared,
+                )
             )
         user.lapsed_notice_for = ended
         user.lapsed_reminded_on = now.date()
-        if not blocked and _founding_ended(db, user, ended):
+        if not blocked and founding:
             _push(db, user.id, now, body=FOUNDING_ENDED_LABEL, tag="founding-ended")
         else:
             _push(db, user.id, now)
@@ -167,7 +220,9 @@ def _one(
         # One friendly note a day for the rest of the 7 days (owner, October 20, 2026).
         days_left = max(1, -(-int((delete_at - now).total_seconds()) // 86400))
         sender.send(
-            email.plan_lapsed_reminder_message(user.email, _day(delete_at), days_left, plan_link())
+            email.plan_lapsed_reminder_message(
+                user.email, _day(delete_at), days_left, plan_link(), shared=shared
+            )
         )
         user.lapsed_reminded_on = now.date()
         _push(db, user.id, now)
@@ -181,36 +236,93 @@ def _founding_reminder(
     now: datetime,
     sender: email.EmailSender,
     counts: dict[str, int],
+    *,
+    shared: bool = False,
+    covered: bool = False,
 ) -> None:
     """The reminder due now for a Founding term that is ending, once each: only the nearest
-    stage, so a run that missed one (an outage) never sends two at once."""
+    stage, so a run that missed one (an outage) never sends two at once. `covered`: `user` is
+    the partner the holder's term covers, whose own row says which stage they had."""
     assert sub.ends_at is not None
     left = sub.ends_at - now
     due = [d for d in load_plans()["founding"]["reminder_days_before"] if left <= timedelta(days=d)]
     if not due:
         return
     stage = int(min(due))
-    if sub.founding_reminded_days is not None and sub.founding_reminded_days <= stage:
+    if covered:
+        sent = user.shared_reminded_days if user.ending_notice_for == sub.ends_at else None
+    else:
+        sent = sub.founding_reminded_days
+    if sent is not None and sent <= stage:
         return
     sender.send(
         email.founding_ending_message(
-            user.email, _day(sub.ends_at), plan_link(), tomorrow=left <= timedelta(days=1)
+            user.email,
+            _day(sub.ends_at),
+            plan_link(),
+            tomorrow=left <= timedelta(days=1),
+            shared=shared or covered,
         )
     )
     _push(db, user.id, now, body=FOUNDING_ENDS_SOON_LABEL, tag="founding-ends")
-    sub.founding_reminded_days = stage
+    if covered:
+        user.ending_notice_for = sub.ends_at
+        user.shared_reminded_days = stage
+    else:
+        sub.founding_reminded_days = stage
     counts["ending_soon"] += 1
 
 
-def _founding_ended(db: DbSession, user: User, ended: datetime) -> bool:
-    """Whether the end the account is in is a Founding term's."""
+def _covered_notices(
+    db: DbSession,
+    user: User,
+    now: datetime,
+    before: timedelta,
+    sender: email.EmailSender,
+    counts: dict[str, int],
+) -> None:
+    """The partner a household's plan covers hears what its holder hears about that plan
+    ending (invariant 54), stamped on their own row so each goes to them once."""
+    pair = household_pair(db, user.id)
+    holder_id = household_holder(db, pair, now=now) if pair else None
+    holder = db.get(User, holder_id) if holder_id else None
+    if holder is None:
+        return
+    sub = active_subscription(db, holder.id, now=now)
+    if sub is not None and sub.plan == "founding" and sub.ends_at is not None:
+        _founding_reminder(db, user, sub, now, sender, counts, covered=True)
+        return
+    ending = _ending(db, holder, now)
+    if ending is None:
+        return
+    end, trial = ending
+    if end - now <= before and user.ending_notice_for != end:
+        sender.send(
+            email.plan_ending_message(user.email, _day(end), plan_link(), trial, shared=True)
+        )
+        if trial:
+            _push(db, user.id, now, body=TRIAL_ENDS_TOMORROW_LABEL, tag="trial-ends")
+        user.ending_notice_for = end
+        counts["ending_soon"] += 1
+
+
+def _founding_ended(db: DbSession, user_ids: list[uuid.UUID], ended: datetime) -> bool:
+    """Whether the end the account is in is a Founding term's (its own, or the household's)."""
     return (
         db.scalar(
             select(Subscription.id).where(
-                Subscription.user_id == user.id,
+                Subscription.user_id.in_(user_ids),
                 Subscription.plan == "founding",
                 Subscription.ends_at == ended,
             )
         )
+        is not None
+    )
+
+
+def _trial_ended(db: DbSession, user_ids: list[uuid.UUID], ended: datetime) -> bool:
+    """Whether the end the account is in is a free trial's (its own, or the household's)."""
+    return (
+        db.scalar(select(User.id).where(User.id.in_(user_ids), User.trial_ends_at == ended))
         is not None
     )

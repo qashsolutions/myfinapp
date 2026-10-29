@@ -6,10 +6,12 @@ import { Button, Card, Chip } from "@stackd/ui";
 import { useEffect, useId, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
+import { Word } from "../../app/layout/Word.tsx";
 import { failureText, type GroupPreview } from "../../data/api.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { customJar, EngineError, parseAmount } from "../../engine/bridge.ts";
 import { formatDay, todayIso } from "../../lib/format.ts";
+import { compareText } from "../../lib/order.ts";
 import { useSession } from "../auth/useSession.tsx";
 import { TARGET_PRESETS, TargetField } from "./TargetField.tsx";
 import { templateOf } from "./templates.ts";
@@ -19,6 +21,9 @@ const CODE = /^STK-[A-Z0-9]{4}$/;
 
 /** Invariant 45: the owner removed this person, so no code lets them back in. */
 export const REMOVED_MESSAGE = "The owner removed you from this challenge, so you can't rejoin it.";
+
+/** Invariant 56: a challenge past its last day takes nobody new. */
+export const ENDED_MESSAGE = "This challenge has ended, so it can't be joined.";
 
 function normaliseCode(text: string): string {
   const raw = text
@@ -61,9 +66,11 @@ export function JoinGroup() {
             ? "No group with that code. Check it and try again."
             : result.code === "removed"
               ? REMOVED_MESSAGE
-              : result.status === 429
-                ? "Too many tries. Wait a few minutes."
-                : failureText(result, "Couldn't look that up. Try again."),
+              : result.code === "ended"
+                ? ENDED_MESSAGE
+                : result.status === 429
+                  ? "Too many tries. Wait a few minutes."
+                  : failureText(result, "Couldn't look that up. Try again."),
         );
       } else setPreview(result);
     });
@@ -108,26 +115,26 @@ export function JoinGroup() {
             ? "Your plan joins one challenge at a time. Leave the other first, or choose a bigger plan."
             : result.code === "removed"
               ? REMOVED_MESSAGE
-              : result.status === 404
-                ? "That code no longer works."
-                : failureText(result, "Couldn't join. Try again."),
+              : result.code === "ended"
+                ? ENDED_MESSAGE
+                : result.status === 404
+                  ? "That code no longer works."
+                  : failureText(result, "Couldn't join. Try again."),
         );
         return;
       }
       navigate(`/groups/${result.id}`, { replace: true });
     } catch (err) {
       const code = err instanceof EngineError ? err.code : "";
-      setError(
-        code === "deadline_in_past"
-          ? "This challenge has already ended."
-          : "Enter a target like 300.",
-      );
+      setError(code === "deadline_in_past" ? ENDED_MESSAGE : "Enter a target like 300.");
     } finally {
       setBusy(false);
     }
   }
 
   const shownName = displayName.trim() || session.info?.user?.display_name || "you";
+  // Past its last day here (the server refuses once it is over everywhere): nothing to join.
+  const ended = preview !== null && compareText(preview.end_date, today) < 0;
 
   return (
     <>
@@ -172,6 +179,11 @@ export function JoinGroup() {
             <Link to={`/groups/${preview.id}`} className="auth__link">
               You're already in this group. Open it.
             </Link>
+          ) : ended ? (
+            <div role="status">
+              <Word>Ended</Word>
+              <p>{ENDED_MESSAGE}</p>
+            </div>
           ) : null}
         </Card>
       ) : null}
@@ -182,7 +194,7 @@ export function JoinGroup() {
           on your device.
         </p>
       </Card>
-      {preview && !preview.already_member ? (
+      {preview && !preview.already_member && !ended ? (
         <>
           {template.kind === "spend_less" ? (
             <label className="auth__field">
