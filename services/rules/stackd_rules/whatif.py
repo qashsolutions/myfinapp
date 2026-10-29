@@ -21,13 +21,16 @@ def _side(plan: dict) -> dict:
     }
 
 
-def debt(debts: object, extra_cents: object, add_cents: object, as_of: str) -> dict:
-    """bills.payoff_plan with today's extra, then with `add_cents` more each month."""
+def debt(
+    debts: object, extra_cents: object, add_cents: object, as_of: str, order: object = None
+) -> dict:
+    """bills.payoff_plan with today's extra, then with `add_cents` more each month, both in the
+    person's `order` (null = avalanche, as the payoff plan)."""
     add = _int(add_cents, "invalid_amount")
     if add < 0:
         raise RuleError("invalid_amount")
-    before = bills.payoff_plan(debts, extra_cents, as_of)
-    after = bills.payoff_plan(debts, _int(extra_cents, "invalid_amount") + add, as_of)
+    before = bills.payoff_plan(debts, extra_cents, as_of, order)
+    after = bills.payoff_plan(debts, _int(extra_cents, "invalid_amount") + add, as_of, order)
     both = not before["stalled"] and not after["stalled"]
     if after["stalled"]:
         status = "stalled"

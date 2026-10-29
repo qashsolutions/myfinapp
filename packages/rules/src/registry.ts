@@ -429,8 +429,8 @@ const BARE: Record<string, Rule> = {
     };
   },
   "whatif.debt": (input) => {
-    const a = args(input, ["debts", "extra_cents", "add_cents", "as_of"]);
-    return { ...whatif.debt(a.debts, a.extra_cents, a.add_cents, a.as_of) };
+    const a = args(input, ["debts", "extra_cents", "add_cents", "as_of"], ["order"]);
+    return { ...whatif.debt(a.debts, a.extra_cents, a.add_cents, a.as_of, a.order) };
   },
   "whatif.goal": (input) => {
     const a = args(input, ["remaining_cents", "per_month_cents", "add_cents", "as_of"]);

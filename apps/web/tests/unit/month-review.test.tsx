@@ -216,6 +216,109 @@ describe("Your month", () => {
     expect(screen.queryByRole("region", { name: "Budget" })).toBeNull();
   });
 
+  it("the debt candidate follows the person's own order", async () => {
+    const db = await seedMonths(false);
+    await db.debts.bulkAdd([
+      {
+        id: "a",
+        label: "Card A",
+        balance_cents: 10000,
+        apr_bps: 2400,
+        min_payment_cents: 1000,
+        created_at: STAMP,
+        updated_at: STAMP,
+      },
+      {
+        id: "b",
+        label: "Loan B",
+        balance_cents: 3000,
+        apr_bps: 0,
+        min_payment_cents: 1000,
+        created_at: STAMP,
+        updated_at: STAMP,
+      },
+    ]);
+    await db.settings.put({ key: "debt.order", value: "snowball", updated_at: STAMP });
+    installFakeApi({ session: readySession() });
+    renderApp("/month-review");
+    const change = await screen.findByRole("region", { name: "One change" });
+    // Minimums only: 7 months, $9.31 interest either way. $50 more, smallest balance first:
+    // B goes in month 1, A in month 2 (interest 200 + 124) → saved 931 − 324 = 607;
+    // 607 × 12 ÷ 7 = 1040.57 → $10.41 a year (highest rate first would say $11.09).
+    await waitFor(() =>
+      expect(change).toHaveTextContent(
+        "Put $50.00 a month on your debts → about $10.41 a year less interest",
+      ),
+    );
+  });
+
+  it("subscriptions belong to the month just ended only", async () => {
+    const db = await seedMonths(false);
+    await db.recurring_series.add({
+      id: "s-hulu",
+      payee: "HULU",
+      label: "Hulu",
+      kind: "bill",
+      expected_cents: 1800,
+      interval: "monthly",
+      next_date: "2026-11-15",
+      status: "confirmed",
+      source: "detected",
+      account_id: null,
+      subscription: true,
+      created_at: "2026-10-01T00:00:00Z",
+      updated_at: "2026-10-01T00:00:00Z",
+    });
+    const user = userEvent.setup();
+    installFakeApi({ session: readySession() });
+    renderApp("/month-review");
+    const subs = await screen.findByRole("region", { name: "Subscriptions" });
+    await waitFor(() => expect(subs).toHaveTextContent("1 to check · $216.00 a year"));
+    const change = await screen.findByRole("region", { name: "One change" });
+    await waitFor(() => expect(change).toHaveTextContent("Check 1 subscription → $216.00 a year"));
+    await user.click(screen.getByRole("button", { name: "‹ Earlier" }));
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "How it went" })).toHaveTextContent("67% kept"),
+    );
+    await waitFor(() => expect(screen.queryByRole("region", { name: "One change" })).toBeNull());
+    expect(screen.queryByRole("region", { name: "Subscriptions" })).toBeNull();
+  });
+
+  it("What if's debt levers follow the person's own order", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await db.debts.bulkAdd([
+      {
+        id: "a",
+        label: "Card A",
+        balance_cents: 10000,
+        apr_bps: 2400,
+        min_payment_cents: 1000,
+        created_at: STAMP,
+        updated_at: STAMP,
+      },
+      {
+        id: "b",
+        label: "Loan B",
+        balance_cents: 3000,
+        apr_bps: 0,
+        min_payment_cents: 1000,
+        created_at: STAMP,
+        updated_at: STAMP,
+      },
+    ]);
+    await db.settings.put({ key: "debt.order", value: "snowball", updated_at: STAMP });
+    installFakeApi({ session: readySession() });
+    // $30 more, smallest balance first (the whatif.debt golden): 7 months → 3, $5.00 less
+    renderApp("/what-if?lever=debts&amount=3000");
+    const card = await screen.findByRole("region", { name: "Extra on all debts" });
+    await waitFor(() => expect(card).toHaveTextContent("smallest balance first"));
+    const result = await screen.findByRole("region", { name: "What changes for your debts" });
+    await waitFor(() =>
+      expect(result).toHaveTextContent("Debt-free 4 months sooner · $5.00 less interest"),
+    );
+  });
+
   it("What if opens prefilled from the address", async () => {
     await seedDefaults(openDb("u1"));
     installFakeApi({ session: readySession() });

@@ -1275,12 +1275,14 @@ export async function whatIfDebt(
   extraCents: number,
   addCents: number,
   asOf: string,
+  order: PayoffOrder | null = null,
 ): Promise<WhatIfDebt> {
   return engine.call<WhatIfDebt>("whatif.debt", {
     debts,
     extra_cents: extraCents,
     add_cents: addCents,
     as_of: asOf,
+    ...(order ? { order } : {}),
   });
 }
 

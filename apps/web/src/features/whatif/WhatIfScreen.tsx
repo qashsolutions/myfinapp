@@ -22,6 +22,7 @@ import {
 } from "../../engine/bridge.ts";
 import { formatCents, formatMonth, todayIso } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
+import { ORDER_SETTING, orderLabel } from "../bills/debtPlan.ts";
 import { EXTRA_SETTING } from "../bills/PayoffPlan.tsx";
 import { newMoneyIn, useGoals } from "../goals/useGoals.ts";
 
@@ -248,6 +249,14 @@ export function WhatIfScreen() {
     async () => ((await db.settings.get(EXTRA_SETTING))?.value as number | undefined) ?? 0,
     [db],
   );
+  // The person's own order on Debt payoff (October 28, 2026): every debt lever follows it.
+  const order = useLiveQuery(
+    async () =>
+      (await db.settings.get(ORDER_SETTING))?.value === "snowball"
+        ? ("snowball" as const)
+        : ("avalanche" as const),
+    [db],
+  );
   const categories = useLiveQuery(
     async () =>
       (await db.categories.where("kind").equals("expense").sortBy("sort")).filter((c) => !c.hidden),
@@ -288,18 +297,18 @@ export function WhatIfScreen() {
       // Half every two weeks: 26 half payments are one extra full payment a year, spread
       // across the months (an approximation; proposed, awaiting owner sign-off).
       const yearly = halfBiweekly ? await roundDiv(debt.min_payment_cents, 12) : 0;
-      const r = await whatIfDebt([toInput(debt)], 0, loanAdd + yearly, today);
+      const r = await whatIfDebt([toInput(debt)], 0, loanAdd + yearly, today, order ?? null);
       if (alive) setLoanResult(r);
     })().catch(ignoreClosed);
     return () => {
       alive = false;
     };
-  }, [lever, debt, loanAdd, halfBiweekly, today]);
+  }, [lever, debt, loanAdd, halfBiweekly, today, order]);
 
   useEffect(() => {
-    if (lever !== "debts" || !debts?.length || extra === undefined) return;
+    if (lever !== "debts" || !debts?.length || extra === undefined || !order) return;
     let alive = true;
-    void whatIfDebt(debts.map(toInput), extra, allAdd, today)
+    void whatIfDebt(debts.map(toInput), extra, allAdd, today, order)
       .then((r) => {
         if (alive) setAllResult(r);
       })
@@ -307,7 +316,7 @@ export function WhatIfScreen() {
     return () => {
       alive = false;
     };
-  }, [lever, debts, extra, allAdd, today]);
+  }, [lever, debts, extra, allAdd, today, order]);
 
   useEffect(() => {
     if (lever !== "spend") return;
@@ -315,8 +324,8 @@ export function WhatIfScreen() {
     void (async () => {
       const [onJar, onDebts] = await Promise.all([
         jar && pace ? whatIfGoal(pace.remaining, pace.perMonth, spendAdd, today) : null,
-        debts?.length && extra !== undefined
-          ? whatIfDebt(debts.map(toInput), extra, spendAdd, today)
+        debts?.length && extra !== undefined && order
+          ? whatIfDebt(debts.map(toInput), extra, spendAdd, today, order)
           : null,
       ]);
       if (!alive) return;
@@ -326,7 +335,7 @@ export function WhatIfScreen() {
     return () => {
       alive = false;
     };
-  }, [lever, jar, pace, debts, extra, spendAdd, today]);
+  }, [lever, jar, pace, debts, extra, spendAdd, today, order]);
 
   const noDebts = debts !== undefined && debts.length === 0;
   const addDebt = (
@@ -407,7 +416,8 @@ export function WhatIfScreen() {
             <>
               <p className="sk-card__eyebrow">
                 On top of your payoff plan
-                {extra ? `'s ${formatCents(extra)} extra` : ""}, highest rate first.
+                {extra ? `'s ${formatCents(extra)} extra` : ""},{" "}
+                {orderLabel(order ?? "avalanche").toLowerCase()}.
               </p>
               <AmountChoice
                 legend="More each month"

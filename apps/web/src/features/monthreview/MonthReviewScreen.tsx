@@ -345,11 +345,7 @@ export function MonthReviewScreen() {
 
   return (
     <>
-      <ScreenHeader
-        title="Your month"
-        back="/insights"
-        actions={null}
-      />
+      <ScreenHeader title="Your month" back="/insights" actions={null} />
       <div className="range-stepper">
         <button
           type="button"

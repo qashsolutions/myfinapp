@@ -174,20 +174,31 @@ export function useMonthReview(span: MonthSpan | null, today: string): MonthRevi
   const debtSettings = useDebtSettings();
   const creditCards = useCreditCards(today);
   const subs = useSubscriptions(today);
+  // The subscription check is today's: it belongs to the month just ended only.
+  const latest = useMonthSpan(null, today);
+  const justEnded = span !== null && latest !== null && latest.month === span.month;
   const [change, setChange] = useState<PickedChange | null | undefined>(undefined);
 
   const summary = span && budget.summary?.start === span.start ? budget.summary : null;
   const budgetReady = budget.budget !== undefined && (budget.budget === null || summary !== null);
   useEffect(() => {
-    if (!span || !subs || !debtSettings || !budgetReady) return;
+    if (!span || !latest || !subs || !debtSettings || !budgetReady) return;
     let alive = true;
     void (async () => {
       const over = mostOver(summary);
-      const askedYearly = subs.check.items.filter((i) => i.ask).map((i) => i.yearly_cents);
+      const askedYearly = justEnded
+        ? subs.check.items.filter((i) => i.ask).map((i) => i.yearly_cents)
+        : [];
       let debt = null;
       if (debtSettings.debts.length > 0) {
         const add = over?.over_cents ?? DEBT_ADD_CENTS;
-        const r = await whatIfDebt(debtInputs(debtSettings.debts), debtSettings.extra, add, today);
+        const r = await whatIfDebt(
+          debtInputs(debtSettings.debts),
+          debtSettings.extra,
+          add,
+          today,
+          debtSettings.order,
+        );
         debt = {
           interest_saved_cents: r.interest_saved_cents,
           months: r.before.months,
@@ -213,7 +224,7 @@ export function useMonthReview(span: MonthSpan | null, today: string): MonthRevi
     return () => {
       alive = false;
     };
-  }, [db, span, subs, debtSettings, budgetReady, summary, today]);
+  }, [db, span, latest, justEnded, subs, debtSettings, budgetReady, summary, today]);
 
   if (!span) return null;
   const cards = (creditCards ?? [])
@@ -226,7 +237,7 @@ export function useMonthReview(span: MonthSpan | null, today: string): MonthRevi
     jars,
     plan,
     cards,
-    subs,
+    subs: justEnded ? subs : undefined,
     change,
   };
 }

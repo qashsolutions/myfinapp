@@ -365,8 +365,10 @@ def _growth_goal_pace(
     return growth.goal_pace(plan_monthly_cents, deposited_cents, start_date, as_of)
 
 
-def _whatif_debt(debts: list, extra_cents: int, add_cents: int, as_of: str) -> dict:
-    return whatif.debt(debts, extra_cents, add_cents, as_of)
+def _whatif_debt(
+    debts: list, extra_cents: int, add_cents: int, as_of: str, order: str | None = None
+) -> dict:
+    return whatif.debt(debts, extra_cents, add_cents, as_of, order)
 
 
 def _whatif_goal(remaining_cents: int, per_month_cents: int, add_cents: int, as_of: str) -> dict:
