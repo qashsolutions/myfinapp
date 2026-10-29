@@ -17,7 +17,11 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
   const settings = useDebtSettings();
   const debts = settings?.debts;
   const kind = settings?.order ?? "avalanche";
-  const [order, setOrder] = useState<AvalancheOrder | null>(null);
+  // The rows and the order they were worked out in, set together: the list's name and note
+  // follow the rows on screen, never a newer choice whose rows are still being worked out.
+  const [state, setState] = useState<{ order: AvalancheOrder; kind: typeof kind } | null>(null);
+  const order = state?.order ?? null;
+  const shown = state?.kind ?? kind;
   useEffect(() => {
     if (!debts) return;
     let alive = true;
@@ -32,7 +36,7 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
           return d ? [{ ...d, rank: p.rank }] : [];
         });
       }
-      if (alive) setOrder(totals);
+      if (alive) setState({ order: totals, kind });
     })().catch(ignoreClosed);
     return () => {
       alive = false;
@@ -60,7 +64,7 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
       <ol
         className="lb"
         aria-label={
-          kind === "snowball" ? "Debts, smallest balance first" : "Debts, highest rate first"
+          shown === "snowball" ? "Debts, smallest balance first" : "Debts, highest rate first"
         }
       >
         {order?.order.map((d) => (
@@ -102,7 +106,7 @@ export function DebtList({ onEdit }: { onEdit: (debt: Debt) => void }) {
       </ol>
       {order && order.order.length > 0 ? (
         <p className="auth__fineprint">
-          {kind === "snowball"
+          {shown === "snowball"
             ? "Smallest balance first: a debt clears sooner. Education, not advice."
             : "Highest rate first: interest costs the least. Education, not advice."}
         </p>

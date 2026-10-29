@@ -1,20 +1,21 @@
 import { cx } from "@stackd/ui";
-import { NavLink } from "react-router";
-import { TABS } from "../tabs.ts";
+import { Link, useLocation } from "react-router";
+import { activeTab, TABS } from "../tabs.ts";
 
 /** Phone: the floating five-tab bar, text labels, active tab filled with accent-1. */
 export function TabBar() {
+  const current = activeTab(useLocation().pathname);
   return (
     <nav className="tabbar" aria-label="Primary">
       {TABS.map((t) => (
-        <NavLink
+        <Link
           key={t.path}
           to={t.path}
-          end={t.path === "/"}
-          className={({ isActive }) => cx("tabbar__tab", isActive && "tabbar__tab--active")}
+          aria-current={current === t.path ? "page" : undefined}
+          className={cx("tabbar__tab", current === t.path && "tabbar__tab--active")}
         >
           {t.label}
-        </NavLink>
+        </Link>
       ))}
     </nav>
   );

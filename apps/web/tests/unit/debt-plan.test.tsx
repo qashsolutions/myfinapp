@@ -190,7 +190,10 @@ describe("Debt payoff planner", () => {
     expect(within(plan).getByRole("status")).toHaveTextContent("February 2027");
     expect(await db.settings.get("debt.order")).toMatchObject({ value: "snowball" });
     // The list follows the chosen order: the smallest balance is where the extra goes.
+    // The list's name changes only with rows worked out in that order (October 29, 2026: the name
+    // once flipped first, over the old rows, while the new order was still being worked out).
     const list = await screen.findByRole("list", { name: "Debts, smallest balance first" });
-    expect(within(list).getAllByRole("button")[0]).toHaveAccessibleName(/^Loan, .*rank 1$/);
+    const rows = await within(list).findAllByRole("button");
+    expect(rows[0]).toHaveAccessibleName(/^Loan, .*rank 1$/);
   });
 });

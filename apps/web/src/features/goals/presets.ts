@@ -16,7 +16,7 @@ export const KIND_LABELS: Record<GoalKind, string> = {
 export const WHAT_FOR = ["Travel", "Kids' education", "Emergency fund", "New car", "A home"];
 
 /**
- * Goals that grow (October 28, 2026; proposed, awaiting owner sign-off): how fast the cost rises
+ * Goals that grow (October 28, 2026; signed off by the owner, October 29, 2026): how fast the cost rises
  * and how fast savings grow, each a year. Kids' education and A home turn "Grows over time" on.
  */
 export const GROW_RISE_BPS = [300, 500, 700];

@@ -1,0 +1,23 @@
+{
+  "months": 12,
+  "target_cost_cents": 120000,
+  "at_target_cents": 120000,
+  "short_by_cents": 0,
+  "reaches_by_target": true,
+  "reach_months": 12,
+  "reach_month": "2027-10",
+  "points": [
+    {
+      "month": "2026-10",
+      "months": 0,
+      "cost_cents": 120000,
+      "saved_cents": 0
+    },
+    {
+      "month": "2027-10",
+      "months": 12,
+      "cost_cents": 120000,
+      "saved_cents": 120000
+    }
+  ]
+}

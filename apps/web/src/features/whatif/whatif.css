@@ -1,0 +1,48 @@
+/* What if (October 29, 2026): the four levers as one segmented choice, and the before / after bars. */
+.whatif-levers {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 0;
+  margin: 0 0 12px;
+}
+@media (min-width: 600px) {
+  .whatif-levers {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.whatif-levers .segmented__option {
+  flex-direction: column;
+  gap: 2px;
+  min-height: 60px;
+  padding: 6px 4px;
+  font-size: var(--fs-small);
+  text-align: center;
+}
+.whatif-levers svg {
+  width: 22px;
+  height: 22px;
+}
+.whatif-tl {
+  margin: 8px 0 4px;
+}
+.whatif-tl__row {
+  margin-bottom: 8px;
+}
+.whatif-tl__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 8px;
+  margin-bottom: 4px;
+  font-size: var(--fs-small);
+}
+.whatif-tl__head span {
+  color: var(--c-sub);
+}
+.whatif-tl__bar {
+  display: block;
+}
+.whatif-tl__key--saved {
+  background: var(--c-success);
+  opacity: 0.6;
+  border-radius: 2px;
+}

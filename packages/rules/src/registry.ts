@@ -428,6 +428,33 @@ const BARE: Record<string, Rule> = {
       ),
     };
   },
+  "growth.goal_reach": (input) => {
+    const a = args(
+      input,
+      [
+        "today_cost_cents",
+        "cost_rise_bps",
+        "return_bps",
+        "saved_cents",
+        "monthly_cents",
+        "as_of",
+        "target_date",
+      ],
+      ["priced_on"],
+    );
+    return {
+      ...growth.goalReach(
+        a.today_cost_cents,
+        a.cost_rise_bps,
+        a.return_bps,
+        a.saved_cents,
+        a.monthly_cents,
+        a.as_of,
+        a.target_date,
+        a.priced_on ?? null,
+      ),
+    };
+  },
   "growth.goal_pace": (input) => {
     const a = args(input, ["plan_monthly_cents", "deposited_cents", "start_date", "as_of"]);
     return {
