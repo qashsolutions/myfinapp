@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 from app import API_VERSION
 from app.config import get_settings
@@ -61,3 +62,32 @@ def test_docs_hidden_in_prod(prod_settings: None) -> None:
         assert c.get("/openapi.json").status_code == 404
         assert c.get("/docs").status_code == 404
         assert c.get("/health").status_code == 200
+
+
+def _stamp(engine, revision: str) -> None:
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE alembic_version SET version_num = :v"), {"v": revision})
+
+
+def test_a_newer_database_keeps_this_build_ready_and_starting(
+    client: TestClient, migrated, bucket, capsys
+) -> None:
+    """October 29, 2026: a deploy migrated the database and then did not go live, and the
+    older build crashed at start on a revision it did not know. Migrations stay backward
+    compatible for one release, so an older build keeps running on a newer database."""
+    from app.cli import migrate
+    from app.db import get_engine, migration_status
+
+    engine = get_engine()
+    with engine.connect() as conn:
+        head, _ = migration_status(conn)
+    _stamp(engine, "9999")
+    try:
+        r = client.get("/health/ready")
+        assert r.status_code == 200, r.text
+        assert r.json()["checks"]["migrations"] == "ok"
+        assert migrate(check_only=False) == 0
+        assert migrate(check_only=True) == 0
+        assert "newer than this build" in capsys.readouterr().out
+    finally:
+        _stamp(engine, head)

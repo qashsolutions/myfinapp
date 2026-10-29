@@ -42,3 +42,17 @@ def migration_status(connection: Connection) -> tuple[str | None, str | None]:
     current = MigrationContext.configure(connection).get_current_revision()
     head = ScriptDirectory.from_config(alembic_config()).get_current_head()
     return current, head
+
+
+def database_is_newer(current: str | None) -> bool:
+    """True when the database is at a revision this build does not know: a newer build has
+    migrated it (a deploy that migrated and then did not go live, or a rollback). Migrations
+    stay backward compatible for one release, so this build keeps running on it rather than
+    crash at start (October 29, 2026)."""
+    if current is None:
+        return False
+    try:
+        ScriptDirectory.from_config(alembic_config()).get_revision(current)
+    except Exception:
+        return True
+    return False

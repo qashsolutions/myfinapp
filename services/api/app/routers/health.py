@@ -14,7 +14,7 @@ from fastapi import APIRouter, Response, status
 from sqlalchemy import text
 
 from app import API_VERSION
-from app.db import get_engine, migration_status
+from app.db import database_is_newer, get_engine, migration_status
 from app.storage import bucket_exists
 
 log = logging.getLogger(__name__)
@@ -34,6 +34,9 @@ def check_db_and_migrations() -> tuple[str, str]:
     except Exception:
         log.exception("readiness: database check failed")
         return "unreachable", "unknown"
+    if database_is_newer(current):
+        log.warning("readiness: database at %s is newer than this build (head %s)", current, head)
+        return "ok", "ok"
     return "ok", ("ok" if current == head and head is not None else "behind")
 
 
