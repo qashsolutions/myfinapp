@@ -117,23 +117,33 @@
         "title": "ActivityOut",
         "type": "object"
       },
-      "ApproveIn": {
+      "AskedOut": {
         "properties": {
-          "code": {
-            "pattern": "^[A-Za-z2-9\\- ]{8,11}$",
-            "title": "Code",
+          "asked_at": {
+            "format": "date-time",
+            "title": "Asked At",
             "type": "string"
           },
-          "confirm_different_network": {
-            "default": false,
-            "title": "Confirm Different Network",
-            "type": "boolean"
+          "device_label": {
+            "title": "Device Label",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
           }
         },
         "required": [
-          "code"
+          "id",
+          "name",
+          "device_label",
+          "asked_at"
         ],
-        "title": "ApproveIn",
+        "title": "AskedOut",
         "type": "object"
       },
       "AssertOptionsRequest": {
@@ -2856,6 +2866,66 @@
         "title": "OtpVerifyRequest",
         "type": "object"
       },
+      "PartnerCodeOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "partner_name": {
+            "title": "Partner Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "partner_name"
+        ],
+        "title": "PartnerCodeOut",
+        "type": "object"
+      },
+      "PartnerSettingIn": {
+        "properties": {
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "on"
+        ],
+        "title": "PartnerSettingIn",
+        "type": "object"
+      },
+      "PartnerSettingOut": {
+        "properties": {
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          },
+          "partner_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partner Name"
+          },
+          "possible": {
+            "title": "Possible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "on",
+          "possible"
+        ],
+        "title": "PartnerSettingOut",
+        "type": "object"
+      },
       "PasskeyOptionsOut": {
         "properties": {
           "options": {
@@ -3359,6 +3429,52 @@
           "delivered"
         ],
         "title": "PushTestOut",
+        "type": "object"
+      },
+      "RecoveryOut": {
+        "properties": {
+          "partner_asked": {
+            "default": false,
+            "title": "Partner Asked",
+            "type": "boolean"
+          },
+          "partner_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partner Name"
+          },
+          "ready_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ready At"
+          },
+          "status": {
+            "enum": [
+              "none",
+              "waiting",
+              "ready"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "RecoveryOut",
         "type": "object"
       },
       "RegisterVerifyRequest": {
@@ -4095,6 +4211,25 @@
         "title": "YouPayOut",
         "type": "object"
       },
+      "app__routers__device_link__ApproveIn": {
+        "properties": {
+          "code": {
+            "pattern": "^[A-Za-z2-9\\- ]{8,11}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "confirm_different_network": {
+            "default": false,
+            "title": "Confirm Different Network",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "ApproveIn",
+        "type": "object"
+      },
       "app__routers__device_link__StartOut": {
         "properties": {
           "code": {
@@ -4130,6 +4265,21 @@
           "url"
         ],
         "title": "StartOut",
+        "type": "object"
+      },
+      "app__routers__recovery__ApproveIn": {
+        "properties": {
+          "code": {
+            "maxLength": 12,
+            "minLength": 6,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "ApproveIn",
         "type": "object"
       }
     }
@@ -4340,6 +4490,66 @@
         ]
       }
     },
+    "/api/account/recovery-partner": {
+      "get": {
+        "operationId": "get_partner_setting_api_account_recovery_partner_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerSettingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Partner Setting",
+        "tags": [
+          "recovery"
+        ]
+      },
+      "put": {
+        "operationId": "put_partner_setting_api_account_recovery_partner_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartnerSettingIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerSettingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Partner Setting",
+        "tags": [
+          "recovery"
+        ]
+      }
+    },
     "/api/alerts/schedule": {
       "get": {
         "operationId": "get_schedule_api_alerts_schedule_get",
@@ -4407,7 +4617,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ApproveIn"
+                "$ref": "#/components/schemas/app__routers__device_link__ApproveIn"
               }
             }
           },
@@ -4723,6 +4933,89 @@
         "summary": "Passkey Sign In",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/auth/recovery": {
+      "get": {
+        "operationId": "recovery_status_api_auth_recovery_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Recovery Status",
+        "tags": [
+          "recovery"
+        ]
+      },
+      "post": {
+        "operationId": "recovery_start_api_auth_recovery_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Recovery Start",
+        "tags": [
+          "recovery"
+        ]
+      }
+    },
+    "/api/auth/recovery/cancel": {
+      "post": {
+        "description": "From the asking device (\"I found my passkey\"), or from any device signed in and\nunlocked (the owner, \"this wasn't me\"). A locked session that didn't ask can't cancel, or\nwhoever holds the email could stop the owner's own recovery.",
+        "operationId": "recovery_cancel_api_auth_recovery_cancel_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Recovery Cancel",
+        "tags": [
+          "recovery"
+        ]
+      }
+    },
+    "/api/auth/recovery/partner": {
+      "post": {
+        "operationId": "recovery_ask_partner_api_auth_recovery_partner_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerCodeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Recovery Ask Partner",
+        "tags": [
+          "recovery"
         ]
       }
     },
@@ -6169,6 +6462,72 @@
         "summary": "Lookup",
         "tags": [
           "household"
+        ]
+      }
+    },
+    "/api/household/recovery": {
+      "get": {
+        "operationId": "asked_of_me_api_household_recovery_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AskedOut"
+                  },
+                  "title": "Response Asked Of Me Api Household Recovery Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Asked Of Me",
+        "tags": [
+          "recovery"
+        ]
+      }
+    },
+    "/api/household/recovery/approve": {
+      "post": {
+        "operationId": "approve_api_household_recovery_approve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__routers__recovery__ApproveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve",
+        "tags": [
+          "recovery"
         ]
       }
     },

@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -30,6 +30,7 @@ from app.security.csrf import same_site_only
 from app.security.hashing import pseudonym
 from app.security.principal import Caller, require_session, require_step_up, require_unlocked
 from app.security.rate_limit import rate_limited, session_or_ip
+from app.services import recovery as recovery_svc
 from app.services import sessions as sessions_svc
 from app.services import webauthn as webauthn_svc
 from app.services.security_alerts import SecurityEvent, send_alert
@@ -106,6 +107,9 @@ def _may_register(request: Request, caller: Caller, db: DbSession) -> None:
     unlocked session and a fresh passkey check, or a stolen cookie, even a locked one, could enrol
     its own passkey and come out unlocked and step-up fresh."""
     if caller.principal.has_passkeys:
+        # Every passkey lost, and a recovery is ready for this session (invariant 74).
+        if recovery_svc.may_add_passkey(db, caller.user.id, caller.session):
+            return
         require_step_up(require_unlocked(request, caller, db))
 
 
@@ -141,6 +145,9 @@ def register_verify(
     except webauthn_svc.WebauthnError as exc:
         db.commit()
         raise _webauthn_error(exc) from exc
+    # A recovery ready for this session ends here: the old passkeys go, other devices are
+    # signed out (invariant 74).
+    recovered = recovery_svc.finish(db, caller.user, caller.session, row.id)
     sessions_svc.mark_passkey_verified(caller.session)
     record(
         db,
@@ -149,10 +156,18 @@ def register_verify(
         target=f"passkey:{row.id}",
         ip=ip,
     )
+    if recovered is not None:
+        record(
+            db,
+            actor_id=caller.user.id,
+            action=AuditAction.RECOVERY_DONE,
+            target=f"recovery:{recovered.id}",
+            ip=ip,
+        )
     db.commit()
     send_alert(
         caller.user.email,
-        SecurityEvent.PASSKEY_ADDED,
+        SecurityEvent.RECOVERY_DONE if recovered is not None else SecurityEvent.PASSKEY_ADDED,
         device_label=caller.session.device_label,
         at=row.created_at,
     )
@@ -199,7 +214,22 @@ def assert_verify(
         db.commit()
         raise _webauthn_error(exc) from exc
     sessions_svc.mark_passkey_verified(caller.session)
+    cancelled = recovery_svc.cancel_on_passkey(db, caller.user.id)
+    if cancelled is not None:
+        record(
+            db,
+            actor_id=caller.user.id,
+            action=AuditAction.RECOVERY_CANCELLED,
+            target=f"recovery:{cancelled.id}",
+        )
     db.commit()
+    if cancelled is not None:
+        send_alert(
+            caller.user.email,
+            SecurityEvent.RECOVERY_CANCELLED,
+            device_label=caller.session.device_label,
+            at=datetime.now(UTC),
+        )
     assert caller.session.passkey_verified_at is not None
     return AssertResult(passkey_verified_at=caller.session.passkey_verified_at, locked=False)
 

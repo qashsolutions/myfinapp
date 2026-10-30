@@ -28,6 +28,7 @@ from app.security.csrf import same_site_only
 from app.security.hashing import pseudonym
 from app.security.principal import Caller, optional_caller, require_session
 from app.security.rate_limit import LIMITS, hit, rate_limited
+from app.services import recovery as recovery_svc
 from app.services import sessions as sessions_svc
 from app.services import webauthn as webauthn_svc
 from app.services.email import get_sender, otp_message
@@ -242,8 +243,22 @@ def passkey_sign_in(
     session, token = sessions_svc.create_session(db, user, device_label=label, ip=ip)
     sessions_svc.mark_passkey_verified(session)
     record(db, actor_id=user.id, action=AuditAction.SIGN_IN, target=f"session:{session.id}", ip=ip)
+    # The owner signed in with a passkey: a recovery waiting on the account ends (invariant 74).
+    cancelled = recovery_svc.cancel_on_passkey(db, user.id)
+    if cancelled is not None:
+        record(
+            db,
+            actor_id=user.id,
+            action=AuditAction.RECOVERY_CANCELLED,
+            target=f"recovery:{cancelled.id}",
+            ip=ip,
+        )
     db.commit()
     send_alert(user.email, SecurityEvent.NEW_SIGN_IN, device_label=label, at=session.created_at)
+    if cancelled is not None:
+        send_alert(
+            user.email, SecurityEvent.RECOVERY_CANCELLED, device_label=label, at=session.created_at
+        )
     sessions_svc.set_cookie(response, token)
     db.refresh(session)
     principal = Principal(

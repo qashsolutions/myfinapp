@@ -70,6 +70,14 @@ export function formatDate(iso: string): string {
   return `${SHORT[m - 1]} ${d}, ${y}`;
 }
 
+/** An ISO datetime → "Oct 31, 2026 at 3:05 PM", in this device's time. */
+export function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  const h = d.getHours() % 12 || 12;
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${formatDate(iso)} at ${h}:${mm} ${d.getHours() < 12 ? "AM" : "PM"}`;
+}
+
 /** The user's local calendar date as YYYY-MM-DD (never UTC, which can be tomorrow or yesterday). */
 export function todayIso(now: Date = new Date()): string {
   const y = now.getFullYear();

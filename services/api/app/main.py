@@ -20,6 +20,7 @@ from app.routers import (
     notifications,
     public_account,
     public_plans,
+    recovery,
     security,
 )
 from app.security.cors import PublicCors
@@ -55,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(device_link.router)
     app.include_router(security.router)
+    app.include_router(recovery.router)  # before household: /api/household/recovery
     app.include_router(account.router)
     app.include_router(groups.router)
     app.include_router(notifications.router)

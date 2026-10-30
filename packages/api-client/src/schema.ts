@@ -99,6 +99,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/account/recovery-partner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Partner Setting */
+        get: operations["get_partner_setting_api_account_recovery_partner_get"];
+        /** Put Partner Setting */
+        put: operations["put_partner_setting_api_account_recovery_partner_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/alerts/schedule": {
         parameters: {
             query?: never;
@@ -295,6 +313,63 @@ export interface paths {
          *     audit and new-sign-in alert as an email-code sign-in.
          */
         post: operations["passkey_sign_in_api_auth_passkey_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recovery Status */
+        get: operations["recovery_status_api_auth_recovery_get"];
+        put?: never;
+        /** Recovery Start */
+        post: operations["recovery_start_api_auth_recovery_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/recovery/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recovery Cancel
+         * @description From the asking device ("I found my passkey"), or from any device signed in and
+         *     unlocked (the owner, "this wasn't me"). A locked session that didn't ask can't cancel, or
+         *     whoever holds the email could stop the owner's own recovery.
+         */
+        post: operations["recovery_cancel_api_auth_recovery_cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/recovery/partner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recovery Ask Partner */
+        post: operations["recovery_ask_partner_api_auth_recovery_partner_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1031,6 +1106,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/household/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Asked Of Me */
+        get: operations["asked_of_me_api_household_recovery_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/household/recovery/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve */
+        post: operations["approve_api_household_recovery_approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/linking": {
         parameters: {
             query?: never;
@@ -1666,15 +1775,19 @@ export interface components {
             /** Kind */
             kind: string;
         };
-        /** ApproveIn */
-        ApproveIn: {
-            /** Code */
-            code: string;
+        /** AskedOut */
+        AskedOut: {
             /**
-             * Confirm Different Network
-             * @default false
+             * Asked At
+             * Format: date-time
              */
-            confirm_different_network: boolean;
+            asked_at: string;
+            /** Device Label */
+            device_label: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /** AssertOptionsRequest */
         AssertOptionsRequest: {
@@ -2749,6 +2862,27 @@ export interface components {
              */
             email: string;
         };
+        /** PartnerCodeOut */
+        PartnerCodeOut: {
+            /** Code */
+            code: string;
+            /** Partner Name */
+            partner_name: string;
+        };
+        /** PartnerSettingIn */
+        PartnerSettingIn: {
+            /** On */
+            on: boolean;
+        };
+        /** PartnerSettingOut */
+        PartnerSettingOut: {
+            /** On */
+            on: boolean;
+            /** Partner Name */
+            partner_name?: string | null;
+            /** Possible */
+            possible: boolean;
+        };
         /** PasskeyOptionsOut */
         PasskeyOptionsOut: {
             /** Options */
@@ -2898,6 +3032,23 @@ export interface components {
         PushTestOut: {
             /** Delivered */
             delivered: number;
+        };
+        /** RecoveryOut */
+        RecoveryOut: {
+            /**
+             * Partner Asked
+             * @default false
+             */
+            partner_asked: boolean;
+            /** Partner Name */
+            partner_name?: string | null;
+            /** Ready At */
+            ready_at?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "none" | "waiting" | "ready";
         };
         /** RegisterVerifyRequest */
         RegisterVerifyRequest: {
@@ -3155,6 +3306,16 @@ export interface components {
              */
             source: "stripe" | "apple" | "google";
         };
+        /** ApproveIn */
+        app__routers__device_link__ApproveIn: {
+            /** Code */
+            code: string;
+            /**
+             * Confirm Different Network
+             * @default false
+             */
+            confirm_different_network: boolean;
+        };
         /** StartOut */
         app__routers__device_link__StartOut: {
             /** Code */
@@ -3171,6 +3332,11 @@ export interface components {
             session_id: string;
             /** Url */
             url: string;
+        };
+        /** ApproveIn */
+        app__routers__recovery__ApproveIn: {
+            /** Code */
+            code: string;
         };
     };
     responses: never;
@@ -3351,6 +3517,59 @@ export interface operations {
             };
         };
     };
+    get_partner_setting_api_account_recovery_partner_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerSettingOut"];
+                };
+            };
+        };
+    };
+    put_partner_setting_api_account_recovery_partner_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PartnerSettingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerSettingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_schedule_api_alerts_schedule_get: {
         parameters: {
             query?: never;
@@ -3413,7 +3632,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ApproveIn"];
+                "application/json": components["schemas"]["app__routers__device_link__ApproveIn"];
             };
         };
         responses: {
@@ -3676,6 +3895,86 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recovery_status_api_auth_recovery_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryOut"];
+                };
+            };
+        };
+    };
+    recovery_start_api_auth_recovery_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryOut"];
+                };
+            };
+        };
+    };
+    recovery_cancel_api_auth_recovery_cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryOut"];
+                };
+            };
+        };
+    };
+    recovery_ask_partner_api_auth_recovery_partner_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerCodeOut"];
                 };
             };
         };
@@ -4770,6 +5069,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    asked_of_me_api_household_recovery_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskedOut"][];
+                };
+            };
+        };
+    };
+    approve_api_household_recovery_approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__routers__recovery__ApproveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskedOut"];
                 };
             };
             /** @description Validation Error */

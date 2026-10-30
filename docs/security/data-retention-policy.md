@@ -44,6 +44,7 @@ This policy sets how long Qash Solutions Inc. keeps each kind of data, how it is
 | Sign-in-with-phone requests: the requesting browser and system (for example "Chrome on Mac"), keyed hashes of its code, secret and network address, and who approved it | Database | Expire after 2 minutes; deleted after 1 day | Deleted | `purge-expired` |
 | Rate-limit counters | Database | Deleted after 2 days | Deleted | `purge-expired` |
 | Household invites | Database | 7-day codes; deleted a week after they expire | Deleted | `purge-expired` |
+| Requests to get back in without a passkey | Database | Closed, or past their 7 days to finish: deleted 30 days later (the audit log keeps what happened) | Deleted | `purge-expired` |
 | Payment-webhook event ids (to ignore redeliveries) | Database | 13 months | Deleted | `purge-expired` |
 | Server logs | Hosting provider | 30 days | Deleted by the provider's retention setting | Log retention configured with the production deployment |
 | "Before you subscribe", plan-change and cancellation agreements (what was shown and ticked, plan, price, time, keyed pseudonyms of the email, the email inbox and IP, the device label, the Stripe customer reference that paid; no card data) | Database | 7 years, also after account deletion (the account link is removed; payment disputes and tax records: a dispute lost or a fraud refund after the deletion still blocks the inbox) | Deleted | `purge-expired` |

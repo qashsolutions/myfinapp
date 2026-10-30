@@ -14,6 +14,7 @@ import { formatCents, formatDate, formatMonth, todayIso } from "../../lib/format
 import { useSession } from "../auth/useSession.tsx";
 import { loadEntitlements, useEntitlements } from "../billing/entitlements.ts";
 import { PlanLimit } from "../billing/PlanLimit.tsx";
+import { RecoveryPartnerSwitch, RecoveryRequests } from "../security/RecoveryCards.tsx";
 import { ensureHouseholdKey, inviteLink, myMonthSummary } from "./householdSync.ts";
 import {
   createInvite,
@@ -276,6 +277,8 @@ export function HouseholdScreen() {
       ) : null}
       {household && partner ? (
         <>
+          <RecoveryRequests />
+          <RecoveryPartnerSwitch />
           <Card as="section" aria-label="Month together">
             <Toggle
               checked={local?.shareSummary ?? false}

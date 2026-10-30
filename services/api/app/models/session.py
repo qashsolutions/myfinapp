@@ -17,11 +17,11 @@ from app.models.base import Base, StackdRow
 class Session(Base, StackdRow):
     __tablename__ = "sessions"
     # Why a session ended, so Sign-in & security can say so (October 13, 2026); this check is
-    # the one list of reasons ('plan_ended' since migration 0027).
+    # the one list of reasons ('plan_ended' since migration 0027, 'recovered' since 0041).
     __table_args__ = (
         CheckConstraint(
             "ended_reason IS NULL OR ended_reason IN "
-            "('signed_out', 'signed_out_remote', 'account_deleted', 'plan_ended')",
+            "('signed_out', 'signed_out_remote', 'account_deleted', 'plan_ended', 'recovered')",
             name="ended_reason",
         ),
     )

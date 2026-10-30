@@ -42,6 +42,8 @@ TRIAL_ENDS_TOMORROW_LABEL: str = _MOMENTS["push_trial_ends_tomorrow"]
 FOUNDING_ENDS_SOON_LABEL: str = _MOMENTS["push_founding_ends_soon"]
 FOUNDING_ENDED_LABEL: str = _MOMENTS["push_founding_ended"]
 BUDGET_REACHED_LABEL: str = _MOMENTS["push_budget_reached"]
+RECOVERY_STARTED_LABEL: str = _MOMENTS["push_recovery_started"]
+RECOVERY_PARTNER_LABEL: str = _MOMENTS["push_recovery_partner"]
 TITLE = "Qash"
 # Where a tap on the push lands (the service worker opens it); never a deep link with data.
 URLS: dict[str, str] = {

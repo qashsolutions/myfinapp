@@ -227,6 +227,36 @@ describe("accessibility (axe-core)", () => {
     ua.mockRestore();
   });
 
+  // Getting back in without a passkey (invariant 74): each state of the lock screen's path.
+  it.each(["none", "waiting", "ready"] as const)(
+    "the get-back-in screen (%s) has no axe violations",
+    async (status) => {
+      const api = installFakeApi({
+        session: readySession({ locked: true, passkey_verified_at: null }),
+      });
+      api.recovery.status = status;
+      api.recovery.partner_name = "Asha";
+      api.recovery.partner_asked = status === "waiting";
+      await check("/", async () => {
+        if (status === "none") {
+          (await screen.findByRole("button", { name: "Lost your passkeys?" })).click();
+          await screen.findByRole("heading", { name: "Get back in" });
+        } else
+          await screen.findByRole("heading", {
+            name: status === "ready" ? "You're ready" : "On its way",
+          });
+      });
+    },
+  );
+
+  it("Security with a waiting request has no axe violations", async () => {
+    const api = installFakeApi({ session: readySession() });
+    api.recovery.status = "waiting";
+    await check("/me/security", async () => {
+      await screen.findByRole("alert", { name: "Someone asked to get back in" });
+    });
+  });
+
   it("an ended plan (/me/plan locked) has no axe violations", async () => {
     resetEntitlements();
     const api = installFakeApi({ session: readySession() });

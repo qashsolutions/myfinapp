@@ -87,6 +87,7 @@ export function BackupSettings() {
         return "That recovery key doesn't match. Check it and try again.";
       if (err.code === "backup_gone")
         return "Your backups changed while restoring (another device backed up). Try again.";
+      if (err.code === "recently_recovered") return err.message;
       if (err.code === "wrong_passkey")
         return `This ${biometricName()} can't open the backup here. Enter your recovery key instead.`;
       return "Couldn't reach the backup server. Try again.";

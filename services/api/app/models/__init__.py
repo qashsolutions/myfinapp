@@ -26,6 +26,7 @@ from app.models.notification import (
 from app.models.otp_code import OtpCode
 from app.models.plan_event import PlanEvent
 from app.models.rate_limit import RateLimitBucket
+from app.models.recovery import AccountRecovery
 from app.models.session import Session
 from app.models.trial_claim import TrialClaim
 from app.models.user import User
@@ -33,6 +34,7 @@ from app.models.webauthn_challenge import WebauthnChallenge
 from app.models.webauthn_credential import WebauthnCredential
 
 __all__ = [
+    "AccountRecovery",
     "AlertSchedule",
     "AuditLog",
     "Backup",

@@ -518,3 +518,12 @@
   align-self: center;
   text-decoration: none;
 }
+
+/* Getting back in: the code read aloud to the partner (invariant 74). */
+.recover__code {
+  font-size: var(--fs-word);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+  margin: 8px 0;
+}

@@ -34,6 +34,10 @@ class SecurityEvent(StrEnum):
     CODES_LOCKED = "codes_locked"  # October 24, 2026
     BACKUP_KEY_CHANGED = "backup_key_changed"  # October 24, 2026
     BACKUP_TURNED_OFF = "backup_turned_off"  # October 24, 2026
+    # Getting back in without a passkey (October 30, 2026; invariant 74)
+    RECOVERY_STARTED = "recovery_started"
+    RECOVERY_CANCELLED = "recovery_cancelled"
+    RECOVERY_DONE = "recovery_done"
 
 
 # (subject, first line). {device} and {when} are filled in.
@@ -69,6 +73,24 @@ TEMPLATES: dict[SecurityEvent, tuple[str, str]] = {
         "Encrypted backup was turned off",
         "Encrypted backup was turned off and its copies deleted on {device} at {when}. "
         "Your data stays on your devices.",
+    ),
+    SecurityEvent.RECOVERY_STARTED: (
+        "Someone asked to get back into your Qash account",
+        "On {device} at {when}, someone signed in with an email code and asked to get back in "
+        "without a passkey. It goes through in 24 hours, or sooner if your household partner "
+        "approves it.\n\nIf this was you, there's nothing to do. If it wasn't, open Qash on a "
+        "device you're signed in on: using your passkey there cancels it, or go to Me, then "
+        "Sign-in & security, then Cancel. These alerts are always on.",
+    ),
+    SecurityEvent.RECOVERY_CANCELLED: (
+        "A request to get back in was cancelled",
+        "The request to get back into your account without a passkey was cancelled at {when} "
+        "on {device}. Nothing changed: your passkeys and devices are as they were.",
+    ),
+    SecurityEvent.RECOVERY_DONE: (
+        "You're back in to Qash",
+        "A new passkey was set up on {device} at {when} after getting back in without one. "
+        "Your old passkeys were removed and your other devices were signed out.",
     ),
     SecurityEvent.DEVICE_SIGNED_OUT: (
         "A device was signed out",
@@ -117,7 +139,12 @@ def send_alert(to: str, event: SecurityEvent, *, device_label: str, at: datetime
     when = at.strftime("%b %-d, %Y %H:%M UTC")
     # An alert about something we did on our own (dormancy) has no "if this was you" footer.
     # Nor does a lockout, where no device got in to sign out.
-    no_footer = {SecurityEvent.BANK_AUTO_REVOKED, SecurityEvent.CODES_LOCKED}
+    no_footer = {
+        SecurityEvent.BANK_AUTO_REVOKED,
+        SecurityEvent.CODES_LOCKED,
+        SecurityEvent.RECOVERY_STARTED,  # says what to do itself
+        SecurityEvent.RECOVERY_CANCELLED,
+    }
     footer = "" if event in no_footer else FOOTER
     message = Message(
         to=to, subject=subject, text=line.format(device=device_label, when=when) + footer

@@ -44,6 +44,7 @@ from app.services.otp import (
     request_code,
     verify_code,
 )
+from app.services.recovery import hold_if_recovered
 from app.services.security_alerts import SecurityEvent, send_alert
 
 router = APIRouter(prefix="/api/account", tags=["account"], dependencies=[Depends(same_site_only)])
@@ -168,6 +169,7 @@ def export_data(
     db: Annotated[DbSession, Depends(get_db)],
 ) -> ExportOut:
     """Server-held data for the ZIP the device builds. Needs a fresh passkey check."""
+    hold_if_recovered(caller.user)  # a day after an email-only recovery (invariant 74)
     now = datetime.now(UTC)
     user = caller.user
     record(
@@ -270,6 +272,7 @@ def email_change_send(
     db: Annotated[DbSession, Depends(get_db)],
 ) -> CodeSent:
     """A one-time code to the new address; the old one stays until it is verified."""
+    hold_if_recovered(caller.user)  # a day after an email-only recovery (invariant 74)
     s = get_settings()
     new_email = normalize_email(str(body.new_email))
     if new_email == caller.user.email:

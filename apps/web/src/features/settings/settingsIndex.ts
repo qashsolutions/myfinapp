@@ -240,6 +240,12 @@ export const ENTRIES: SettingEntry[] = [
     words: "partner couple spouse household shared jars",
   },
   {
+    label: "Let my partner help me get back in",
+    group: "groups",
+    path: "/me/household",
+    words: "lost passkey recovery locked out partner approve get back in",
+  },
+  {
     label: "App look",
     group: "look",
     path: "/me/look",

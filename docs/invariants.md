@@ -677,6 +677,18 @@ written against both.
     only while it is still offered (Budget has no pay yet). Found as "Up to date: 170 updated"
     with nothing changed, and "1 paycheck" after pay was set.
     `linked-sync.test.tsx` invariant 66 · `home-visual.test.tsx` "once Budget has pay…"
+74. **Getting back in never outruns the owner** (October 30, 2026). A request to get back in
+    without a passkey (`services/recovery.py`) comes only from a locked email-code session of an
+    account that has passkeys, is one at a time, and is ready after 24 hours or when the
+    household partner on the same live plan, chosen in advance, types the code read to them
+    (then for the asking device only). Every passkey check on the account while it waits ends
+    it, and so does Cancel on a signed-in device; another locked session can't cancel it. Only a
+    session that never used a passkey may finish it, so an ordinary "add a passkey" never
+    removes the others; finishing removes every old passkey and ends every other session, and
+    an email-only recovery holds export, email change, bank linking and backup changes for a
+    day (one message, `RECOVERY_HOLD_MESSAGE`). Found in the journey map: an account whose
+    passkeys were all lost had no way back.
+    `test_recovery.py` · `authz/test_recovery_routes.py` · `recovery.test.tsx`
 
 59 (again, October 29, 2026). The sweep was repeated on main after #51: every
 `db.transaction(...)` body in `apps/web/src` (47) was read for awaits of anything but Dexie,

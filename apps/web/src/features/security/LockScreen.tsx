@@ -2,10 +2,12 @@ import { Button } from "@stackd/ui";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Logo } from "../../app/layout/Logo.tsx";
+import { api } from "../../data/api.ts";
 import { APP_NAME } from "../../lib/brand.ts";
 import { biometricName } from "../../lib/platform.ts";
 import { NoBiometricsHelp } from "../auth/NoBiometricsHelp.tsx";
 import { useSession } from "../auth/useSession.tsx";
+import { Recover } from "./Recover.tsx";
 import { assertPasskey, PasskeyError, unlockOnDevice } from "./webauthn.ts";
 
 /**
@@ -24,6 +26,19 @@ export function LockScreen() {
   const [error, setError] = useState<string | null>(null);
   const offline = session.offline;
   const newDevice = !offline && !session.info?.passkey_verified_at;
+  // Every passkey lost (invariant 74): a device signed in with an email code can ask to get
+  // back in; one that already asked opens straight on where it stands.
+  const [recovering, setRecovering] = useState(false);
+  useEffect(() => {
+    if (!newDevice) return;
+    let alive = true;
+    void api.GET("/api/auth/recovery").then((r) => {
+      if (alive && r.data && r.data.status !== "none") setRecovering(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [newDevice]);
 
   useEffect(() => {
     document.title = `${APP_NAME} is locked`;
@@ -73,6 +88,8 @@ export function LockScreen() {
     navigate("/welcome", { replace: true });
   }
 
+  if (recovering) return <Recover onBack={() => setRecovering(false)} />;
+
   return (
     <div className="auth">
       <div className="auth__spacer" />
@@ -106,6 +123,11 @@ export function LockScreen() {
             No passkey on this device? Tap Unlock and pick the device that has it, such as your
             phone. Once you're in, you can add a passkey here in Sign-in &amp; security.
           </p>
+        ) : null}
+        {newDevice ? (
+          <Button block variant="secondary" onClick={() => setRecovering(true)}>
+            Lost your passkeys?
+          </Button>
         ) : null}
         <Button block variant="ghost" onClick={signOut}>
           Sign out

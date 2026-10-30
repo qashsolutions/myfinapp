@@ -7,7 +7,13 @@
 
 import type { components } from "@stackd/api-client";
 import { useCallback, useEffect, useState } from "react";
-import { type ApiFailure, api, failureOf, OFFLINE_MESSAGE } from "../../data/api.ts";
+import {
+  type ApiFailure,
+  api,
+  failureOf,
+  OFFLINE_MESSAGE,
+  RECOVERY_HOLD_MESSAGE,
+} from "../../data/api.ts";
 import { type Account, type AccountType, newId, type StackdDb } from "../../data/db.ts";
 import { goExternal } from "../billing/billing.ts";
 
@@ -158,5 +164,6 @@ export const LINK_ERRORS: Record<string, string> = {
 };
 
 export function linkErrorText(code: string): string {
+  if (code === "recently_recovered") return RECOVERY_HOLD_MESSAGE;
   return LINK_ERRORS[code] ?? "Something went wrong reaching your bank's provider. Try again.";
 }

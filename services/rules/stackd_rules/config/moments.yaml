@@ -198,6 +198,10 @@ push_trial_ends_tomorrow: "Your Qash trial ends tomorrow. Pick a plan to keep go
 # day (owner, October 28, 2026). Fixed words, no prices, amounts or dates.
 push_founding_ends_soon: "Your Qash Founding membership ends soon. Pick a plan to keep going."
 push_founding_ended: "Your Qash Founding membership has ended. Pick a plan to keep going."
+# Getting back in without a passkey (owner decision, October 30, 2026; invariant 74): to the
+# account's own devices when someone starts, and to the partner who can approve. Fixed words.
+push_recovery_started: "Someone asked to get back into your Qash account. Open Qash if it wasn't you."
+push_recovery_partner: "Your partner asked you to help them get back into Qash."
 
 nudges:
   set_pay:

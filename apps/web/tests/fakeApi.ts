@@ -292,7 +292,19 @@ export interface FakeApi {
   households: FakeHouseholds;
   /** Linking (Phase 3): connections on the "server"; `nextLink` is what the next finish returns. */
   linking: FakeLinking;
+  /** Getting back in without a passkey (invariant 74). The partner's code is `RECOVERY_CODE`. */
+  recovery: {
+    status: "none" | "waiting" | "ready";
+    ready_at: string | null;
+    partner_name: string | null;
+    partner_asked: boolean;
+    /** Requests this person's partner asked them to approve (the partner's side). */
+    asked: Array<{ id: string; name: string; device_label: string; asked_at: string }>;
+    setting: { on: boolean; possible: boolean; partner_name: string | null };
+  };
 }
+
+export const RECOVERY_CODE = "482913";
 
 export function defaultNotifications(): FakeApi["notifications"] {
   return {
@@ -469,6 +481,14 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     devices: [],
     activity: [],
     accountHasPasskeys: false,
+    recovery: {
+      status: "none",
+      ready_at: null,
+      partner_name: null,
+      partner_asked: false,
+      asked: [],
+      setting: { on: false, possible: false, partner_name: null },
+    },
     wrongAttempts: 0,
     passkeySignInUnknown: false,
     foundingLeft: 147,
@@ -619,6 +639,54 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       return json(state.session);
     }
     if (!state.session.authenticated) return json({ detail: "sign_in_required" }, 401);
+    // Getting back in without a passkey (invariant 74)
+    const rec = state.recovery;
+    const recOut = () => ({
+      status: rec.status,
+      ready_at: rec.ready_at,
+      partner_name: rec.partner_name,
+      partner_asked: rec.partner_asked,
+    });
+    if (method === "GET" && path === "/api/auth/recovery") return json(recOut());
+    if (method === "POST" && path === "/api/auth/recovery") {
+      if (!state.session.locked || !state.session.has_passkeys)
+        return json({ detail: "not_needed" }, 409);
+      if (rec.status === "none") {
+        rec.status = "waiting";
+        rec.ready_at = new Date(Date.now() + 24 * 3600_000).toISOString();
+      }
+      return json(recOut());
+    }
+    if (method === "POST" && path === "/api/auth/recovery/partner") {
+      if (!rec.partner_name) return json({ detail: "no_partner" }, 409);
+      if (rec.status === "none") {
+        rec.status = "waiting";
+        rec.ready_at = new Date(Date.now() + 24 * 3600_000).toISOString();
+      }
+      rec.partner_asked = true;
+      return json({ code: RECOVERY_CODE, partner_name: rec.partner_name });
+    }
+    if (method === "POST" && path === "/api/auth/recovery/cancel") {
+      rec.status = "none";
+      rec.partner_asked = false;
+      return json(recOut());
+    }
+    if (method === "GET" && path === "/api/household/recovery") return json(rec.asked);
+    if (method === "POST" && path === "/api/household/recovery/approve") {
+      if (state.stepUpStale) return json({ detail: "step_up_required" }, 403);
+      const first = rec.asked[0];
+      if (!first) return json({ detail: "not_found" }, 404);
+      if (String(b.code ?? "").replace(/\D/g, "") !== RECOVERY_CODE)
+        return json({ detail: "wrong_code" }, 400);
+      rec.asked = [];
+      return json(first);
+    }
+    if (method === "GET" && path === "/api/account/recovery-partner") return json(rec.setting);
+    if (method === "PUT" && path === "/api/account/recovery-partner") {
+      if (state.stepUpStale) return json({ detail: "step_up_required" }, 403);
+      rec.setting = { ...rec.setting, on: Boolean(b.on) };
+      return json(rec.setting);
+    }
     if (method === "POST" && path === "/api/auth/lock") {
       state.session = { ...state.session, locked: true };
       return new Response(null, { status: 204 });
@@ -628,11 +696,14 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       // A passkey after the first needs a fresh check on this device, as on the server.
       const at = state.session.passkey_verified_at;
       const fresh = at !== null && at !== undefined && Date.now() - Date.parse(at) < 300_000;
-      if (state.session.has_passkeys && (!fresh || state.stepUpStale))
+      // ...unless a recovery is ready for this device (invariant 74).
+      const recovering = state.recovery.status === "ready" && !at;
+      if (state.session.has_passkeys && !recovering && (!fresh || state.stepUpStale))
         return json({ detail: "step_up_required" }, 403);
       return json({ options: { challenge: "c1", rp: { id: "localhost" } } });
     }
     if (method === "POST" && path === "/api/security/passkeys/register/verify") {
+      if (state.recovery.status === "ready") state.recovery = { ...state.recovery, status: "none" };
       const pk: PasskeyOut = {
         id: `pk${state.passkeys.length + 1}`,
         label: "iPhone passkey",

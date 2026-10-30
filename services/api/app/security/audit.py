@@ -48,6 +48,13 @@ class AuditAction(StrEnum):
     PURCHASE_CONSENT = "purchase_consent"  # "Before you subscribe" ticked (October 14, 2026)
     DEVICE_LINK_APPROVED = "device_link_approved"  # a phone approved a computer (Oct 19, 2026)
     DEVICE_LINK_DENIED = "device_link_denied"
+    # Getting back in without a passkey (October 30, 2026; invariant 74)
+    RECOVERY_STARTED = "recovery_started"
+    RECOVERY_PARTNER_ASKED = "recovery_partner_asked"
+    RECOVERY_APPROVED = "recovery_approved"  # by the partner
+    RECOVERY_CANCELLED = "recovery_cancelled"
+    RECOVERY_DONE = "recovery_done"
+    RECOVERY_PARTNER_SET = "recovery_partner_set"  # "Let my partner help" on or off
 
 
 def record(
