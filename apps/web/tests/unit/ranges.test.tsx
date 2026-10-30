@@ -61,11 +61,13 @@ describe("time ranges on Money in & out (October 20, 2026)", () => {
     expect(stats).toHaveTextContent("$2,470.00");
     // The first month starts on the 10th: shown, never averaged (invariant 51), so
     // (3,000 − 500 − 10) ÷ the 2 whole months = $1,245.00 a month
-    expect(screen.getByText(/About \$1,245\.00 a month kept/)).toBeInTheDocument();
+    // The average and the history notes come from their own engine calls and can appear a moment
+    // after the totals, so they are awaited too (CI, October 30, 2026).
+    expect(await screen.findByText(/About \$1,245\.00 a month kept/)).toBeInTheDocument();
     expect(
-      screen.getByText(/not enough history yet to compare with the 3 months before/),
+      await screen.findByText(/not enough history yet to compare with the 3 months before/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/You have 3 months so far/)).toBeInTheDocument();
+    expect(await screen.findByText(/You have 3 months so far/)).toBeInTheDocument();
     const where = screen.getByRole("region", { name: "By category" });
     expect(within(where).getByText("Rent")).toBeInTheDocument();
     expect(localStorage.getItem("stackd.range.money")).toBe("Quarter");
