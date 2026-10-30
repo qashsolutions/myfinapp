@@ -54,6 +54,7 @@ from app.services.alerts import (
 )
 from app.services.deletion import soft_delete
 from app.services.email import plan_link
+from app.services.plan_end import end_reason
 from app.services.stripe_billing import is_blocked
 
 
@@ -159,16 +160,14 @@ def _one(
     ended, delete_at = state["ended_at"], state["delete_at"]
     # The payment was refunded as possible fraud and this inbox may not buy again: honest
     # notes with no "keep going" (October 25, 2026).
-    blocked = is_blocked(db, user)
-    # The plan that ended: this person's own, or the one the household shared (its holder's).
+    # Why it ended: the one reading the Plan screen shows too (invariant 73).
+    reason = end_reason(db, user, state)
+    blocked = reason == "payment_returned"
     pair = household_pair(db, user.id)
-    plan_of = [user.id, *(pair or ())]
     # The holder lost a dispute (owner decision, October 29, 2026): the one their plan covered
     # hears only that the plan that covered them ended, never about the dispute, and the notes
     # don't say it ends for both (the holder's account is `ended`, not lapsed).
-    others = [u for u in pair or () if u != user.id]
-    holder_lost = state.get("shared") == "covered" and _dispute_lost(db, others, ended)
-    if holder_lost:
+    if reason == "holder_lost":
         shared = False
     # Never closed without the ended email for this end (invariant 68): an account whose end
     # moved later than its notice (a household's plan, read again) hears of it first.
@@ -203,18 +202,17 @@ def _one(
             )
             counts["deleted"] += 1
     elif user.lapsed_notice_for != ended:
-        left = user.household_cover_ended_at is not None and user.household_cover_ended_at == ended
-        founding = _founding_ended(db, plan_of, ended)
+        founding = reason == "founding"
         if blocked:
             sender.send(email.plan_ended_payment_returned_message(user.email, _day(delete_at)))
-        elif holder_lost:
+        elif reason == "holder_lost":
             sender.send(
                 email.household_plan_ended_message(user.email, _day(delete_at), plan_link())
             )
-        elif left and not shared:
+        elif reason in ("cover_ended", "cover_switched"):
             sender.send(
                 email.household_cover_ended_message(
-                    user.email, _day(delete_at), plan_link(), switched=pair is not None
+                    user.email, _day(delete_at), plan_link(), switched=reason == "cover_switched"
                 )
             )
         elif founding:
@@ -229,7 +227,7 @@ def _one(
                     user.email,
                     _day(delete_at),
                     plan_link(),
-                    trial=_trial_ended(db, plan_of, ended),
+                    trial=reason == "trial",
                     shared=shared,
                 )
             )
@@ -327,37 +325,3 @@ def _covered_notices(
             _push(db, user.id, now, body=TRIAL_ENDS_TOMORROW_LABEL, tag="trial-ends")
         user.ending_notice_for = end
         counts["ending_soon"] += 1
-
-
-def _dispute_lost(db: DbSession, user_ids: list[uuid.UUID], ended: datetime) -> bool:
-    """Whether the end the account is in is a dispute the household's holder lost."""
-    return (
-        db.scalar(
-            select(Subscription.id).where(
-                Subscription.user_id.in_(user_ids), Subscription.dispute_lost_at == ended
-            )
-        )
-        is not None
-    )
-
-
-def _founding_ended(db: DbSession, user_ids: list[uuid.UUID], ended: datetime) -> bool:
-    """Whether the end the account is in is a Founding term's (its own, or the household's)."""
-    return (
-        db.scalar(
-            select(Subscription.id).where(
-                Subscription.user_id.in_(user_ids),
-                Subscription.plan == "founding",
-                Subscription.ends_at == ended,
-            )
-        )
-        is not None
-    )
-
-
-def _trial_ended(db: DbSession, user_ids: list[uuid.UUID], ended: datetime) -> bool:
-    """Whether the end the account is in is a free trial's (its own, or the household's)."""
-    return (
-        db.scalar(select(User.id).where(User.id.in_(user_ids), User.trial_ends_at == ended))
-        is not None
-    )

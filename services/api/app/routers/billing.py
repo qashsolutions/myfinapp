@@ -64,6 +64,7 @@ from app.security.principal import Caller, require_step_up, require_unlocked
 from app.security.rate_limit import rate_limited, session_or_ip
 from app.services import consent_text, deletion, native_billing, plan_history, stripe_billing
 from app.services.consent_text import CONSENT_VERSION
+from app.services.plan_end import EndReason, end_reason
 from app.services.security_alerts import SecurityEvent, send_alert
 
 router = APIRouter(prefix="/api/billing", tags=["billing"], dependencies=[Depends(same_site_only)])
@@ -109,6 +110,8 @@ class BillingOut(BaseModel):
     # covered only: the plan this person also pays for themselves (it renews on `renews_at`;
     # they can stop it), else null (October 29, 2026).
     own_plan: Literal["private", "connected", "founding"] | None = None
+    # Lapsed only: why the plan ended, read by the same rule as the ended email (invariant 73).
+    ended: EndReason | None = None
 
 
 class ConsentIn(BaseModel):
@@ -275,6 +278,7 @@ def _out(db: DbSession, caller: Caller) -> BillingOut:
         downgrade_after_days=int(plans["changes"]["downgrade_after_days"]),
         tester=is_tester(caller.user),
         tester_plan=tester_plan(caller.user),
+        ended=end_reason(db, caller.user, access(db, caller.user)),
         **_shared(db, caller),
     )
 

@@ -261,6 +261,7 @@ describe("accessibility (axe-core)", () => {
     resetEntitlements();
     const api = installFakeApi({ session: readySession() });
     api.access = { state: "lapsed", plan: "free", delete_at: "2026-10-20T00:00:00Z" };
+    api.billing = { ...api.billing, ended: "trial" };
     await check("/me/plan", async () => {
       await screen.findByText("Your trial has wrapped up");
     });

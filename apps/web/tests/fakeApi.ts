@@ -192,6 +192,16 @@ export interface FakeBilling {
   shared_by?: string | null;
   /** Covered while paying for a plan of one's own (October 29, 2026). */
   own_plan?: "private" | "connected" | "founding" | null;
+  /** Lapsed only: why the plan ended, the same rule as the ended email (invariant 73). */
+  ended?:
+    | "payment_returned"
+    | "holder_lost"
+    | "cover_ended"
+    | "cover_switched"
+    | "founding"
+    | "trial"
+    | "plan"
+    | null;
 }
 
 export function freeBilling(): FakeBilling {

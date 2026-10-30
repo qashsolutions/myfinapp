@@ -159,7 +159,7 @@ def plan_ended_message(
             + f"Keep going: {link}\n\n"
             "Or take your data with you: open the app, then Me → Download all my data.\n\n"
             f"Your account stays open until {delete_on}. After that we close it, and what's on "
-            "your phone stays there until you choose to download it or erase it.\n"
+            "your device stays there until you choose to download it or erase it.\n"
         ),
     )
 
@@ -338,7 +338,7 @@ def plan_ended_payment_returned_message(to: str, delete_on: str) -> Message:
             "has ended. Nothing has been deleted.\n\n"
             "Take your data with you: open the app, then Me → Download all my data.\n\n"
             f"Your account stays open until {delete_on}. After that we close it, and what's on "
-            "your phone stays there until you choose to download it or erase it.\n\n"
+            "your device stays there until you choose to download it or erase it.\n\n"
             "Questions? Write to support@qash.solutions.\n"
         ),
     )
