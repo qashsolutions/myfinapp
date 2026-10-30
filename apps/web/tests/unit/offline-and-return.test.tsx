@@ -295,7 +295,8 @@ describe("invariant 37: signing in returns where the link pointed", () => {
     expect(screen.queryByRole("button", { name: /^Start my/ })).toBeNull();
     expect(api.calls.some((c) => c.path === "/api/billing/trial")).toBe(false);
     expect(screen.queryByText(/This link is missing its key/)).toBeNull();
-    expect(sessionStorage.getItem("stackd.return_to")).toBeNull(); // taken once
+    // Taken once, in an effect that can land just after the heading on a slow runner
+    await waitFor(() => expect(sessionStorage.getItem("stackd.return_to")).toBeNull());
   });
 
   it("a household invite opened signed out keeps its #k= key on the device and lands on it", async () => {
