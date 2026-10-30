@@ -122,6 +122,7 @@ class GroupSummary(BaseModel):
 class GroupDetail(GroupSummary):
     members: list[MemberOut]
     helped_open: bool  # the caller may answer: reached their target, or the challenge ended
+    result_final: bool  # over everywhere: leaving keeps the leaver on the board (invariant 71)
     helped: HelpedTotals | None  # once HELPED_MIN_ANSWERS members other than the caller answered
 
 
@@ -250,21 +251,20 @@ def _require_owner(group: Group, caller: Caller) -> None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="owner_only")
 
 
-def _final_from(group: Group) -> datetime:
-    """When the result is final: the moment the last day is over somewhere (midnight at UTC+14,
-    10:00 UTC on the last day). From then on leaving takes the challenge off the leaver's own
-    list only; their standing stays on everyone else's final board (owner decision, October
-    29, 2026; invariant 71), and nobody can be removed from it."""
-    return datetime.combine(group.end_date, datetime.min.time(), tzinfo=UTC) + timedelta(hours=10)
-
-
-def _final(group: Group, now: datetime | None = None) -> bool:
-    return (now or _now()) >= _final_from(group)
+def _over_from(group: Group) -> datetime:
+    """The one end moment (invariant 56, signed off October 29, 2026): its last day
+    (`end_date`, a local date) is over everywhere, noon UTC the day after, when it ends at
+    UTC-12. From then nobody can look it up or join, progress is refused, and the result is
+    final (invariant 71): leaving takes it off the leaver's own list only, their standing stays
+    on everyone else's board, and nobody can be removed from it."""
+    return datetime.combine(
+        group.end_date + timedelta(days=1), datetime.min.time(), tzinfo=UTC
+    ) + timedelta(hours=12)
 
 
 def _on_board(group: Group):
     """Who the board shows: members still in, and anyone who left once the result was final."""
-    return GroupMember.left_at.is_(None) | (GroupMember.left_at >= _final_from(group))
+    return GroupMember.left_at.is_(None) | (GroupMember.left_at >= _over_from(group))
 
 
 def _members(db: DbSession, group: Group) -> list[tuple[GroupMember, User]]:
@@ -323,13 +323,9 @@ def _helped_list(member: GroupMember) -> list[str]:
 
 
 def _ended(group: Group, now: datetime | None = None) -> bool:
-    """A challenge is over once its last day (`end_date`, a local date) is over everywhere: from
-    noon UTC the day after, when it ends at UTC-12 (invariant 56). Every type has an end date:
-    the calendar month, the week, the weekend, the 52 weeks. After that nobody can look it up
-    or join (409 `ended`); members keep its final board."""
-    now = now or _now()
-    over = datetime.combine(group.end_date + timedelta(days=1), datetime.min.time(), tzinfo=UTC)
-    return now >= over + timedelta(hours=12)
+    """Over everywhere (`_over_from`). Every type has an end date: the calendar month, the
+    week, the weekend, the 52 weeks. Members keep its final board."""
+    return (now or _now()) >= _over_from(group)
 
 
 def _refuse_ended(group: Group) -> None:
@@ -376,6 +372,7 @@ def _detail(db: DbSession, group: Group, me: GroupMember, caller: Caller) -> Gro
         **summary.model_dump(),
         members=[_member_out(m, u, group, caller) for m, u in members],
         helped_open=_helped_open(group, me),
+        result_final=_ended(group),
         helped=_helped_totals(members, me),
     )
 
@@ -585,7 +582,7 @@ def leave_group(
         raise HTTPException(status.HTTP_409_CONFLICT, detail="owner_cannot_leave")
     now = _now()
     me.left_at = now
-    if not _final(group, now):
+    if not _ended(group, now):
         me.helped = None  # a former member's answer leaves the totals, never back on rejoin
     # Once the result is final the leaver keeps their place, and their answer, on the board.
     record(
@@ -612,7 +609,7 @@ def remove_member(
     _require_owner(group, caller)
     if user_id == caller.user.id:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="owner_cannot_leave")
-    if _final(group):
+    if _ended(group):
         raise HTTPException(status.HTTP_409_CONFLICT, detail="ended")  # the result is final
     _lock_group(db, group.id)
     member = _membership(db, group, user_id)

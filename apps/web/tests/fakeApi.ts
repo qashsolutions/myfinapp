@@ -368,7 +368,13 @@ export function defaultNotifications(): FakeApi["notifications"] {
 export interface FakeGroup
   extends Omit<
     GroupDetail,
-    "is_owner" | "member_count" | "my_progress_bps" | "my_helped" | "helped" | "helped_open"
+    | "is_owner"
+    | "member_count"
+    | "my_progress_bps"
+    | "my_helped"
+    | "helped"
+    | "helped_open"
+    | "result_final"
   > {
   owner_id: string;
   /** "What helped" answers by member id (the server shows totals only, from 2 answers). */
@@ -511,6 +517,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       my_progress_bps: me?.progress_bps ?? 0,
       my_helped: g.answers?.[ME] ?? [],
       helped_open: Boolean(g.ended || me?.reached_at || (me?.progress_bps ?? 0) >= 10000),
+      result_final: Boolean(g.ended),
       helped: helpedTotals(g),
       members: g.members.map((m) => ({
         ...m,

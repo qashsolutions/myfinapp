@@ -1803,6 +1803,10 @@
             "title": "Name",
             "type": "string"
           },
+          "result_final": {
+            "title": "Result Final",
+            "type": "boolean"
+          },
           "start_date": {
             "format": "date",
             "title": "Start Date",
@@ -1826,6 +1830,7 @@
           "my_helped",
           "members",
           "helped_open",
+          "result_final",
           "helped"
         ],
         "title": "GroupDetail",

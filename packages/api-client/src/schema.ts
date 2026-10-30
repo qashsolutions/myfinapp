@@ -2309,6 +2309,8 @@ export interface components {
             my_progress_bps: number;
             /** Name */
             name: string;
+            /** Result Final */
+            result_final: boolean;
             /**
              * Start Date
              * Format: date

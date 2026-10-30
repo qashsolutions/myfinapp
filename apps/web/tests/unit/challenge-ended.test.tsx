@@ -83,6 +83,16 @@ describe("An ended challenge (invariant 56)", () => {
     ).toBeNull();
   });
 
+  it("before it is over everywhere, leaving works as before", async () => {
+    await challengeJar();
+    // Ended on this device, but still Oct 31 somewhere: the server's result is not final yet.
+    installFakeApi({ session: readySession(), groups: [{ ...joined(), ended: false }] });
+    renderApp("/groups/g-maya");
+    await screen.findByRole("region", { name: "Final leaderboard" });
+    expect(screen.getByRole("button", { name: "Leave group" })).toBeInTheDocument();
+    expect(screen.queryByText("Your result stays on the final board for everyone.")).toBeNull();
+  });
+
   it("its jar takes no deposits and no longer holds a place on the plan", async () => {
     const jar = await challengeJar();
     installFakeApi({ session: readySession(), groups: [joined()], billing: fakeConnected() });

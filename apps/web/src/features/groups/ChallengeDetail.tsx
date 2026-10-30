@@ -87,6 +87,9 @@ export function ChallengeDetail() {
   const ended = compareText(group.end_date, today) < 0;
   // Before its first day nothing counts yet (invariant 71).
   const notStarted = compareText(group.start_date, today) > 0;
+  // The result is final once the server says it is over everywhere (invariant 71): leaving
+  // then keeps my standing on the board, and nobody can be removed from it.
+  const final = group.result_final;
 
   return (
     <>
@@ -169,7 +172,7 @@ export function ChallengeDetail() {
         {ended ? <h2 className="sk-card__title">Final leaderboard</h2> : null}
         <Leaderboard
           members={group.members}
-          isOwner={group.is_owner && !ended}
+          isOwner={group.is_owner && !final}
           onRemove={async (m) => {
             await removeMember(group.id, m.user_id);
             await refresh();
@@ -195,7 +198,7 @@ export function ChallengeDetail() {
           }}
         >
           <span style={{ color: "var(--c-danger)" }}>
-            {ended
+            {final
               ? confirmLeave
                 ? "Really remove it from my list"
                 : "Remove from my list"
@@ -205,7 +208,7 @@ export function ChallengeDetail() {
           </span>
         </Button>
       ) : null}
-      {!group.is_owner && ended ? (
+      {!group.is_owner && final ? (
         <p className="auth__fineprint">Your result stays on the final board for everyone.</p>
       ) : null}
       <GroupInvite

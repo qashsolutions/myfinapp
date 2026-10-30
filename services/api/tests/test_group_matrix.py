@@ -15,9 +15,9 @@ day is S and last day E (local dates):
 
 Lookup and join are open until the challenge is over everywhere (invariant 56); progress from
 its first day anywhere until then; leaving is always open (leaving is never harder than joining).
-The result is final once the last day is over somewhere (E at 10:00, midnight at UTC+14): from
-then leaving takes the challenge off the leaver's own list only, their standing stays on
-everyone else's board, and the owner can't remove anyone (409 `ended`) (owner decision, October
+The result is final at that same moment, once the challenge is over everywhere: from then
+leaving takes the challenge off the leaver's own list only, their standing stays on everyone
+else's board, and the owner can't remove anyone (409 `ended`) (owner decision, October
 29, 2026).
 """
 
@@ -71,8 +71,8 @@ EXPECTED = {
 FINAL = {
     "before_start": (False, 204),
     "during": (False, 204),
-    "last_day": (True, 409),
-    "after_end": (True, 409),
+    "last_day": (False, 204),
+    "after_end": (False, 204),
     "over_everywhere": (True, 409),
 }
 PROGRESS_DETAIL = {"before_start": "not_started", "over_everywhere": "ended"}
@@ -125,6 +125,7 @@ def test_every_type_at_every_moment(
     # The leaver's own list no longer has it; the others' board keeps their standing once final.
     assert gid not in [g["id"] for g in member.get("/api/groups").json()]
     kept, removal = FINAL[moment]
+    assert owner.get(f"/api/groups/{gid}").json()["result_final"] is (moment == "over_everywhere")
     board = {m["user_id"]: m for m in owner.get(f"/api/groups/{gid}").json()["members"]}
     assert (member_id in board) == kept
     if kept:
