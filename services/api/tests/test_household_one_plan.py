@@ -17,6 +17,7 @@ from sqlalchemy import select
 from app.db import get_session_factory
 from app.jobs import plan_lifecycle
 from app.models.billing import Entitlement, Subscription
+from app.models.household import HouseholdMember
 from app.models.user import User
 from app.rules_server.entitlements import store_entitlements
 from app.services import stripe_billing
@@ -70,10 +71,18 @@ def run(now: datetime, *ids: uuid.UUID) -> dict[str, int]:
         return plan_lifecycle.run(db, now=now, only=set(ids))
 
 
-def household(owner, partner) -> None:
+def household(owner, partner, *, days_ago: int = 30) -> None:
+    """The two make a household. Its joins are dated `days_ago`, as if it had been formed
+    then: the tests move plan ends into the past, and only an end after the household became
+    two is the household's (invariant 54)."""
     code = owner.post("/api/household/invites").json()["code"]
     r = partner.post("/api/household/join", json={"code": code})
     assert r.status_code == 200, r.text
+    ids = [uuid.UUID(c.get("/api/auth/session").json()["user"]["id"]) for c in (owner, partner)]
+    with get_session_factory()() as db:
+        for m in db.scalars(select(HouseholdMember).where(HouseholdMember.user_id.in_(ids))):
+            m.joined_at = m.joined_at - timedelta(days=days_ago)
+        db.commit()
 
 
 def mail(to: str) -> list[str]:

@@ -469,11 +469,12 @@ written against both.
     lockout or reminders of their own, nothing to buy. When it ends it ends for both, with the
     same notices and the same 7 days, and both close in one run; a dispute pauses both and closes
     neither. Whoever subscribes in the 7 days holds it for both. Leaving or deleting never ends
-    the holder's plan; whoever it covered gets their own 7 days and an email. One helper
-    (`entitlements.access`, through `household_holder`) answers the app, the limits
-    (`effective_plan`), checkout and the plan job; the cover is read before a deletion ends any
-    billing.
-    `test_household_one_plan.py` · `household-plan.test.tsx` "an invite opens before any trial…"
+    the holder's plan; whoever it covered gets their own 7 days and an email. The holder may be
+    either person: the owner covered by the partner's plan is covered exactly as the partner
+    would be (October 29, 2026). One rule (`entitlements.household_plan`, invariant 67)
+    answers it; the cover is read before a deletion ends any billing.
+    `test_household_one_plan.py` · `test_household_matrix.py` · `household-plan.test.tsx` "an
+    invite opens before any trial…"
 55. **Shared jars travel soon** (October 29, 2026). A change to a shared jar, by any path, is
     published 2 s after the last change, not on the next 2-minute round; the app pulls on
     returning to the foreground and every 15 s while shared jars are on screen.
@@ -539,6 +540,57 @@ written against both.
     (yearly, monthly, Founding), `test_billing_hardening.py` (disputed) · `billing.test.tsx`
     "a first bank payment still clearing…", "a monthly plan's refund is its credit…",
     "Founding's refund…", "nothing to refund…"
+67. **A household's plan has one rule, and what is shown is what applies** (October 29, 2026;
+    the owner's test of #53 found four paths deciding it on their own). `household_plan`
+    decides, for either person, who holds the plan, the state (subscribed, trial, paused,
+    lapsed, ended) with its dates, and whether they are covered; `access`, `effective_plan`
+    (so the limits, `require_feature`, `check_limit` and the shared jars' owner check),
+    checkout's and the webhook's `purchase_conflict`, a plan change, joining, leaving,
+    deletion and the plan job all ask it, and nothing else does. The limits applied are always
+    the plan shown: a covered person who also pays for Private has the household's Connected,
+    and an owner paying Private beside a partner paying Connected is covered by the partner's.
+    There is one holder: a paid plan first (the owner's, then the partner's), else the owner's
+    trial; the other is covered even when paying for a plan with household too, and is told
+    they can stop it. The Leave sheet says what each person keeps from the same rule
+    (`GET /api/household/leave/preview`, `leave_outcome`).
+    `test_household_matrix.py` (holder owner / partner × 15 plan states, both people) ·
+    `test_household_one_rule.py` "a covered person paying Private…", "an owner paying
+    Private…" · `household-plan.test.tsx` "a holder whose plan ended…"
+68. **Nobody is closed without the ended email for their end, nor during a dispute**
+    (October 29, 2026; the owner covered by the partner's plan got their own old end back, so
+    the next hourly run closed them with no email, and was never shown paused). Both people's
+    end is the end of the plan that held the household after it became two, with the same 7
+    days; a dispute on it pauses both; and the plan job closes an account only once the ended
+    email for that same end has gone. A household that splits (a leave, a deletion, one
+    closing alone) keeps what each member had (`household_split`, read before any billing ends):
+    one lapsed with it keeps the same end and the same 7 days (never a fresh trial), one paused
+    with it stays paused for that dispute (`users.household_paused_by`, migration 0040) until it
+    closes, then has 7 days from the close. The 7 days are 7 × 24 hours in UTC (`grace_end`).
+    When the holder loses a dispute, the one it covered gets
+    "The plan that covered you has ended" (7 days, or download), never a word about the dispute.
+    `test_household_one_rule.py` "the owner covered by the partner's plan…", "…disputed plan…",
+    "after the holder loses a dispute…", "d1 …", "l6 …" · `test_household_matrix.py` "a split in
+    the seven days…", "a split during a dispute…", "one closing alone…"
+    · `test_household_matrix.py`
+69. **Losing the cover while the holder's plan carries on starts one's own 7 days, with
+    notice** (October 29, 2026; a holder switching down dropped the partner silently, with a
+    fresh trial on offer). Leaving, deleting, and switching to a plan without household (in
+    the app, at Stripe, or in a store) all go through `end_lost_cover`: the one no longer
+    covered gets `household_cover_ended_at`, the "no longer covers you" email and 7 days,
+    never a new trial; the change sheet tells the holder first, by the partner's name.
+    `test_household_one_rule.py` "switching down gives the partner…" · `test_household_matrix.py`
+    "switched_down"
+70. **A household never pays twice** (October 29, 2026). While the household's plan covers a
+    person, `purchase_conflict` answers `household_covered`: checkout refuses, and a page paid
+    anyway (opened before joining) is ended at Stripe and refunded in full, once, with the plain
+    email (invariant 41's path). Joining closes the joiner's open payment pages. Someone who
+    pays for a renewing plan of their own is asked before joining whether to stop it at the end
+    of its paid period (`you_pay`); nothing stops without their tap and the ticked "If you
+    cancel" sheet, whose lines say the household's plan covers them next (owner decision,
+    October 29, 2026).
+    `test_household_one_rule.py` "a page paid after joining…", "the invite says when the joiner
+    pays…", "a covered person stops their own plan…" · `household-plan.test.tsx` "asks before
+    joining…", "Keep mine joins…", "the Plan screen says the household covers them…"
 
 ## Offline and the way in
 

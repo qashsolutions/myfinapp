@@ -153,6 +153,24 @@ export function PlanScreen() {
     setParams({}, { replace: true });
   }, [outcome, refresh, refreshEntitlements, setParams]);
 
+  // "Stop mine" on joining a household (owner decision, October 29, 2026): the join screen
+  // brings the person here to stop their own plan with the usual "If you cancel" sheet, so
+  // nothing stops without their tick and tap.
+  const stopAsked = params.get("stop") === "1";
+  // biome-ignore lint/correctness/useExhaustiveDependencies: openCancel only sets state and asks the server; this runs once per request
+  useEffect(() => {
+    if (!stopAsked || !billing) return;
+    setParams({}, { replace: true });
+    if (billing.cancel_at_period_end || !billing.own_plan) return;
+    if (billing.source === "stripe") void openCancel();
+    else
+      setStatus(
+        billing.source === "apple"
+          ? "You bought your plan in the App Store: stop it there, in your subscriptions."
+          : "You bought your plan in Google Play: stop it there, in your subscriptions.",
+      );
+  }, [stopAsked, billing, setParams]);
+
   /** Web purchases open "Before you subscribe" first (October 14, 2026): the renewal terms are
    * read and ticked before the payment page, as auto-renewal laws expect. The lines are the
    * server's (October 28, 2026), shown and sent back as they came. */
@@ -402,6 +420,10 @@ export function PlanScreen() {
 
   const limits = parseEntitlements(billing.entitlements);
   const onTrial = limits?.access?.state === "trial";
+  // Covered by the partner's plan while paying for one of their own (owner decision, October
+  // 29, 2026): the screen shows the household's plan and offers to stop their own.
+  const covered = billing.shared === "covered" && limits?.access?.state === "subscribed";
+  const ownPlan = covered ? billing.own_plan : null;
   const paid = (billing.plan === "private" || billing.plan === "connected") && !onTrial;
   const founding = billing.plan === "founding";
   // A bank payment still clearing (October 28, 2026): buying waits for it, as the server does.
@@ -545,7 +567,7 @@ export function PlanScreen() {
                 ? "Trial"
                 : billing.payment_pending
                   ? "Pending"
-                  : billing.cancel_at_period_end
+                  : billing.cancel_at_period_end && !covered
                     ? "Ending"
                     : access?.state === "choose" && access.trial_used
                       ? "None"
@@ -559,10 +581,31 @@ export function PlanScreen() {
             : access?.state === "choose" && access.trial_used
               ? "No plan yet"
               : billing.label}
-          {billing.interval ? ` · ${billing.interval}` : ""}
+          {billing.interval && !covered ? ` · ${billing.interval}` : ""}
         </p>
         <p>{currentLine(billing, access)}</p>
-        {billing.shared === "holder" ? (
+        {ownPlan ? (
+          <>
+            <p>
+              {billing.cancel_at_period_end
+                ? `Covered by ${billing.shared_by ?? "your partner"}'s ${billing.label}. Your own ${PLAN_LABELS[ownPlan]} ends ${billing.renews_at ? `on ${formatDate(billing.renews_at)}` : "at the end of its paid period"}.`
+                : `Covered by ${billing.shared_by ?? "your partner"}'s ${billing.label}. You also pay for ${PLAN_LABELS[ownPlan]}${billing.renews_at ? ` (renews ${formatDate(billing.renews_at)})` : ""} — you can stop it.`}
+            </p>
+            {billing.cancel_at_period_end ? null : billing.source === "stripe" ? (
+              <Button size="sm" variant="secondary" onClick={() => void openCancel()}>
+                Stop my {PLAN_LABELS[ownPlan]}
+              </Button>
+            ) : (
+              <p className="auth__hint">
+                {billing.source === "apple"
+                  ? "You bought it in the App Store: stop it there, in your subscriptions."
+                  : "You bought it in Google Play: stop it there, in your subscriptions."}
+              </p>
+            )}
+          </>
+        ) : null}
+        {billing.shared === "holder" &&
+        (access?.state === "subscribed" || access?.state === "trial") ? (
           <p>This plan covers you and your partner in your household: one price for both.</p>
         ) : null}
         {billing.shared && access?.state === "lapsed" ? (
@@ -627,7 +670,7 @@ export function PlanScreen() {
       ) : null}
       {!native && paid && billing.has_customer ? (
         <List card aria-label="Manage your plan">
-          {billing.interval === "yearly" ? (
+          {covered ? null : billing.interval === "yearly" ? (
             <ListRow
               label="Switch to monthly"
               sublabel={
@@ -982,6 +1025,7 @@ export function PlanScreen() {
 type ConsentKind = NonNullable<ConsentText["points"][number]["icon"]>;
 
 const PLAN_NAMES = { private: "Private", connected: "Connected" } as const;
+const PLAN_LABELS = { ...PLAN_NAMES, founding: "Founding" } as const;
 
 const TESTER_NAMES = {
   free: "No plan",
