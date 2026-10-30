@@ -113,7 +113,9 @@ describe("Getting back in without a passkey", () => {
     expect(approve).toBeDisabled();
     await user.type(within(card).getByLabelText("Their code"), "111 111");
     await user.click(approve);
-    expect(await within(card).findByText(/That code doesn't match/)).toBeInTheDocument();
+    expect(
+      await within(card).findByText(/That code doesn't match.*\(4 tries left\)/),
+    ).toBeInTheDocument();
     await user.clear(within(card).getByLabelText("Their code"));
     await user.type(within(card).getByLabelText("Their code"), "482 913");
     await user.click(approve);

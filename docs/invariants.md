@@ -693,8 +693,10 @@ written against both.
     lock), and is ready after 24 hours or when the household partner on the same live plan,
     the very person chosen, types the code read to them (then for that session only; asking
     again clears the approval). Every passkey check on the account while it waits ends every
-    waiting request, and so does Cancel on a signed-in device; another locked session can't
-    cancel it. Only a session that never used a passkey and wasn't opened by a phone may finish
+    waiting request (each takes the account's lock, `account_lock.lock_account`, before any
+    other write, so it never deadlocks with a recovery finishing), and so does Cancel on a
+    signed-in device; only the locked session that started it may also cancel, decided under
+    the lock, and a cancel that finds nothing waiting says nothing. Only a session that never used a passkey and wasn't opened by a phone may finish
     it, so an ordinary "add a passkey" never removes the others, and a passkey made while the
     owner cancels is rolled back (409 `recovery_closed`). Finishing removes every old passkey
     and ends every other session; unless the partner-approved session finishes, export, email

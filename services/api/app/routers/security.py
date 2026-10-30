@@ -33,6 +33,7 @@ from app.security.rate_limit import rate_limited, session_or_ip
 from app.services import recovery as recovery_svc
 from app.services import sessions as sessions_svc
 from app.services import webauthn as webauthn_svc
+from app.services.account_lock import lock_account
 from app.services.security_alerts import SecurityEvent, send_alert
 
 router = APIRouter(
@@ -212,6 +213,7 @@ def assert_verify(
     caller: Annotated[Caller, Depends(require_session)],
     db: Annotated[DbSession, Depends(get_db)],
 ) -> AssertResult:
+    lock_account(db, caller.user.id)  # before any write: the recovery lock order (invariant 74)
     try:
         webauthn_svc.verify_authentication(
             db, caller.user, body.credential, session_id=caller.session.id

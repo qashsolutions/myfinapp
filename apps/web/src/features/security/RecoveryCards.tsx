@@ -86,10 +86,13 @@ export function RecoveryRequests() {
     const failure = failureOf(r);
     if (failure) {
       setNote(
-        failure.code === "wrong_code"
-          ? "That code doesn't match. Ask them to read it again."
-          : failureText(failure, "Couldn't approve. Try again."),
+        failure.code === "wrong_code" && failure.attemptsLeft
+          ? `That code doesn't match. Ask them to read it again (${failure.attemptsLeft} ${failure.attemptsLeft === 1 ? "try" : "tries"} left).`
+          : failure.code === "wrong_code" || failure.code === "not_found"
+            ? "That code has stopped working. Ask them to tap Ask my partner again for a new one."
+            : failureText(failure, "Couldn't approve. Try again."),
       );
+      await load();
       return;
     }
     setDone(r.data?.name ?? "Your partner");

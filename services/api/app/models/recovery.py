@@ -40,7 +40,10 @@ class AccountRecovery(Base, StackdRow):
     status: Mapped[str] = mapped_column(String(16), default="waiting", server_default="waiting")
     session_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("sessions.id", ondelete="SET NULL")
-    )  # the email-code session that asked
+    )  # the email-code session asking now (moves to whoever asks the partner)
+    started_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("sessions.id", ondelete="SET NULL")
+    )  # the session that started it: the only locked one that may cancel
     device_label: Mapped[str] = mapped_column(String(80))
     ready_at: Mapped[datetime]  # asked + 24 hours
     expires_at: Mapped[datetime]  # ready + 7 days to add the new passkey
@@ -50,6 +53,8 @@ class AccountRecovery(Base, StackdRow):
     )
     partner_code_hash: Mapped[str | None] = mapped_column(String(64))
     partner_approved_at: Mapped[datetime | None]
+    # Wrong codes the partner typed for the current code; at 5 the code stops working.
+    partner_attempts: Mapped[int] = mapped_column(default=0, server_default="0")
     # The session the partner approved (the one that read out the code): only it may finish
     # early, and asking again clears the approval.
     approved_session_id: Mapped[uuid.UUID | None] = mapped_column(

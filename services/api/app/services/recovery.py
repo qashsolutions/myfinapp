@@ -45,11 +45,13 @@ from app.models.webauthn_credential import WebauthnCredential
 from app.rules_server.entitlements import LIVE_STATES, household_plan
 from app.security.hashing import token_hash
 from app.services import sessions as sessions_svc
+from app.services.account_lock import lock_account
 
 WAIT = timedelta(hours=24)  # owner decision, October 30, 2026
 FINISH_WINDOW = timedelta(days=7)  # to add the new passkey once ready
 HOLD = timedelta(hours=24)  # sensitive actions after an email-only recovery
 CODE_DIGITS = 6
+CODE_TRIES = 5  # wrong codes before a code stops working; the person then asks again
 
 Reason = Literal["passkey", "owner", "expired"]
 
@@ -60,13 +62,6 @@ def _now() -> datetime:
 
 def _aware(when: datetime) -> datetime:
     return when if when.tzinfo else when.replace(tzinfo=UTC)
-
-
-def _lock_account(db: DbSession, user_id: uuid.UUID) -> None:
-    """Every recovery step for one account runs one after another: start, ask, approve, cancel
-    and finish take this lock first (FOR NO KEY UPDATE, so inserting a passkey that names the
-    account is never blocked by it)."""
-    db.execute(select(User.id).where(User.id == user_id).with_for_update(key_share=True))
 
 
 def _waiting(db: DbSession, user_id: uuid.UUID) -> list[AccountRecovery]:
@@ -126,7 +121,7 @@ def partner_for(db: DbSession, user: User, *, now: datetime | None = None) -> Us
 
 def start(db: DbSession, user: User, session: Session) -> tuple[AccountRecovery, bool]:
     """The waiting request for this account, made now if there is none. -> (row, made)."""
-    _lock_account(db, user.id)
+    lock_account(db, user.id)
     row = open_request(db, user.id)
     if row is not None:
         return row, False
@@ -134,6 +129,7 @@ def start(db: DbSession, user: User, session: Session) -> tuple[AccountRecovery,
     row = AccountRecovery(
         user_id=user.id,
         session_id=session.id,
+        started_session_id=session.id,
         device_label=session.device_label[:80],
         ready_at=now + WAIT,
         expires_at=now + WAIT + FINISH_WINDOW,
@@ -149,7 +145,7 @@ def ask_partner(
     """A fresh code for the partner to type, for the session asking now. Any earlier code and
     any approval are cleared, so the partner approves exactly the device whose code they hear.
     -> (partner, code). 409 `no_partner` when nobody may approve."""
-    _lock_account(db, user.id)
+    lock_account(db, user.id)
     partner = partner_for(db, user)
     if partner is None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="no_partner")
@@ -157,8 +153,10 @@ def ask_partner(
     row.partner_id = partner.id
     row.partner_code_hash = token_hash(f"recovery:{row.id}:{session.id}:{code}")
     row.session_id = session.id
+    row.device_label = session.device_label[:80]  # the partner sees the device asking now
     row.partner_approved_at = None
     row.approved_session_id = None
+    row.partner_attempts = 0
     db.flush()
     return partner, code
 
@@ -184,7 +182,7 @@ def approve(db: DbSession, partner: User, code: str) -> AccountRecovery:
     code = "".join(ch for ch in code if ch.isdigit())
     asked = asked_of(db, partner)
     for found in asked:
-        _lock_account(db, found.user_id)
+        lock_account(db, found.user_id)
         row = db.get(AccountRecovery, found.id, populate_existing=True)
         if row is None or row.status != "waiting" or row.partner_code_hash is None:
             continue
@@ -203,7 +201,21 @@ def approve(db: DbSession, partner: User, code: str) -> AccountRecovery:
         return row
     if not asked:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="not_found")
-    raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="wrong_code")
+    # A wrong code counts against every code waiting for this partner; at CODE_TRIES it stops
+    # working (the caller commits the count before answering).
+    left = 0
+    for found in asked:
+        row = db.get(AccountRecovery, found.id, populate_existing=True)
+        if row is None or row.partner_code_hash is None:
+            continue
+        row.partner_attempts += 1
+        if row.partner_attempts >= CODE_TRIES:
+            row.partner_code_hash = None
+        left = max(left, CODE_TRIES - row.partner_attempts)
+    db.flush()
+    raise HTTPException(
+        status.HTTP_400_BAD_REQUEST, detail={"code": "wrong_code", "attempts_left": left}
+    )
 
 
 def _close(row: AccountRecovery, state: str, reason: str | None) -> None:
@@ -212,9 +224,23 @@ def _close(row: AccountRecovery, state: str, reason: str | None) -> None:
     row.closed_reason = reason
 
 
+def cancel_from(db: DbSession, user_id: uuid.UUID, session: Session, *, locked: bool):
+    """Cancel from a device: any device signed in and unlocked (the owner), or the locked
+    device that started the request ("I found my passkey"). Another locked session, even one
+    that asked the partner since, can't: whoever holds the email could stop the owner's own
+    recovery. Decided under the lock. -> the row closed, or None if nothing was waiting."""
+    lock_account(db, user_id)
+    rows = _waiting(db, user_id)
+    if not rows:
+        return None
+    if locked and all(r.started_session_id != session.id for r in rows):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="not_allowed")
+    return cancel(db, user_id, "owner")
+
+
 def cancel(db: DbSession, user_id: uuid.UUID, reason: Reason) -> AccountRecovery | None:
     """Close every waiting request for the account. -> one of the rows closed, if any."""
-    _lock_account(db, user_id)
+    lock_account(db, user_id)
     closed = None
     for row in _waiting(db, user_id):
         _close(row, "cancelled", reason)
@@ -249,7 +275,7 @@ def finish(
     other session, close the request. Unless the partner let this very session in, the day's
     hold starts. -> the row, or None when no request is ready for this session any more (the
     caller then undoes the new passkey)."""
-    _lock_account(db, user.id)
+    lock_account(db, user.id)
     if not may_add_passkey(db, user.id, session):
         return None
     row = open_request(db, user.id)

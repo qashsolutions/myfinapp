@@ -687,7 +687,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       const first = rec.asked[0];
       if (!first) return json({ detail: "not_found" }, 404);
       if (String(b.code ?? "").replace(/\D/g, "") !== RECOVERY_CODE)
-        return json({ detail: "wrong_code" }, 400);
+        return json({ detail: { code: "wrong_code", attempts_left: 4 } }, 400);
       rec.asked = [];
       return json(first);
     }

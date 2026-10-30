@@ -351,3 +351,115 @@ def test_a_device_opened_by_link_with_your_phone_is_never_a_recovery() -> None:
             link_unlocked_at=datetime.now(UTC),
         )
         assert recovery_svc.may_add_passkey(db, row.user_id, row) is False
+
+
+def test_starts_are_counted_per_account_not_only_per_device() -> None:
+    _, _, email, _ = _person("Asha")
+    for _ in range(3):
+        device = _lost_device(email)
+        assert device.post("/api/auth/recovery").status_code == 200
+        assert device.post("/api/auth/recovery/cancel").status_code == 200
+    # A fourth device, a fourth start that would email the owner again: refused
+    assert _lost_device(email).post("/api/auth/recovery").status_code == 429
+
+
+def test_a_partner_code_stops_working_after_five_wrong_tries() -> None:
+    (asha, asha_key, _, _), (ben, _, ben_email, _) = _couple()
+    assert ben.put("/api/account/recovery-partner", json={"on": True}).status_code == 200
+    lost = _lost_device(ben_email)
+    code = lost.post("/api/auth/recovery/partner").json()["code"]
+    assert_passkey(asha, asha_key, purpose="step_up")
+    wrong = "000000" if code != "000000" else "111111"
+    left = []
+    for _ in range(5):
+        r = asha.post("/api/household/recovery/approve", json={"code": wrong})
+        assert r.status_code == 400
+        left.append(r.json()["detail"]["attempts_left"])
+    assert left == [4, 3, 2, 1, 0]
+    # The right code no longer works; Ben asks again for a new one
+    assert asha.post("/api/household/recovery/approve", json={"code": code}).status_code == 404
+    assert asha.get("/api/household/recovery").json() == []
+    code = lost.post("/api/auth/recovery/partner").json()["code"]
+    assert asha.post("/api/household/recovery/approve", json={"code": code}).status_code == 200
+
+
+# --- From the second review (October 30, 2026) ------------------------------------------------
+
+
+def test_the_partner_sees_the_device_asking_now() -> None:
+    from tests.auth_flow import MAC_UA
+
+    (asha, _, _, _), (ben, _, ben_email, _) = _couple()
+    assert ben.put("/api/account/recovery-partner", json={"on": True}).status_code == 200
+    _lost_device(ben_email).post("/api/auth/recovery")  # started on an iPhone
+    other = new_client(MAC_UA)
+    sign_in_with_code(other, ben_email)
+    assert other.post("/api/auth/recovery/partner").status_code == 200
+    [asked] = asha.get("/api/household/recovery").json()
+    assert "Mac" in asked["device_label"]
+
+
+def test_asking_the_partner_never_gives_the_right_to_cancel() -> None:
+    (_, _, _, _), (ben, _, ben_email, _) = _couple()
+    assert ben.put("/api/account/recovery-partner", json={"on": True}).status_code == 200
+    owner = _lost_device(ben_email)
+    owner.post("/api/auth/recovery")
+    other = _lost_device(ben_email)
+    assert other.post("/api/auth/recovery/partner").status_code == 200
+    assert other.post("/api/auth/recovery/cancel").json()["detail"] == "not_allowed"
+    assert owner.get("/api/auth/recovery").json()["status"] == "waiting"
+    assert owner.post("/api/auth/recovery/cancel").json()["status"] == "none"  # the starter may
+
+
+def test_cancelling_after_it_finished_says_nothing() -> None:
+    phone, _, email, uid = _person("Asha")
+    lost = _lost_device(email)
+    lost.post("/api/auth/recovery")
+    _age(uid)
+    register_passkey(lost, FakeAuthenticator())
+    before = _subjects(email)
+    assert lost.post("/api/auth/recovery/cancel").json()["status"] == "none"
+    assert _subjects(email) == before  # no "cancelled" after "You're back in"
+
+
+def _race_finish_against_owner() -> None:
+    phone, key, email, uid = _person("Asha")
+    lost = _lost_device(email)
+    lost.post("/api/auth/recovery")
+    _age(uid)
+    r = lost.post("/api/security/passkeys/register/options")
+    assert r.status_code == 200, r.text
+    credential = FakeAuthenticator().register(r.json()["options"])
+    r = phone.post("/api/security/passkeys/assert/options", json={"purpose": "unlock"})
+    assertion = key.assert_(r.json()["options"])
+    barrier = threading.Barrier(2)
+    codes: dict[str, int] = {}
+
+    def finish() -> None:
+        barrier.wait()
+        codes["finish"] = lost.post(
+            "/api/security/passkeys/register/verify", json={"credential": credential}
+        ).status_code
+
+    def owner() -> None:
+        barrier.wait()
+        codes["owner"] = phone.post(
+            "/api/security/passkeys/assert/verify", json={"credential": assertion}
+        ).status_code
+
+    threads = [threading.Thread(target=finish), threading.Thread(target=owner)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=30)
+    assert 500 not in codes.values(), codes
+    # One of the two won, cleanly: the owner (the new passkey undone) or the recovery
+    assert _passkeys(uid) == 1
+    assert codes["finish"] in (200, 409), codes
+    if codes["finish"] == 409:
+        assert codes["owner"] == 200
+
+
+def test_finishing_and_the_owners_passkey_at_once_never_deadlock() -> None:
+    for _ in range(3):
+        _race_finish_against_owner()

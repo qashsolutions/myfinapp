@@ -28,13 +28,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DbSession
 
-from app.db import get_db
+from app.db import get_db, get_session_factory
 from app.models.user import User
 from app.security.audit import AuditAction, record
 from app.security.client import client_ip
 from app.security.csrf import same_site_only
 from app.security.principal import Caller, require_session, require_step_up, require_unlocked
-from app.security.rate_limit import rate_limited, session_or_ip
+from app.security.rate_limit import LIMITS, Limit, hit, rate_limited, session_or_ip
 from app.services import ops_alerts
 from app.services import recovery as recovery_svc
 from app.services.alerts import RECOVERY_PARTNER_LABEL, RECOVERY_STARTED_LABEL
@@ -116,6 +116,20 @@ def _out(db: DbSession, caller: Caller) -> RecoveryOut:
     )
 
 
+def _account_limit(limit: Limit, user_id) -> None:
+    """Per account as well as per device: one person can sign in on many devices with the
+    email code, and each start or partner request emails the account. Counted on its own
+    connection, so a refused attempt still counts."""
+    with get_session_factory()() as db, db.begin():
+        decision = hit(db, limit, f"user:{user_id}")
+    if not decision.allowed:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="rate_limited",
+            headers={"Retry-After": str(decision.retry_after)},
+        )
+
+
 def _needs_recovery(caller: Caller) -> None:
     """Only a session that can't unlock: the account has passkeys and this one hasn't used
     one. Someone with a working passkey has nothing to recover."""
@@ -144,6 +158,7 @@ def recovery_start(
     db: Annotated[DbSession, Depends(get_db)],
 ) -> RecoveryOut:
     _needs_recovery(caller)
+    _account_limit(LIMITS["recovery_start_account"], caller.user.id)
     row, made = recovery_svc.start(db, caller.user, caller.session)
     if made:
         record(
@@ -176,6 +191,7 @@ def recovery_ask_partner(
     db: Annotated[DbSession, Depends(get_db)],
 ) -> PartnerCodeOut:
     _needs_recovery(caller)
+    _account_limit(LIMITS["recovery_partner_account"], caller.user.id)
     row, made = recovery_svc.start(db, caller.user, caller.session)
     partner, code = recovery_svc.ask_partner(db, caller.user, row, caller.session)
     ip = client_ip(request)
@@ -223,13 +239,12 @@ def recovery_cancel(
     """From the asking device ("I found my passkey"), or from any device signed in and
     unlocked (the owner, "this wasn't me"). A locked session that didn't ask can't cancel, or
     whoever holds the email could stop the owner's own recovery."""
-    row = recovery_svc.open_request(db, caller.user.id)
-    if row is None:
+    row = recovery_svc.cancel_from(
+        db, caller.user.id, caller.session, locked=caller.principal.locked
+    )
+    if row is None:  # nothing waiting (or it finished a moment ago): nothing to say
         db.commit()
         return _out(db, caller)
-    if caller.principal.locked and row.session_id != caller.session.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="not_allowed")
-    recovery_svc.cancel(db, caller.user.id, "owner")
     record(
         db,
         actor_id=caller.user.id,
@@ -277,7 +292,11 @@ def approve(
     caller: Annotated[Caller, Depends(require_step_up)],
     db: Annotated[DbSession, Depends(get_db)],
 ) -> AskedOut:
-    row = recovery_svc.approve(db, caller.user, body.code)
+    try:
+        row = recovery_svc.approve(db, caller.user, body.code)
+    except HTTPException:
+        db.commit()  # a wrong code's count is kept
+        raise
     record(
         db,
         actor_id=caller.user.id,
