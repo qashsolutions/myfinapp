@@ -113,6 +113,7 @@ describe("trials", () => {
       ended_at: iso(-DAY),
       delete_at: iso(6 * DAY),
     };
+    api.billing = { ...api.billing, ended: "trial" };
     renderApp("/budget");
     const alert = await screen.findByRole("alert");
     // A friendly update, not a warning (owner, October 20, 2026)
@@ -122,6 +123,39 @@ describe("trials", () => {
       "href",
       "/me/data",
     );
+  });
+
+  // Each end in its own words, the same as its email (invariant 73): never "trial" for a paid
+  // plan or for a partner whose household's plan stopped covering them.
+  it.each([
+    ["trial", false, "Your trial has wrapped up", true],
+    ["trial", true, "Your shared trial has wrapped up", true],
+    ["plan", false, "Your plan has wrapped up", true],
+    ["plan", true, "Your shared plan has wrapped up", true],
+    ["founding", false, "Your Founding membership has ended", true],
+    ["cover_ended", false, "Your household's plan no longer covers you", true],
+    ["cover_switched", false, "Your household's plan no longer covers you", true],
+    ["holder_lost", false, "The plan that covered you has ended", true],
+    ["payment_returned", false, "Your plan has ended", false],
+  ] as const)("a %s end (shared: %s) reads %j", async (ended, shared, title, offer) => {
+    resetEntitlements();
+    const api = installFakeApi({ session: readySession() });
+    api.access = { state: "lapsed", plan: "free", ended_at: iso(-DAY), delete_at: iso(6 * DAY) };
+    api.billing = { ...api.billing, plan: "free", ended, shared: shared ? "holder" : null };
+    renderApp("/me/plan");
+    const alert = await screen.findByText(title, { selector: ".plan-alert__title" });
+    const box = alert.closest(".plan-alert") as HTMLElement;
+    expect(box).toHaveTextContent(/what's on this device stays here until you decide/);
+    if (ended !== "trial") expect(box).not.toHaveTextContent(/trial/i);
+    if (ended === "cover_ended") expect(box).toHaveTextContent(/no longer in a household/);
+    if (ended === "cover_switched") expect(box).toHaveTextContent(/changed to one without/);
+    if (offer) {
+      expect(box).toHaveTextContent(/Pick a plan/);
+      expect(await screen.findByRole("article", { name: "Connected" })).toBeInTheDocument();
+    } else {
+      expect(box).not.toHaveTextContent(/Pick a plan/);
+      expect(screen.queryByRole("article", { name: "Connected" })).toBeNull();
+    }
   });
 
   it("a disputed payment pauses the plan: told plainly, data kept, nothing else open", async () => {

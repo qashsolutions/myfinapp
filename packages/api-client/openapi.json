@@ -386,6 +386,26 @@
             ],
             "title": "Downgrade From"
           },
+          "ended": {
+            "anyOf": [
+              {
+                "enum": [
+                  "payment_returned",
+                  "holder_lost",
+                  "cover_ended",
+                  "cover_switched",
+                  "founding",
+                  "trial",
+                  "plan"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended"
+          },
           "ends_at": {
             "anyOf": [
               {

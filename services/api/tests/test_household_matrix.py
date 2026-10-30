@@ -91,6 +91,18 @@ COVER_PLAN_ENDED = "The plan that covered you has ended"
 REMINDER = "A friendly reminder: 4 days left"
 BOTH = frozenset({"holder", "other"})
 
+# The Plan screen's reason for each ended email (invariant 73): the screen and the email are
+# read from one rule, `plan_end.end_reason`, so they always name the same end.
+SAYS = {
+    "trial": "trial has wrapped up",
+    "plan": "plan has wrapped up",
+    "founding": "Founding membership has ended",
+    "cover_ended": NO_LONGER,
+    "cover_switched": NO_LONGER,
+    "holder_lost": COVER_PLAN_ENDED,
+    "payment_returned": "Your Qash plan has ended",
+}
+
 # Live plans the holder pays for: the other is covered, nobody hears anything, nobody closes.
 _PAID_LIVE = ("card_trial", "monthly", "yearly", "past_due", "dispute_won")
 
@@ -376,6 +388,20 @@ def test_both_people_in_every_plan_state(case: Case) -> None:
         sent = [s for s in sent if s != "Your plan changed"]
         assert len(sent) == len(expected), (email, sent)
         assert all(s.startswith(e) for s, e in zip(sent, expected, strict=True)), sent
+        ended = [x for x in _subjects(email) if any(e in x for e in ENDED_SUBJECTS)]
+        reason = (hc if email == hmail else oc).get("/api/billing").json()["ended"]
+        if ended:  # the Plan screen names the end the email named
+            assert reason is not None and SAYS[reason] in ended[-1], (reason, ended)
+            # The two cover ends share a subject; their bodies say which happened.
+            body = next(
+                m.text for m in reversed(outbox()) if m.to == email and m.subject == ended[-1]
+            )
+            if reason == "cover_switched":
+                assert "changed to one that doesn't include" in body, body
+            if reason == "cover_ended":
+                assert "no longer in a household" in body, body
+        elif reason is not None:  # lapsed before the case (told then): still one of the ends
+            assert reason in SAYS, reason
     counted = {e: len(_subjects(e)) for e in (hmail, omail)}
     run(datetime.now(UTC), asha_id, ben_id)  # now: after the case was set up
     assert {e: len(_subjects(e)) for e in (hmail, omail)} == counted  # never twice
