@@ -203,8 +203,10 @@ def change(
     credit_after_cents: int,
     disconnects_banks: bool,
     current_plan: str,
+    ends_cover_for: str | None = None,
 ) -> ConsentText:
-    """ "Change your plan": what a switch means, in the same short lines (October 17, 2026)."""
+    """ "Change your plan": what a switch means, in the same short lines (October 17, 2026).
+    `ends_cover_for`: the partner this plan covers, when the new plan doesn't (invariant 69)."""
     per = "year" if interval == "yearly" else "month"
     price = money(_price(plans, plan, interval))
     name = _label(plans, plan)
@@ -239,6 +241,15 @@ def change(
                 "unlink",
             )
         )
+    if ends_cover_for:
+        grace = int(plans["trials"]["grace_days"])
+        points.append(
+            Point(
+                f"{name} doesn't cover your household: {ends_cover_for} has {grace} days to "
+                "choose a plan, and we'll email them.",
+                "unlink",
+            )
+        )
     points += [
         Point(f"Then {price} every {per} until you cancel.", "renew"),
         _refund_point(plans, plan, interval),
@@ -253,18 +264,28 @@ def cancel(
     renews_at: datetime | None,
     refund_if_deleted_cents: int,
     tz: tzinfo,
+    covered_by: str | None = None,
 ) -> ConsentText:
-    """ "If you cancel" (owner, October 18, 2026): a headline per point, then a short line."""
+    """ "If you cancel" (owner, October 18, 2026): a headline per point, then a short line.
+    `covered_by`: the partner whose plan covers this person's household, which then covers them
+    (October 29, 2026), so there is no grace period and nothing is deleted."""
     until = day(renews_at, tz) if renews_at is not None else "the paid period ends"
     points = [
         Point(f"{_label(plans, plan)} runs until {until}.", head="Stays on"),
         Point("Nothing more is billed after that.", head="No charges"),
-        Point(
-            "Then subscribe again or download your data.",
-            head=f"{int(plans['trials']['grace_days'])}-day grace",
-        ),
-        Point("Account and data go; leftover credit is refunded.", head="Then deleted"),
     ]
+    if covered_by:
+        points.append(
+            Point(f"Then {covered_by}'s plan covers you in your household.", head="Still covered")
+        )
+    else:
+        points += [
+            Point(
+                "Then subscribe again or download your data.",
+                head=f"{int(plans['trials']['grace_days'])}-day grace",
+            ),
+            Point("Account and data go; leftover credit is refunded.", head="Then deleted"),
+        ]
     # Only when deleting would pay something back (none during a trial or on a monthly plan).
     if refund_if_deleted_cents > 0:
         points.append(

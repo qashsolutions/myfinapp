@@ -38,11 +38,15 @@ from app.routers.linking import revoke_all
 from app.rules_server.entitlements import (
     TRIAL_PLANS,
     access,
+    covered_members,
+    covers_instead,
     effective_plan,
+    end_lost_cover,
     entitlements,
     founding_left,
     household_pair,
     is_tester,
+    limits_for,
     load_plans,
     payment_pending,
     purchase_conflict,
@@ -102,6 +106,9 @@ class BillingOut(BaseModel):
     shared: Literal["holder", "covered"] | None = None
     # covered only: the partner whose plan it is, as other members see them.
     shared_by: str | None = None
+    # covered only: the plan this person also pays for themselves (it renews on `renews_at`;
+    # they can stop it), else null (October 29, 2026).
+    own_plan: Literal["private", "connected", "founding"] | None = None
 
 
 class ConsentIn(BaseModel):
@@ -280,7 +287,12 @@ def _shared(db: DbSession, caller: Caller) -> dict[str, Any]:
     pair = household_pair(db, caller.user.id)
     other = next((u for u in pair or () if u != caller.user.id), None)
     person = db.get(User, other) if other else None
-    return {"shared": shared, "shared_by": _shown_name(person)[0] if person else None}
+    _, own = effective_plan(db, caller.user.id, tester=False)
+    return {
+        "shared": shared,
+        "shared_by": _shown_name(person)[0] if person else None,
+        "own_plan": own.plan if own is not None and state["state"] == "subscribed" else None,
+    }
 
 
 def _downgrade_from(sub: Subscription | None, caller: Caller) -> datetime | None:
@@ -418,13 +430,11 @@ def checkout(
         # A lost dispute or a fraud-warning refund (owner decision, October 24, 2026).
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="purchase_blocked")
     now_access = access(db, caller.user)
-    if now_access.get("shared") == "covered" and now_access["state"] == "subscribed":
-        # One price covers both of a household (invariant 54): nothing to buy while it does.
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="household_covered")
     _, sub = effective_plan(db, caller.user.id, tester=False)
-    # Never a second plan beside a live one (Founding, a bank payment still clearing, a store
-    # plan, a renewing subscription): plan changes go through /change, and Founding may follow
-    # a plan set not to renew. One helper, which the webhook asks again when a page is paid.
+    # Never a second plan beside a live one (a household's plan that covers the person,
+    # Founding, a bank payment still clearing, a store plan, a renewing subscription): plan
+    # changes go through /change, and Founding may follow a plan set not to renew. One helper,
+    # which the webhook asks again when a page is paid.
     if conflict := purchase_conflict(db, caller.user.id, body.plan):
         raise HTTPException(status.HTTP_409_CONFLICT, detail=conflict)
     if body.plan == "founding" and founding_left(db)[1] <= 0:
@@ -532,6 +542,7 @@ def change_preview(
         except stripe_billing.BillingError as exc:
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=exc.code) from exc
     disconnects = kind == "down" and _disconnects_banks(db, caller, body.plan)
+    ends_cover = _ends_cover_for(db, caller, body.plan)
     return ChangePreviewOut(
         kind=kind,  # type: ignore[arg-type]
         due_now_cents=due,
@@ -539,12 +550,31 @@ def change_preview(
         price_cents=_price_cents(body.plan, body.interval),
         proration_date=proration_date,
         disconnects_banks=disconnects,
-        consent=_consent_out(_change_text(sub, body, kind, due, credit, disconnects)),
+        consent=_consent_out(_change_text(sub, body, kind, due, credit, disconnects, ends_cover)),
     )
 
 
+def _ends_cover_for(db: DbSession, caller: Caller, plan: str) -> str | None:
+    """The partner this person's plan covers, by the name other members see, when switching to
+    `plan` (one without household) would end that cover (invariant 69); else None."""
+    if limits_for(plan)["household"]:
+        return None
+    others = [
+        p
+        for p in covered_members(db, caller.user.id, now=datetime.now(UTC))
+        if p.id != caller.user.id
+    ]
+    return _shown_name(others[0])[0] if others else None
+
+
 def _change_text(
-    sub: Subscription, target: ChangeTarget, kind: str, due: int, credit: int, disconnects: bool
+    sub: Subscription,
+    target: ChangeTarget,
+    kind: str,
+    due: int,
+    credit: int,
+    disconnects: bool,
+    ends_cover: str | None,
 ) -> consent_text.ConsentText:
     return consent_text.change(
         load_plans(),
@@ -555,6 +585,7 @@ def _change_text(
         credit_after_cents=credit,
         disconnects_banks=disconnects,
         current_plan=sub.plan,
+        ends_cover_for=ends_cover,
     )
 
 
@@ -591,6 +622,7 @@ def change(
     except stripe_billing.BillingError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=exc.code) from exc
     disconnects = kind == "down" and _disconnects_banks(db, caller, body.plan)
+    ends_cover = _ends_cover_for(db, caller, body.plan)
     _record_consent(
         db,
         caller,
@@ -598,9 +630,11 @@ def change(
         body.interval,
         body.consent,
         request,
-        canonical=_change_text(sub, body, kind, due, credit, disconnects),
+        canonical=_change_text(sub, body, kind, due, credit, disconnects, ends_cover),
         kind="change",
     )
+    # Read before the switch: whoever this plan covers in the household (invariant 69).
+    covered = covered_members(db, caller.user.id, now=datetime.now(UTC))
     try:
         obj = stripe_billing.switch_price(live, body.plan, body.interval, proration_date=proration)
     except stripe_billing.BillingError as exc:
@@ -637,6 +671,9 @@ def change(
                 ip=client_ip(request),
             )
         revoke_all(db, caller.user.id)
+    # A plan without household no longer covers the partner: their own 7 days start now, with
+    # the plan job's email, never a fresh trial (invariants 54, 69).
+    end_lost_cover(db, covered, now=datetime.now(UTC))
     store_entitlements(db, caller.user.id)
     record(
         db,
@@ -771,12 +808,14 @@ def _cancel_text(
             refund = deletion.refund_preview(db, caller.user.id)[0]
         except stripe_billing.BillingError:
             refund = 0
+    partner = covers_instead(db, caller.user)
     return consent_text.cancel(
         load_plans(),
         sub.plan,
         renews_at=sub.renews_at,
         refund_if_deleted_cents=refund,
         tz=consent_text.zone(tz),
+        covered_by=_shown_name(partner)[0] if partner else None,
     )
 
 
@@ -842,7 +881,10 @@ def set_tester_plan(
     not there. Audited and alerted like any plan change."""
     if not is_tester(caller.user):
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="not_found")
+    covered = covered_members(db, caller.user.id, now=datetime.now(UTC))
     caller.user.tester_plan = body.plan
+    # A tester plan without household ends the partner's cover like any switch (invariant 69).
+    end_lost_cover(db, covered, now=datetime.now(UTC))
     store_entitlements(db, caller.user.id)
     record(
         db,
@@ -900,6 +942,9 @@ def native_sync(
             else status.HTTP_400_BAD_REQUEST
         )
         raise HTTPException(code, detail=exc.code) from exc
+    if outcome == "household_covered":
+        # One price covers both of a household (invariant 70): the store purchase isn't taken.
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="household_covered")
     if outcome == "synced":
         record(
             db,

@@ -427,6 +427,22 @@
             "title": "Label",
             "type": "string"
           },
+          "own_plan": {
+            "anyOf": [
+              {
+                "enum": [
+                  "private",
+                  "connected",
+                  "founding"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Own Plan"
+          },
           "payment_pending": {
             "default": false,
             "title": "Payment Pending",
@@ -2328,6 +2344,74 @@
         "title": "KeyOut",
         "type": "object"
       },
+      "LeaveOutcomeOut": {
+        "description": "What one member keeps if the household splits now (invariant 67).",
+        "properties": {
+          "is_me": {
+            "title": "Is Me",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "keeps",
+              "own_plan",
+              "seven_days",
+              "same_end",
+              "paused",
+              "unchanged"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "enum": [
+                  "private",
+                  "connected",
+                  "founding"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "name",
+          "is_me",
+          "outcome",
+          "plan",
+          "until"
+        ],
+        "title": "LeaveOutcomeOut",
+        "type": "object"
+      },
       "LinkedAccount": {
         "properties": {
           "account_id": {
@@ -3168,6 +3252,16 @@
           "invited_by": {
             "title": "Invited By",
             "type": "string"
+          },
+          "you_pay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/YouPayOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -3948,6 +4042,52 @@
           "code"
         ],
         "title": "VerifyIn",
+        "type": "object"
+      },
+      "YouPayOut": {
+        "description": "A plan the person joining pays for themselves, which renews (October 29, 2026): the\nhousehold's one plan would cover them, so the screen asks whether to stop it at the end of\nits paid period. `source` says where: stopped in the app (stripe) or in the store.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "plan": {
+            "enum": [
+              "private",
+              "connected"
+            ],
+            "title": "Plan",
+            "type": "string"
+          },
+          "renews_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Renews At"
+          },
+          "source": {
+            "enum": [
+              "stripe",
+              "apple",
+              "google"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan",
+          "label",
+          "renews_at",
+          "source"
+        ],
+        "title": "YouPayOut",
         "type": "object"
       },
       "app__routers__device_link__StartOut": {
@@ -5955,6 +6095,32 @@
           }
         },
         "summary": "Leave",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/household/leave/preview": {
+      "get": {
+        "description": "Before leaving: what each of the two keeps, from the one rule (`leave_outcome`), so the\nsheet says what is true for each person instead of a general line.",
+        "operationId": "leave_preview_api_household_leave_preview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LeaveOutcomeOut"
+                  },
+                  "title": "Response Leave Preview Api Household Leave Preview Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Leave Preview",
         "tags": [
           "household"
         ]

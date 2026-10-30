@@ -7,9 +7,10 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
+import { api, failureOf } from "../../data/api.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type CombinedTotals, combineTotals, splitContributions } from "../../engine/bridge.ts";
-import { formatCents, formatMonth, todayIso } from "../../lib/format.ts";
+import { formatCents, formatDate, formatMonth, todayIso } from "../../lib/format.ts";
 import { useSession } from "../auth/useSession.tsx";
 import { loadEntitlements, useEntitlements } from "../billing/entitlements.ts";
 import { PlanLimit } from "../billing/PlanLimit.tsx";
@@ -41,6 +42,9 @@ export function HouseholdScreen() {
   const [link, setLink] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  // What each of the two keeps if the household splits now, from the server's one rule
+  // (invariant 67); null until it answers, then the general line stands in.
+  const [outcomes, setOutcomes] = useState<LeaveOutcome[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [together, setTogether] = useState<CombinedTotals | null>(null);
   const [splits, setSplits] = useState<Record<string, Array<{ member_id: string; cents: number }>>>(
@@ -154,6 +158,13 @@ export function HouseholdScreen() {
     } catch {
       setNote("Couldn't copy. The link is above.");
     }
+  }
+
+  async function openLeave() {
+    setOutcomes(null);
+    setConfirmLeave(true);
+    const r = await api.GET("/api/household/leave/preview");
+    if (!failureOf(r) && r.data) setOutcomes(r.data as LeaveOutcome[]);
   }
 
   async function leave() {
@@ -329,7 +340,7 @@ export function HouseholdScreen() {
         </>
       ) : null}
       {household ? (
-        <Button variant="ghost" block onClick={() => setConfirmLeave(true)} disabled={busy}>
+        <Button variant="ghost" block onClick={() => void openLeave()} disabled={busy}>
           <span style={{ color: "var(--c-danger)" }}>Leave household</span>
         </Button>
       ) : null}
@@ -350,10 +361,7 @@ export function HouseholdScreen() {
           <li>Each of you keeps a copy of every shared jar, holding your own deposits.</li>
           <li>Your partner's deposits leave this device; yours leave theirs.</li>
           <li>Month totals stop being shared.</li>
-          <li>
-            One plan covered you both. Whoever it came with keeps it; the other has 7 days to pick a
-            plan of their own or download their data.
-          </li>
+          {outcomes ? outcomes.map((o) => <li key={o.user_id}>{outcomeLine(o)}</li>) : null}
         </ul>
         <Button block onClick={() => setConfirmLeave(false)}>
           Stay
@@ -364,4 +372,45 @@ export function HouseholdScreen() {
       </Sheet>
     </>
   );
+}
+
+type LeaveOutcome = {
+  user_id: string;
+  name: string;
+  is_me: boolean;
+  outcome: "keeps" | "own_plan" | "seven_days" | "same_end" | "paused" | "unchanged";
+  plan: "private" | "connected" | "founding" | null;
+  until: string | null;
+};
+
+const PLAN_LABELS = { private: "Private", connected: "Connected", founding: "Founding" } as const;
+
+/** One line per person, in plain words, for what the server says they keep. */
+export function outcomeLine(o: LeaveOutcome): string {
+  const plan = o.plan ? PLAN_LABELS[o.plan] : "";
+  const until = o.until ? formatDate(o.until) : "";
+  switch (o.outcome) {
+    case "keeps":
+      return o.is_me ? `You keep ${plan}.` : `${o.name} keeps ${plan}.`;
+    case "own_plan":
+      return o.is_me
+        ? `You go back to your own ${plan}.`
+        : `${o.name} goes back to their own ${plan}.`;
+    case "seven_days":
+      return o.is_me
+        ? `You have 7 days, until ${until}, to pick a plan or download your data.`
+        : `${o.name} has 7 days, until ${until}, to pick a plan or download their data.`;
+    case "same_end":
+      return o.is_me
+        ? `Your plan already ended: you keep the same date, ${until}.`
+        : `${o.name}'s plan already ended: they keep the same date, ${until}.`;
+    case "paused":
+      return o.is_me
+        ? "Your plan stays paused until its payment is settled, then you have 7 days."
+        : `${o.name}'s plan stays paused until its payment is settled, then they have 7 days.`;
+    default:
+      return o.is_me
+        ? "Your own plan carries on as it is."
+        : `${o.name}'s own plan carries on as it is.`;
+  }
 }

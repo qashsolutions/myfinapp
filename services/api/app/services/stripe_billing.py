@@ -31,11 +31,14 @@ from app.models.billing import (
 from app.models.user import User
 from app.rules_server.entitlements import (
     access,
+    covered_members,
+    end_lost_cover,
     founding_taken,
     household_pair,
     is_tester,
     load_plans,
     purchase_conflict,
+    release_split_pauses,
     store_entitlements,
 )
 from app.security.hashing import pseudonym
@@ -1383,6 +1386,9 @@ def _dispute(db: DbSession, kind: str, obj: dict[str, Any], *, now: datetime) ->
                 block_purchases(db, None, "dispute_lost", customer=customer)
             block_payer(str(obj.get("charge") or ""))
             outcome, message = "dispute_lost", plan_ended_dispute_lost_message
+        # A household that split while this was open: whoever stayed paused for it is on
+        # their own from now, with their own 7 days (invariant 68).
+        release_split_pauses(db, [r.id for r in rows], now=now)
     db.flush()
     for user_id in users:
         store_entitlements(db, user_id)
@@ -1780,6 +1786,9 @@ def _subscription_event(
         plan, interval = mapped
     if plan not in ("private", "connected"):
         return "ignored"
+    # Read before the change: a switch made at Stripe (not through /change) that leaves the
+    # plan without household ends the partner's cover just the same (invariant 69).
+    covered = covered_members(db, user_id, now=now)
     stripe_status = "canceled" if kind.endswith("deleted") else str(obj.get("status") or "active")
     status = _status(stripe_status)
     end = period_end(obj)
@@ -1826,6 +1835,7 @@ def _subscription_event(
     if clearing and row.first_payment is None:
         row.first_payment = "pending"
     db.flush()
+    end_lost_cover(db, covered, now=now)
     store_entitlements(db, user_id)
     return status
 

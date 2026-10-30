@@ -26,6 +26,7 @@ import {
   type FakeHouseholds,
   freeBilling,
   installFakeApi,
+  privateBilling,
   readySession,
 } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
@@ -124,6 +125,165 @@ describe("A household is one plan (invariant 54)", () => {
     await waitFor(() =>
       expect(card).toHaveTextContent("This plan covers you and your partner in your household"),
     );
+  });
+
+  it("a holder whose plan ended is never told it still covers both (invariant 67)", async () => {
+    const billing = { ...freeBilling(), shared: "holder" as const };
+    const api = installFakeApi({ session: ben(), billing });
+    api.access = {
+      state: "lapsed",
+      plan: "free",
+      shared: "holder",
+      ended_at: "2026-10-28T12:00:00Z",
+      delete_at: "2026-11-04T12:00:00Z",
+    };
+    renderApp("/me/plan");
+    const card = await screen.findByRole("region", { name: "Current plan" });
+    await waitFor(() => expect(card).toHaveTextContent("It ended for both of you"));
+    expect(card).not.toHaveTextContent("This plan covers you and your partner");
+  });
+});
+
+describe("Paying for a plan of one's own in a household (owner decision, October 29, 2026)", () => {
+  beforeEach(() => resetEntitlements());
+
+  function paysPrivate() {
+    const api = installFakeApi({
+      session: ben(),
+      billing: { ...privateBilling(), interval: "monthly", source: "stripe" },
+      households: householdOf([["u9", "Asha"]]),
+    });
+    api.access = { state: "subscribed", plan: "private" };
+    return api;
+  }
+
+  it("asks before joining, and Stop mine opens the usual cancel sheet", async () => {
+    const user = userEvent.setup();
+    const api = paysPrivate();
+    renderApp(`/household/join?code=HH-ABCDEF#k=${"a".repeat(43)}`);
+    expect(
+      await screen.findByText(
+        "You pay for Private yourself. In a household one plan covers you both. Stop yours at the end of its paid period?",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Join Asha's household" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Stop mine" }));
+    expect(await screen.findByRole("dialog", { name: "If you cancel" })).toBeInTheDocument();
+    // Nothing stopped until the tick and the tap in that sheet.
+    expect(api.calls.some((c) => c.path === "/api/billing/cancel")).toBe(false);
+  });
+
+  it("Keep mine joins and stops nothing", async () => {
+    const user = userEvent.setup();
+    const api = paysPrivate();
+    renderApp(`/household/join?code=HH-ABCDEF#k=${"a".repeat(43)}`);
+    await user.click(await screen.findByRole("button", { name: "Keep mine" }));
+    await screen.findByRole("heading", { level: 1, name: "Couples & household" });
+    expect(api.calls.some((c) => c.path === "/api/household/join")).toBe(true);
+    expect(api.calls.some((c) => c.path.startsWith("/api/billing/cancel"))).toBe(false);
+  });
+
+  it("a store plan is stopped in the store", async () => {
+    const api = installFakeApi({
+      session: ben(),
+      billing: { ...privateBilling(), source: "apple" },
+      households: householdOf([["u9", "Asha"]]),
+    });
+    api.access = { state: "subscribed", plan: "private" };
+    renderApp(`/household/join?code=HH-ABCDEF#k=${"a".repeat(43)}`);
+    expect(
+      await screen.findByText("You bought it in the App Store, so you stop it there."),
+    ).toBeInTheDocument();
+  });
+
+  it("a Connected joiner is not asked, and once covered can stop theirs", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({
+      session: ben(),
+      billing: { ...privateBilling(), plan: "connected", source: "stripe" },
+      households: householdOf([["u9", "Asha"]]),
+    });
+    api.access = { state: "subscribed", plan: "connected" };
+    renderApp(`/household/join?code=HH-ABCDEF#k=${"a".repeat(43)}`);
+    expect(await screen.findByRole("button", { name: "Join Asha's household" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Stop mine" })).toBeNull();
+    api.billing = {
+      ...api.billing,
+      shared: "covered",
+      shared_by: "Asha",
+      own_plan: "connected",
+      renews_at: "2026-11-20T12:00:00Z",
+    };
+    api.access = { state: "subscribed", plan: "connected", shared: "covered" };
+    renderApp("/me/plan");
+    const card = (await screen.findAllByRole("region", { name: "Current plan" })).at(-1);
+    await waitFor(() => expect(card).toHaveTextContent("You also pay for Connected"));
+    await user.click(screen.getByRole("button", { name: "Stop my Connected" }));
+    expect(await screen.findByRole("dialog", { name: "If you cancel" })).toBeInTheDocument();
+  });
+
+  it("the Plan screen says the household covers them and offers to stop their own", async () => {
+    const user = userEvent.setup();
+    const billing = {
+      ...privateBilling(),
+      plan: "connected" as const,
+      interval: "monthly" as const,
+      source: "stripe" as const,
+      renews_at: "2026-11-20T12:00:00Z",
+      shared: "covered" as const,
+      shared_by: "Asha",
+      own_plan: "private" as const,
+    };
+    const api = installFakeApi({ session: ben(), billing });
+    api.access = { state: "subscribed", plan: "connected", shared: "covered" };
+    renderApp("/me/plan");
+    const card = await screen.findByRole("region", { name: "Current plan" });
+    await waitFor(() =>
+      expect(card).toHaveTextContent(
+        "Covered by Asha's Connected. You also pay for Private (renews Nov 20, 2026) — you can stop it.",
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "Stop my Private" }));
+    expect(await screen.findByRole("dialog", { name: "If you cancel" })).toBeInTheDocument();
+  });
+});
+
+describe("The leave sheet says what each person keeps (invariant 67)", () => {
+  beforeEach(() => resetEntitlements());
+
+  it("shows the server's outcome for each of the two", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({
+      session: ben(),
+      billing: freeBilling(),
+      households: householdOf([
+        ["u9", "Asha"],
+        ["u1", "Ben"],
+      ]),
+    });
+    api.householdLeavePreview = [
+      {
+        user_id: "u9",
+        name: "Asha",
+        is_me: false,
+        outcome: "keeps",
+        plan: "connected",
+        until: null,
+      },
+      {
+        user_id: "u1",
+        name: "Ben",
+        is_me: true,
+        outcome: "own_plan",
+        plan: "private",
+        until: null,
+      },
+    ];
+    renderApp("/me/household");
+    await user.click(await screen.findByRole("button", { name: "Leave household" }));
+    expect(await screen.findByText("Asha keeps Connected.")).toBeInTheDocument();
+    expect(screen.getByText("You go back to your own Private.")).toBeInTheDocument();
+    expect(screen.queryByText(/the other has 7 days/)).toBeNull();
   });
 });
 
