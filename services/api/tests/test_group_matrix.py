@@ -121,6 +121,9 @@ def test_every_type_at_every_moment(
         assert board[True]["progress_bps"] == 4000
         assert board[True]["reached_at"] is None
 
+    # What helped opens for everyone exactly when the result is final, never at another end.
+    detail = member.get(f"/api/groups/{gid}").json()
+    assert detail["helped_open"] is (moment == "over_everywhere")
     assert member.post(f"/api/groups/{gid}/leave").status_code == leave
     # The leaver's own list no longer has it; the others' board keeps their standing once final.
     assert gid not in [g["id"] for g in member.get("/api/groups").json()]
@@ -152,3 +155,28 @@ def test_reached_at_is_never_after_the_challenge_is_over_everywhere(
     assert r.status_code == 409 and r.json()["detail"] == "ended"
     me = owner.get(f"/api/groups/{gid}").json()["members"][0]
     assert me["has_events"] is False and me["reached_at"] is None and me["progress_bps"] == 0
+
+
+@pytest.mark.parametrize(
+    ("month", "answer"),
+    [
+        ("2026-10", 201),  # this month
+        ("2026-11", 201),  # next month
+        ("2026-09", 422),  # already over
+        ("2026-12", 422),  # starts more than 31 days ahead
+        ("2020-01", 422),  # born ended
+        ("2099-12", 422),
+    ],
+)
+def test_a_monthly_challenge_is_this_month_or_next(
+    monkeypatch: pytest.MonkeyPatch, month: str, answer: int
+) -> None:
+    """The monthly kinds follow the others' rule (today - 1 to today + 31, the server's date):
+    a month that is over by then, or starts after it, is refused in plain words."""
+    monkeypatch.setattr(groups_router, "_now", lambda: CREATED)  # October 15
+    owner = person("Owner")
+    for template in ("monthly_savings", "dining_diet"):
+        r = owner.post("/api/groups", json={"name": "", "template_key": template, "month": month})
+        assert r.status_code == answer, r.text
+        if answer == 422:
+            assert r.json()["detail"] == "month_out_of_range"

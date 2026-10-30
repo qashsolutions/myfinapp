@@ -170,13 +170,18 @@ def _month_bounds(month: str) -> tuple[date, date]:
 
 def _dates_for(body: CreateGroupRequest) -> tuple[date, date]:
     """Each template's span: the calendar month, a week, a weekend (two days), or 52 weeks."""
+    today = _now().date()
     if body.template_key in ("monthly_savings", "dining_diet"):
         if body.month is None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="month_required")
-        return _month_bounds(body.month)
+        first, last = _month_bounds(body.month)
+        # The same window as the other kinds' start date (today - 1 to today + 31): a month
+        # already over by then, or one starting after it, is refused (this month or next).
+        if last < today - timedelta(days=1) or first > today + timedelta(days=MAX_START_AHEAD_DAYS):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="month_out_of_range")
+        return first, last
     if body.start_date is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="start_date_required")
-    today = _now().date()
     if (
         not today - timedelta(days=1)
         <= body.start_date
@@ -353,7 +358,8 @@ def _refuse_outside(group: Group, now: datetime) -> None:
 
 
 def _helped_open(group: Group, me: GroupMember) -> bool:
-    return me.reached_at is not None or me.progress_bps >= 10000 or _now().date() > group.end_date
+    # Opens with the result: the one end moment (`_ended`), never midnight UTC.
+    return me.reached_at is not None or me.progress_bps >= 10000 or _ended(group)
 
 
 def _helped_totals(members: list[tuple[GroupMember, User]], me: GroupMember) -> HelpedTotals | None:

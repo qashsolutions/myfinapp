@@ -498,7 +498,10 @@ written against both.
     set aside and catch-up). Once it is over everywhere (the same one moment, `_over_from`)
     the result is final (owner decision, October 29, 2026; `GroupDetail.result_final`): leaving takes the challenge off the leaver's
     own list only, their standing and their What helped answer stay on everyone else's board,
-    and the owner can't remove anyone (409 `ended`); the app says "Remove from my list".
+    and the owner can't remove anyone (409 `ended`); the app says "Remove from my list". What
+    helped opens for everyone at that same moment (`_helped_open` reads `_ended`, never midnight
+    UTC), and a monthly challenge can only be made for a month that overlaps today − 1 to today
+    + 31, the other kinds' start window (422 `month_out_of_range`), so none is born ended.
     `test_group_matrix.py` (five types × five moments, leave and removal included) · `challenge-window.test.tsx` (the same
     on the device, and Home's set-aside tap)
 72. **A connection being removed stays removed until it is revoked** (October 29, 2026; a bank
@@ -507,7 +510,9 @@ written against both.
     only `revoke_pending`). `revoke_pending` is terminal for webhooks, sync, card reads and
     relink; only a revoke that succeeds ends it, by deleting the row. Every status change once a
     connection exists goes through `linking/status.set_status`, a conditional update, so a write
-    that started before a Disconnect committed can't undo it either.
+    that started before a Disconnect committed can't undo it either. A sync, card read or relink
+    reads its row again, locked, after waiting on Plaid (`_still_live`): if a Disconnect's revoke
+    deleted it or marked it meanwhile, the call answers 404 and writes nothing, never 500.
     `test_linking_states.py` (every status × every webhook code, sync, cards, relink and
     Disconnect, then the job; a sync under way when the Disconnect lands)
 60. **A webhook that fails on our side is delivered again, and someone hears of it** (October

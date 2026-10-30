@@ -207,3 +207,54 @@ def test_a_sync_under_way_when_the_disconnect_lands_never_undoes_it(fake: FakePl
     fake.sync_error = "ITEM_LOGIN_REQUIRED"
     client.post(f"/api/linking/{conn_id}/sync", json={})
     assert _status(conn_id) == "revoke_pending"
+
+
+def _gone(conn_id: str) -> None:
+    """A Disconnect whose revoke succeeded: the row is deleted."""
+    with get_session_factory()() as db:
+        row = db.scalar(select(BankConnection).where(BankConnection.id == uuid.UUID(conn_id)))
+        if row is not None:
+            db.delete(row)
+            db.commit()
+
+
+# The person's call -> the Plaid path it waits on.
+RACES = {
+    "sync": "/transactions/sync",
+    "sync_login_required": "/transactions/sync",
+    "cards": "/liabilities/get",
+    "cards_login_required": "/liabilities/get",
+    "relink": "/link/token/create",
+}
+# Finishing a relink holds its link session FOR UPDATE, and the connection's delete waits on
+# that row (the foreign key), so a revoke can't delete the row under a finishing relink.
+
+
+@pytest.mark.parametrize("event", list(RACES))
+def test_a_call_waiting_on_plaid_when_the_revoke_deletes_the_row_answers_404(
+    fake: FakePlaid, event: str
+) -> None:
+    """A sync, card read or relink read the row, then waited on Plaid while a Disconnect's
+    revoke succeeded and deleted it: the call answers 404 like any gone connection, never 500."""
+    import httpx2
+
+    client, _, conn_id, _ = linked(fake)
+    origin = {"Origin": "http://localhost:5173"}
+    fake.sync_error = "ITEM_LOGIN_REQUIRED" if event == "sync_login_required" else None
+    fake.liabilities_error = "ITEM_LOGIN_REQUIRED" if event == "cards_login_required" else None
+    inner = fake.transport()
+
+    def racing(request):
+        if request.url.path == RACES[event]:
+            _gone(conn_id)
+        return inner.handle_request(request)
+
+    plaid.transport_override = httpx2.MockTransport(racing)
+    if event.startswith("sync"):
+        r = client.post(f"/api/linking/{conn_id}/sync", json={})
+    elif event.startswith("cards"):
+        r = client.post(f"/api/linking/{conn_id}/cards")
+    else:
+        r = client.post(f"/api/linking/{conn_id}/relink", headers=origin)
+    assert r.status_code == 404, r.text
+    assert _status(conn_id) == GONE
