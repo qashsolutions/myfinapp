@@ -405,6 +405,23 @@ def access(db: DbSession, user: User, *, now: datetime | None = None) -> dict[st
     return household_plan(db, user, now=now).access
 
 
+def covers_instead(db: DbSession, user: User, *, now: datetime | None = None) -> User | None:
+    """The partner whose plan would cover this person if they had no plan of their own (the
+    `household_plan` holder rule, read from the other's side), or None."""
+    now = now or datetime.now(UTC)
+    pair = household_pair(db, user.id)
+    if pair is None:
+        return None
+    other_id = pair[1] if pair[0] == user.id else pair[0]
+    other = db.get(User, other_id)
+    if other is None:
+        return None
+    state = _own_access(db, other, now=now)
+    if _covers(state) and (other_id == pair[0] or state["state"] == "subscribed"):
+        return other
+    return None
+
+
 def covered_members(db: DbSession, user_id: uuid.UUID, *, now: datetime) -> list[User]:
     """Who in this person's household of two the shared plan covers right now (themselves
     included, when they are the one covered). Read before anything changes a plan or the

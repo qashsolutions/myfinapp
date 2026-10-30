@@ -281,6 +281,23 @@ def household_cover_ended_message(
     )
 
 
+def household_plan_ended_message(to: str, delete_on: str, link: str) -> Message:
+    """The plan that covered this person in their household ended because of its holder's
+    payment (owner decision, October 29, 2026): what it means for them and what they can do,
+    with nothing about why."""
+    return Message(
+        to=to,
+        subject="The plan that covered you has ended",
+        text=(
+            "The plan that covered you in your household has ended. Nothing has been deleted.\n\n"
+            f"Pick a plan of your own within 7 days, by {delete_on}: {link}\n\n"
+            "Or download your data: open the app, then Me → Download all my data.\n\n"
+            f"If you do neither, we close your account on {delete_on}. What's on your device "
+            "stays there until you choose to download it or erase it.\n"
+        ),
+    )
+
+
 def account_deleted_after_plan_message(
     to: str, *, welcome_back: bool = True, shared: bool = False
 ) -> Message:

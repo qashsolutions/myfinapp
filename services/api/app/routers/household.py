@@ -40,9 +40,11 @@ from app.routers.backup import B64, decode_b64url, encode_b64url
 from app.routers.groups import CODE_ALPHABET, _shown_name
 from app.rules_server.entitlements import (
     covered_members,
+    effective_plan,
     end_lost_cover,
     entitlements,
     household_pair,
+    load_plans,
     require_feature,
     store_entitlements,
 )
@@ -94,10 +96,22 @@ class CodeRequest(BaseModel):
     code: str = Field(min_length=1, max_length=12)
 
 
+class YouPayOut(BaseModel):
+    """A plan the person joining pays for themselves, which renews (October 29, 2026): the
+    household's one plan would cover them, so the screen asks whether to stop it at the end of
+    its paid period. `source` says where: stopped in the app (stripe) or in the store."""
+
+    plan: Literal["private", "connected"]
+    label: str
+    renews_at: datetime | None
+    source: Literal["stripe", "apple", "google"]
+
+
 class PreviewOut(BaseModel):
     invited_by: str
     initial: str
     expires_at: datetime
+    you_pay: YouPayOut | None = None
 
 
 class HouseholdBlobIn(BaseModel):
@@ -297,7 +311,35 @@ def lookup(
     household = db.get(Household, row.household_id)
     owner = db.get(User, household.owner_id) if household else None
     name, initial = _shown_name(owner) if owner else ("Former member", "-")
-    return PreviewOut(invited_by=name, initial=initial, expires_at=row.expires_at)
+    return PreviewOut(
+        invited_by=name,
+        initial=initial,
+        expires_at=row.expires_at,
+        you_pay=_you_pay(db, caller, household) if household else None,
+    )
+
+
+def _you_pay(db: DbSession, caller: Caller, household: Household) -> YouPayOut | None:
+    """The joiner's own renewing plan, when the household's plan would cover them: nothing is
+    stopped here, the screen asks (owner decision, October 29, 2026)."""
+    if not entitlements(db, household.owner_id).get("household"):
+        return None
+    _, sub = effective_plan(db, caller.user.id, tester=False)
+    if (
+        sub is None
+        or sub.plan not in ("private", "connected")
+        or sub.source not in ("stripe", "apple", "google")
+        or sub.status not in ("active", "past_due")
+        or sub.cancel_at_period_end
+        or not sub.interval
+    ):
+        return None
+    return YouPayOut(
+        plan=sub.plan,  # type: ignore[arg-type]
+        label=load_plans()["plans"][sub.plan]["label"],
+        renews_at=sub.renews_at,
+        source=sub.source,  # type: ignore[arg-type]
+    )
 
 
 @router.post("/join", dependencies=[Depends(rate_limited("invite_join"))])

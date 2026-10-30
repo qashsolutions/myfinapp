@@ -86,6 +86,8 @@ SHARED_PLAN_ENDING = "Your shared Qash plan wraps up on"
 SHARED_TRIAL_ENDING = "Your shared free trial wraps up on"
 FOUNDING_ENDED = "Your household's Founding membership has ended"
 NO_LONGER = "Your household's plan no longer covers you"
+# The holder lost a dispute: the plan that covered the other ended, nothing about why.
+COVER_PLAN_ENDED = "The plan that covered you has ended"
 # 4 days left, or 5 where the 7 days cross a clock change (delete_at is wall-clock days).
 REMINDER = "A friendly reminder: "
 BOTH = frozenset({"holder", "other"})
@@ -145,7 +147,7 @@ CASES: list[Case] = [
         "dispute_lost",  # her plan ended, her account stays open; Ben has the 7 days
         Who("ended", "free", None),
         Who("lapsed", "free", C),
-        notices=((), (SHARED_PLAN_ENDED,)),
+        notices=((), (COVER_PLAN_ENDED,)),
         closed=frozenset({"other"}),
     ),
     Case(
@@ -218,7 +220,7 @@ CASES: list[Case] = [
         "dispute_lost",
         Who("ended", "free", None),
         Who("lapsed", "free", C),
-        notices=((), (SHARED_PLAN_ENDED,)),
+        notices=((), (COVER_PLAN_ENDED,)),
         closed=frozenset({"other"}),
     ),
     Case(
@@ -435,3 +437,22 @@ def test_the_owner_paying_private_beside_a_partner_paying_connected() -> None:
     assert not is_deleted(asha_id)
     with get_session_factory()() as db:
         assert db.get(User, asha_id) is not None
+
+
+def test_a_covered_person_whose_own_plan_ran_out_stays_covered() -> None:
+    """Stopping one's own plan after joining (owner decision, October 29, 2026): when its paid
+    period ends nothing changes for the covered person, and nothing is sent or closed."""
+    asha, asha_id, _ = person("Asha")
+    grant_plan(str(asha_id), CONN)
+    ben, ben_id, ben_email = person("Ben")
+    household(asha, ben)
+    grant_plan(str(ben_id), "private", interval="monthly")
+    _subs(ben_id, cancel_at_period_end=True, renews_at=datetime.now(UTC) + timedelta(hours=12))
+    _check(ben, Who("subscribed", CONN, C))
+    _subs(ben_id, status="canceled", ends_at=datetime.now(UTC) - timedelta(hours=1))
+    _check(ben, Who("subscribed", CONN, C))
+    _check(asha, Who("subscribed", CONN, H))
+    before = len(_subjects(ben_email))
+    run(datetime.now(UTC), asha_id, ben_id)
+    run(datetime.now(UTC) + timedelta(days=8), asha_id, ben_id)
+    assert len(_subjects(ben_email)) == before and not is_deleted(ben_id)

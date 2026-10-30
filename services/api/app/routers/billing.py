@@ -39,6 +39,7 @@ from app.rules_server.entitlements import (
     TRIAL_PLANS,
     access,
     covered_members,
+    covers_instead,
     effective_plan,
     end_lost_cover,
     entitlements,
@@ -105,6 +106,9 @@ class BillingOut(BaseModel):
     shared: Literal["holder", "covered"] | None = None
     # covered only: the partner whose plan it is, as other members see them.
     shared_by: str | None = None
+    # covered only: the plan this person also pays for themselves (it renews on `renews_at`;
+    # they can stop it), else null (October 29, 2026).
+    own_plan: Literal["private", "connected", "founding"] | None = None
 
 
 class ConsentIn(BaseModel):
@@ -283,7 +287,12 @@ def _shared(db: DbSession, caller: Caller) -> dict[str, Any]:
     pair = household_pair(db, caller.user.id)
     other = next((u for u in pair or () if u != caller.user.id), None)
     person = db.get(User, other) if other else None
-    return {"shared": shared, "shared_by": _shown_name(person)[0] if person else None}
+    _, own = effective_plan(db, caller.user.id, tester=False)
+    return {
+        "shared": shared,
+        "shared_by": _shown_name(person)[0] if person else None,
+        "own_plan": own.plan if own is not None and state["state"] == "subscribed" else None,
+    }
 
 
 def _downgrade_from(sub: Subscription | None, caller: Caller) -> datetime | None:
@@ -799,12 +808,14 @@ def _cancel_text(
             refund = deletion.refund_preview(db, caller.user.id)[0]
         except stripe_billing.BillingError:
             refund = 0
+    partner = covers_instead(db, caller.user)
     return consent_text.cancel(
         load_plans(),
         sub.plan,
         renews_at=sub.renews_at,
         refund_if_deleted_cents=refund,
         tz=consent_text.zone(tz),
+        covered_by=_shown_name(partner)[0] if partner else None,
     )
 
 

@@ -24,7 +24,11 @@ export function JoinHousehold() {
   const local = useHouseholdLocal();
   const code = (params.get("code") ?? "").trim().toUpperCase();
   const key = new URLSearchParams(hash.replace(/^#/, "")).get("k") ?? "";
-  const [preview, setPreview] = useState<{ invited_by: string; initial: string } | null>(null);
+  const [preview, setPreview] = useState<{
+    invited_by: string;
+    initial: string;
+    you_pay?: { label: string; source: "stripe" | "apple" | "google" } | null;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -52,7 +56,7 @@ export function JoinHousehold() {
     };
   }, [code]);
 
-  async function join() {
+  async function join(stopMine = false) {
     setError(null);
     setBusy(true);
     const result = await joinHousehold(db, code, key);
@@ -74,7 +78,9 @@ export function JoinHousehold() {
     // The partner's plan now covers this account too (invariant 54): ask the server again so
     // the app opens to it at once, trial clock and card ask gone.
     if (info?.user?.id) await loadEntitlements(info.user.id, true);
-    navigate("/me/household", { replace: true });
+    // "Stop mine": the Plan screen opens "If you cancel" for their own plan (owner decision,
+    // October 29, 2026); nothing stops until they tick and tap there.
+    navigate(stopMine ? "/me/plan?stop=1" : "/me/household", { replace: true });
   }
 
   return (
@@ -104,9 +110,46 @@ export function JoinHousehold() {
             You'll each keep your own private data. Jars you choose to share show who added what.
             {info?.user?.display_name ? "" : " Set your name in Me first so your partner sees it."}
           </p>
-          <Button block onClick={join} disabled={busy || !key || local?.householdId !== null}>
-            Join {preview.invited_by}'s household
-          </Button>
+          {preview.you_pay ? (
+            <div className="join-own-plan">
+              <p>
+                <strong>
+                  You pay for {preview.you_pay.label} yourself. In a household one plan covers you
+                  both. Stop yours at the end of its paid period?
+                </strong>
+              </p>
+              {preview.you_pay.source === "stripe" ? null : (
+                <p className="auth__hint">
+                  {preview.you_pay.source === "apple"
+                    ? "You bought it in the App Store, so you stop it there."
+                    : "You bought it in Google Play, so you stop it there."}
+                </p>
+              )}
+              <Button
+                block
+                onClick={() => void join(true)}
+                disabled={busy || !key || local?.householdId !== null}
+              >
+                Stop mine
+              </Button>
+              <Button
+                block
+                variant="secondary"
+                onClick={() => void join()}
+                disabled={busy || !key || local?.householdId !== null}
+              >
+                Keep mine
+              </Button>
+            </div>
+          ) : (
+            <Button
+              block
+              onClick={() => void join()}
+              disabled={busy || !key || local?.householdId !== null}
+            >
+              Join {preview.invited_by}'s household
+            </Button>
+          )}
         </Card>
       ) : null}
       {error ? (

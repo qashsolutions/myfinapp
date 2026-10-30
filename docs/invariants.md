@@ -526,8 +526,10 @@ written against both.
     the next hourly run closed them with no email, and was never shown paused). Both people's
     end is the end of the plan that held the household after it became two, with the same 7
     days; a dispute on it pauses both; and the plan job closes an account only once the ended
-    email for that same end has gone.
-    `test_household_one_rule.py` "the owner covered by the partner's plan…", "…disputed plan…"
+    email for that same end has gone. When the holder loses a dispute, the one it covered gets
+    "The plan that covered you has ended" (7 days, or download), never a word about the dispute.
+    `test_household_one_rule.py` "the owner covered by the partner's plan…", "…disputed plan…",
+    "after the holder loses a dispute…"
     · `test_household_matrix.py`
 69. **Losing the cover while the holder's plan carries on starts one's own 7 days, with
     notice** (October 29, 2026; a holder switching down dropped the partner silently, with a
@@ -540,8 +542,14 @@ written against both.
 70. **A household never pays twice** (October 29, 2026). While the household's plan covers a
     person, `purchase_conflict` answers `household_covered`: checkout refuses, and a page paid
     anyway (opened before joining) is ended at Stripe and refunded in full, once, with the plain
-    email (invariant 41's path). Joining closes the joiner's open payment pages.
-    `test_household_one_rule.py` "a page paid after joining…"
+    email (invariant 41's path). Joining closes the joiner's open payment pages. Someone who
+    pays for a renewing plan of their own is asked before joining whether to stop it at the end
+    of its paid period (`you_pay`); nothing stops without their tap and the ticked "If you
+    cancel" sheet, whose lines say the household's plan covers them next (owner decision,
+    October 29, 2026).
+    `test_household_one_rule.py` "a page paid after joining…", "the invite says when the joiner
+    pays…", "a covered person stops their own plan…" · `household-plan.test.tsx` "asks before
+    joining…", "Keep mine joins…", "the Plan screen says the household covers them…"
 
 ## Offline and the way in
 

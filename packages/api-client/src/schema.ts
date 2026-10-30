@@ -1782,6 +1782,8 @@ export interface components {
             interval: string | null;
             /** Label */
             label: string;
+            /** Own Plan */
+            own_plan?: ("private" | "connected" | "founding") | null;
             /**
              * Payment Pending
              * @default false
@@ -2819,6 +2821,7 @@ export interface components {
             initial: string;
             /** Invited By */
             invited_by: string;
+            you_pay?: components["schemas"]["YouPayOut"] | null;
         };
         /** PriceOut */
         PriceOut: {
@@ -3082,6 +3085,28 @@ export interface components {
              * Format: email
              */
             email: string;
+        };
+        /**
+         * YouPayOut
+         * @description A plan the person joining pays for themselves, which renews (October 29, 2026): the
+         *     household's one plan would cover them, so the screen asks whether to stop it at the end of
+         *     its paid period. `source` says where: stopped in the app (stripe) or in the store.
+         */
+        YouPayOut: {
+            /** Label */
+            label: string;
+            /**
+             * Plan
+             * @enum {string}
+             */
+            plan: "private" | "connected";
+            /** Renews At */
+            renews_at: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "stripe" | "apple" | "google";
         };
         /** StartOut */
         app__routers__device_link__StartOut: {

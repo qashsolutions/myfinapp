@@ -163,6 +163,13 @@ def _one(
     # The plan that ended: this person's own, or the one the household shared (its holder's).
     pair = household_pair(db, user.id)
     plan_of = [user.id, *(pair or ())]
+    # The holder lost a dispute (owner decision, October 29, 2026): the one their plan covered
+    # hears only that the plan that covered them ended, never about the dispute, and the notes
+    # don't say it ends for both (the holder's account is `ended`, not lapsed).
+    others = [u for u in pair or () if u != user.id]
+    holder_lost = state.get("shared") == "covered" and _dispute_lost(db, others, ended)
+    if holder_lost:
+        shared = False
     # Never closed without the ended email for this end (invariant 68): an account whose end
     # moved later than its notice (a household's plan, read again) hears of it first.
     if now >= delete_at and user.lapsed_notice_for == ended:
@@ -200,6 +207,10 @@ def _one(
         founding = _founding_ended(db, plan_of, ended)
         if blocked:
             sender.send(email.plan_ended_payment_returned_message(user.email, _day(delete_at)))
+        elif holder_lost:
+            sender.send(
+                email.household_plan_ended_message(user.email, _day(delete_at), plan_link())
+            )
         elif left and not shared:
             sender.send(
                 email.household_cover_ended_message(
@@ -316,6 +327,18 @@ def _covered_notices(
             _push(db, user.id, now, body=TRIAL_ENDS_TOMORROW_LABEL, tag="trial-ends")
         user.ending_notice_for = end
         counts["ending_soon"] += 1
+
+
+def _dispute_lost(db: DbSession, user_ids: list[uuid.UUID], ended: datetime) -> bool:
+    """Whether the end the account is in is a dispute the household's holder lost."""
+    return (
+        db.scalar(
+            select(Subscription.id).where(
+                Subscription.user_id.in_(user_ids), Subscription.dispute_lost_at == ended
+            )
+        )
+        is not None
+    )
 
 
 def _founding_ended(db: DbSession, user_ids: list[uuid.UUID], ended: datetime) -> bool:

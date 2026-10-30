@@ -427,6 +427,22 @@
             "title": "Label",
             "type": "string"
           },
+          "own_plan": {
+            "anyOf": [
+              {
+                "enum": [
+                  "private",
+                  "connected",
+                  "founding"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Own Plan"
+          },
           "payment_pending": {
             "default": false,
             "title": "Payment Pending",
@@ -3168,6 +3184,16 @@
           "invited_by": {
             "title": "Invited By",
             "type": "string"
+          },
+          "you_pay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/YouPayOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -3948,6 +3974,52 @@
           "code"
         ],
         "title": "VerifyIn",
+        "type": "object"
+      },
+      "YouPayOut": {
+        "description": "A plan the person joining pays for themselves, which renews (October 29, 2026): the\nhousehold's one plan would cover them, so the screen asks whether to stop it at the end of\nits paid period. `source` says where: stopped in the app (stripe) or in the store.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "plan": {
+            "enum": [
+              "private",
+              "connected"
+            ],
+            "title": "Plan",
+            "type": "string"
+          },
+          "renews_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Renews At"
+          },
+          "source": {
+            "enum": [
+              "stripe",
+              "apple",
+              "google"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan",
+          "label",
+          "renews_at",
+          "source"
+        ],
+        "title": "YouPayOut",
         "type": "object"
       },
       "app__routers__device_link__StartOut": {

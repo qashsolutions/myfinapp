@@ -190,6 +190,8 @@ export interface FakeBilling {
   /** A household of two is one plan (invariant 54): whose plan covers whom. */
   shared?: "holder" | "covered" | null;
   shared_by?: string | null;
+  /** Covered while paying for a plan of one's own (October 29, 2026). */
+  own_plan?: "private" | "connected" | "founding" | null;
 }
 
 export function freeBilling(): FakeBilling {
@@ -1085,6 +1087,19 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
         invited_by: owner?.display_name ?? "Former member",
         initial: owner?.initial ?? "-",
         expires_at: h.invite?.expires_at,
+        // Like the server: the joiner's own renewing plan, so the screen can ask about it.
+        you_pay:
+          (state.billing.plan === "private" || state.billing.plan === "connected") &&
+          state.billing.status === "active" &&
+          state.billing.interval &&
+          !state.billing.cancel_at_period_end
+            ? {
+                plan: state.billing.plan,
+                label: state.billing.plan === "private" ? "Private" : "Connected",
+                renews_at: state.billing.renews_at,
+                source: state.billing.source ?? "stripe",
+              }
+            : null,
       });
     }
     if (method === "POST" && path === "/api/household/join") {
@@ -1098,11 +1113,13 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       if (h.invite) h.invite.used = true;
       // Like the server (invariant 54): the owner's plan covers whoever joins, from now on.
       if (state.access !== null && state.billing.plan !== "connected") {
+        const own = state.billing.status === "active" ? state.billing.plan : null;
         state.billing = {
           ...state.billing,
           plan: "connected",
           shared: "covered",
           shared_by: owner?.display_name ?? null,
+          own_plan: own === "free" ? null : own,
         };
         state.access = { state: "subscribed", plan: "connected", shared: "covered" };
       }

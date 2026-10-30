@@ -22,7 +22,7 @@ import pytest
 from sqlalchemy import select
 
 from app.db import get_session_factory
-from app.models.billing import CheckoutPage
+from app.models.billing import CheckoutPage, Subscription
 from app.services import stripe_billing
 from tests.auth_flow import outbox
 from tests.billing_helpers import grant_plan
@@ -199,3 +199,90 @@ def test_a_page_paid_after_joining_a_household_is_ended_and_refunded_once() -> N
     assert mail(ben_email) == ["We refunded a second Qash plan"]
     post_event(ben, _event("checkout.session.completed", done))
     assert len(stripe.refunds) == 1 and len(mail(ben_email)) == 1
+
+
+# --- Owner decisions on #57's doubts (October 29, 2026) ----------------------------------------
+
+
+def test_after_the_holder_loses_a_dispute_the_partner_hears_only_that_the_plan_ended() -> None:
+    now = datetime.now(UTC)
+    asha, asha_id, asha_email = person("Asha")
+    grant_plan(str(asha_id), "connected")
+    ben, ben_id, ben_email = person("Ben")
+    household(asha, ben)
+    set_subscription(
+        asha_id,
+        status="canceled",
+        stripe_status="canceled",
+        ends_at=now - timedelta(hours=1),
+        disputed_at=now - timedelta(hours=2),
+        dispute_lost_at=now - timedelta(hours=1),
+    )
+    run(datetime.now(UTC), asha_id, ben_id)
+    note = next(m for m in reversed(outbox()) if m.to == ben_email)
+    assert note.subject == "The plan that covered you has ended"
+    assert "within 7 days" in note.text and "Download all my data" in note.text
+    assert "disput" not in note.text.lower() and "disput" not in note.subject.lower()
+    assert "both of you" not in note.text
+    reminded = run(datetime.now(UTC) + timedelta(days=2), asha_id, ben_id)
+    assert reminded["reminded"] == 1  # Ben only: Asha's account is ended, not lapsed
+    text = next(m for m in reversed(outbox()) if m.to == ben_email).text
+    assert "goes to both of you" not in text and "disput" not in text.lower()
+    assert not any("plan" in s.lower() for s in mail(asha_email))  # nothing for Asha here
+
+
+def _join_preview(owner, joiner) -> dict:
+    code = owner.post("/api/household/invites").json()["code"]
+    r = joiner.post("/api/household/lookup", json={"code": code})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_the_invite_says_when_the_joiner_pays_for_a_plan_of_their_own() -> None:
+    asha, asha_id, _ = person("Asha")
+    grant_plan(str(asha_id), "connected")
+    ben, ben_id, _ = person("Ben")
+    assert _join_preview(asha, ben)["you_pay"] is None  # nothing of his own
+    grant_plan(str(ben_id), "private", interval="monthly")
+    you_pay = _join_preview(asha, ben)["you_pay"]
+    assert you_pay["plan"] == "private" and you_pay["label"] == "Private"
+    assert you_pay["source"] == "stripe" and you_pay["renews_at"]
+    set_subscription(ben_id, source="apple")
+    assert _join_preview(asha, ben)["you_pay"]["source"] == "apple"
+    set_subscription(ben_id, source="stripe", cancel_at_period_end=True)
+    assert _join_preview(asha, ben)["you_pay"] is None  # already stopping: nothing to ask
+    set_subscription(ben_id, cancel_at_period_end=False)
+    # Looking and joining never stop anything by themselves.
+    household(asha, ben)
+    with get_session_factory()() as db:
+        row = db.scalar(select(Subscription).where(Subscription.user_id == ben_id))
+        assert row is not None and row.status == "active" and not row.cancel_at_period_end
+
+
+def test_a_covered_person_stops_their_own_plan_and_stays_covered() -> None:
+    from tests.billing_helpers import cancel_consent  # noqa: PLC0415
+    from tests.test_billing_cancel import FakeStripe as CancelStripe  # noqa: PLC0415
+
+    asha, asha_id, _ = person("Asha")
+    grant_plan(str(asha_id), "connected")
+    ben, ben_id, ben_email = person("Ben")
+    household(asha, ben)
+    grant_plan(str(ben_id), "private", interval="monthly")
+    billing = ben.get("/api/billing").json()
+    assert billing["shared"] == "covered" and billing["own_plan"] == "private"
+    assert billing["renews_at"]
+    assert asha.get("/api/billing").json()["own_plan"] is None
+    stripe_billing.transport_override = CancelStripe().transport()
+    consent = cancel_consent(ben)
+    assert any("Asha's plan covers you" in line for line in consent["lines"]), consent
+    assert not any("deleted" in line.lower() for line in consent["lines"])
+    r = ben.post("/api/billing/cancel", json={"consent": consent})
+    assert r.status_code == 200, r.text
+    assert access(ben) == {"state": "subscribed", "plan": "connected", "shared": "covered"}
+    # His own plan's paid period ends: still covered, no ended notes, never closed.
+    now = datetime.now(UTC)
+    set_subscription(ben_id, status="canceled", ends_at=now - timedelta(hours=1))
+    assert access(ben) == {"state": "subscribed", "plan": "connected", "shared": "covered"}
+    before = len(mail(ben_email))
+    run(now + timedelta(days=8), asha_id, ben_id)
+    assert len(mail(ben_email)) == before and not is_deleted(ben_id)
