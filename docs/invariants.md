@@ -687,6 +687,24 @@ written against both.
     plan. Found in the journey map: every end read "Your trial has wrapped up".
     `test_plan_end.py` · `test_household_matrix.py` (each end's email against `ended`) ·
     `trials.test.tsx` invariant 73
+74. **Getting back in never outruns the owner** (October 30, 2026). A request to get back in
+    without a passkey (`services/recovery.py`) comes only from a locked email-code session of an
+    account that has passkeys, is one at a time (a unique index; every step takes the account's
+    lock), and is ready after 24 hours or when the household partner on the same live plan,
+    the very person chosen, types the code read to them (then for that session only; asking
+    again clears the approval). Every passkey check on the account while it waits ends every
+    waiting request (each takes the account's lock, `account_lock.lock_account`, before any
+    other write, so it never deadlocks with a recovery finishing), and so does Cancel on a
+    signed-in device; only the locked session that started it may also cancel, decided under
+    the lock, and a cancel that finds nothing waiting says nothing. Only a session that never used a passkey and wasn't opened by a phone may finish
+    it, so an ordinary "add a passkey" never removes the others, and a passkey made while the
+    owner cancels is rolled back (409 `recovery_closed`). Finishing removes every old passkey
+    and ends every other session; unless the partner-approved session finishes, export, email
+    change, bank linking, backup changes and the partner choice wait a day (one message,
+    `RECOVERY_HOLD_MESSAGE`). Found in the journey map: an account whose passkeys were all lost
+    had no way back; the review found two requests at once, an approval moving sessions and a
+    cancel racing a new passkey.
+    `test_recovery.py` · `authz/test_recovery_routes.py` · `recovery.test.tsx`
 
 59 (again, October 29, 2026). The sweep was repeated on main after #51: every
 `db.transaction(...)` body in `apps/web/src` (47) was read for awaits of anything but Dexie,

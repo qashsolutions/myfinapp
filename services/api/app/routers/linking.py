@@ -42,6 +42,7 @@ from app.security.csrf import same_site_only
 from app.security.principal import Caller, require_step_up, require_unlocked
 from app.security.rate_limit import rate_limited, session_or_ip
 from app.services import ops_alerts
+from app.services.recovery import hold_if_recovered
 from app.services.security_alerts import SecurityEvent, send_alert
 
 router = APIRouter(prefix="/api/linking", tags=["linking"], dependencies=[Depends(same_site_only)])
@@ -239,6 +240,7 @@ def start(
     request: Request,
     db: Annotated[DbSession, Depends(get_db)],
 ) -> StartOut:
+    hold_if_recovered(caller.user)  # a day after an email-only recovery (invariant 74)
     if not plaid.configured():
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="linking_unavailable")
     check_limit(db, caller.user.id, "bank_links_max", _count(db, caller))

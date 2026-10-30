@@ -5,7 +5,7 @@
  * one) plus ciphertext. A sync is: pull the newest backup, merge it, push when ours differs.
  */
 
-import { api, clientFor, failureOf } from "../api.ts";
+import { api, clientFor, failureOf, RECOVERY_HOLD_MESSAGE } from "../api.ts";
 import type { StackdDb } from "../db.ts";
 import {
   CryptoError,
@@ -51,6 +51,7 @@ export class BackupError extends Error {
       | "plan_required"
       | "no_backup"
       | "backup_gone"
+      | "recently_recovered"
       | "no_key"
       | "wrong_recovery_key"
       | "wrong_passkey"
@@ -104,6 +105,8 @@ function serverFailure(r: { error?: unknown; response: Response }): BackupError 
   if (f.code === "plan_required")
     return new BackupError("plan_required", "Backup needs Private or Connected.");
   if (f.code === "no_backup") return new BackupError("no_backup", "No backup yet.");
+  if (f.code === "recently_recovered")
+    return new BackupError("recently_recovered", RECOVERY_HOLD_MESSAGE);
   if (f.code === "backup_gone")
     return new BackupError("backup_gone", "Your backups changed while restoring. Try again.");
   return new BackupError("server", f.code);

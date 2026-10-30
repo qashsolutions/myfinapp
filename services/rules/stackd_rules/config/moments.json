@@ -262,6 +262,8 @@
   "push_budget_reached": "A budget line has reached its plan.",
   "push_founding_ends_soon": "Your Qash Founding membership ends soon. Pick a plan to keep going.",
   "push_founding_ended": "Your Qash Founding membership has ended. Pick a plan to keep going.",
+  "push_recovery_started": "Someone asked to get back into your Qash account. Open Qash if it wasn't you.",
+  "push_recovery_partner": "Your partner asked you to help them get back into Qash.",
   "nudges": {
     "set_pay": {
       "vars": [],

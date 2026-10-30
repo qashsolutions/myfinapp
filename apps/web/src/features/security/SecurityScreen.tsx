@@ -7,12 +7,14 @@ import { AutoLockSetting } from "./AutoLockSetting.tsx";
 import { BackupSettings } from "./BackupSettings.tsx";
 import { ManagePasskeys } from "./ManagePasskeys.tsx";
 import { RecentActivity } from "./RecentActivity.tsx";
+import { PendingRecovery } from "./RecoveryCards.tsx";
 
 /** Me → Sign-in & security ("Security & backup" in mockup F6Security). */
 export function SecurityScreen() {
   return (
     <>
       <ScreenHeader title="Security & backup" actions={null} back="/me" />
+      <PendingRecovery />
       <BackupSettings />
       <ManagePasskeys />
       <AutoLockSetting />

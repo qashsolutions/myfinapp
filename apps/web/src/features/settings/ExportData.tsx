@@ -39,7 +39,11 @@ export function ExportData({
       let server: ExportOut | null = null;
       const r = await api.POST("/api/account/export");
       const failure = failureOf(r);
-      if (failure && failure.code !== "step_up_required") {
+      if (failure?.code === "recently_recovered") {
+        setStatus(
+          "Your account details join the export a day after getting back in; this one has what's on this device.",
+        );
+      } else if (failure && failure.code !== "step_up_required") {
         setStatus(
           "Couldn't reach the server for your account details; the export has only what's on this device.",
         );

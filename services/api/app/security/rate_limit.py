@@ -58,6 +58,16 @@ LIMITS: dict[str, Limit] = {
     "device_link_start": Limit("device_link_start", 3, timedelta(hours=1)),
     "device_link_status": Limit("device_link_status", 150, timedelta(minutes=10)),
     "device_link_lookup": Limit("device_link_lookup", 10, timedelta(minutes=15)),
+    # Getting back in without a passkey (October 30, 2026; proposed, awaiting owner sign-off):
+    # each start and each partner request emails and pushes the account, so a few a day per
+    # device and, since one person can sign in on many devices, per account too; the partner's
+    # code checks are limited per device, and each code stops working after 5 wrong tries
+    # (`recovery.CODE_TRIES`).
+    "recovery_start": Limit("recovery_start", 3, timedelta(hours=24)),
+    "recovery_start_account": Limit("recovery_start_account", 3, timedelta(hours=24)),
+    "recovery_partner": Limit("recovery_partner", 5, timedelta(hours=24)),
+    "recovery_partner_account": Limit("recovery_partner_account", 5, timedelta(hours=24)),
+    "recovery_approve": Limit("recovery_approve", 10, timedelta(minutes=15)),
     # Security routes whose success sends an always-on alert email (signed off October 28,
     # 2026): 10 a day per signed-in device each, so a stolen or scripted session can't flood
     # the owner's inbox. Failed attempts count too.

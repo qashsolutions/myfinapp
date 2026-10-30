@@ -76,9 +76,21 @@ export function onAuthSignal(handler: (signal: AuthSignal) => void): () => void 
  */
 export const OFFLINE_MESSAGE = "You're offline. Try again when connected.";
 
-/** The offline message for a call that never reached the server, else the screen's own words. */
+/**
+ * After getting back in with only an email code, the most sensitive actions wait a day
+ * (invariant 74): export, email change, linking a bank, replacing or turning off the backup.
+ */
+export const RECOVERY_HOLD_MESSAGE =
+  "For your safety, this opens a day after getting back in without a passkey.";
+
+/**
+ * The offline message for a call that never reached the server, the day's hold after getting
+ * back in, else the screen's own words.
+ */
 export function failureText(failure: ApiFailure, otherwise: string): string {
-  return failure.status === 0 ? OFFLINE_MESSAGE : otherwise;
+  if (failure.status === 0) return OFFLINE_MESSAGE;
+  if (failure.code === "recently_recovered") return RECOVERY_HOLD_MESSAGE;
+  return otherwise;
 }
 
 /** The server's error `detail`, which is a string code or {code, ...} for our own errors. */

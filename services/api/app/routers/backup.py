@@ -30,6 +30,7 @@ from app.security.csrf import same_site_only
 from app.security.principal import Caller, require_step_up, require_unlocked
 from app.security.rate_limit import rate_limited, session_or_ip
 from app.services import backup_store
+from app.services.recovery import hold_if_recovered
 from app.services.security_alerts import SecurityEvent, send_alert
 
 router = APIRouter(prefix="/api/backup", tags=["backup"], dependencies=[Depends(same_site_only)])
@@ -154,6 +155,8 @@ def put_key(
     require_feature(db, caller.user.id, "backup")
     row = db.scalar(select(BackupKey).where(BackupKey.user_id == caller.user.id))
     created = row is None
+    if not created:
+        hold_if_recovered(caller.user)  # replacing the key: a day after recovery (invariant 74)
     if row is None:
         row = BackupKey(
             user_id=caller.user.id,
@@ -251,6 +254,7 @@ def backup_off(
     request: Request,
     db: Annotated[DbSession, Depends(get_db)],
 ) -> None:
+    hold_if_recovered(caller.user)  # a day after an email-only recovery (invariant 74)
     had_key = db.scalar(select(BackupKey.id).where(BackupKey.user_id == caller.user.id))
     backup_store.delete_all(db, caller.user.id)
     if had_key is not None:

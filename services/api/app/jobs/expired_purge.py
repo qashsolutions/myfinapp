@@ -15,6 +15,7 @@ from app.models.household import HouseholdInvite
 from app.models.linking import LinkSession
 from app.models.otp_code import OtpCode
 from app.models.rate_limit import RateLimitBucket
+from app.models.recovery import AccountRecovery
 from app.models.webauthn_challenge import WebauthnChallenge
 
 
@@ -48,6 +49,16 @@ def purge(db: DbSession, *, now: datetime | None = None) -> dict[str, int]:
         ).rowcount,
         # "Link with your phone" requests: 2-minute codes, kept a day.
         "device_links": db.execute(delete(DeviceLink).where(DeviceLink.expires_at < day)).rowcount,
+        # Getting back in without a passkey: closed requests, and ones past their window, kept
+        # 30 days (the audit log keeps what happened for 13 months).
+        "account_recoveries": db.execute(
+            delete(AccountRecovery).where(
+                or_(
+                    AccountRecovery.closed_at < now - timedelta(days=30),
+                    AccountRecovery.expires_at < now - timedelta(days=30),
+                )
+            )
+        ).rowcount,
         # Household invites: 7-day codes, kept a week past expiry.
         "household_invites": db.execute(
             delete(HouseholdInvite).where(HouseholdInvite.expires_at < now - timedelta(days=7))

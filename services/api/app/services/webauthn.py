@@ -32,6 +32,7 @@ from app.config import get_settings
 from app.models.user import User
 from app.models.webauthn_challenge import WebauthnChallenge
 from app.models.webauthn_credential import WebauthnCredential
+from app.services.account_lock import lock_account
 
 CHALLENGE_TTL = timedelta(minutes=5)
 
@@ -304,6 +305,16 @@ def verify_signin(
         select(WebauthnCredential).where(WebauthnCredential.credential_id == raw_id)
     ).first()
     user = db.get(User, cred.user_id) if cred is not None else None
+    if user is not None:
+        # The account's lock before any write to its passkey or sessions: a passkey sign-in
+        # cancels a recovery, which takes the same lock first (invariant 74).
+        lock_account(db, user.id)
+        # Read again under the lock: a recovery that finished meanwhile removed it.
+        cred = db.scalars(
+            select(WebauthnCredential)
+            .where(WebauthnCredential.credential_id == raw_id)
+            .execution_options(populate_existing=True)
+        ).first()
     if cred is None or user is None or user.deleted_at is not None:
         db.flush()
         raise WebauthnError("unknown_credential")
