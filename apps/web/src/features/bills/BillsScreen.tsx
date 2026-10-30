@@ -117,7 +117,7 @@ export function BillsScreen() {
           <CreditHabitsCard />
           <LinkedCards />
           <CardSpending />
-          {noDebts ? (
+          {planDebts === undefined ? null : noDebts ? (
             // No debts yet: lead with adding one, or with saving instead; the payoff
             // tools wait until there is a debt to work on (October 30, 2026).
             <Card as="div" role="group" aria-label="Start your debt plan">

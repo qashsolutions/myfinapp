@@ -147,6 +147,8 @@ describe("trials", () => {
     const box = alert.closest(".plan-alert") as HTMLElement;
     expect(box).toHaveTextContent(/what's on this device stays here until you decide/);
     if (ended !== "trial") expect(box).not.toHaveTextContent(/trial/i);
+    if (ended === "cover_ended") expect(box).toHaveTextContent(/no longer in a household/);
+    if (ended === "cover_switched") expect(box).toHaveTextContent(/changed to one without/);
     if (offer) {
       expect(box).toHaveTextContent(/Pick a plan/);
       expect(await screen.findByRole("article", { name: "Connected" })).toBeInTheDocument();

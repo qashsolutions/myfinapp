@@ -60,3 +60,44 @@ def test_no_reason_while_a_plan_is_live() -> None:
     client, _, _ = person("Ben")
     assert client.post("/api/billing/trial", json={"plan": "private"}).status_code == 200
     assert client.get("/api/billing").json()["ended"] is None
+
+
+def test_a_founding_holders_lost_dispute_tells_the_partner_only_that_their_cover_ended(
+    monkeypatch,
+) -> None:
+    """Founding held by the household's owner, lost to a dispute: the partner hears "the plan
+    that covered you has ended", by email and push, never "Founding" or the dispute (owner
+    decision, October 29, 2026). Before invariant 73 the push said Founding had ended."""
+    from app.jobs import plan_lifecycle
+    from app.services.alerts import PLAN_ENDED_LABEL
+    from tests.test_household_one_plan import household
+
+    pushed: list[tuple[str, str]] = []
+    real = plan_lifecycle._push
+
+    def record(db, user_id, now, *, body=PLAN_ENDED_LABEL, tag="plan-ended"):
+        pushed.append((str(user_id), body))
+        real(db, user_id, now, body=body, tag=tag)
+
+    monkeypatch.setattr(plan_lifecycle, "_push", record)
+    now = datetime.now(UTC)
+    asha, asha_id, _ = person("Asha")
+    assert asha.post("/api/billing/trial", json={"plan": "connected"}).status_code == 200
+    ben, ben_id, ben_email = person("Ben")
+    household(asha, ben)
+    set_user(asha_id, trial_ends_at=now - timedelta(days=25))
+    grant_plan(str(asha_id), "founding")
+    hour = timedelta(hours=1)
+    _subs(
+        asha_id,
+        status="canceled",
+        stripe_status="canceled",
+        ends_at=now - hour,
+        disputed_at=now - 2 * hour,
+        dispute_lost_at=now - hour,
+    )
+    run(now, asha_id, ben_id)
+    assert ben.get("/api/billing").json()["ended"] == "holder_lost"
+    assert _ended_email(ben_email) == SAYS["holder_lost"]
+    assert (str(ben_id), PLAN_ENDED_LABEL) in pushed
+    assert all(body == PLAN_ENDED_LABEL for who, body in pushed if who == str(ben_id))

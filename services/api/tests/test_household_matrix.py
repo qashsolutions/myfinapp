@@ -392,6 +392,14 @@ def test_both_people_in_every_plan_state(case: Case) -> None:
         reason = (hc if email == hmail else oc).get("/api/billing").json()["ended"]
         if ended:  # the Plan screen names the end the email named
             assert reason is not None and SAYS[reason] in ended[-1], (reason, ended)
+            # The two cover ends share a subject; their bodies say which happened.
+            body = next(
+                m.text for m in reversed(outbox()) if m.to == email and m.subject == ended[-1]
+            )
+            if reason == "cover_switched":
+                assert "changed to one that doesn't include" in body, body
+            if reason == "cover_ended":
+                assert "no longer in a household" in body, body
         elif reason is not None:  # lapsed before the case (told then): still one of the ends
             assert reason in SAYS, reason
     counted = {e: len(_subjects(e)) for e in (hmail, omail)}
