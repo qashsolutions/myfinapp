@@ -39,6 +39,7 @@ import {
 } from "./billing.ts";
 import { type Access, parseEntitlements, planLine, useEntitlements } from "./entitlements.ts";
 import { PlanHistory } from "./PlanHistory.tsx";
+import { endNotice } from "./planEnd.ts";
 
 /** Whole-percent saving of yearly over twelve monthly payments, for the picker label only. */
 function yearlySavingPercent(billing: BillingOut): number {
@@ -486,6 +487,11 @@ export function PlanScreen() {
     },
   ];
   const access = limits?.access ?? null;
+  // Each end in its own words, the same as its email (invariant 73).
+  const lapsed =
+    access?.state === "lapsed" && access.delete_at
+      ? endNotice(billing.ended, formatDate(access.delete_at), Boolean(billing.shared))
+      : null;
   /** Yearly against twelve monthly payments, for the badge (owner, October 14, 2026). */
   const yearlySave = (plan: CheckoutPlan) => {
     const monthly12 = priceCents(billing, plan, "monthly") * 12;
@@ -507,14 +513,10 @@ export function PlanScreen() {
           <p>Plans aren't on sale yet.</p>
         </Card>
       ) : null}
-      {access?.state === "lapsed" && access.delete_at ? (
+      {lapsed ? (
         <div className="plan-alert" role="alert">
-          <p className="plan-alert__title">Your trial has wrapped up</p>
-          <p>
-            Thanks for trying Qash. Pick a plan below to keep going, or download your data. Your
-            account stays open until {formatDate(access.delete_at)}; after that, what's on this
-            device stays here until you decide.
-          </p>
+          <p className="plan-alert__title">{lapsed.title}</p>
+          <p>{lapsed.body}</p>
           <Link to="/me/data" className="plan-alert__link">
             Download my data
           </Link>
@@ -729,7 +731,7 @@ export function PlanScreen() {
         </List>
       ) : null}
 
-      {access?.state === "ended" ? null : billing.shared === "covered" &&
+      {access?.state === "ended" || lapsed?.offer === false ? null : billing.shared === "covered" &&
         access?.state === "subscribed" ? (
         <Card as="section" aria-label="Shared plan">
           <p>

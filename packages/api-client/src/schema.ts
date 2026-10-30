@@ -1787,6 +1787,8 @@ export interface components {
             downgrade_after_days: number;
             /** Downgrade From */
             downgrade_from?: string | null;
+            /** Ended */
+            ended?: ("payment_returned" | "holder_lost" | "cover_ended" | "cover_switched" | "founding" | "trial" | "plan") | null;
             /** Ends At */
             ends_at: string | null;
             /** Entitlements */

@@ -6,7 +6,7 @@ import { BillsSummary, whenText } from "./BillsSummary.tsx";
 import "../entries/entries.css";
 import "../auth/auth.css";
 
-import { Button, Card, Illustration, List, ListRow } from "@stackd/ui";
+import { Button, buttonClass, Card, Illustration, List, ListRow } from "@stackd/ui";
 import { useEffect, useId, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
@@ -72,6 +72,8 @@ export function BillsScreen() {
   const [editingDebt, setEditingDebt] = useState<Debt | "new" | null>(null);
   const [cardFor, setCardFor] = useState<string | null>(null);
   const planDebts = usePlanDebts();
+  const noDebts =
+    planDebts !== undefined && planDebts.debts.length === 0 && planDebts.cards.length === 0;
   const openCard = planDebts?.cards.find((c) => c.account.id === cardFor) ?? null;
 
   return (
@@ -115,12 +117,32 @@ export function BillsScreen() {
           <CreditHabitsCard />
           <LinkedCards />
           <CardSpending />
-          <PayoffPlan />
-          <p className="sk-card__eyebrow">
-            <Link to="/what-if?lever=loan">What if I put more on one loan?</Link>
-          </p>
-          <ConsolidationCalc />
-          <DebtList onEdit={(d) => setEditingDebt(d)} onCard={setCardFor} />
+          {noDebts ? (
+            // No debts yet: lead with adding one, or with saving instead; the payoff
+            // tools wait until there is a debt to work on (October 30, 2026).
+            <Card as="div" role="group" aria-label="Start your debt plan">
+              <Illustration name="card" tone="a3" />
+              <Word>Start</Word>
+              <p>Add a card or loan to see your debt-free date.</p>
+              <p className="group-row__meta">
+                Its balance, APR and minimum payment. Nothing is moved for you.
+              </p>
+              <Button onClick={() => setEditingDebt("new")}>Add a card or loan</Button>
+              <p className="group-row__meta">No debt? Put what you'd pay toward a jar instead.</p>
+              <Link className={buttonClass({ variant: "secondary" })} to="/goals/new">
+                Save it instead
+              </Link>
+            </Card>
+          ) : (
+            <>
+              <PayoffPlan />
+              <p className="sk-card__eyebrow">
+                <Link to="/what-if?lever=loan">What if I put more on one loan?</Link>
+              </p>
+              <ConsolidationCalc />
+              <DebtList onEdit={(d) => setEditingDebt(d)} onCard={setCardFor} />
+            </>
+          )}
         </>
       ) : (
         <>

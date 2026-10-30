@@ -677,6 +677,16 @@ written against both.
     only while it is still offered (Budget has no pay yet). Found as "Up to date: 170 updated"
     with nothing changed, and "1 paycheck" after pay was set.
     `linked-sync.test.tsx` invariant 66 · `home-visual.test.tsx` "once Budget has pay…"
+73. **An ended plan is named for what ended, the same on the screen and in the email**
+    (October 30, 2026). One rule, `services/plan_end.end_reason`, reads why a lapsed account's
+    plan ended (a trial, a paid plan, Founding, the household's plan no longer covering them,
+    the holder's plan ending over its payment, or a payment returned); the ended email and
+    `GET /api/billing` `ended` both use it, and the Plan screen's notice
+    (`billing/planEnd.endNotice`) takes the email's own words. A paid plan or a household's
+    cover is never "your trial", and an inbox that can't buy again is never told to pick a
+    plan. Found in the journey map: every end read "Your trial has wrapped up".
+    `test_plan_end.py` · `test_household_matrix.py` (each end's email against `ended`) ·
+    `trials.test.tsx` invariant 73
 
 59 (again, October 29, 2026). The sweep was repeated on main after #51: every
 `db.transaction(...)` body in `apps/web/src` (47) was read for awaits of anything but Dexie,

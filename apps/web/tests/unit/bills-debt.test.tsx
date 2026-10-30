@@ -40,8 +40,25 @@ describe("Bills & debt: the debt payoff tab", () => {
     renderApp("/bills");
     await screen.findByRole("navigation", { name: "Primary" });
     await user.click(screen.getByRole("radio", { name: "Debt payoff" }));
-    expect(await screen.findByText(/No cards or loans yet/)).toBeInTheDocument();
+    // No debts yet: it leads with adding one or saving instead, and the payoff tools
+    // (the balance-transfer calculator, What if) wait for a debt (October 30, 2026)
+    const start = await screen.findByRole("group", { name: "Start your debt plan" });
+    expect(start).toHaveTextContent("Start");
+    expect(within(start).getByRole("link", { name: "Save it instead" })).toHaveAttribute(
+      "href",
+      "/goals/new",
+    );
+    expect(screen.queryByText(/balance transfer card/)).toBeNull();
+    expect(screen.queryByRole("link", { name: /more on one loan/ })).toBeNull();
+    await user.click(within(start).getByRole("button", { name: "Add a card or loan" }));
+    await screen.findByRole("dialog");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     await addDebt(user, "Car loan", "8,200", "6.4", "310");
+    await waitFor(() =>
+      expect(screen.queryByRole("group", { name: "Start your debt plan" })).toBeNull(),
+    );
+    expect(await screen.findByText(/balance transfer card/)).toBeInTheDocument();
     await addDebt(user, "Store card", "600", "24.90", "25");
     await addDebt(user, "Card A", "2,400", "27.99", "72");
 
