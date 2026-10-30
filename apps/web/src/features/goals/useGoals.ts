@@ -20,6 +20,7 @@ import {
   monthBounds,
 } from "../../engine/bridge.ts";
 import { compareText } from "../../lib/order.ts";
+import { challengeOpen } from "./challengeWindow.ts";
 
 export async function createGoal(
   db: StackdDb,
@@ -47,6 +48,10 @@ export async function addGoalEvent(
   now: Date = new Date(),
   memberId: string | null = null,
 ): Promise<GoalEvent> {
+  // Invariant 71: a challenge's jar takes money and check-ins only from its first day through
+  // its last, whichever path writes them.
+  const goal = await db.goals.get(goalId);
+  if (goal && !challengeOpen(goal, date)) throw new Error("challenge_closed");
   const row: GoalEvent = {
     id: newId(),
     goal_id: goalId,
@@ -60,10 +65,14 @@ export async function addGoalEvent(
   return row;
 }
 
-/** Spend-less goals compare against this month's spend in their category (through the engine's month view). */
+/**
+ * Spend-less goals compare against this month's spend in their category (through the engine's
+ * month view); a challenge's goal against its own period, its first day to its last, never the
+ * month the device happens to open it in (invariant 71).
+ */
 async function periodSpend(db: StackdDb, goal: Goal, asOf: string): Promise<number> {
   if (goal.kind !== "spend_less" || !goal.category_id) return 0;
-  const bounds = await monthBounds(asOf);
+  const bounds = challengePeriod(goal) ?? (await monthBounds(asOf));
   const rows = await entriesBetween(db, bounds.start, bounds.end);
   let spent = 0;
   for (const e of rows) {
@@ -71,6 +80,21 @@ async function periodSpend(db: StackdDb, goal: Goal, asOf: string): Promise<numb
     spent += e.direction === "out" ? e.amount_cents : -e.amount_cents;
   }
   return spent;
+}
+
+/** A challenge goal's own period (the group's first and last day); null for the person's own. */
+function challengePeriod(goal: Goal): { start: string; end: string } | null {
+  if (!goal.group_id || !goal.end_date) return null;
+  return { start: goal.start_date, end: goal.end_date };
+}
+
+/** The events that count: for a challenge, only those inside its own period. */
+function countedEvents(goal: Goal, events: GoalEvent[]): GoalEvent[] {
+  const period = challengePeriod(goal);
+  if (!period) return events;
+  return events.filter(
+    (e) => compareText(e.date, period.start) >= 0 && compareText(e.date, period.end) <= 0,
+  );
 }
 
 export interface GoalWithProgress {
@@ -108,7 +132,7 @@ export function useGoalProgress(
           baseline_cents: goal.baseline_cents,
           period_spend_cents: spend,
         },
-        [...events]
+        [...countedEvents(goal, events)]
           .sort((a, b) => compareText(a.date, b.date) || compareText(a.created_at, b.created_at))
           .map((e) =>
             e.type === "checkin"
@@ -130,7 +154,14 @@ export function useGoalProgress(
       // A challenge member appears on the board after their first deposit, never at 0% by default.
       // Habits and savings appear on the board after their first event; a dining diet as soon
       // as there is spending to measure. A percentage is never negative on the board.
-      if (goal.group_id && (events.length > 0 || (goal.kind === "spend_less" && spend > 0)))
+      // Only while the challenge runs here (invariant 71): never before its first day, and
+      // never after its last, so an ended challenge's final board stays as it finished.
+      const counted = countedEvents(goal, events).length;
+      if (
+        goal.group_id &&
+        challengeOpen(goal, asOf) &&
+        (counted > 0 || (goal.kind === "spend_less" && spend > 0))
+      )
         void postGroupProgress(db, goal.group_id, Math.max(0, p.progress_bps ?? 0)).catch(() => {});
       await db.computed_results.put({
         id: `goal_progress:${goal.id}:${asOf}`,
@@ -194,7 +225,7 @@ export async function moveMoney(
   now: Date = new Date(),
 ): Promise<void> {
   if (cents <= 0 || fromId === toId) throw new Error("invalid_move");
-  await db.transaction("rw", db.goal_events, async () => {
+  await db.transaction("rw", [db.goal_events, db.goals], async () => {
     await addGoalEvent(db, fromId, "withdrawal", date, cents, now, memberId);
     await addGoalEvent(db, toId, "deposit", date, cents, now, memberId);
   });

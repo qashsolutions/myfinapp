@@ -85,6 +85,11 @@ export function ChallengeDetail() {
   const p = view?.progress ?? null;
   // Past its last day (invariant 56): the final board, and nothing more to log or invite to.
   const ended = compareText(group.end_date, today) < 0;
+  // Before its first day nothing counts yet (invariant 71).
+  const notStarted = compareText(group.start_date, today) > 0;
+  // The result is final once the server says it is over everywhere (invariant 71): leaving
+  // then keeps my standing on the board, and nobody can be removed from it.
+  const final = group.result_final;
 
   return (
     <>
@@ -147,6 +152,8 @@ export function ChallengeDetail() {
                   ? "You reached your target. Here's how everyone finished."
                   : "Here's how everyone finished."}
               </p>
+            ) : notStarted ? (
+              <p>Starts {formatDay(group.start_date)}. Log from then.</p>
             ) : (
               <Link to={`/goals/${goal.id}`} className="auth__link" style={{ color: "inherit" }}>
                 {goal.kind === "habit"
@@ -165,7 +172,7 @@ export function ChallengeDetail() {
         {ended ? <h2 className="sk-card__title">Final leaderboard</h2> : null}
         <Leaderboard
           members={group.members}
-          isOwner={group.is_owner}
+          isOwner={group.is_owner && !final}
           onRemove={async (m) => {
             await removeMember(group.id, m.user_id);
             await refresh();
@@ -191,9 +198,18 @@ export function ChallengeDetail() {
           }}
         >
           <span style={{ color: "var(--c-danger)" }}>
-            {confirmLeave ? "Really leave this group" : "Leave group"}
+            {final
+              ? confirmLeave
+                ? "Really remove it from my list"
+                : "Remove from my list"
+              : confirmLeave
+                ? "Really leave this group"
+                : "Leave group"}
           </span>
         </Button>
+      ) : null}
+      {!group.is_owner && final ? (
+        <p className="auth__fineprint">Your result stays on the final board for everyone.</p>
       ) : null}
       <GroupInvite
         group={group}

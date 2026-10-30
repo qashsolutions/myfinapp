@@ -122,6 +122,7 @@ class GroupSummary(BaseModel):
 class GroupDetail(GroupSummary):
     members: list[MemberOut]
     helped_open: bool  # the caller may answer: reached their target, or the challenge ended
+    result_final: bool  # over everywhere: leaving keeps the leaver on the board (invariant 71)
     helped: HelpedTotals | None  # once HELPED_MIN_ANSWERS members other than the caller answered
 
 
@@ -169,13 +170,18 @@ def _month_bounds(month: str) -> tuple[date, date]:
 
 def _dates_for(body: CreateGroupRequest) -> tuple[date, date]:
     """Each template's span: the calendar month, a week, a weekend (two days), or 52 weeks."""
+    today = _now().date()
     if body.template_key in ("monthly_savings", "dining_diet"):
         if body.month is None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="month_required")
-        return _month_bounds(body.month)
+        first, last = _month_bounds(body.month)
+        # The same window as the other kinds' start date (today - 1 to today + 31): a month
+        # already over by then, or one starting after it, is refused (this month or next).
+        if last < today - timedelta(days=1) or first > today + timedelta(days=MAX_START_AHEAD_DAYS):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="month_out_of_range")
+        return first, last
     if body.start_date is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="start_date_required")
-    today = _now().date()
     if (
         not today - timedelta(days=1)
         <= body.start_date
@@ -250,11 +256,27 @@ def _require_owner(group: Group, caller: Caller) -> None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="owner_only")
 
 
+def _over_from(group: Group) -> datetime:
+    """The one end moment (invariant 56, signed off October 29, 2026): its last day
+    (`end_date`, a local date) is over everywhere, noon UTC the day after, when it ends at
+    UTC-12. From then nobody can look it up or join, progress is refused, and the result is
+    final (invariant 71): leaving takes it off the leaver's own list only, their standing stays
+    on everyone else's board, and nobody can be removed from it."""
+    return datetime.combine(
+        group.end_date + timedelta(days=1), datetime.min.time(), tzinfo=UTC
+    ) + timedelta(hours=12)
+
+
+def _on_board(group: Group):
+    """Who the board shows: members still in, and anyone who left once the result was final."""
+    return GroupMember.left_at.is_(None) | (GroupMember.left_at >= _over_from(group))
+
+
 def _members(db: DbSession, group: Group) -> list[tuple[GroupMember, User]]:
     rows = db.execute(
         select(GroupMember, User)
         .join(User, User.id == GroupMember.user_id)
-        .where(GroupMember.group_id == group.id, GroupMember.left_at.is_(None))
+        .where(GroupMember.group_id == group.id, _on_board(group))
         .order_by(GroupMember.joined_at, GroupMember.id)
     )
     return [(m, u) for m, u in rows]
@@ -265,7 +287,7 @@ def _member_count(db: DbSession, group: Group) -> int:
         db.scalar(
             select(func.count())
             .select_from(GroupMember)
-            .where(GroupMember.group_id == group.id, GroupMember.left_at.is_(None))
+            .where(GroupMember.group_id == group.id, _on_board(group))
         )
         or 0
     )
@@ -306,13 +328,9 @@ def _helped_list(member: GroupMember) -> list[str]:
 
 
 def _ended(group: Group, now: datetime | None = None) -> bool:
-    """A challenge is over once its last day (`end_date`, a local date) is over everywhere: from
-    noon UTC the day after, when it ends at UTC-12 (invariant 56). Every type has an end date:
-    the calendar month, the week, the weekend, the 52 weeks. After that nobody can look it up
-    or join (409 `ended`); members keep its final board."""
-    now = now or _now()
-    over = datetime.combine(group.end_date + timedelta(days=1), datetime.min.time(), tzinfo=UTC)
-    return now >= over + timedelta(hours=12)
+    """Over everywhere (`_over_from`). Every type has an end date: the calendar month, the
+    week, the weekend, the 52 weeks. Members keep its final board."""
+    return (now or _now()) >= _over_from(group)
 
 
 def _refuse_ended(group: Group) -> None:
@@ -320,8 +338,28 @@ def _refuse_ended(group: Group) -> None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="ended")
 
 
+def _started(group: Group, now: datetime | None = None) -> bool:
+    """A challenge has started once its first day (`start_date`, a local date) has begun
+    somewhere: from 10:00 UTC the day before, when it starts at UTC+14 (invariant 71)."""
+    now = now or _now()
+    begins = datetime.combine(group.start_date, datetime.min.time(), tzinfo=UTC)
+    return now >= begins - timedelta(hours=14)
+
+
+def _refuse_outside(group: Group, now: datetime) -> None:
+    """Progress counts only while the challenge runs somewhere (invariant 71): before its first
+    day has begun anywhere (409 `not_started`) or once its last day is over everywhere (409
+    `ended`), a post changes nothing on the board, `reached_at` included. A device sends nothing
+    after its own last day, so a late post the server takes is the last day's."""
+    if not _started(group, now):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="not_started")
+    if _ended(group, now):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="ended")
+
+
 def _helped_open(group: Group, me: GroupMember) -> bool:
-    return me.reached_at is not None or me.progress_bps >= 10000 or _now().date() > group.end_date
+    # Opens with the result: the one end moment (`_ended`), never midnight UTC.
+    return me.reached_at is not None or me.progress_bps >= 10000 or _ended(group)
 
 
 def _helped_totals(members: list[tuple[GroupMember, User]], me: GroupMember) -> HelpedTotals | None:
@@ -340,6 +378,7 @@ def _detail(db: DbSession, group: Group, me: GroupMember, caller: Caller) -> Gro
         **summary.model_dump(),
         members=[_member_out(m, u, group, caller) for m, u in members],
         helped_open=_helped_open(group, me),
+        result_final=_ended(group),
         helped=_helped_totals(members, me),
     )
 
@@ -500,6 +539,7 @@ def update_progress(
     """The one number a device sends: percent of the member's own target. Never an amount."""
     group, me = _active_member(db, group_id, caller)
     now = _now()
+    _refuse_outside(group, now)
     me.progress_bps = body.progress_bps
     me.progress_updated_at = now
     if body.progress_bps >= 10000 and me.reached_at is None:
@@ -546,8 +586,11 @@ def leave_group(
         # Signed off Oct 27, 2026: the owner keeps the group (they can remove members and
         # regenerate the code).
         raise HTTPException(status.HTTP_409_CONFLICT, detail="owner_cannot_leave")
-    me.left_at = _now()
-    me.helped = None  # a former member's answer leaves the totals and never comes back on rejoin
+    now = _now()
+    me.left_at = now
+    if not _ended(group, now):
+        me.helped = None  # a former member's answer leaves the totals, never back on rejoin
+    # Once the result is final the leaver keeps their place, and their answer, on the board.
     record(
         db,
         actor_id=caller.user.id,
@@ -572,6 +615,8 @@ def remove_member(
     _require_owner(group, caller)
     if user_id == caller.user.id:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="owner_cannot_leave")
+    if _ended(group):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="ended")  # the result is final
     _lock_group(db, group.id)
     member = _membership(db, group, user_id)
     if member is None or member.left_at is not None:

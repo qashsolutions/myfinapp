@@ -43,7 +43,7 @@ def test_an_ended_challenge_cannot_be_looked_up_or_joined_but_members_keep_the_b
     r = owner.post("/api/groups", json={"name": "Savers", "month": "2026-11"})
     group_id, code = r.json()["id"], r.json()["invite_code"]
     assert friend.post("/api/groups/join", json={"code": code}).status_code == 200
-    end_on(group_id, datetime.now(UTC).date() - timedelta(days=2))
+    end_on(group_id, groups_router._now().date() - timedelta(days=2))
     for call in ("/api/groups/lookup", "/api/groups/join"):
         r = late.post(call, json={"code": code})
         assert r.status_code == 409 and r.json()["detail"] == "ended", call
@@ -59,7 +59,7 @@ def test_the_last_day_stays_open_until_it_is_over_everywhere() -> None:
     owner, late = person("Owner"), person("Late")
     r = owner.post("/api/groups", json={"name": "Savers", "month": "2026-11"})
     group_id, code = r.json()["id"], r.json()["invite_code"]
-    today = datetime.now(UTC).date()
+    today = groups_router._now().date()
     end_on(group_id, today)
     assert late.post("/api/groups/lookup", json={"code": code}).status_code == 200
 
@@ -76,7 +76,7 @@ def test_the_last_day_stays_open_until_it_is_over_everywhere() -> None:
 )
 def test_every_type_ends_and_closes_on_its_last_day(template: str, body: dict, days: int) -> None:
     owner = person("Owner")
-    start = datetime.now(UTC).date()
+    start = groups_router._now().date()
     payload = {"name": "", "template_key": template, **body}
     if "month" not in body:
         payload["start_date"] = start.isoformat()

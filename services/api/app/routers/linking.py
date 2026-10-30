@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session as DbSession
 from app.config import get_settings
 from app.db import get_db
 from app.linking import plaid, token_vault
+from app.linking.status import set_status
 from app.models.linking import BankConnection, LinkSession
 from app.models.user import User
 from app.rules_server.entitlements import check_limit, entitlements
@@ -171,6 +172,22 @@ def _live(db: DbSession, connection_id: uuid.UUID, caller: Caller) -> BankConnec
     return row
 
 
+def _still_live(db: DbSession, connection_id: uuid.UUID) -> BankConnection:
+    """After waiting on the provider, read the row again, locked: a Disconnect may have
+    revoked and deleted it, or marked it revoke_pending, meanwhile (invariant 72). Gone is 404,
+    as `_live` answers, and nothing is written."""
+    row = db.scalar(
+        select(BankConnection)
+        .where(BankConnection.id == connection_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if row is None or row.status == "revoke_pending":
+        db.rollback()
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="not_found")
+    return row
+
+
 def _require_linking(db: DbSession, caller: Caller) -> None:
     """Reading a bank needs a plan that links (October 24, 2026): once a Connected plan or
     trial ends, its connections are kept (resubscribing picks up where it left off) but not
@@ -265,6 +282,7 @@ def relink(
         )
     except plaid.LinkError as exc:
         raise _bad_gateway(exc) from exc
+    row = _still_live(db, row.id)
     db.add(
         LinkSession(
             id=session_id,
@@ -292,7 +310,7 @@ def _finish_relink(db: DbSession, link_session: LinkSession, now: datetime) -> F
         if exc.code in ("item_login_required", "pending_expiration"):
             return FinishOut(status="cancelled", connections=[])
         raise _bad_gateway(exc) from exc
-    row.status = "ok"
+    set_status(db, row, "ok")
     row.last_used_at = now
     db.commit()
     return FinishOut(
@@ -473,18 +491,20 @@ def sync(
         result = plaid.transactions_sync(token_vault.open_(row.access_token_encrypted), body.cursor)
     except plaid.LinkError as exc:
         if exc.code in ("item_login_required", "pending_expiration"):
-            row.status = "login_required"
+            row = _still_live(db, row.id)
+            set_status(db, row, "login_required")
             row.last_used_at = datetime.now(UTC)  # the app was opened all the same
             db.commit()
             raise HTTPException(status.HTTP_409_CONFLICT, detail="login_required") from exc
         raise _bad_gateway(exc) from exc
+    row = _still_live(db, row.id)
     now = datetime.now(UTC)
     row.last_used_at = now
     row.last_synced_at = now
     if not result.has_more:
         row.updates_available_at = None
     if row.status == "login_required":
-        row.status = "ok"
+        set_status(db, row, "ok")
     db.commit()
     return SyncOut(
         added=[SyncTxn(**t) for t in result.added],
@@ -511,11 +531,13 @@ def cards(
         found = plaid.card_details(token_vault.open_(row.access_token_encrypted))
     except plaid.LinkError as exc:
         if exc.code in ("item_login_required", "pending_expiration"):
-            row.status = "login_required"
+            row = _still_live(db, row.id)
+            set_status(db, row, "login_required")
             row.last_used_at = datetime.now(UTC)  # the app was opened all the same
             db.commit()
             raise HTTPException(status.HTTP_409_CONFLICT, detail="login_required") from exc
         raise _bad_gateway(exc) from exc
+    row = _still_live(db, row.id)
     row.last_used_at = datetime.now(UTC)
     db.commit()
     return CardsOut(cards=[CardDetail(**c) for c in found])

@@ -134,7 +134,7 @@ def test_monthly_savings_challenge() -> None:
 
 def test_other_challenge_types_take_their_own_dates() -> None:
     maya, _ = member("Maya R.")
-    today = __import__("datetime").date.today()
+    today = __import__("app.routers.groups", fromlist=["_now"])._now().date()
     week = maya.post(
         "/api/groups",
         json={"name": "", "template_key": "no_eat_out_week", "start_date": today.isoformat()},

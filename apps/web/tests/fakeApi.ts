@@ -372,7 +372,13 @@ export function defaultNotifications(): FakeApi["notifications"] {
 export interface FakeGroup
   extends Omit<
     GroupDetail,
-    "is_owner" | "member_count" | "my_progress_bps" | "my_helped" | "helped" | "helped_open"
+    | "is_owner"
+    | "member_count"
+    | "my_progress_bps"
+    | "my_helped"
+    | "helped"
+    | "helped_open"
+    | "result_final"
   > {
   owner_id: string;
   /** "What helped" answers by member id (the server shows totals only, from 2 answers). */
@@ -515,6 +521,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       my_progress_bps: me?.progress_bps ?? 0,
       my_helped: g.answers?.[ME] ?? [],
       helped_open: Boolean(g.ended || me?.reached_at || (me?.progress_bps ?? 0) >= 10000),
+      result_final: Boolean(g.ended),
       helped: helpedTotals(g),
       members: g.members.map((m) => ({
         ...m,
@@ -1477,6 +1484,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       const rest = groupPath[2];
       if (method === "GET" && !rest) return json(detail(g));
       if (method === "PUT" && rest === "progress") {
+        if (g.ended) return json({ detail: "ended" }, 409); // invariant 71: the board is final
         me.progress_bps = Number(b.progress_bps);
         me.has_events = true;
         if (me.progress_bps >= 10000 && !me.reached_at) me.reached_at = "2026-10-10T12:00:00Z";

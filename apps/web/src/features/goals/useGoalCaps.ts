@@ -2,16 +2,10 @@ import type { Goal, StackdDb } from "../../data/db.ts";
 import { todayIso } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
 import { useEntitlements } from "../billing/entitlements.ts";
+import { challengeEnded } from "./challengeWindow.ts";
 import { useGoals } from "./useGoals.ts";
 
-/**
- * A challenge's own jar once the challenge is over (its last day, the group's `end_date`, is
- * before today on this device; invariant 56). It stays kept and shown with the final board, takes
- * no deposits or check-ins, and no longer holds a place on the plan.
- */
-export function challengeEnded(goal: Pick<Goal, "group_id" | "end_date">, today: string): boolean {
-  return goal.group_id !== null && goal.end_date !== null && compareText(goal.end_date, today) < 0;
-}
+export { challengeEnded, challengeNotStarted, challengeOpen } from "./challengeWindow.ts";
 
 /** What holds a place on the plan: every goal kept, except an ended challenge's jar. */
 function holdsPlace(goal: Goal, today: string): boolean {

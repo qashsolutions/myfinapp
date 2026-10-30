@@ -46,6 +46,7 @@ export function GoalExtras({
   onSaveTemplate,
   onRemove,
   reached,
+  closed = false,
 }: {
   goal: Goal;
   events: GoalEvent[];
@@ -60,6 +61,8 @@ export function GoalExtras({
   onRemove: () => Promise<unknown>;
   /** The jar has reached its target: removing it after saving is the default. */
   reached: boolean;
+  /** A challenge's jar outside its own period (invariant 71): no pausing or moving money. */
+  closed?: boolean;
   memberId?: string | null;
 }) {
   const { db } = useDb();
@@ -261,18 +264,20 @@ export function GoalExtras({
           Add milestones
         </Button>
       ) : null}
-      <div className="transfer-choice">
-        <Button variant="secondary" onClick={() => onPause(!goal.paused_at)}>
-          {goal.paused_at ? "Resume jar" : "Pause jar"}
-        </Button>
-        <Button
-          variant="secondary"
-          onClick={() => setMoveOpen(true)}
-          disabled={jars.length === 0 || savedCents <= 0}
-        >
-          Move money
-        </Button>
-      </div>
+      {closed ? null : (
+        <div className="transfer-choice">
+          <Button variant="secondary" onClick={() => onPause(!goal.paused_at)}>
+            {goal.paused_at ? "Resume jar" : "Pause jar"}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => setMoveOpen(true)}
+            disabled={jars.length === 0 || savedCents <= 0}
+          >
+            Move money
+          </Button>
+        </div>
+      )}
       <Button
         variant={reached ? "secondary" : "ghost"}
         block

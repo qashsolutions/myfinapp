@@ -63,6 +63,36 @@ describe("An ended challenge (invariant 56)", () => {
     expect(screen.queryByRole("button", { name: "Invite" })).not.toBeInTheDocument();
   });
 
+  it("leaving it only takes it off my list; the owner can't remove anyone (invariant 71)", async () => {
+    await challengeJar();
+    installFakeApi({ session: readySession(), groups: [joined()] });
+    renderApp("/groups/g-maya");
+    await screen.findByRole("region", { name: "Final leaderboard" });
+    expect(screen.getByRole("button", { name: "Remove from my list" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Leave group" })).toBeNull();
+    expect(screen.getByText("Your result stays on the final board for everyone.")).toBeVisible();
+
+    // The owner's view of an ended board has no Remove buttons.
+    const g = { ...joined(), owner_id: ME };
+    g.members = g.members.map((m) => ({ ...m, is_owner: m.user_id === ME }));
+    installFakeApi({ session: readySession(), groups: [g] });
+    renderApp("/groups/g-maya");
+    const boards = await screen.findAllByRole("region", { name: "Final leaderboard" });
+    expect(
+      within(boards.at(-1) as HTMLElement).queryByRole("button", { name: "Remove" }),
+    ).toBeNull();
+  });
+
+  it("before it is over everywhere, leaving works as before", async () => {
+    await challengeJar();
+    // Ended on this device, but still Oct 31 somewhere: the server's result is not final yet.
+    installFakeApi({ session: readySession(), groups: [{ ...joined(), ended: false }] });
+    renderApp("/groups/g-maya");
+    await screen.findByRole("region", { name: "Final leaderboard" });
+    expect(screen.getByRole("button", { name: "Leave group" })).toBeInTheDocument();
+    expect(screen.queryByText("Your result stays on the final board for everyone.")).toBeNull();
+  });
+
   it("its jar takes no deposits and no longer holds a place on the plan", async () => {
     const jar = await challengeJar();
     installFakeApi({ session: readySession(), groups: [joined()], billing: fakeConnected() });

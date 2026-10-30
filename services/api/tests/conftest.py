@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from datetime import UTC, datetime
 
 import pytest
 from alembic import command
@@ -81,6 +82,19 @@ def stripe_default_transport():
         return httpx2.Response(404, json={"error": "no fake for this call"})
 
     return httpx2.MockTransport(handle)
+
+
+# The challenges' clock (October 29, 2026): every test that creates a challenge for "2026-10"
+# would stop working once October is over everywhere (invariants 56 and 71), so the groups
+# router reads this fixed moment; a test that needs another one sets `groups._now` itself.
+GROUPS_NOW = datetime(2026, 10, 15, 12, tzinfo=UTC)
+
+
+@pytest.fixture(autouse=True)
+def _groups_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.routers import groups
+
+    monkeypatch.setattr(groups, "_now", lambda: GROUPS_NOW)
 
 
 @pytest.fixture(autouse=True)
