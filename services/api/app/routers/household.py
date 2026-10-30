@@ -39,11 +39,14 @@ from app.models.user import User
 from app.routers.backup import B64, decode_b64url, encode_b64url
 from app.routers.groups import CODE_ALPHABET, _shown_name
 from app.rules_server.entitlements import (
-    covered_members,
+    SplitStep,
+    apply_household_split,
     effective_plan,
-    end_lost_cover,
     entitlements,
     household_pair,
+    household_split,
+    leave_outcome,
+    limits_for,
     load_plans,
     require_feature,
     store_entitlements,
@@ -112,6 +115,17 @@ class PreviewOut(BaseModel):
     initial: str
     expires_at: datetime
     you_pay: YouPayOut | None = None
+
+
+class LeaveOutcomeOut(BaseModel):
+    """What one member keeps if the household splits now (invariant 67)."""
+
+    user_id: uuid.UUID
+    name: str
+    is_me: bool
+    outcome: Literal["keeps", "own_plan", "seven_days", "same_end", "paused", "unchanged"]
+    plan: Literal["private", "connected", "founding"] | None
+    until: datetime | None
 
 
 class HouseholdBlobIn(BaseModel):
@@ -328,6 +342,9 @@ def _you_pay(db: DbSession, caller: Caller, household: Household) -> YouPayOut |
     if (
         sub is None
         or sub.plan not in ("private", "connected")
+        # A plan that includes household holds the household or is covered by its plan, and
+        # the Plan screen then offers to stop it (October 29, 2026).
+        or limits_for(sub.plan)["household"]
         or sub.source not in ("stripe", "apple", "google")
         or sub.status not in ("active", "past_due")
         or sub.cancel_at_period_end
@@ -395,22 +412,21 @@ def leave_households(
     user_id: uuid.UUID,
     *,
     now: datetime | None = None,
-    covered: list[User] | None = None,
+    split: list[SplitStep] | None = None,
 ) -> int:
     """Leave every household (one at most): own blobs go, an empty household is removed, and
     one the leaver owned passes to the partner, so its plan is the partner's from now on (like
     a challenge's owner, groups.py; October 28, 2026).
 
-    A household of two is one plan (invariant 54): whoever the shared plan covered when it
-    splits up (the one leaving, or the one left when its holder goes; `covered`, read by the
-    caller before it ended any billing) is on their own from now, `household_cover_ended_at`,
-    so their 7 days to pick a plan start here, with an email from the plan job. The holder's
-    own plan carries on."""
+    A household of two is one plan (invariants 54, 68): what each member keeps once it splits
+    (`household_split`, read by the caller before it ended any billing) is applied here: the
+    one it covered gets their own 7 days, one lapsed with it keeps the same end, one paused
+    with it stays paused for that dispute. The holder's own plan carries on."""
     now = now or _now()
     count = 0
     _lock_person(db, user_id)
-    if covered is None:
-        covered = covered_members(db, user_id, now=now)
+    if split is None:
+        split = household_split(db, user_id, now=now)
     members = household_pair(db, user_id) or (user_id,)
     for m in db.scalars(
         select(HouseholdMember).where(
@@ -437,10 +453,34 @@ def leave_households(
                 )
             )
         count += 1
-    end_lost_cover(db, covered, now=now)
+    apply_household_split(db, split)
     for member_id in members:  # each on their own plan again (invariant 54)
         store_entitlements(db, member_id)
     return count
+
+
+@router.get("/leave/preview")
+def leave_preview(
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    db: Annotated[DbSession, Depends(get_db)],
+) -> list[LeaveOutcomeOut]:
+    """Before leaving: what each of the two keeps, from the one rule (`leave_outcome`), so the
+    sheet says what is true for each person instead of a general line."""
+    household = _my_household(db, caller)
+    now = _now()
+    out: list[LeaveOutcomeOut] = []
+    for m in _active_members(db, household.id):
+        person = db.get(User, m.user_id)
+        if person is None:
+            continue
+        name = _shown_name(person)[0]
+        found = leave_outcome(db, person, now=now)
+        out.append(
+            LeaveOutcomeOut(
+                user_id=person.id, name=name, is_me=person.id == caller.user.id, **found
+            )
+        )
+    return out
 
 
 @router.post("/leave", status_code=status.HTTP_204_NO_CONTENT)

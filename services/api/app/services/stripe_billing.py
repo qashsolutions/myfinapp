@@ -38,6 +38,7 @@ from app.rules_server.entitlements import (
     is_tester,
     load_plans,
     purchase_conflict,
+    release_split_pauses,
     store_entitlements,
 )
 from app.security.hashing import pseudonym
@@ -1385,6 +1386,9 @@ def _dispute(db: DbSession, kind: str, obj: dict[str, Any], *, now: datetime) ->
                 block_purchases(db, None, "dispute_lost", customer=customer)
             block_payer(str(obj.get("charge") or ""))
             outcome, message = "dispute_lost", plan_ended_dispute_lost_message
+        # A household that split while this was open: whoever stayed paused for it is on
+        # their own from now, with their own 7 days (invariant 68).
+        release_split_pauses(db, [r.id for r in rows], now=now)
     db.flush()
     for user_id in users:
         store_entitlements(db, user_id)

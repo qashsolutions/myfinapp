@@ -88,8 +88,7 @@ FOUNDING_ENDED = "Your household's Founding membership has ended"
 NO_LONGER = "Your household's plan no longer covers you"
 # The holder lost a dispute: the plan that covered the other ended, nothing about why.
 COVER_PLAN_ENDED = "The plan that covered you has ended"
-# 4 days left, or 5 where the 7 days cross a clock change (delete_at is wall-clock days).
-REMINDER = "A friendly reminder: "
+REMINDER = "A friendly reminder: 4 days left"
 BOTH = frozenset({"holder", "other"})
 
 # Live plans the holder pays for: the other is covered, nobody hears anything, nobody closes.
@@ -456,3 +455,94 @@ def test_a_covered_person_whose_own_plan_ran_out_stays_covered() -> None:
     run(datetime.now(UTC), asha_id, ben_id)
     run(datetime.now(UTC) + timedelta(days=8), asha_id, ben_id)
     assert len(_subjects(ben_email)) == before and not is_deleted(ben_id)
+
+
+# --- The household splits (review of #57, October 29, 2026; invariant 68) ----------------------
+
+
+def _household_for(holder: str, plan_state: str):
+    """The same set-up as the matrix: (holder client, id, email, other client, id, email)."""
+    now = datetime.now(UTC)
+    asha, asha_id, asha_email = person("Asha")
+    assert asha.post("/api/billing/trial", json={"plan": CONN}).status_code == 200
+    ben, ben_id, ben_email = person("Ben")
+    household(asha, ben)
+    set_user(asha_id, trial_ends_at=now - timedelta(days=25 if holder == "owner" else 6))
+    if holder == "owner":
+        found = (asha, asha_id, asha_email, ben, ben_id, ben_email)
+    else:
+        found = (ben, ben_id, ben_email, asha, asha_id, asha_email)
+    case = Case(holder, plan_state, Who("", "", None), Who("", "", None))
+    _build(case, now, found[0], found[1], holder == "owner")
+    return found
+
+
+def _split(how: str, hc, oc) -> None:
+    if how == "holder_deletes":
+        r = hc.post("/api/account/delete", json={"confirm": "DELETE"})
+        assert r.status_code == 204, r.text
+    elif how == "holder_leaves":
+        assert hc.post("/api/household/leave").status_code == 204
+    else:
+        assert oc.post("/api/household/leave").status_code == 204
+
+
+@pytest.mark.parametrize("how", ["holder_deletes", "holder_leaves", "other_leaves"])
+@pytest.mark.parametrize("holder", ["owner", "partner"])
+def test_a_split_in_the_seven_days_keeps_the_households_end_for_whoever_stays(
+    holder: str, how: str
+) -> None:
+    """The plan ended for both an hour ago; one leaves or closes their account: whoever is left
+    keeps that same end and the same 7 days, can't start a trial, and closes on schedule."""
+    hc, hid, hmail, oc, oid, omail = _household_for(holder, "cancelled_ended")
+    before = _check(oc, Who("lapsed", "free", C))
+    _split(how, hc, oc)
+    people = [(oc, oid, omail)] + ([] if how == "holder_deletes" else [(hc, hid, hmail)])
+    for client, _, _ in people:
+        state = _access(client)["access"]
+        assert state["state"] == "lapsed", state
+        assert state["delete_at"] == before["delete_at"]
+        assert client.post("/api/billing/trial", json={"plan": CONN}).status_code == 409
+    run(datetime.now(UTC), hid, oid)
+    end = datetime.fromisoformat(before["delete_at"])
+    run(end + timedelta(hours=1), hid, oid)
+    run(end + timedelta(hours=2), hid, oid)
+    for _, uid, email in people:
+        assert is_deleted(uid)
+        subjects = _subjects(email)
+        at = subjects.index(CLOSED)
+        assert any(e in s for s in subjects[:at] for e in ENDED_SUBJECTS), subjects
+
+
+@pytest.mark.parametrize("how", ["holder_deletes", "holder_leaves", "other_leaves"])
+@pytest.mark.parametrize("holder", ["owner", "partner"])
+def test_a_split_during_a_dispute_leaves_the_other_paused_and_never_closed(
+    holder: str, how: str
+) -> None:
+    hc, hid, _, oc, oid, _ = _household_for(holder, "disputed")
+    _check(oc, Who("paused", "free", C))
+    _split(how, hc, oc)
+    assert _access(oc)["access"]["state"] == "paused"
+    assert oc.post("/api/billing/trial", json={"plan": CONN}).status_code == 409
+    run(datetime.now(UTC) + timedelta(days=30), hid, oid)
+    assert not is_deleted(oid)
+
+
+@pytest.mark.parametrize("holder", ["owner", "partner"])
+def test_one_closing_alone_leaves_the_other_on_the_households_end(holder: str) -> None:
+    """The plan job closes the one who was told; the other, not told yet, isn't closed with
+    them, keeps the same end, hears of it, then closes."""
+    _, hid, _, oc, oid, omail = _household_for(holder, "cancelled_ended")
+    before = _check(oc, Who("lapsed", "free", C))
+    run(datetime.now(UTC), hid)  # only the holder is told
+    end = datetime.fromisoformat(before["delete_at"])
+    run(end + timedelta(hours=1), hid)
+    assert is_deleted(hid) and not is_deleted(oid)
+    state = _access(oc)["access"]
+    assert state["state"] == "lapsed" and state["delete_at"] == before["delete_at"]
+    run(end + timedelta(hours=2), oid)
+    assert not is_deleted(oid)  # told first
+    run(end + timedelta(hours=3), oid)
+    assert is_deleted(oid)
+    subjects = _subjects(omail)
+    assert any(e in s for s in subjects[: subjects.index(CLOSED)] for e in ENDED_SUBJECTS)

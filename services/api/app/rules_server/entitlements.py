@@ -238,18 +238,20 @@ def _holder(
     exclude: str | None = None,
 ) -> uuid.UUID | None:
     """Whose plan covers the household of two (owner decision, October 29, 2026: "partner and
-    owner use the same account for one price"): the owner's while their own plan (or trial)
-    includes household; else the partner's, once the partner subscribes to such a plan of their
-    own (the subscriber becomes the plan's holder); else nobody, and the plan has ended for both."""
+    owner use the same account for one price"): one holder, always. A paid plan that includes
+    household holds it, the owner's first; else the owner's trial that includes it (a partner's
+    free trial never does); else nobody, and the plan has ended for both. The other is covered
+    by it, even when they pay for a plan of their own too (they are told, and can stop theirs)."""
     owner_id, other_id = pair
-    owner = db.get(User, owner_id)
-    if owner is not None and _covers(_own_access(db, owner, now=now, exclude=exclude)):
+    owner, other = db.get(User, owner_id), db.get(User, other_id)
+    mine = _own_access(db, owner, now=now, exclude=exclude) if owner is not None else None
+    theirs = _own_access(db, other, now=now, exclude=exclude) if other is not None else None
+    if mine is not None and mine["state"] == "subscribed" and _covers(mine):
         return owner_id
-    other = db.get(User, other_id)
-    if other is not None:
-        state = _own_access(db, other, now=now, exclude=exclude)
-        if state["state"] == "subscribed" and _covers(state):
-            return other_id
+    if theirs is not None and theirs["state"] == "subscribed" and _covers(theirs):
+        return other_id
+    if mine is not None and _covers(mine):
+        return owner_id
     return None
 
 
@@ -279,9 +281,32 @@ def _household_end(
     return max(ends) if ends else None
 
 
+def grace_end(ended: datetime) -> datetime:
+    """When the 7 days after an end are over: 7 x 24 hours later, counted in UTC, whatever time
+    zone the database session reads in, so a clock change never lengthens it (invariant 68)."""
+    return ended.astimezone(UTC) + timedelta(days=int(trial_settings()["grace_days"]))
+
+
+def _split_pause(db: DbSession, user: User) -> datetime | None:
+    """The open dispute this person stays paused for after their household split during it."""
+    if user.household_paused_by is None:
+        return None
+    row = db.get(Subscription, user.household_paused_by)
+    if row is None or row.disputed_at is None or row.dispute_lost_at is not None:
+        return None
+    return row.disputed_at
+
+
 def _household_dispute(db: DbSession, user_id: uuid.UUID, formed: datetime) -> datetime | None:
-    """When a payment for this person's plan that covered the household is disputed (still
-    open): the household's plan is paused for both (invariant 54)."""
+    found = _household_dispute_row(db, user_id, formed)
+    return found.disputed_at if found is not None else None
+
+
+def _household_dispute_row(
+    db: DbSession, user_id: uuid.UUID, formed: datetime
+) -> Subscription | None:
+    """A payment for this person's plan that covered the household, disputed and still open:
+    the household's plan is paused for both (invariant 54)."""
     for row in db.scalars(
         select(Subscription)
         .where(
@@ -292,7 +317,7 @@ def _household_dispute(db: DbSession, user_id: uuid.UUID, formed: datetime) -> d
         .order_by(Subscription.disputed_at.desc())
     ):
         if limits_for(row.plan)["household"] and (row.ends_at is None or row.ends_at > formed):
-            return row.disputed_at
+            return row
     return None
 
 
@@ -355,11 +380,15 @@ def household_plan(
     live = own["state"] in LIVE_STATES
     pair = household_pair(db, user.id)
     if pair is None:
+        if not live and (paused := _split_pause(db, user)) is not None:
+            # The household split while its plan's payment was disputed: paused, never closed,
+            # until the dispute closes (invariant 68).
+            return HouseholdPlan(
+                {"state": "paused", "plan": "free", "disputed_at": paused}, None, None
+            )
         return HouseholdPlan(own, user.id if live else None, None)
-    if own["state"] == "subscribed" and _covers(own):
-        return HouseholdPlan({**own, "shared": "holder"}, user.id, pair)
     holder = _holder(db, pair, now=now, exclude=exclude)
-    if holder == user.id:  # the owner's trial that includes household
+    if holder == user.id:
         return HouseholdPlan({**own, "shared": "holder"}, user.id, pair)
     if own["state"] in ("paused", "ended"):
         return HouseholdPlan(own, None, pair)  # a dispute of their own is theirs alone
@@ -394,7 +423,7 @@ def household_plan(
         "state": "lapsed",
         "plan": "free",
         "ended_at": end,
-        "delete_at": end + timedelta(days=int(trial_settings()["grace_days"])),
+        "delete_at": grace_end(end),
         "shared": "holder" if mine == end else "covered",
     }
     return HouseholdPlan(state, None, pair)
@@ -434,6 +463,82 @@ def covered_members(db: DbSession, user_id: uuid.UUID, *, now: datetime) -> list
         if household_plan(db, person, now=now).covered:
             covered.append(person)
     return covered
+
+
+SplitStep = tuple[User, str, Any]
+
+
+def household_split(db: DbSession, user_id: uuid.UUID, *, now: datetime) -> list[SplitStep]:
+    """Read before a household of two splits (a leave, a deletion, a closing), and before
+    anything ends a plan: what each member keeps once the pair is gone (invariants 54, 68).
+
+    - covered by a live plan: their own 7 days start now (`household_cover_ended_at`);
+    - lapsed with the household (its plan ended for both): they keep that same end and the same
+      7 days, so they still close on schedule and never get a fresh start;
+    - paused with the household (its plan's payment disputed): they stay paused for that
+      dispute (`household_paused_by`) until it closes, then their own 7 days start.
+    Applied by `apply_household_split` once the membership has changed."""
+    steps: list[SplitStep] = []
+    pair = household_pair(db, user_id)
+    for uid in pair or ():
+        person = db.get(User, uid)
+        if person is None or person.deleted_at is not None:
+            continue
+        found = household_plan(db, person, now=now)
+        if found.covered:
+            steps.append((person, "cover_ended", now))
+        elif found.shared and found.state == "lapsed":
+            steps.append((person, "cover_ended", found.access["ended_at"]))
+        elif found.shared and found.state == "paused" and pair is not None:
+            other = pair[1] if pair[0] == uid else pair[0]
+            row = _household_dispute_row(db, other, _formed_at(db, pair))
+            if row is not None:
+                steps.append((person, "paused_by", row.id))
+    return steps
+
+
+def leave_outcome(db: DbSession, user: User, *, now: datetime) -> dict[str, Any]:
+    """What this member keeps if the household splits now (the Leave sheet, invariant 67), from
+    the same rule as `household_split`: `keeps` (the plan they hold), `own_plan` (back to a
+    plan of their own), `seven_days` (until `until`), `same_end` (already lapsed with the
+    household: the same date), `paused` (until the dispute closes), `unchanged`."""
+    found = household_plan(db, user, now=now)
+    if found.holder_id == user.id and found.shared:
+        return {"outcome": "keeps", "plan": found.plan, "until": None}
+    if found.covered:
+        own = _own_access(db, user, now=now)
+        if own["state"] in LIVE_STATES:
+            return {"outcome": "own_plan", "plan": own["plan"], "until": None}
+        return {"outcome": "seven_days", "plan": None, "until": grace_end(now)}
+    if found.shared and found.state == "lapsed":
+        return {"outcome": "same_end", "plan": None, "until": found.access["delete_at"]}
+    if found.shared and found.state == "paused":
+        return {"outcome": "paused", "plan": None, "until": None}
+    return {"outcome": "unchanged", "plan": None, "until": None}
+
+
+def apply_household_split(db: DbSession, steps: list[SplitStep]) -> None:
+    for person, kind, value in steps:
+        if kind == "cover_ended":
+            later = person.household_cover_ended_at
+            if later is None or later < value:
+                person.household_cover_ended_at = value
+        else:
+            person.household_paused_by = value
+    db.flush()
+
+
+def release_split_pauses(
+    db: DbSession, subscription_ids: list[uuid.UUID], *, now: datetime
+) -> None:
+    """A dispute closed (won or lost): whoever stayed paused for it after their household split
+    is on their own from now, with their own 7 days (invariant 68)."""
+    if not subscription_ids:
+        return
+    for person in db.scalars(select(User).where(User.household_paused_by.in_(subscription_ids))):
+        person.household_paused_by = None
+        person.household_cover_ended_at = now
+    db.flush()
 
 
 def end_lost_cover(db: DbSession, before: list[User], *, now: datetime) -> list[User]:
@@ -531,7 +636,7 @@ def _own_access(
         "state": "lapsed",
         "plan": "free",
         "ended_at": ended,
-        "delete_at": ended + timedelta(days=int(trial_settings()["grace_days"])),
+        "delete_at": grace_end(ended),
     }
 
 

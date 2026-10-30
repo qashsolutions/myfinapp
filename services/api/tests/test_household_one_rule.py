@@ -148,7 +148,7 @@ def test_switching_down_gives_the_partner_the_email_and_seven_days_and_no_new_tr
     assert state["state"] == "lapsed", state
     started = datetime.fromisoformat(state["ended_at"])
     assert abs((datetime.now(UTC) - started).total_seconds()) < 60
-    assert datetime.fromisoformat(state["delete_at"]) - started >= timedelta(days=7)
+    assert datetime.fromisoformat(state["delete_at"]) - started == timedelta(days=7)
     assert ben.post("/api/billing/trial", json={"plan": "connected"}).status_code == 409
     assert access(asha) == {"state": "subscribed", "plan": "private"}
     assert run(datetime.now(UTC), asha_id, ben_id)["ended"] == 1
@@ -286,3 +286,181 @@ def test_a_covered_person_stops_their_own_plan_and_stays_covered() -> None:
     before = len(mail(ben_email))
     run(now + timedelta(days=8), asha_id, ben_id)
     assert len(mail(ben_email)) == before and not is_deleted(ben_id)
+
+
+# --- Review of #57 (October 29, 2026): D1, D2, L5, L6 --------------------------------------------
+
+
+def _asha_trial_ended_two_days_ago():
+    """Asha's Connected trial held the household and ended 2 days ago: both lapsed, the same
+    7 days."""
+    asha, asha_id, asha_email = person("Asha")
+    assert asha.post("/api/billing/trial", json={"plan": "connected"}).status_code == 200
+    ben, ben_id, ben_email = person("Ben")
+    household(asha, ben)
+    end = datetime.now(UTC) - timedelta(days=2)
+    set_user(asha_id, trial_ends_at=end)
+    b = access(ben)
+    assert b["state"] == "lapsed" and b["shared"] == "covered"
+    return asha, asha_id, asha_email, ben, ben_id, ben_email, b["delete_at"]
+
+
+def test_d1_the_holder_deleting_in_the_seven_days_keeps_the_partners_same_window() -> None:
+    asha, asha_id, _, ben, ben_id, ben_email, delete_at = _asha_trial_ended_two_days_ago()
+    assert asha.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
+    b = access(ben)
+    assert b["state"] == "lapsed" and b["delete_at"] == delete_at, b
+    assert ben.post("/api/billing/trial", json={"plan": "connected"}).status_code == 409
+    end = datetime.fromisoformat(delete_at)
+    run(datetime.now(UTC), ben_id)  # the ended note for that end
+    run(end + timedelta(hours=1), ben_id)
+    assert is_deleted(ben_id)
+    subjects = mail(ben_email)
+    assert subjects.index("Your Qash account has closed") > 0
+
+
+def test_d1_the_partner_leaving_in_the_seven_days_keeps_both_windows() -> None:
+    asha, asha_id, _, ben, ben_id, _, delete_at = _asha_trial_ended_two_days_ago()
+    assert ben.post("/api/household/leave").status_code == 204
+    for client in (ben, asha):
+        state = access(client)
+        assert state["state"] == "lapsed" and state["delete_at"] == delete_at, state
+    assert ben.post("/api/billing/trial", json={"plan": "connected"}).status_code == 409
+
+
+def test_d1_a_split_during_a_dispute_stays_paused_then_follows_its_close() -> None:
+    from tests.test_billing_hardening import DisputeStripe, _dispute  # noqa: PLC0415
+
+    asha, asha_id, _ = person("Asha")
+    grant_plan(str(asha_id), "connected")
+    ben, ben_id, _ = person("Ben")
+    household(asha, ben)
+    with get_session_factory()() as db:
+        row = db.scalar(select(Subscription).where(Subscription.user_id == asha_id))
+        assert row is not None
+        customer = row.customer_id
+    stripe_billing.transport_override = DisputeStripe(customer).transport()
+    assert post_event(asha, _dispute("charge.dispute.created")).status_code == 200
+    assert access(ben)["state"] == "paused"
+    assert ben.post("/api/household/leave").status_code == 204
+    assert access(ben)["state"] == "paused"  # still waiting on the dispute, never closed
+    assert ben.post("/api/billing/trial", json={"plan": "connected"}).status_code == 409
+    run(datetime.now(UTC) + timedelta(days=30), ben_id)
+    assert not is_deleted(ben_id)
+    closed = post_event(asha, _dispute("charge.dispute.closed", "won"))
+    assert closed.status_code == 200, closed.text
+    b = access(ben)
+    assert b["state"] == "lapsed", b  # his own 7 days start when the dispute closes
+    started = datetime.fromisoformat(b["ended_at"])
+    assert abs((datetime.now(UTC) - started).total_seconds()) < 60
+    assert datetime.fromisoformat(b["delete_at"]) - started == timedelta(days=7)
+
+
+def test_d1_one_closing_alone_leaves_the_other_on_the_households_window() -> None:
+    asha, asha_id, asha_email, ben, ben_id, ben_email, delete_at = _asha_trial_ended_two_days_ago()
+    run(datetime.now(UTC), asha_id)  # only Asha was told
+    end = datetime.fromisoformat(delete_at)
+    run(end + timedelta(hours=1), asha_id)  # she closes; Ben, never told, is not among them
+    assert is_deleted(asha_id) and not is_deleted(ben_id)
+    b = access(ben)
+    assert b["state"] == "lapsed" and b["delete_at"] == delete_at, b
+    run(end + timedelta(hours=2), ben_id)  # told first ...
+    assert not is_deleted(ben_id)
+    run(end + timedelta(hours=3), ben_id)  # ... then closed
+    assert is_deleted(ben_id)
+
+
+def test_d2_a_connected_joiner_is_not_asked_and_whoever_is_covered_can_stop_their_own() -> None:
+    asha, asha_id, _ = person("Asha")
+    grant_plan(str(asha_id), "connected")
+    ben, ben_id, _ = person("Ben")
+    grant_plan(str(ben_id), "connected", interval="monthly")
+    code = asha.post("/api/household/invites").json()["code"]
+    assert ben.post("/api/household/lookup", json={"code": code}).json()["you_pay"] is None
+    assert ben.post("/api/household/join", json={"code": code}).status_code == 200
+    # The owner's plan holds; Ben is covered and told he also pays, with a way to stop it.
+    assert access(asha)["shared"] == "holder"
+    assert access(ben) == {"state": "subscribed", "plan": "connected", "shared": "covered"}
+    assert ben.get("/api/billing").json()["own_plan"] == "connected"
+    assert asha.get("/api/billing").json()["own_plan"] is None
+
+
+def test_d2_a_connected_joiner_holds_beside_an_owners_trial_and_the_owner_is_covered() -> None:
+    asha, asha_id, _ = person("Asha")
+    assert asha.post("/api/billing/trial", json={"plan": "connected"}).status_code == 200
+    ben, ben_id, _ = person("Ben")
+    grant_plan(str(ben_id), "connected", interval="monthly")
+    household(asha, ben)
+    assert access(ben)["shared"] == "holder" and access(ben)["state"] == "subscribed"
+    assert access(asha) == {"state": "subscribed", "plan": "connected", "shared": "covered"}
+    assert asha.get("/api/billing").json()["own_plan"] is None  # her trial isn't a payment
+
+
+def test_l5_a_tester_plan_without_household_ends_the_partners_cover_with_notice() -> None:
+    from app.config import get_settings  # noqa: PLC0415
+
+    asha, asha_id, asha_email = person("Asha")
+    saved = get_settings().admin_emails
+    get_settings().admin_emails = [asha_email]
+    try:
+        assert asha.post("/api/billing/tester", json={"plan": "connected"}).status_code == 200
+        ben, ben_id, _ = person("Ben")
+        household(asha, ben)
+        assert access(ben)["shared"] == "covered"
+        assert asha.post("/api/billing/tester", json={"plan": "private"}).status_code == 200
+        b = access(ben)
+        assert b["state"] == "lapsed" and "shared" not in b, b
+    finally:
+        get_settings().admin_emails = saved
+
+
+def test_l6_the_seven_days_are_seven_times_24_hours_whatever_the_clock_does() -> None:
+    asha, asha_id, _ = person("Asha")
+    assert asha.post("/api/billing/trial", json={"plan": "connected"}).status_code == 200
+    # Ends just before the US clocks go back (November 1, 2026): the window crosses it.
+    end = datetime(2026, 10, 30, 17, 0, tzinfo=UTC)
+    set_user(asha_id, trial_ends_at=end)
+    state = asha.get("/api/billing/entitlements").json()["access"]
+    if state["state"] == "lapsed":
+        assert datetime.fromisoformat(state["delete_at"]) - end == timedelta(days=7)
+        assert datetime.fromisoformat(state["delete_at"]).astimezone(UTC).hour == 17
+    with get_session_factory()() as db:
+        from app.models.user import User  # noqa: PLC0415
+        from app.rules_server.entitlements import access as access_of  # noqa: PLC0415
+
+        user = db.get(User, asha_id)
+        got = access_of(db, user, now=end + timedelta(days=1))
+        assert got["delete_at"] - end == timedelta(days=7)
+        assert got["delete_at"].astimezone(UTC).hour == 17
+
+
+def _preview(client) -> dict:
+    r = client.get("/api/household/leave/preview")
+    assert r.status_code == 200, r.text
+    return {row["name"]: row for row in r.json()}
+
+
+def test_l3_the_leave_sheet_says_what_each_person_keeps() -> None:
+    asha, asha_id, _ = person("Asha")
+    grant_plan(str(asha_id), "connected")
+    ben, ben_id, _ = person("Ben")
+    household(asha, ben)
+    got = _preview(ben)
+    assert got["Asha"]["outcome"] == "keeps" and got["Asha"]["plan"] == "connected"
+    assert got["Ben"]["outcome"] == "seven_days" and got["Ben"]["is_me"] is True
+    # Ben pays for Private too: he goes back to it instead.
+    grant_plan(str(ben_id), "private", interval="monthly")
+    assert _preview(asha)["Ben"] == {
+        **_preview(asha)["Ben"],
+        "outcome": "own_plan",
+        "plan": "private",
+    }
+    # The plan ended for both: each keeps the same date.
+    set_subscription(asha_id, status="canceled", ends_at=datetime.now(UTC) - timedelta(hours=1))
+    set_subscription(ben_id, status="canceled", ends_at=datetime.now(UTC) - timedelta(hours=2))
+    rows = _preview(ben)
+    assert {r["outcome"] for r in rows.values()} == {"same_end"}
+    assert rows["Asha"]["until"] == rows["Ben"]["until"]
+    # Someone outside the household gets 404, as for any household route.
+    carl, _, _ = person("Carl")
+    assert carl.get("/api/household/leave/preview").status_code == 404

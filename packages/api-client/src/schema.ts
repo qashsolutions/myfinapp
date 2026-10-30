@@ -993,6 +993,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/household/leave/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Leave Preview
+         * @description Before leaving: what each of the two keeps, from the one rule (`leave_outcome`), so the
+         *     sheet says what is true for each person instead of a general line.
+         */
+        get: operations["leave_preview_api_household_leave_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/household/lookup": {
         parameters: {
             query?: never;
@@ -2522,6 +2543,30 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /**
+         * LeaveOutcomeOut
+         * @description What one member keeps if the household splits now (invariant 67).
+         */
+        LeaveOutcomeOut: {
+            /** Is Me */
+            is_me: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "keeps" | "own_plan" | "seven_days" | "same_end" | "paused" | "unchanged";
+            /** Plan */
+            plan: ("private" | "connected" | "founding") | null;
+            /** Until */
+            until: string | null;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
         };
         /** LinkedAccount */
         LinkedAccount: {
@@ -4680,6 +4725,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    leave_preview_api_household_leave_preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveOutcomeOut"][];
+                };
             };
         };
     };

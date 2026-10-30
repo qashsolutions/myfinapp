@@ -257,6 +257,8 @@ export interface FakeApi {
   foundingLeft: number;
   /** Trials (October 14, 2026): what GET /api/billing/entitlements says under `access`. */
   access: Record<string, unknown> | null;
+  /** GET /api/household/leave/preview: what each member keeps (October 29, 2026). */
+  householdLeavePreview?: Array<Record<string, unknown>>;
   /** When true, step-up endpoints answer 403 step_up_required until an assertion happens. */
   stepUpStale: boolean;
   /** Link with your phone (October 19, 2026): what the computer's next status check sees;
@@ -1089,7 +1091,8 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
         expires_at: h.invite?.expires_at,
         // Like the server: the joiner's own renewing plan, so the screen can ask about it.
         you_pay:
-          (state.billing.plan === "private" || state.billing.plan === "connected") &&
+          // A plan that includes household never asks (the server's `_you_pay`).
+          state.billing.plan === "private" &&
           state.billing.status === "active" &&
           state.billing.interval &&
           !state.billing.cancel_at_period_end
@@ -1124,6 +1127,11 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
         state.access = { state: "subscribed", plan: "connected", shared: "covered" };
       }
       return json(householdOut(h));
+    }
+    if (method === "GET" && path === "/api/household/leave/preview") {
+      const h = myHousehold();
+      if (!h) return json({ detail: "not_found" }, 404);
+      return json(state.householdLeavePreview ?? []);
     }
     if (method === "POST" && path === "/api/household/leave") {
       const h = myHousehold();

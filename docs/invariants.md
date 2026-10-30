@@ -518,6 +518,10 @@ written against both.
     deletion and the plan job all ask it, and nothing else does. The limits applied are always
     the plan shown: a covered person who also pays for Private has the household's Connected,
     and an owner paying Private beside a partner paying Connected is covered by the partner's.
+    There is one holder: a paid plan first (the owner's, then the partner's), else the owner's
+    trial; the other is covered even when paying for a plan with household too, and is told
+    they can stop it. The Leave sheet says what each person keeps from the same rule
+    (`GET /api/household/leave/preview`, `leave_outcome`).
     `test_household_matrix.py` (holder owner / partner × 15 plan states, both people) ·
     `test_household_one_rule.py` "a covered person paying Private…", "an owner paying
     Private…" · `household-plan.test.tsx` "a holder whose plan ended…"
@@ -526,10 +530,16 @@ written against both.
     the next hourly run closed them with no email, and was never shown paused). Both people's
     end is the end of the plan that held the household after it became two, with the same 7
     days; a dispute on it pauses both; and the plan job closes an account only once the ended
-    email for that same end has gone. When the holder loses a dispute, the one it covered gets
+    email for that same end has gone. A household that splits (a leave, a deletion, one
+    closing alone) keeps what each member had (`household_split`, read before any billing ends):
+    one lapsed with it keeps the same end and the same 7 days (never a fresh trial), one paused
+    with it stays paused for that dispute (`users.household_paused_by`, migration 0040) until it
+    closes, then has 7 days from the close. The 7 days are 7 × 24 hours in UTC (`grace_end`).
+    When the holder loses a dispute, the one it covered gets
     "The plan that covered you has ended" (7 days, or download), never a word about the dispute.
     `test_household_one_rule.py` "the owner covered by the partner's plan…", "…disputed plan…",
-    "after the holder loses a dispute…"
+    "after the holder loses a dispute…", "d1 …", "l6 …" · `test_household_matrix.py` "a split in
+    the seven days…", "a split during a dispute…", "one closing alone…"
     · `test_household_matrix.py`
 69. **Losing the cover while the holder's plan carries on starts one's own 7 days, with
     notice** (October 29, 2026; a holder switching down dropped the partner silently, with a

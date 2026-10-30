@@ -44,6 +44,7 @@ from app.rules_server.entitlements import (
     covered_members,
     end_lost_cover,
     load_plans,
+    purchase_conflict,
     store_entitlements,
 )
 from app.security.outbound import outbound_client
@@ -265,6 +266,10 @@ def apply_apple_transaction(
     owner = _owner(db, txn.get("appAccountToken"), row, caller_id)
     if owner is None:
         return "unlinked"  # no account token and never synced: nothing to attach it to
+    if row is None and purchase_conflict(db, owner, plan, exclude=external_id) == (
+        "household_covered"
+    ):
+        return "household_covered"  # one rule for every channel (invariant 70)
     # Apple signs every copy of a transaction with the moment it signed it: an older copy (the
     # purchase's own proof re-sent after a refund) never overrides a newer one (October 28,
     # 2026). The newest signedDate applied is kept on the row.
@@ -427,6 +432,10 @@ def apply_play_subscription(
     owner = _owner(db, account_token, row, caller_id)
     if owner is None:
         return "unlinked"
+    if row is None and purchase_conflict(db, owner, plan, exclude=external_id) == (
+        "household_covered"
+    ):
+        return "household_covered"  # one rule for every channel (invariant 70)
     if state == "SUBSCRIPTION_STATE_ACTIVE":
         status, cancel, renews_at, ends_at = "active", False, expiry, None
     elif state == "SUBSCRIPTION_STATE_CANCELED":

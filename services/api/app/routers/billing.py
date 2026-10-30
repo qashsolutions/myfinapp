@@ -881,7 +881,10 @@ def set_tester_plan(
     not there. Audited and alerted like any plan change."""
     if not is_tester(caller.user):
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="not_found")
+    covered = covered_members(db, caller.user.id, now=datetime.now(UTC))
     caller.user.tester_plan = body.plan
+    # A tester plan without household ends the partner's cover like any switch (invariant 69).
+    end_lost_cover(db, covered, now=datetime.now(UTC))
     store_entitlements(db, caller.user.id)
     record(
         db,
@@ -939,6 +942,9 @@ def native_sync(
             else status.HTTP_400_BAD_REQUEST
         )
         raise HTTPException(code, detail=exc.code) from exc
+    if outcome == "household_covered":
+        # One price covers both of a household (invariant 70): the store purchase isn't taken.
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="household_covered")
     if outcome == "synced":
         record(
             db,
