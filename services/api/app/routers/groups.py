@@ -250,11 +250,28 @@ def _require_owner(group: Group, caller: Caller) -> None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="owner_only")
 
 
+def _final_from(group: Group) -> datetime:
+    """When the result is final: the moment the last day is over somewhere (midnight at UTC+14,
+    10:00 UTC on the last day). From then on leaving takes the challenge off the leaver's own
+    list only; their standing stays on everyone else's final board (owner decision, October
+    29, 2026; invariant 71), and nobody can be removed from it."""
+    return datetime.combine(group.end_date, datetime.min.time(), tzinfo=UTC) + timedelta(hours=10)
+
+
+def _final(group: Group, now: datetime | None = None) -> bool:
+    return (now or _now()) >= _final_from(group)
+
+
+def _on_board(group: Group):
+    """Who the board shows: members still in, and anyone who left once the result was final."""
+    return GroupMember.left_at.is_(None) | (GroupMember.left_at >= _final_from(group))
+
+
 def _members(db: DbSession, group: Group) -> list[tuple[GroupMember, User]]:
     rows = db.execute(
         select(GroupMember, User)
         .join(User, User.id == GroupMember.user_id)
-        .where(GroupMember.group_id == group.id, GroupMember.left_at.is_(None))
+        .where(GroupMember.group_id == group.id, _on_board(group))
         .order_by(GroupMember.joined_at, GroupMember.id)
     )
     return [(m, u) for m, u in rows]
@@ -265,7 +282,7 @@ def _member_count(db: DbSession, group: Group) -> int:
         db.scalar(
             select(func.count())
             .select_from(GroupMember)
-            .where(GroupMember.group_id == group.id, GroupMember.left_at.is_(None))
+            .where(GroupMember.group_id == group.id, _on_board(group))
         )
         or 0
     )
@@ -566,8 +583,11 @@ def leave_group(
         # Signed off Oct 27, 2026: the owner keeps the group (they can remove members and
         # regenerate the code).
         raise HTTPException(status.HTTP_409_CONFLICT, detail="owner_cannot_leave")
-    me.left_at = _now()
-    me.helped = None  # a former member's answer leaves the totals and never comes back on rejoin
+    now = _now()
+    me.left_at = now
+    if not _final(group, now):
+        me.helped = None  # a former member's answer leaves the totals, never back on rejoin
+    # Once the result is final the leaver keeps their place, and their answer, on the board.
     record(
         db,
         actor_id=caller.user.id,
@@ -592,6 +612,8 @@ def remove_member(
     _require_owner(group, caller)
     if user_id == caller.user.id:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="owner_cannot_leave")
+    if _final(group):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="ended")  # the result is final
     _lock_group(db, group.id)
     member = _membership(db, group, user_id)
     if member is None or member.left_at is not None:

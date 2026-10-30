@@ -495,8 +495,11 @@ written against both.
     answers the screen, the posts and every write: progress is measured over the challenge's
     own dates, nothing is posted outside them, a 409 drops the queued post, and `addGoalEvent`
     refuses a challenge jar's event outside them (the goal screen, Move money both ways, Home's
-    set aside and catch-up).
-    `test_group_matrix.py` (five types × five moments) · `challenge-window.test.tsx` (the same
+    set aside and catch-up). Once the last day is over somewhere (10:00 UTC on it) the result
+    is final (owner decision, October 29, 2026): leaving takes the challenge off the leaver's
+    own list only, their standing and their What helped answer stay on everyone else's board,
+    and the owner can't remove anyone (409 `ended`); the app says "Remove from my list".
+    `test_group_matrix.py` (five types × five moments, leave and removal included) · `challenge-window.test.tsx` (the same
     on the device, and Home's set-aside tap)
 72. **A connection being removed stays removed until it is revoked** (October 29, 2026; a bank
     disconnected while Plaid was down came back when its next ITEM webhook set the status, rejoined

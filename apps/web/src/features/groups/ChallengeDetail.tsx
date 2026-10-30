@@ -169,7 +169,7 @@ export function ChallengeDetail() {
         {ended ? <h2 className="sk-card__title">Final leaderboard</h2> : null}
         <Leaderboard
           members={group.members}
-          isOwner={group.is_owner}
+          isOwner={group.is_owner && !ended}
           onRemove={async (m) => {
             await removeMember(group.id, m.user_id);
             await refresh();
@@ -195,9 +195,18 @@ export function ChallengeDetail() {
           }}
         >
           <span style={{ color: "var(--c-danger)" }}>
-            {confirmLeave ? "Really leave this group" : "Leave group"}
+            {ended
+              ? confirmLeave
+                ? "Really remove it from my list"
+                : "Remove from my list"
+              : confirmLeave
+                ? "Really leave this group"
+                : "Leave group"}
           </span>
         </Button>
+      ) : null}
+      {!group.is_owner && ended ? (
+        <p className="auth__fineprint">Your result stays on the final board for everyone.</p>
       ) : null}
       <GroupInvite
         group={group}

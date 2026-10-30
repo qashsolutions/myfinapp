@@ -15,6 +15,10 @@ day is S and last day E (local dates):
 
 Lookup and join are open until the challenge is over everywhere (invariant 56); progress from
 its first day anywhere until then; leaving is always open (leaving is never harder than joining).
+The result is final once the last day is over somewhere (E at 10:00, midnight at UTC+14): from
+then leaving takes the challenge off the leaver's own list only, their standing stays on
+everyone else's board, and the owner can't remove anyone (409 `ended`) (owner decision, October
+29, 2026).
 """
 
 from __future__ import annotations
@@ -63,6 +67,14 @@ EXPECTED = {
     "after_end": (200, 200, 200, 204),
     "over_everywhere": (409, 409, 409, 204),
 }
+# moment → (the leaver still on the others' board, the owner's removal answer)
+FINAL = {
+    "before_start": (False, 204),
+    "during": (False, 204),
+    "last_day": (True, 409),
+    "after_end": (True, 409),
+    "over_everywhere": (True, 409),
+}
 PROGRESS_DETAIL = {"before_start": "not_started", "over_everywhere": "ended"}
 
 CASES = [(t, m) for t in TYPES for m in MOMENTS]
@@ -75,13 +87,19 @@ def test_every_type_at_every_moment(
     body, first, last = TYPES[template]
     monkeypatch.setattr(groups_router, "_now", lambda: CREATED)
     owner, member, late = person("Owner"), person("Member"), person("Late")
+    other = person("Other")
     r = owner.post("/api/groups", json={"name": "", "template_key": template, **body})
     assert r.status_code == 201, r.text
     gid, code = r.json()["id"], r.json()["invite_code"]
     assert (r.json()["start_date"], r.json()["end_date"]) == (first.isoformat(), last.isoformat())
     assert member.post("/api/groups/join", json={"code": code}).status_code == 200
+    assert other.post("/api/groups/join", json={"code": code}).status_code == 200
+    member_id = member.get("/api/auth/session").json()["user"]["id"]
+    other_id = other.get("/api/auth/session").json()["user"]["id"]
     # A figure already on the board, posted while it ran, so "unchanged" means something.
     monkeypatch.setattr(groups_router, "_now", lambda: _at(first, 12))
+    r = member.put(f"/api/groups/{gid}/progress", json={"progress_bps": 7000})
+    assert r.status_code == 200
     assert owner.put(f"/api/groups/{gid}/progress", json={"progress_bps": 4000}).status_code == 200
 
     now = MOMENTS[moment](first, last)
@@ -104,6 +122,17 @@ def test_every_type_at_every_moment(
         assert board[True]["reached_at"] is None
 
     assert member.post(f"/api/groups/{gid}/leave").status_code == leave
+    # The leaver's own list no longer has it; the others' board keeps their standing once final.
+    assert gid not in [g["id"] for g in member.get("/api/groups").json()]
+    kept, removal = FINAL[moment]
+    board = {m["user_id"]: m for m in owner.get(f"/api/groups/{gid}").json()["members"]}
+    assert (member_id in board) == kept
+    if kept:
+        assert board[member_id]["progress_bps"] == 7000
+    r = owner.delete(f"/api/groups/{gid}/members/{other_id}")
+    assert r.status_code == removal, r.text
+    still = [m["user_id"] for m in owner.get(f"/api/groups/{gid}").json()["members"]]
+    assert (other_id in still) == (removal == 409)
 
 
 def test_reached_at_is_never_after_the_challenge_is_over_everywhere(

@@ -543,14 +543,23 @@ def test_a_fraud_refund_lapses_with_honest_notes_that_never_invite_buying_again(
                 db, now=datetime.now(UTC) + timedelta(days=n, hours=1), only=who
             )
 
+    email = client.get("/api/auth/session").json()["user"]["email"]
+
+    def mine() -> list:
+        """The person's own mail. Anything else is the team's ops alert, which goes out once per
+        kind an hour (`ops_alerts`), so whether one lands here depends on the tests before."""
+        others = [m for m in outbox() if m.to != email]
+        assert all(m.subject.startswith("Qash error:") for m in others), others
+        return [m for m in outbox() if m.to == email]
+
     outbox().clear()
     assert day(0)["ended"] == 1
-    [note] = outbox()
+    [note] = mine()
     assert note.subject == "Your Qash plan has ended" and "Keep going" not in note.text
     assert day(1)["reminded"] == 0 and day(2)["reminded"] == 0
     outbox().clear()
     assert day(60)["deleted"] == 1
-    [closed] = outbox()
+    [closed] = mine()
     assert "welcome back" not in closed.text.lower()
 
 
