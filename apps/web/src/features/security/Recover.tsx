@@ -9,9 +9,27 @@ import { PasskeyError, registerPasskey } from "./webauthn.ts";
 type Recovery = {
   status: "none" | "waiting" | "ready";
   ready_at?: string | null;
-  partner_name?: string | null;
+  partner_available?: boolean;
   partner_asked?: boolean;
 };
+
+/** The code read out to the partner, kept for this tab so a reload doesn't lose it. */
+const CODE_KEY = "qash.recovery_code";
+function savedCode(): string | null {
+  try {
+    return sessionStorage.getItem(CODE_KEY);
+  } catch {
+    return null;
+  }
+}
+function saveCode(code: string | null): void {
+  try {
+    if (code) sessionStorage.setItem(CODE_KEY, code);
+    else sessionStorage.removeItem(CODE_KEY);
+  } catch {
+    // private mode: the code shows until the page reloads
+  }
+}
 
 /**
  * Getting back in without a passkey (owner decision, October 30, 2026; invariant 74). Shown on
@@ -22,14 +40,25 @@ type Recovery = {
 export function Recover({ onBack }: { onBack: () => void }) {
   const session = useSession();
   const [state, setState] = useState<Recovery | null>(null);
-  const [code, setCode] = useState<string | null>(null);
+  const [code, setCodeState] = useState<string | null>(savedCode);
+  const setCode = useCallback((value: string | null) => {
+    saveCode(value);
+    setCodeState(value);
+  }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const r = await api.GET("/api/auth/recovery");
-    if (r.data) setState(r.data as Recovery);
-  }, []);
+    if (r.response.status === 401) {
+      void session.refresh(); // signed out here (finished on another device): the way in again
+      return;
+    }
+    if (!r.data) return;
+    const next = r.data as Recovery;
+    if (next.status === "none" || !next.partner_asked) setCode(null);
+    setState(next);
+  }, [session, setCode]);
 
   useEffect(() => {
     void load();
@@ -70,12 +99,15 @@ export function Recover({ onBack }: { onBack: () => void }) {
       );
       return;
     }
-    setCode(r.data?.code ?? null);
     await load();
+    setCode(r.data?.code ?? null);
   }
 
   async function cancel() {
-    if (await call("/api/auth/recovery/cancel")) onBack();
+    if (await call("/api/auth/recovery/cancel")) {
+      setCode(null);
+      onBack();
+    }
   }
 
   async function makePasskey() {
@@ -83,19 +115,23 @@ export function Recover({ onBack }: { onBack: () => void }) {
     setError(null);
     try {
       await registerPasskey();
+      setCode(null);
       await session.refresh();
     } catch (err) {
       setError(
         err instanceof PasskeyError && err.code === "cancelled"
           ? "Cancelled. Try again when you're ready."
-          : "Couldn't create the passkey. Try again.",
+          : err instanceof PasskeyError && err.message === "recovery_closed"
+            ? "This was cancelled with your passkey, so nothing changed. Unlock with it instead."
+            : "Couldn't create the passkey. Try again.",
       );
     } finally {
       setBusy(false);
     }
   }
 
-  const partner = state?.partner_name ?? null;
+  // The partner is never named here: whoever holds the email sees this screen too.
+  const hasPartner = state?.partner_available === true;
   const shownCode = code ? `${code.slice(0, 3)} ${code.slice(3)}` : null;
 
   return (
@@ -120,13 +156,13 @@ export function Recover({ onBack }: { onBack: () => void }) {
         ) : state.status === "waiting" ? (
           <>
             <h1 className="auth__title">On its way</h1>
-            {shownCode && partner ? (
+            {shownCode && hasPartner ? (
               <>
-                <p className="auth__lead">Read this code to {partner}:</p>
+                <p className="auth__lead">Read this code to your partner:</p>
                 <p className="recover__code">{shownCode}</p>
                 <p className="auth__hint">
-                  {partner} opens Qash, goes to Me, then Household, and types it in. You're in as
-                  soon as they do.
+                  Your partner opens Qash, goes to Me, then Household, and types it in. You're in as
+                  soon as they do. Asking again makes a new code.
                 </p>
               </>
             ) : (
@@ -137,7 +173,7 @@ export function Recover({ onBack }: { onBack: () => void }) {
               </p>
             )}
             {state.partner_asked && !shownCode ? (
-              <p className="auth__hint">Waiting for {partner ?? "your partner"} to approve.</p>
+              <p className="auth__hint">Waiting for your partner to approve.</p>
             ) : null}
           </>
         ) : (
@@ -149,8 +185,8 @@ export function Recover({ onBack }: { onBack: () => void }) {
                 Still signed in on another device? Sign out here, choose Link with your phone, and
                 approve it on that device.
               </li>
-              {partner ? (
-                <li>{partner} can let you in now, from their Qash.</li>
+              {hasPartner ? (
+                <li>Your partner can let you in now, from their Qash.</li>
               ) : (
                 <li>Otherwise you can create a new passkey here in 24 hours.</li>
               )}
@@ -170,15 +206,15 @@ export function Recover({ onBack }: { onBack: () => void }) {
             {busy ? "Waiting for your device…" : "Create a new passkey"}
           </Button>
         ) : null}
-        {state && state.status !== "ready" && partner && !shownCode ? (
+        {state && state.status !== "ready" && hasPartner && !shownCode ? (
           <Button block onClick={askPartner} disabled={busy}>
-            Ask {partner} to let me in
+            Ask my partner to let me in
           </Button>
         ) : null}
         {state?.status === "none" ? (
           <Button
             block
-            variant={partner ? "secondary" : "primary"}
+            variant={hasPartner ? "secondary" : "primary"}
             onClick={() => void call("/api/auth/recovery")}
             disabled={busy}
           >

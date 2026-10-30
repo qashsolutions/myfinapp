@@ -52,7 +52,7 @@ export function PendingRecovery() {
       <p>Someone asked to get back into your account without a passkey.</p>
       <p className="group-row__meta">
         It goes through {readyAt ? `on ${formatDateTime(readyAt)}` : "in 24 hours"} unless you
-        cancel. If it was you on another device, leave it.
+        cancel it. Leave it only if it was you, on another device.
       </p>
       <Button onClick={cancel}>Cancel it</Button>
       {note ? <p className="auth__error">{note}</p> : null}

@@ -48,14 +48,14 @@ router = APIRouter(tags=["recovery"], dependencies=[Depends(same_site_only)])
 class RecoveryOut(BaseModel):
     status: Literal["none", "waiting", "ready"]
     ready_at: datetime | None = None
-    # The partner who can approve now (their display name), when they may.
-    partner_name: str | None = None
+    # Whether the partner the person chose can approve now. Never their name: whoever holds
+    # the email sees this too, and the person knows who they chose.
+    partner_available: bool = False
     partner_asked: bool = False
 
 
 class PartnerCodeOut(BaseModel):
     code: str  # six digits, read aloud to the partner
-    partner_name: str
 
 
 class AskedOut(BaseModel):
@@ -102,16 +102,17 @@ def _push(db: DbSession, user_id, body: str, tag: str, url: str = "/me/security"
 
 def _out(db: DbSession, caller: Caller) -> RecoveryOut:
     row = recovery_svc.open_request(db, caller.user.id)
-    partner = recovery_svc.partner_for(db, caller.user)
-    name = _name(partner) if partner is not None else None
+    available = recovery_svc.partner_for(db, caller.user) is not None
     if row is None:
-        return RecoveryOut(status="none", partner_name=name)
+        return RecoveryOut(status="none", partner_available=available)
     ready = recovery_svc.may_add_passkey(db, caller.user.id, caller.session)
+    mine = row.session_id == caller.session.id
     return RecoveryOut(
         status="ready" if ready else "waiting",
         ready_at=row.ready_at,
-        partner_name=name,
-        partner_asked=row.partner_code_hash is not None or row.partner_approved_at is not None,
+        partner_available=available,
+        partner_asked=mine
+        and (row.partner_code_hash is not None or row.partner_approved_at is not None),
     )
 
 
@@ -202,9 +203,15 @@ def recovery_ask_partner(
             at=row.created_at,
         )
         _push(db, caller.user.id, RECOVERY_STARTED_LABEL, "recovery")
+    send_alert(
+        caller.user.email,
+        SecurityEvent.RECOVERY_PARTNER_ASKED,
+        device_label=caller.session.device_label,
+        at=datetime.now(UTC),
+    )
     _push(db, partner.id, RECOVERY_PARTNER_LABEL, "recovery-partner", "/me/household")
     db.commit()
-    return PartnerCodeOut(code=code, partner_name=_name(partner))
+    return PartnerCodeOut(code=code)
 
 
 @router.post("/api/auth/recovery/cancel")
@@ -216,7 +223,7 @@ def recovery_cancel(
     """From the asking device ("I found my passkey"), or from any device signed in and
     unlocked (the owner, "this wasn't me"). A locked session that didn't ask can't cancel, or
     whoever holds the email could stop the owner's own recovery."""
-    row = recovery_svc.open_request(db, caller.user.id, lock=True)
+    row = recovery_svc.open_request(db, caller.user.id)
     if row is None:
         db.commit()
         return _out(db, caller)
@@ -281,18 +288,21 @@ def approve(
     db.commit()
     person = db.get(User, row.user_id)
     assert person is not None
+    send_alert(
+        person.email,
+        SecurityEvent.RECOVERY_PARTNER_APPROVED,
+        device_label=row.device_label,
+        at=datetime.now(UTC),
+    )
     return AskedOut(
         id=str(row.id), name=_name(person), device_label=row.device_label, asked_at=row.updated_at
     )
 
 
 def _setting(db: DbSession, user: User) -> PartnerSettingOut:
-    was = user.recovery_partner_ok
-    user.recovery_partner_ok = True  # ask "could a partner approve?" whatever the switch says
-    partner = recovery_svc.partner_for(db, user)
-    user.recovery_partner_ok = was
+    partner = recovery_svc.household_partner(db, user)
     return PartnerSettingOut(
-        on=was and partner is not None,
+        on=partner is not None and user.recovery_partner_id == partner.id,
         possible=partner is not None,
         partner_name=_name(partner) if partner is not None else None,
     )
@@ -313,10 +323,10 @@ def put_partner_setting(
     db: Annotated[DbSession, Depends(get_db)],
 ) -> PartnerSettingOut:
     recovery_svc.hold_if_recovered(caller.user)
-    current = _setting(db, caller.user)
-    if body.on and not current.possible:
+    partner = recovery_svc.household_partner(db, caller.user)
+    if body.on and partner is None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="no_partner")
-    caller.user.recovery_partner_ok = body.on
+    caller.user.recovery_partner_id = partner.id if body.on and partner is not None else None
     record(
         db,
         actor_id=caller.user.id,

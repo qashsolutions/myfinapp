@@ -15,7 +15,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, Uuid
+from sqlalchemy import CheckConstraint, ForeignKey, Index, String, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, StackdRow
@@ -23,7 +23,16 @@ from app.models.base import Base, StackdRow
 
 class AccountRecovery(Base, StackdRow):
     __tablename__ = "account_recoveries"
-    __table_args__ = (CheckConstraint("status IN ('waiting', 'done', 'cancelled')", name="status"),)
+    __table_args__ = (
+        CheckConstraint("status IN ('waiting', 'done', 'cancelled')", name="status"),
+        # One waiting request per account, whatever arrives at once (invariant 74).
+        Index(
+            "uq_account_recoveries_waiting",
+            "user_id",
+            unique=True,
+            postgresql_where=text("status = 'waiting'"),
+        ),
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True
@@ -41,6 +50,11 @@ class AccountRecovery(Base, StackdRow):
     )
     partner_code_hash: Mapped[str | None] = mapped_column(String(64))
     partner_approved_at: Mapped[datetime | None]
+    # The session the partner approved (the one that read out the code): only it may finish
+    # early, and asking again clears the approval.
+    approved_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("sessions.id", ondelete="SET NULL")
+    )
     closed_at: Mapped[datetime | None]
     # cancelled: "passkey" (a passkey check), "owner" (Cancel on a device), "expired"
     closed_reason: Mapped[str | None] = mapped_column(String(16))

@@ -679,15 +679,19 @@ written against both.
     `linked-sync.test.tsx` invariant 66 · `home-visual.test.tsx` "once Budget has pay…"
 74. **Getting back in never outruns the owner** (October 30, 2026). A request to get back in
     without a passkey (`services/recovery.py`) comes only from a locked email-code session of an
-    account that has passkeys, is one at a time, and is ready after 24 hours or when the
-    household partner on the same live plan, chosen in advance, types the code read to them
-    (then for the asking device only). Every passkey check on the account while it waits ends
-    it, and so does Cancel on a signed-in device; another locked session can't cancel it. Only a
-    session that never used a passkey may finish it, so an ordinary "add a passkey" never
-    removes the others; finishing removes every old passkey and ends every other session, and
-    an email-only recovery holds export, email change, bank linking and backup changes for a
-    day (one message, `RECOVERY_HOLD_MESSAGE`). Found in the journey map: an account whose
-    passkeys were all lost had no way back.
+    account that has passkeys, is one at a time (a unique index; every step takes the account's
+    lock), and is ready after 24 hours or when the household partner on the same live plan,
+    the very person chosen, types the code read to them (then for that session only; asking
+    again clears the approval). Every passkey check on the account while it waits ends every
+    waiting request, and so does Cancel on a signed-in device; another locked session can't
+    cancel it. Only a session that never used a passkey and wasn't opened by a phone may finish
+    it, so an ordinary "add a passkey" never removes the others, and a passkey made while the
+    owner cancels is rolled back (409 `recovery_closed`). Finishing removes every old passkey
+    and ends every other session; unless the partner-approved session finishes, export, email
+    change, bank linking, backup changes and the partner choice wait a day (one message,
+    `RECOVERY_HOLD_MESSAGE`). Found in the journey map: an account whose passkeys were all lost
+    had no way back; the review found two requests at once, an approval moving sessions and a
+    cancel racing a new passkey.
     `test_recovery.py` · `authz/test_recovery_routes.py` · `recovery.test.tsx`
 
 59 (again, October 29, 2026). The sweep was repeated on main after #51: every

@@ -2871,15 +2871,10 @@
           "code": {
             "title": "Code",
             "type": "string"
-          },
-          "partner_name": {
-            "title": "Partner Name",
-            "type": "string"
           }
         },
         "required": [
-          "code",
-          "partner_name"
+          "code"
         ],
         "title": "PartnerCodeOut",
         "type": "object"
@@ -3438,16 +3433,10 @@
             "title": "Partner Asked",
             "type": "boolean"
           },
-          "partner_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Partner Name"
+          "partner_available": {
+            "default": false,
+            "title": "Partner Available",
+            "type": "boolean"
           },
           "ready_at": {
             "anyOf": [

@@ -2866,8 +2866,6 @@ export interface components {
         PartnerCodeOut: {
             /** Code */
             code: string;
-            /** Partner Name */
-            partner_name: string;
         };
         /** PartnerSettingIn */
         PartnerSettingIn: {
@@ -3040,8 +3038,11 @@ export interface components {
              * @default false
              */
             partner_asked: boolean;
-            /** Partner Name */
-            partner_name?: string | null;
+            /**
+             * Partner Available
+             * @default false
+             */
+            partner_available: boolean;
             /** Ready At */
             ready_at?: string | null;
             /**

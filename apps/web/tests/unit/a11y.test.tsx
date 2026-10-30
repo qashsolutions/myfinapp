@@ -235,7 +235,7 @@ describe("accessibility (axe-core)", () => {
         session: readySession({ locked: true, passkey_verified_at: null }),
       });
       api.recovery.status = status;
-      api.recovery.partner_name = "Asha";
+      api.recovery.partner_available = true;
       api.recovery.partner_asked = status === "waiting";
       await check("/", async () => {
         if (status === "none") {

@@ -40,21 +40,24 @@ describe("Getting back in without a passkey", () => {
     expect(api.recovery.status).toBe("none");
   });
 
-  it("asks the partner on the same plan: a code to read out, then waits for them", async () => {
+  it("asks the partner on the same plan, never by name: a code to read out", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: emailOnly() });
-    api.recovery.partner_name = "Asha";
+    api.recovery.partner_available = true;
     renderApp("/");
     await user.click(await screen.findByRole("button", { name: "Lost your passkeys?" }));
     expect(
-      await screen.findByText("Asha can let you in now, from their Qash."),
+      await screen.findByText("Your partner can let you in now, from their Qash."),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Ask Asha to let me in" }));
-    expect(await screen.findByText("Read this code to Asha:")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Ask my partner to let me in" }));
+    expect(await screen.findByText("Read this code to your partner:")).toBeInTheDocument();
     expect(screen.getByText(`${RECOVERY_CODE.slice(0, 3)} ${RECOVERY_CODE.slice(3)}`)).toHaveClass(
       "recover__code",
     );
     expect(screen.getByText(/goes to Me, then Household, and types it in/)).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("Asha");
+    // A reload keeps the code read out
+    expect(sessionStorage.getItem("qash.recovery_code")).toBe(RECOVERY_CODE);
     // "I found my passkey" cancels and goes back to Unlock
     await user.click(screen.getByRole("button", { name: "I found my passkey" }));
     expect(await screen.findByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();

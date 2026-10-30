@@ -296,7 +296,7 @@ export interface FakeApi {
   recovery: {
     status: "none" | "waiting" | "ready";
     ready_at: string | null;
-    partner_name: string | null;
+    partner_available: boolean;
     partner_asked: boolean;
     /** Requests this person's partner asked them to approve (the partner's side). */
     asked: Array<{ id: string; name: string; device_label: string; asked_at: string }>;
@@ -484,7 +484,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     recovery: {
       status: "none",
       ready_at: null,
-      partner_name: null,
+      partner_available: false,
       partner_asked: false,
       asked: [],
       setting: { on: false, possible: false, partner_name: null },
@@ -644,7 +644,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     const recOut = () => ({
       status: rec.status,
       ready_at: rec.ready_at,
-      partner_name: rec.partner_name,
+      partner_available: rec.partner_available,
       partner_asked: rec.partner_asked,
     });
     if (method === "GET" && path === "/api/auth/recovery") return json(recOut());
@@ -658,13 +658,13 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       return json(recOut());
     }
     if (method === "POST" && path === "/api/auth/recovery/partner") {
-      if (!rec.partner_name) return json({ detail: "no_partner" }, 409);
+      if (!rec.partner_available) return json({ detail: "no_partner" }, 409);
       if (rec.status === "none") {
         rec.status = "waiting";
         rec.ready_at = new Date(Date.now() + 24 * 3600_000).toISOString();
       }
       rec.partner_asked = true;
-      return json({ code: RECOVERY_CODE, partner_name: rec.partner_name });
+      return json({ code: RECOVERY_CODE });
     }
     if (method === "POST" && path === "/api/auth/recovery/cancel") {
       rec.status = "none";

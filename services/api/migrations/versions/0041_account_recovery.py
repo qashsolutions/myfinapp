@@ -1,9 +1,9 @@
-"""account_recoveries, users.recovery_partner_ok and recovered_at, sessions ended 'recovered'
+"""account_recoveries, users.recovery_partner_id and recovered_at, sessions ended 'recovered'
 (October 30, 2026)
 
 Getting back in without a passkey (owner decision, October 30, 2026; invariant 74): a request
-that is ready after 24 hours or when the household partner approves; the person's choice to let
-their partner approve; when an email-only recovery last finished (a day's hold on the most
+that is ready after 24 hours or when the household partner approves; the partner the person lets
+approve; when an email-only recovery last finished (a day's hold on the most
 sensitive actions); and the reason a session ends when a recovery finishes.
 
 Revision ID: 0041
@@ -54,6 +54,7 @@ def upgrade() -> None:
         sa.Column("partner_id", sa.Uuid(), nullable=True),
         sa.Column("partner_code_hash", sa.String(64), nullable=True),
         sa.Column("partner_approved_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("approved_session_id", sa.Uuid(), nullable=True),
         sa.Column("closed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("closed_reason", sa.String(16), nullable=True),
         sa.CheckConstraint(
@@ -72,6 +73,12 @@ def upgrade() -> None:
             ondelete="SET NULL",
         ),
         sa.ForeignKeyConstraint(
+            ["approved_session_id"],
+            ["sessions.id"],
+            name=op.f("fk_account_recoveries_approved_session_id_sessions"),
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
             ["partner_id"],
             ["users.id"],
             name=op.f("fk_account_recoveries_partner_id_users"),
@@ -82,10 +89,14 @@ def upgrade() -> None:
     op.create_index(
         op.f("ix_account_recoveries_user_id"), "account_recoveries", ["user_id"], unique=False
     )
-    op.add_column(
-        "users",
-        sa.Column("recovery_partner_ok", sa.Boolean(), server_default=sa.false(), nullable=False),
+    op.create_index(
+        "uq_account_recoveries_waiting",
+        "account_recoveries",
+        ["user_id"],
+        unique=True,
+        postgresql_where=sa.text("status = 'waiting'"),
     )
+    op.add_column("users", sa.Column("recovery_partner_id", sa.Uuid(), nullable=True))
     op.add_column("users", sa.Column("recovered_at", sa.DateTime(timezone=True), nullable=True))
     op.drop_constraint(op.f("ck_sessions_ended_reason"), "sessions", type_="check")
     op.create_check_constraint(op.f("ck_sessions_ended_reason"), "sessions", NEW)
@@ -96,6 +107,7 @@ def downgrade() -> None:
     op.drop_constraint(op.f("ck_sessions_ended_reason"), "sessions", type_="check")
     op.create_check_constraint(op.f("ck_sessions_ended_reason"), "sessions", OLD)
     op.drop_column("users", "recovered_at")
-    op.drop_column("users", "recovery_partner_ok")
+    op.drop_column("users", "recovery_partner_id")
+    op.drop_index("uq_account_recoveries_waiting", table_name="account_recoveries")
     op.drop_index(op.f("ix_account_recoveries_user_id"), table_name="account_recoveries")
     op.drop_table("account_recoveries")

@@ -9,8 +9,9 @@ actions for a day.
 
 from __future__ import annotations
 
+import threading
 import uuid
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -171,11 +172,11 @@ def test_a_partner_on_the_same_household_plan_approves_at_once() -> None:
     assert r.json()["on"] is True
 
     lost = _lost_device(ben_email)
-    assert lost.get("/api/auth/recovery").json()["partner_name"] == "Asha"
+    assert lost.get("/api/auth/recovery").json()["partner_available"] is True
     r = lost.post("/api/auth/recovery/partner")
     assert r.status_code == 200, r.text
     code = r.json()["code"]
-    assert r.json()["partner_name"] == "Asha"
+    assert "Your household partner was asked to let you back in" in _subjects(ben_email)
 
     asked = asha.get("/api/household/recovery").json()
     assert [a["name"] for a in asked] == ["Ben"]
@@ -184,6 +185,7 @@ def test_a_partner_on_the_same_household_plan_approves_at_once() -> None:
     assert asha.post("/api/household/recovery/approve", json={"code": wrong}).status_code == 400
     assert asha.post("/api/household/recovery/approve", json={"code": code}).status_code == 200
     assert asha.get("/api/household/recovery").json() == []
+    assert "Your household partner let you back in" in _subjects(ben_email)
 
     # Ready for the device Ben is holding only, not another one signed in with his email
     other = _lost_device(ben_email)
@@ -210,14 +212,14 @@ def test_no_partner_unless_both_are_on_the_households_one_plan() -> None:
     # The household splits: Asha is no longer his partner on one plan
     assert asha.post("/api/household/leave").status_code in (200, 204)
     lost = _lost_device(ben_email)
-    assert lost.get("/api/auth/recovery").json()["partner_name"] is None
+    assert lost.get("/api/auth/recovery").json()["partner_available"] is False
     assert lost.post("/api/auth/recovery/partner").json()["detail"] == "no_partner"
 
 
 def test_not_opted_in_means_no_partner_route() -> None:
     _, (ben, _, ben_email, _) = _couple()
     lost = _lost_device(ben_email)
-    assert lost.get("/api/auth/recovery").json()["partner_name"] is None
+    assert lost.get("/api/auth/recovery").json()["partner_available"] is False
     assert lost.post("/api/auth/recovery/partner").json()["detail"] == "no_partner"
 
 
@@ -230,3 +232,122 @@ def test_a_request_closes_after_its_week_to_finish() -> None:
     with get_session_factory()() as db:
         row = db.scalars(select(AccountRecovery).where(AccountRecovery.user_id == uid)).one()
         assert (row.status, row.closed_reason) == ("cancelled", "expired")
+
+
+# --- From the independent review (October 30, 2026) -------------------------------------------
+
+
+def _waiting_rows(uid: uuid.UUID) -> int:
+    with get_session_factory()() as db:
+        return len(
+            db.scalars(
+                select(AccountRecovery).where(
+                    AccountRecovery.user_id == uid, AccountRecovery.status == "waiting"
+                )
+            ).all()
+        )
+
+
+def test_requests_sent_at_once_make_one_and_the_owners_passkey_ends_it() -> None:
+    phone, key, email, uid = _person("Asha")
+    devices = [_lost_device(email) for _ in range(4)]
+    barrier = threading.Barrier(len(devices))
+
+    def go(client) -> None:
+        barrier.wait()
+        client.post("/api/auth/recovery")
+
+    threads = [threading.Thread(target=go, args=(c,)) for c in devices]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert _waiting_rows(uid) == 1
+    assert_passkey(phone, key)  # the owner unlocks once
+    assert _waiting_rows(uid) == 0
+    _age(uid)
+    for c in devices:
+        assert c.get("/api/auth/recovery").json()["status"] == "none"
+        assert c.post("/api/security/passkeys/register/options").status_code != 200
+
+
+def test_an_approval_never_moves_to_another_session() -> None:
+    (asha, asha_key, _, _), (ben, _, ben_email, ben_id) = _couple()
+    assert ben.put("/api/account/recovery-partner", json={"on": True}).status_code == 200
+    lost = _lost_device(ben_email)
+    code = lost.post("/api/auth/recovery/partner").json()["code"]
+    assert_passkey(asha, asha_key, purpose="step_up")
+    assert asha.post("/api/household/recovery/approve", json={"code": code}).status_code == 200
+    # Someone else with Ben's email asks the partner again: a new code, and the approval is
+    # gone; their session is not let in
+    attacker = _lost_device(ben_email)
+    assert attacker.post("/api/auth/recovery/partner").status_code == 200
+    assert attacker.get("/api/auth/recovery").json()["status"] == "waiting"
+    assert attacker.post("/api/security/passkeys/register/options").status_code != 200
+    assert lost.get("/api/auth/recovery").json()["status"] == "waiting"  # Ben asks again
+    assert _passkeys(ben_id) == 1
+    # And after the 24 hours, whoever finishes without the partner's approval gets the hold
+    _age(ben_id)
+    register_passkey(attacker, FakeAuthenticator())
+    with get_session_factory()() as db:
+        user = db.get(User, ben_id)
+        assert user is not None and user.recovered_at is not None
+
+
+def test_the_owner_using_a_passkey_while_one_is_made_undoes_it(monkeypatch) -> None:
+    from app.services import webauthn as webauthn_svc
+
+    phone, key, email, uid = _person("Asha")
+    lost = _lost_device(email)
+    lost.post("/api/auth/recovery")
+    _age(uid)
+    real = webauthn_svc.verify_registration
+
+    def owner_unlocks_meanwhile(*args, **kwargs):
+        row = real(*args, **kwargs)
+        assert_passkey(phone, key)  # the owner unlocks at that moment, in its own transaction
+        return row
+
+    monkeypatch.setattr(webauthn_svc, "verify_registration", owner_unlocks_meanwhile)
+    r = lost.post("/api/security/passkeys/register/options")
+    assert r.status_code == 200, r.text
+    credential = FakeAuthenticator().register(r.json()["options"])
+    r = lost.post("/api/security/passkeys/register/verify", json={"credential": credential})
+    assert r.status_code == 409 and r.json()["detail"] == "recovery_closed"
+    assert _passkeys(uid) == 1  # only the owner's
+    assert lost.get("/api/auth/session").json()["locked"] is True
+    assert phone.get("/api/auth/session").json()["authenticated"] is True
+
+
+def test_the_choice_of_partner_is_one_person_not_any_household() -> None:
+    (asha, _, _, _), (ben, _, ben_email, _) = _couple()
+    assert ben.put("/api/account/recovery-partner", json={"on": True}).status_code == 200
+    assert asha.post("/api/household/leave").status_code in (200, 204)
+    ben.post("/api/household/leave")  # a household of one: he leaves it too
+    carol, _, _, _ = _person("Carol")
+    assert carol.post("/api/billing/trial", json={"plan": "connected"}).status_code == 200
+    household(carol, ben)
+    # Carol is Ben's partner now, but he chose Asha: he must choose again
+    assert ben.get("/api/account/recovery-partner").json() == {
+        "on": False,
+        "possible": True,
+        "partner_name": "Carol",
+    }
+    lost = _lost_device(ben_email)
+    assert lost.post("/api/auth/recovery/partner").json()["detail"] == "no_partner"
+
+
+def test_a_device_opened_by_link_with_your_phone_is_never_a_recovery() -> None:
+    with get_session_factory()() as db:
+        from app.models.session import Session as Row
+        from app.services import recovery as recovery_svc
+
+        row = Row(
+            user_id=uuid.uuid4(),
+            token_hash="x",
+            device_label="Chrome on Mac",
+            last_seen_at=datetime.now(UTC),
+            expires_at=datetime.now(UTC),
+            link_unlocked_at=datetime.now(UTC),
+        )
+        assert recovery_svc.may_add_passkey(db, row.user_id, row) is False

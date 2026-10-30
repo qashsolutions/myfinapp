@@ -102,15 +102,16 @@ def _webauthn_error(exc: webauthn_svc.WebauthnError) -> HTTPException:
     return HTTPException(status.HTTP_400_BAD_REQUEST, detail=exc.code)
 
 
-def _may_register(request: Request, caller: Caller, db: DbSession) -> None:
+def _may_register(request: Request, caller: Caller, db: DbSession) -> bool:
     """The first passkey is part of sign-up (the email code is the proof). Any later one needs an
     unlocked session and a fresh passkey check, or a stolen cookie, even a locked one, could enrol
-    its own passkey and come out unlocked and step-up fresh."""
+    its own passkey and come out unlocked and step-up fresh. -> True when it is allowed only
+    because a recovery is ready for this session (invariant 74)."""
     if caller.principal.has_passkeys:
-        # Every passkey lost, and a recovery is ready for this session (invariant 74).
         if recovery_svc.may_add_passkey(db, caller.user.id, caller.session):
-            return
+            return True
         require_step_up(require_unlocked(request, caller, db))
+    return False
 
 
 @router.post("/passkeys/register/options")
@@ -135,7 +136,7 @@ def register_verify(
     request: Request,
     db: Annotated[DbSession, Depends(get_db)],
 ) -> PasskeyOut:
-    _may_register(request, caller, db)
+    recovering = _may_register(request, caller, db)
     ip = client_ip(request)
     label = body.label or _default_passkey_label(request.headers.get("user-agent"))
     try:
@@ -147,7 +148,12 @@ def register_verify(
         raise _webauthn_error(exc) from exc
     # A recovery ready for this session ends here: the old passkeys go, other devices are
     # signed out (invariant 74).
-    recovered = recovery_svc.finish(db, caller.user, caller.session, row.id)
+    recovered = recovery_svc.finish(db, caller.user, caller.session, row.id) if recovering else None
+    if recovering and recovered is None:
+        # The request closed while the passkey was being made (the owner used theirs): the new
+        # passkey is undone, never kept beside the owner's.
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="recovery_closed")
     sessions_svc.mark_passkey_verified(caller.session)
     record(
         db,

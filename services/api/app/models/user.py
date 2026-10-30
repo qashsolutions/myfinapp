@@ -71,9 +71,10 @@ class User(Base, StackdRow):
     # subscription whose dispute this person stays paused for, until it closes.
     household_paused_by: Mapped[uuid.UUID | None]
     # Getting back in without a passkey (owner decision, October 30, 2026; migration 0041): the
-    # person lets their household partner, on the same household plan, approve it; and when an
-    # email-only recovery last finished, which holds the most sensitive actions for a day.
-    recovery_partner_ok: Mapped[bool] = mapped_column(default=False, server_default=false())
+    # partner this person lets approve it (that person only, while both share the household's
+    # one plan); and when an email-only recovery last finished, which holds the most sensitive
+    # actions for a day.
+    recovery_partner_id: Mapped[uuid.UUID | None]
     recovered_at: Mapped[datetime | None]
     # Tester tools (owner decision, October 18, 2026; migration 0022): the plan an admin chose to
     # test with, free of charge. Ignored unless the account's email is in STACKD_ADMIN_EMAILS.
