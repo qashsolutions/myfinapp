@@ -463,3 +463,31 @@ def _race_finish_against_owner() -> None:
 def test_finishing_and_the_owners_passkey_at_once_never_deadlock() -> None:
     for _ in range(3):
         _race_finish_against_owner()
+
+
+def test_a_passkey_sign_in_racing_a_finish_is_a_plain_unknown_passkey(monkeypatch) -> None:
+    """Final review: sign-in read the passkey, then waited on the lock while a recovery removed
+    it, and answered 500. It reads it again under the lock."""
+    from app.services import account_lock
+    from app.services import webauthn as webauthn_svc
+
+    phone, key, email, uid = _person("Asha")
+    lost = _lost_device(email)
+    lost.post("/api/auth/recovery")
+    _age(uid)
+    other = new_client()
+    r = other.post("/api/auth/passkey/options")
+    assertion = key.assert_(r.json()["options"], key.credential_ids[0])
+    real = account_lock.lock_account
+    done = {"finished": False}
+
+    def finish_first(db, user_id):
+        if not done["finished"]:
+            done["finished"] = True
+            register_passkey(lost, FakeAuthenticator())  # its own transaction, committed
+        real(db, user_id)
+
+    monkeypatch.setattr(webauthn_svc, "lock_account", finish_first)
+    r = other.post("/api/auth/passkey/verify", json={"credential": assertion})
+    assert r.status_code == 400 and r.json()["detail"] == "unknown_credential"
+    assert _passkeys(uid) == 1

@@ -309,6 +309,12 @@ def verify_signin(
         # The account's lock before any write to its passkey or sessions: a passkey sign-in
         # cancels a recovery, which takes the same lock first (invariant 74).
         lock_account(db, user.id)
+        # Read again under the lock: a recovery that finished meanwhile removed it.
+        cred = db.scalars(
+            select(WebauthnCredential)
+            .where(WebauthnCredential.credential_id == raw_id)
+            .execution_options(populate_existing=True)
+        ).first()
     if cred is None or user is None or user.deleted_at is not None:
         db.flush()
         raise WebauthnError("unknown_credential")
