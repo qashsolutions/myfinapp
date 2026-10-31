@@ -59,6 +59,7 @@ export interface Billing {
   interval: string | null;
   ends_at: string | null;
   payment_pending?: boolean;
+  foreign_card_refused?: boolean;
   founding: { left: number };
   entitlements: { access?: { state?: string } };
 }

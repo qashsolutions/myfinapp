@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { activeTab } from "../../src/app/tabs.ts";
 import { installFakeApi, readySession } from "../fakeApi.ts";
@@ -7,6 +7,8 @@ import { setViewportWidth, setWideViewport } from "../setup.ts";
 
 beforeEach(() => {
   installFakeApi({ session: readySession() });
+  // A title left by the screen before must never pass for this one's (CI, October 30, 2026).
+  document.title = "";
 });
 
 async function renderAt(path: string) {
@@ -60,7 +62,10 @@ describe("App shell on a phone", () => {
   it("moves between tabs, updates the title, and focuses main", async () => {
     const user = userEvent.setup();
     await renderAt("/");
-    expect(document.title).toMatch(/^Good (morning|afternoon|evening) · Qash$/);
+    // Home names itself once its cards are ready, a moment after the shell.
+    await waitFor(() =>
+      expect(document.title).toMatch(/^Good (morning|afternoon|evening) · Qash$/),
+    );
     await user.click(screen.getByRole("link", { name: "Budget" }));
     expect(screen.getByRole("heading", { level: 1, name: "Budget" })).toBeInTheDocument();
     expect(document.title).toBe("Budget · Qash");

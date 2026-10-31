@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { readyAccount } from "../e2e/helpers.ts";
 import {
   answer3ds,
@@ -141,33 +141,82 @@ test("A3b late in the trial (30 hours left): $0 today, the first charge on the t
   expect(sub.default_payment_method).toBeTruthy();
 });
 
-// Every Stripe test card that triggers 3-D Secure is issued outside the US, so with the
-// US-only Radar rule on, "a US card passes the check and pays" can't run in test mode. These
-// check what does happen: the bank's check is shown, and a non-US card is refused either way.
-for (const answer of ["Complete", "Fail"] as const) {
-  test(`A6 a non-US card the bank checks: refused even when the check is ${answer === "Complete" ? "passed" : "failed"}`, async ({
+// Live runs Radar Lite, which has no custom rules (owner, October 30, 2026), so a card issued
+// outside the US gets through Stripe's page and Qash refuses it after the payment (invariant
+// 75): no plan, the subscription ended, every charge back in full, one email, and the Plan
+// screen says why. The test sandbox matches: no `card_country` Radar rule there.
+async function refusedAbroad(page: Page, email: string): Promise<void> {
+  await backFromStripe(page);
+  const b = await waitForPlan(
     page,
-  }) => {
-    const email = await lapsedAccount(page, `a6${answer.toLowerCase()}`);
-    await toCheckout(page, "Private", "Monthly");
-    await payByCard(page, CARDS.threeDs);
-    await answer3ds(page, answer);
-    await stripeSays(page, /declined|unable to authenticate/i);
-    expect((await billing(page)).plan).toBe("free");
-    const customer = customerOf(email);
-    if (customer) {
-      const charges = await stripe("GET", "/charges", { customer });
-      expect((charges.data ?? []).filter((c) => c.status === "succeeded")).toEqual([]);
-    }
-  });
+    (x) => x.foreign_card_refused === true,
+    "the purchase refused for its card",
+  );
+  expect(b.plan).toBe("free");
+  await page.reload();
+  await expect(page.getByText("Your plan didn't start")).toBeVisible();
+  const customer = customerOf(email);
+  const subs = await stripe("GET", "/subscriptions", { customer, status: "all" });
+  expect((subs.data ?? []).map((s) => s.status)).toEqual(["canceled"]);
+  const charges = await stripe("GET", "/charges", { customer });
+  const paid = (charges.data ?? []).filter((c) => c.status === "succeeded");
+  expect(paid.length).toBe(1);
+  for (const c of paid) expect(c.amount_refunded).toBe(c.amount);
+  expect(subjectsTo(email).filter((x) => x === "Your Qash plan didn't start")).toHaveLength(1);
 }
 
-test("A7 a card issued outside the US is refused", async ({ page }) => {
-  await lapsedAccount(page, "a7");
+test("A7 a card issued outside the US: no plan, refunded in full, told why", async ({ page }) => {
+  const email = await lapsedAccount(page, "a7");
   await toCheckout(page, "Private", "Monthly");
   await payByCard(page, CARDS.brazil);
-  await stripeSays(page, /declined|not supported|can't be used/i);
+  await refusedAbroad(page, email);
+});
+
+// Every Stripe test card that asks for 3-D Secure is issued outside the US (this one in
+// Ireland): passed, the payment goes through and Qash refunds it; failed, nothing is taken.
+test("A6 a non-US card the bank checks and passes: paid, then refused and refunded", async ({
+  page,
+}) => {
+  const email = await lapsedAccount(page, "a6complete");
+  await toCheckout(page, "Private", "Monthly");
+  await payByCard(page, CARDS.threeDs);
+  await answer3ds(page, "Complete");
+  await refusedAbroad(page, email);
+});
+
+test("A6 a non-US card the bank checks and fails: nothing charged, no plan", async ({ page }) => {
+  const email = await lapsedAccount(page, "a6fail");
+  await toCheckout(page, "Private", "Monthly");
+  await payByCard(page, CARDS.threeDs);
+  await answer3ds(page, "Fail");
+  await stripeSays(page, /declined|unable to authenticate/i);
   expect((await billing(page)).plan).toBe("free");
+  const customer = customerOf(email);
+  if (customer) {
+    const charges = await stripe("GET", "/charges", { customer });
+    expect((charges.data ?? []).filter((c) => c.status === "succeeded")).toEqual([]);
+  }
+});
+
+test("A7 Founding with a card from outside the US: no place taken, refunded in full", async ({
+  page,
+}) => {
+  const email = await lapsedAccount(page, "a7f");
+  await page.goto("/me/plan");
+  const before = (await billing(page)).founding.left;
+  await toCheckout(page, "Founding member");
+  await payByCard(page, CARDS.brazil);
+  await backFromStripe(page);
+  const b = await waitForPlan(page, (x) => x.foreign_card_refused === true, "refused Founding");
+  expect(b.plan).toBe("free");
+  expect(b.founding.left).toBe(before);
+  const intent = sql(
+    `SELECT s.external_id FROM subscriptions s JOIN users u ON u.id = s.user_id
+     WHERE u.email = ${quote(email)} AND s.plan = 'founding'`,
+  );
+  const refunds = await stripe("GET", "/refunds", { payment_intent: intent });
+  expect((refunds.data ?? []).map((r) => r.amount)).toEqual([15000]);
+  expect(subjectsTo(email)).toContain("Your Qash plan didn't start");
 });
 
 test("A8 leaving Stripe's page: back on the Plan screen, nothing charged", async ({ page }) => {

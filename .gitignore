@@ -41,3 +41,6 @@ apps/web/test-results/
 apps/web/playwright-report/
 apps/web/test-results-payments/
 apps/web/playwright-report-payments/
+
+# Owner-only notes kept on this Mac, never committed (Stripe go-live record, October 30, 2026)
+/ops-private/

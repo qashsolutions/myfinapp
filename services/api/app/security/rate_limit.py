@@ -58,7 +58,7 @@ LIMITS: dict[str, Limit] = {
     "device_link_start": Limit("device_link_start", 3, timedelta(hours=1)),
     "device_link_status": Limit("device_link_status", 150, timedelta(minutes=10)),
     "device_link_lookup": Limit("device_link_lookup", 10, timedelta(minutes=15)),
-    # Getting back in without a passkey (October 30, 2026; proposed, awaiting owner sign-off):
+    # Getting back in without a passkey (October 30, 2026; signed off by the owner the same day):
     # each start and each partner request emails and pushes the account, so a few a day per
     # device and, since one person can sign in on many devices, per account too; the partner's
     # code checks are limited per device, and each code stops working after 5 wrong tries

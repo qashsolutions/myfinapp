@@ -698,13 +698,32 @@ written against both.
     signed-in device; only the locked session that started it may also cancel, decided under
     the lock, and a cancel that finds nothing waiting says nothing. Only a session that never used a passkey and wasn't opened by a phone may finish
     it, so an ordinary "add a passkey" never removes the others, and a passkey made while the
-    owner cancels is rolled back (409 `recovery_closed`). Finishing removes every old passkey
+    owner cancels is rolled back (409 `recovery_closed`), and one tried after the owner cancelled
+    is answered the same (`recovery.closed_for`), whichever order they come in. Finishing removes every old passkey
     and ends every other session; unless the partner-approved session finishes, export, email
     change, bank linking, backup changes and the partner choice wait a day (one message,
     `RECOVERY_HOLD_MESSAGE`). Found in the journey map: an account whose passkeys were all lost
     had no way back; the review found two requests at once, an approval moving sessions and a
     cancel racing a new passkey.
     `test_recovery.py` · `authz/test_recovery_routes.py` · `recovery.test.tsx`
+75. **Only a card from a US bank starts a plan** (October 30, 2026; owner decision October 17,
+    2026). Prices in dollars don't keep other cards out, and Radar Lite has no custom rules, so
+    before any web plan starts the webhook reads the payer's country from the payment method
+    (`stripe_billing.payer_country`: a one-time payment's, else the subscription's default,
+    which a trial that charges nothing still has; a US bank account is US). A known country
+    other than the US refuses the purchase through the same path as a second plan
+    (`_refuse_purchase`, `first_payment` `foreign_card`), whichever event comes first (a
+    subscription first announced `incomplete` is checked, with the second-plan and deletion
+    checks, when it turns live): the
+    subscription ends at once, anything taken comes back in full under its own tag, once, a
+    Founding place is never taken, the person is emailed once and the Plan screen asks for a
+    US card (`BillingOut.foreign_card_refused`). Link's method names no country, so its charge's
+    is read (the card or bank behind it); a country no one names (a trial through Link, nothing
+    charged yet) lets it through and
+    is logged; a Stripe outage keeps nothing so Stripe sends the event again. Every request
+    names `STRIPE_VERSION`, the live endpoint's version. Found in the go-live review: the
+    Radar rule the spec named needs a paid Radar plan.
+    `test_us_cards.py` · `billing.test.tsx` · `e2e-payments/checkout.spec.ts`
 
 59 (again, October 29, 2026). The sweep was repeated on main after #51: every
 `db.transaction(...)` body in `apps/web/src` (47) was read for awaits of anything but Dexie,

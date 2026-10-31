@@ -549,6 +549,17 @@ export function PlanScreen() {
           </Link>
         </div>
       ) : null}
+      {billing.foreign_card_refused ? (
+        <div className="plan-alert" role="status">
+          <p className="plan-alert__title">Your plan didn't start</p>
+          <p>
+            Qash takes credit or debit cards issued by a US bank (Visa, Mastercard, Amex or
+            Discover) or a US bank account. The card you used was issued outside the US, so anything
+            charged has been refunded in full. Choose your plan again with a US card or bank
+            account.
+          </p>
+        </div>
+      ) : null}
       {billing.payment_pending ? (
         <div className="plan-alert" role="status">
           <p className="plan-alert__title">Your bank payment is on its way</p>

@@ -84,12 +84,35 @@ def active_subscription(
     return None
 
 
+# A purchase refused and refunded in full before it ever started: a second plan paid beside a
+# live one (`refused`, October 29, 2026; invariant 41), or one paid with a card issued outside
+# the US (`foreign_card`, October 30, 2026; invariant 75). Kept in `first_payment`.
+FOREIGN_CARD = "foreign_card"
+REFUSED = ("refused", FOREIGN_CARD)
+
+
 def never_started(row: Subscription) -> bool:
     """A purchase whose money never arrived (a first bank debit that failed, or a Founding
-    place given back, `expired`), or that was refunded in full as a second plan (`refused`).
+    place given back, `expired`), or that was refunded in full when refused (`REFUSED`).
     It leaves the account where it was (October 28, 2026)."""
-    return row.first_payment in ("failed", "refused") or (
+    return row.first_payment in ("failed", *REFUSED) or (
         row.plan == "founding" and row.status == "expired"
+    )
+
+
+def foreign_card_refused(db: DbSession, user_id: uuid.UUID, *, now: datetime | None = None) -> bool:
+    """The person's latest web purchase, in the last two weeks, was refused because its card
+    was issued outside the US (invariant 75): the Plan screen says why and asks for a US card.
+    A later purchase, refused or not, takes its place."""
+    since = (now or datetime.now(UTC)) - timedelta(days=14)
+    latest = db.scalar(
+        select(Subscription)
+        .where(Subscription.user_id == user_id, Subscription.source == "stripe")
+        .order_by(Subscription.created_at.desc())
+        .limit(1)
+    )
+    return (
+        latest is not None and latest.first_payment == FOREIGN_CARD and latest.created_at >= since
     )
 
 
