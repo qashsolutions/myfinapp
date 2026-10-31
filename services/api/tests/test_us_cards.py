@@ -259,3 +259,32 @@ def test_every_request_names_the_pinned_api_version() -> None:
     stripe_billing.transport_override = httpx2.MockTransport(handle)
     assert stripe_billing.payer_country(payment_intent="pi_x") == "US"
     assert seen and set(seen) == {"2026-09-30.endive"}
+
+
+@pytest.mark.parametrize("why", ["foreign_card", "second_plan"])
+def test_a_subscription_first_announced_incomplete_is_checked_when_it_turns_active(
+    stripe: Cards, why: str
+) -> None:
+    """Review of #62: Stripe may announce a subscription `incomplete` (a payment being
+    confirmed), then `active`. The checks run on that start too, or the plan would be granted
+    until the checkout event arrives (invariants 41 and 75)."""
+    if why == "second_plan":
+        client, user_id, _ = _bought("incsecond", stripe)
+        sub = "sub_b_incsecond"
+        stripe.subscription(sub, user_id, "connected", "yearly")
+        stripe.pays_with(sub, US_CARD)
+        stripe.paid(sub, 6500)
+        before = "private"
+    else:
+        client, user_id, sub = _new("incforeign", stripe, CANADA)
+        before = _state(client)["plan"]
+    method = stripe.methods[f"pm_{sub}"]
+    started = stripe.subs[sub] | {"default_payment_method": method}
+    created = post_event(
+        client, _event("customer.subscription.created", started | {"status": "incomplete"})
+    )
+    assert created.status_code == 200, created.text
+    r = post_event(client, _event("customer.subscription.updated", started | {"status": "active"}))
+    assert r.json()["outcome"] == why, r.text
+    assert _state(client)["plan"] == before
+    assert stripe.deleted().count(sub) == 1 and len(stripe.refunds) == 1

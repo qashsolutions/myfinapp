@@ -1905,19 +1905,24 @@ def _subscription_event(
     # Stripe calls a subscription active while its first bank debit is still clearing; when its
     # creation arrives before the checkout says so, the first invoice tells (October 25, 2026).
     clearing = row is None and status == "active" and _first_invoice_open(obj)
-    if row is None and status in ("active", "past_due"):
+    # A subscription starting here: new, or first announced `incomplete` (a payment still
+    # being confirmed) and now live (review of #62, October 30, 2026).
+    starting = status in ("active", "past_due") and (
+        row is None or (row.status == "incomplete" and row.first_payment is None)
+    )
+    if starting:
         # A new subscription announced before its checkout (October 29, 2026): the same checks
-        # as the checkout's completion, so neither a deleted account nor a second plan beside
-        # a live one ever starts, whichever event comes first.
+        # as the checkout's completion, so neither a deleted account, a second plan beside a
+        # live one nor a card from outside the US ever starts, whichever event comes first.
         person = db.get(User, user_id)
         customer, invoice = obj.get("customer"), obj.get("latest_invoice")
         if person is None or person.deleted_at is not None:
             return _subscription_after_deletion(
-                db, person, external_id, plan, interval, customer, None, invoice, not clearing, now
+                db, person, external_id, plan, interval, customer, row, invoice, not clearing, now
             )
         if purchase_conflict(db, user_id, plan, exclude=external_id):
             return _refuse_purchase(
-                db, person, external_id, plan, interval, customer, None, invoice, True, now
+                db, person, external_id, plan, interval, customer, row, invoice, True, now
             )
         if not clearing and _foreign_payer(subscription=obj):
             return _refuse_purchase(
@@ -1927,7 +1932,7 @@ def _subscription_event(
                 plan,
                 interval,
                 customer,
-                None,
+                row,
                 invoice,
                 True,
                 now,

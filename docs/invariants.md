@@ -711,10 +711,13 @@ written against both.
     (`stripe_billing.payer_country`: a one-time payment's, else the subscription's default,
     which a trial that charges nothing still has; a US bank account is US). A known country
     other than the US refuses the purchase through the same path as a second plan
-    (`_refuse_purchase`, `first_payment` `foreign_card`), whichever event comes first: the
+    (`_refuse_purchase`, `first_payment` `foreign_card`), whichever event comes first (a
+    subscription first announced `incomplete` is checked, with the second-plan and deletion
+    checks, when it turns live): the
     subscription ends at once, anything taken comes back in full under its own tag, once, a
     Founding place is never taken, the person is emailed once and the Plan screen asks for a
-    US card (`BillingOut.foreign_card_refused`). An unknown country (Link) lets it through and
+    US card (`BillingOut.foreign_card_refused`). An unknown country (Link, which carries none,
+    so a foreign card through Link gets in while Link is on) lets it through and
     is logged; a Stripe outage keeps nothing so Stripe sends the event again. Every request
     names `STRIPE_VERSION`, the live endpoint's version. Found in the go-live review: the
     Radar rule the spec named needs a paid Radar plan.
