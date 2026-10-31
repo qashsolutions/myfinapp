@@ -900,26 +900,60 @@ HOME_COUNTRY = "US"
 def payer_country(
     *, payment_intent: str | None = None, subscription: str | dict[str, Any] | None = None
 ) -> str | None:
-    """The country of the card (or bank account) that pays for a purchase, from its payment
-    method: a one-time payment's, else the subscription's default, which Checkout sets even
-    when a trial charges nothing yet. None when Stripe doesn't say (a method with no country,
-    such as Link, or no method found). A Stripe outage raises, so the webhook is sent again."""
+    """The country of the card (or bank account) that pays for a purchase: from its payment
+    method (a one-time payment's, else the subscription's default, which Checkout sets even
+    when a trial charges nothing yet), else from what it charged. Link's method names no
+    country but its charge names the card or bank behind it (October 30, 2026). None when
+    neither says (a trial through Link, nothing charged yet). A Stripe outage raises, so the
+    webhook is sent again."""
+    charge: Any = None
+    invoice: Any = None
     if payment_intent:
-        method = (_get_or_none(f"/payment_intents/{payment_intent}") or {}).get("payment_method")
+        intent = (
+            _get_or_none(f"/payment_intents/{payment_intent}", {"expand[]": "latest_charge"}) or {}
+        )
+        method, charge = intent.get("payment_method"), intent.get("latest_charge")
     else:
         holder = subscription
         if isinstance(holder, str):
             holder = _get_or_none(f"/subscriptions/{holder}")
-        method = (holder or {}).get("default_payment_method")
+        holder = holder or {}
+        method, invoice = holder.get("default_payment_method"), holder.get("latest_invoice")
     if isinstance(method, str) and method:
         method = _get_or_none(f"/payment_methods/{method}")
-    if not isinstance(method, dict):
-        return None
+    if isinstance(method, dict) and (country := _country_of(method)):
+        return country
+    if charge is None and invoice:
+        charge = _first_charge_of(invoice)
+    if isinstance(charge, dict):
+        return _country_of(charge.get("payment_method_details") or {})
+    return None
+
+
+def _country_of(method: dict[str, Any]) -> str | None:
+    """A payment method's (or a charge's method details') country; a US bank account is US."""
     kind = str(method.get("type") or "")
     if kind == "us_bank_account":
         return HOME_COUNTRY
     country = (method.get(kind) or {}).get("country") if kind else None
     return str(country).upper() if country else None
+
+
+def _first_charge_of(invoice: Any) -> dict[str, Any] | None:
+    """The charge that paid a subscription's first invoice, if anything was charged yet."""
+    if isinstance(invoice, dict):
+        invoice = invoice.get("id")
+    if not isinstance(invoice, str) or not invoice:
+        return None
+    found = _get_or_none("/invoice_payments", {"invoice": invoice, "limit": "10"}) or {}
+    for payment in found.get("data") or []:
+        intent = str((payment.get("payment") or {}).get("payment_intent") or "")
+        if payment.get("status") != "paid" or not intent:
+            continue
+        held = _get_or_none(f"/payment_intents/{intent}", {"expand[]": "latest_charge"}) or {}
+        if isinstance(held.get("latest_charge"), dict):
+            return held["latest_charge"]
+    return None
 
 
 def _foreign_payer(

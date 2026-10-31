@@ -32,6 +32,7 @@ class Cards(Stripe):
         super().__init__()
         self.methods: dict[str, dict] = {}
         self.intent_methods: dict[str, str] = {}
+        self.charge_details: dict[str, dict] = {}  # payment intent -> its charge's method details
         self.down = False  # Stripe unreachable for payment methods
 
     def pays_with(self, sub_id: str, method: dict) -> None:
@@ -54,6 +55,12 @@ class Cards(Stripe):
             if path.startswith("/v1/payment_intents/") and response.status_code == 200:
                 body = response.json()
                 body["payment_method"] = self.intent_methods.get(body["id"])
+                if body["id"] in self.charge_details and isinstance(
+                    body.get("latest_charge"), dict
+                ):
+                    body["latest_charge"]["payment_method_details"] = self.charge_details[
+                        body["id"]
+                    ]
                 return httpx2.Response(200, json=body)
             return response
 
@@ -289,3 +296,65 @@ def test_a_subscription_first_announced_incomplete_is_checked_when_it_turns_acti
     assert r.json()["outcome"] == why, r.text
     assert _state(client)["plan"] == before
     assert stripe.deleted().count(sub) == 1 and len(stripe.refunds) == 1
+
+
+LINKED = {
+    "CA": {"type": "link", "link": {"country": "CA"}},
+    "US": {"type": "link", "link": {"country": "US"}},
+}
+
+
+@pytest.mark.parametrize(("country", "outcome"), [("CA", "foreign_card"), ("US", "subscribed")])
+def test_link_is_judged_by_the_country_of_what_it_charged(
+    stripe: Cards, country: str, outcome: str
+) -> None:
+    """Link's payment method names no country, but its charge does (the card or bank behind
+    it): a purchase charged at once through Link is checked like any card (October 30, 2026)."""
+    client, user_id, sub = _new(f"link{country.lower()}", stripe, LINK)
+    stripe.charge_details[f"pi_{sub}"] = LINKED[country]
+    r = post_event(
+        client,
+        _event("checkout.session.completed", _checkout(sub, user_id, "private", "monthly")),
+    )
+    assert r.json()["outcome"] == outcome, r.text
+    assert (_state(client)["plan"] == "private") is (outcome == "subscribed")
+
+
+def test_a_founding_payment_through_link_from_outside_the_us_is_refused(stripe: Cards) -> None:
+    client, user_id = member("foundinglink")
+    stripe.charges.append(
+        {
+            "id": "ch_fl",
+            "customer": "cus_fl",
+            "payment_intent": "pi_fl",
+            "amount": 15000,
+            "amount_refunded": 0,
+            "status": "succeeded",
+            "created": NOW,
+            "method": "link",
+        }
+    )
+    stripe.methods["pm_fl"] = {"id": "pm_fl", **LINK}
+    stripe.intent_methods["pi_fl"] = "pm_fl"
+    stripe.charge_details["pi_fl"] = LINKED["CA"]
+    founding = {
+        "id": "cs_fl",
+        "mode": "payment",
+        "payment_status": "paid",
+        "client_reference_id": user_id,
+        "customer": "cus_fl",
+        "payment_intent": "pi_fl",
+        "metadata": {"user_id": user_id, "plan": "founding"},
+    }
+    r = post_event(client, _event("checkout.session.completed", founding))
+    assert r.json()["outcome"] == "foreign_card"
+    assert stripe.refunded() == [("pi_fl", 15000, "foreign_card:pi_fl")]
+
+
+def test_a_trial_through_link_charges_nothing_yet_so_it_starts(stripe: Cards) -> None:
+    """Nothing charged, nothing to read the country from: let through, as documented."""
+    client, user_id, sub = _new("linktrial", stripe, LINK, amount=0)
+    done = _checkout(sub, user_id, "private", "monthly", paid="no_payment_required")
+    assert post_event(client, _event("checkout.session.completed", done)).json()["outcome"] == (
+        "subscribed"
+    )

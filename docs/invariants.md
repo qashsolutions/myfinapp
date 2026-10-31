@@ -716,8 +716,9 @@ written against both.
     checks, when it turns live): the
     subscription ends at once, anything taken comes back in full under its own tag, once, a
     Founding place is never taken, the person is emailed once and the Plan screen asks for a
-    US card (`BillingOut.foreign_card_refused`). An unknown country (Link, which carries none,
-    so a foreign card through Link gets in while Link is on) lets it through and
+    US card (`BillingOut.foreign_card_refused`). Link's method names no country, so its charge's
+    is read (the card or bank behind it); a country no one names (a trial through Link, nothing
+    charged yet) lets it through and
     is logged; a Stripe outage keeps nothing so Stripe sends the event again. Every request
     names `STRIPE_VERSION`, the live endpoint's version. Found in the go-live review: the
     Radar rule the spec named needs a paid Radar plan.
