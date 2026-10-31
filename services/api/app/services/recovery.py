@@ -35,7 +35,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from fastapi import HTTPException, status
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session as DbSession
 
 from app.models.recovery import AccountRecovery
@@ -266,6 +266,28 @@ def may_add_passkey(db: DbSession, user_id: uuid.UUID, session: Session) -> bool
     if row.partner_approved_at is not None and row.approved_session_id == session.id:
         return True  # the device the partner let in
     return _aware(row.ready_at) <= _now()  # the 24 hours are up: any email-code session
+
+
+def closed_for(db: DbSession, user_id: uuid.UUID, session: Session) -> bool:
+    """This session's latest request to get back in was cancelled by the owner (a passkey check
+    or Cancel): a passkey it now tries to add is answered `recovery_closed`, in whichever order
+    the two happened (invariant 74)."""
+    row = db.scalar(
+        select(AccountRecovery)
+        .where(
+            AccountRecovery.user_id == user_id,
+            or_(
+                AccountRecovery.session_id == session.id,
+                AccountRecovery.started_session_id == session.id,
+                AccountRecovery.approved_session_id == session.id,
+            ),
+        )
+        .order_by(AccountRecovery.created_at.desc())
+        .limit(1)
+    )
+    return (
+        row is not None and row.status == "cancelled" and row.closed_reason in ("passkey", "owner")
+    )
 
 
 def finish(

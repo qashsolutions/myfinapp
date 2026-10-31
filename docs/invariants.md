@@ -698,7 +698,8 @@ written against both.
     signed-in device; only the locked session that started it may also cancel, decided under
     the lock, and a cancel that finds nothing waiting says nothing. Only a session that never used a passkey and wasn't opened by a phone may finish
     it, so an ordinary "add a passkey" never removes the others, and a passkey made while the
-    owner cancels is rolled back (409 `recovery_closed`). Finishing removes every old passkey
+    owner cancels is rolled back (409 `recovery_closed`), and one tried after the owner cancelled
+    is answered the same (`recovery.closed_for`), whichever order they come in. Finishing removes every old passkey
     and ends every other session; unless the partner-approved session finishes, export, email
     change, bank linking, backup changes and the partner choice wait a day (one message,
     `RECOVERY_HOLD_MESSAGE`). Found in the journey map: an account whose passkeys were all lost

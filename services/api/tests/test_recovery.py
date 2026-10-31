@@ -491,3 +491,27 @@ def test_a_passkey_sign_in_racing_a_finish_is_a_plain_unknown_passkey(monkeypatc
     r = other.post("/api/auth/passkey/verify", json={"credential": assertion})
     assert r.status_code == 400 and r.json()["detail"] == "unknown_credential"
     assert _passkeys(uid) == 1
+
+
+def test_a_passkey_made_after_the_owner_cancelled_is_told_recovery_closed() -> None:
+    """CI on #62: in the race above the owner's passkey sometimes won outright, before the
+    lost device's new passkey was checked at all, and the device got a bare 403 instead of the
+    promised 409 `recovery_closed` (invariant 74), so its screen said only "Couldn't create the
+    passkey". Every order now says the same thing."""
+    phone, key, email, uid = _person("Asha")
+    lost = _lost_device(email)
+    lost.post("/api/auth/recovery")
+    _age(uid)
+    r = lost.post("/api/security/passkeys/register/options")
+    assert r.status_code == 200, r.text
+    credential = FakeAuthenticator().register(r.json()["options"])
+    r = phone.post("/api/security/passkeys/assert/options", json={"purpose": "unlock"})
+    assert phone.post(
+        "/api/security/passkeys/assert/verify",
+        json={"credential": key.assert_(r.json()["options"])},
+    ).is_success
+    r = lost.post("/api/security/passkeys/register/verify", json={"credential": credential})
+    assert (r.status_code, r.json()["detail"]) == (409, "recovery_closed"), r.text
+    assert _passkeys(uid) == 1
+    r = lost.post("/api/security/passkeys/register/options")
+    assert (r.status_code, r.json()["detail"]) == (409, "recovery_closed"), r.text

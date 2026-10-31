@@ -111,7 +111,14 @@ def _may_register(request: Request, caller: Caller, db: DbSession) -> bool:
     if caller.principal.has_passkeys:
         if recovery_svc.may_add_passkey(db, caller.user.id, caller.session):
             return True
-        require_step_up(require_unlocked(request, caller, db))
+        try:
+            require_step_up(require_unlocked(request, caller, db))
+        except HTTPException:
+            # The owner cancelled this session's request before its passkey got here: the same
+            # answer as a cancel that lands mid-way (invariant 74), so the screen says so.
+            if recovery_svc.closed_for(db, caller.user.id, caller.session):
+                raise HTTPException(status.HTTP_409_CONFLICT, detail="recovery_closed") from None
+            raise
     return False
 
 
