@@ -51,6 +51,9 @@ export default defineConfig({
         // is read; keeping both out of the precache keeps the install small. Each needs a
         // network the first time it is used.
         globIgnores: [
+          // The logo files are for partners, stores and print (scripts/icons.ts); the app
+          // never shows them.
+          "icons/logo*",
           "**/pdfjs-*.js",
           "ocr/**",
           // The QR reader (Link a device, 47 kB gzip) loads only when someone scans, and
