@@ -12,12 +12,13 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from fastapi import Response
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.orm import Session as DbSession
 
 from app.config import get_settings
 from app.models.session import Session
 from app.models.user import User
+from app.models.webauthn_credential import WebauthnCredential
 from app.security.hashing import pseudonym, token_hash
 
 COOKIE_NAME = "stackd_session"
@@ -47,12 +48,34 @@ def create_session(
     return row, token
 
 
+def _live(row: Session | None, now: datetime) -> bool:
+    return row is not None and row.revoked_at is None and row.expires_at > now
+
+
 def load_session(db: DbSession, token: str, *, now: datetime | None = None) -> Session | None:
     now = now or now_utc()
     row = db.scalars(select(Session).where(Session.token_hash == token_hash(token))).first()
-    if row is None or row.revoked_at is not None or row.expires_at <= now:
+    return row if _live(row, now) else None
+
+
+def load_signed_in(
+    db: DbSession, token: str, *, now: datetime | None = None
+) -> tuple[Session, User, bool] | None:
+    """The live session, its account (not deleted) and whether the account has a passkey, in one
+    query: every signed-in request starts here (load test, October 31, 2026: it was three)."""
+    now = now or now_utc()
+    has_passkey = exists().where(WebauthnCredential.user_id == Session.user_id)
+    found = db.execute(
+        select(Session, User, has_passkey)
+        .join(User, User.id == Session.user_id)
+        .where(Session.token_hash == token_hash(token))
+    ).first()
+    if found is None:
         return None
-    return row
+    row, user, passkey = found
+    if not _live(row, now) or user.deleted_at is not None:
+        return None
+    return row, user, bool(passkey)
 
 
 def is_locked(

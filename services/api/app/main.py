@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from app import API_VERSION
 from app.config import get_settings
+from app.request_gate import RequestGate
 from app.routers import (
     account,
     alerts,
@@ -48,6 +49,9 @@ def create_app() -> FastAPI:
     app.add_middleware(ReportErrors)
     app.add_middleware(SecurityHeaders, hsts=settings.is_prod)
     app.add_middleware(PublicCors, site_origin=settings.site_origin)
+    app.add_middleware(  # a turn each before any route touches the database
+        RequestGate, limit=settings.max_in_flight, wait_seconds=settings.queue_wait_seconds
+    )
     app.add_middleware(  # outermost: refuse anything that did not come through CloudFront
         OriginVerify,
         secret=settings.origin_verify.get_secret_value() if settings.origin_verify else None,
