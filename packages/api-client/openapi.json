@@ -433,6 +433,11 @@
             "title": "Entitlements",
             "type": "object"
           },
+          "foreign_card_refused": {
+            "default": false,
+            "title": "Foreign Card Refused",
+            "type": "boolean"
+          },
           "founding": {
             "additionalProperties": true,
             "title": "Founding",

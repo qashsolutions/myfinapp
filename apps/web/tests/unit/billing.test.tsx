@@ -621,6 +621,23 @@ describe("Plans & billing", () => {
     ).toBeDisabled();
   });
 
+  it("a purchase refused for a card from outside the US says why and lets them choose again", async () => {
+    // Invariant 75: the plan never started and the payment came back; the picker stays open.
+    resetEntitlements();
+    installFakeApi({
+      session: readySession(),
+      billing: { ...freeBilling(), foreign_card_refused: true },
+    });
+    renderApp("/me/plan");
+    expect(await screen.findByText("Your plan didn't start")).toBeInTheDocument();
+    expect(screen.getByText(/issued outside the US/)).toBeInTheDocument();
+    expect(screen.queryByText(/\$/, { selector: ".plan-alert p" })).toBeNull();
+    for (const name of ["Private", "Connected"]) {
+      const card = screen.getByRole("article", { name });
+      expect(within(card).getByRole("button", { name: `Choose ${name}` })).toBeEnabled();
+    }
+  });
+
   it("after a plan ends, receipts and invoices are still one tap away", async () => {
     const user = userEvent.setup();
     resetEntitlements();

@@ -166,6 +166,8 @@ export interface FakeBilling {
   downgrade_from?: string | null;
   /** A US bank payment still clearing (October 24, 2026). */
   payment_pending?: boolean;
+  /** The latest purchase was paid with a card from outside the US and refunded (invariant 75). */
+  foreign_card_refused?: boolean;
   /** The plan was paid from a US bank account: refunds name the bank fee. */
   paid_by_bank?: boolean;
   /** GET /api/billing/credit: credit on the account, and what deleting it would refund. */

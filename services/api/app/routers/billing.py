@@ -43,6 +43,7 @@ from app.rules_server.entitlements import (
     effective_plan,
     end_lost_cover,
     entitlements,
+    foreign_card_refused,
     founding_left,
     household_pair,
     is_tester,
@@ -101,6 +102,9 @@ class BillingOut(BaseModel):
     trials: dict[str, int] = {}
     # A US bank payment is still clearing (October 24, 2026): the plan starts when it does.
     payment_pending: bool = False
+    # The latest purchase (last two weeks) was paid with a card issued outside the US and was
+    # refunded in full without starting (invariant 75): the Plan screen asks for a US card.
+    foreign_card_refused: bool = False
     # A household of two is one plan (owner decision, October 29, 2026; invariant 54): "holder"
     # when this person's plan covers the household, "covered" when the partner's covers them
     # (nothing to buy while it does), null outside a household of two.
@@ -274,6 +278,7 @@ def _out(db: DbSession, caller: Caller) -> BillingOut:
         store_products=native_billing.store_products(),
         trials={k: int(trial_settings()[k]["days"]) for k in TRIAL_PLANS},
         payment_pending=payment_pending(db, caller.user.id),
+        foreign_card_refused=foreign_card_refused(db, caller.user.id),
         downgrade_from=_downgrade_from(sub, caller),
         downgrade_after_days=int(plans["changes"]["downgrade_after_days"]),
         tester=is_tester(caller.user),

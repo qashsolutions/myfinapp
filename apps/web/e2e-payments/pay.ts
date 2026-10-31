@@ -86,14 +86,16 @@ export async function payByBank(
   // appear until the account list shows.
   const agree = fc.getByRole("button", { name: "Agree and continue" });
   const guest = fc.getByRole("button", { name: "Continue as guest" });
-  const pick = fc.getByRole("button", { name: new RegExp(`^${account}`) });
+  // Each account was a button; since October 30, 2026 Stripe draws them as radios.
+  const name = new RegExp(`^${account}`);
+  const pick = fc.getByRole("radio", { name }).or(fc.getByRole("button", { name }));
   for (let step = 0; step < 3; step++) {
     await agree.or(guest).or(pick).first().waitFor({ timeout: 60_000 });
-    if (await pick.isVisible()) break;
+    if (await pick.first().isVisible()) break;
     if (await agree.isVisible()) await agree.click();
     else if (await guest.isVisible()) await guest.click();
   }
-  await pick.click({ timeout: 60_000 });
+  await pick.first().click({ timeout: 60_000, force: true });
   await fc.getByRole("button", { name: "Connect account" }).click();
   // Stripe may offer to save the bank with Link first (since October 2026): finish without it.
   const done = fc.getByRole("button", { name: /^Continue to / });

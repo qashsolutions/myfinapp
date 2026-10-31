@@ -413,6 +413,25 @@ def second_plan_refunded_message(to: str, link: str) -> Message:
     )
 
 
+def foreign_card_refunded_message(to: str, link: str) -> Message:
+    """A plan paid with a card issued outside the US (owner decision, October 17, 2026;
+    invariant 75): it never started, its subscription ended at once and anything charged was
+    refunded in full. No amounts, nothing about the card beyond where it was issued."""
+    return Message(
+        to=to,
+        subject="Your Qash plan didn't start",
+        text=(
+            "Qash takes credit or debit cards issued by a US bank (Visa, Mastercard, Amex or "
+            "Discover) or a US bank account. The card you used was issued outside the US, so "
+            "your plan didn't start, and anything charged has been refunded in full. Refunds "
+            "reach you within 5 to 10 business days.\n\n"
+            "You can choose your plan again with a US card or bank account on the Plan screen. "
+            "Questions? Reply to this email.\n\n"
+            f"Your plan: {link}\n"
+        ),
+    )
+
+
 def plan_resumed_message(to: str, link: str) -> Message:
     return Message(
         to=to,

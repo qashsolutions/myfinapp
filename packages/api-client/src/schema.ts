@@ -1908,6 +1908,11 @@ export interface components {
             entitlements: {
                 [key: string]: unknown;
             };
+            /**
+             * Foreign Card Refused
+             * @default false
+             */
+            foreign_card_refused: boolean;
             /** Founding */
             founding: {
                 [key: string]: unknown;

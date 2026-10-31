@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import re
 import time
 import uuid
@@ -30,6 +31,8 @@ from app.models.billing import (
 )
 from app.models.user import User
 from app.rules_server.entitlements import (
+    FOREIGN_CARD,
+    REFUSED,
     access,
     covered_members,
     end_lost_cover,
@@ -47,6 +50,7 @@ from app.services import plan_history
 from app.services.email import (
     bank_payment_failed_message,
     dispute_admin_message,
+    foreign_card_refunded_message,
     founding_sold_out_message,
     fraud_admin_message,
     fraud_refund_message,
@@ -62,6 +66,12 @@ from app.services.email import (
 from app.services.otp import canonical_email
 
 STRIPE_API = "https://api.stripe.com/v1"
+# Every request names the API version it was written and tested against (October 30, 2026),
+# the same one the live webhook endpoint is set to, so a change to the account's default in
+# the Dashboard never changes what Stripe sends back. Upgrading means a new value here, the
+# endpoint's version set to match, and `e2e:payments` passing against it.
+STRIPE_VERSION = "2026-09-30.endive"
+log = logging.getLogger("stackd.billing")
 SIGNATURE_TOLERANCE_SECONDS = 300
 transport_override: httpx2.BaseTransport | None = None
 
@@ -169,6 +179,7 @@ def _request(
                 data=form,
                 headers={
                     "Authorization": f"Bearer {s.stripe_secret_key.get_secret_value()}",
+                    "Stripe-Version": STRIPE_VERSION,
                     **({"Idempotency-Key": idempotency_key} if idempotency_key else {}),
                 },
             )
@@ -878,6 +889,50 @@ def period_end(obj: dict[str, Any]) -> datetime | None:
 # Checkout's payment_status values that mean the money is in (or a trial needs none yet).
 PAID = {"paid", "no_payment_required"}
 
+# Credit and debit cards issued by a US bank only (owner decision, October 17, 2026; invariant
+# 75). Pricing only in dollars doesn't do it: a card from any country pays a dollar price. Radar
+# Lite has no custom rules, so the check is ours (October 30, 2026): a purchase paid with a card
+# from elsewhere never starts, its subscription ends at once and anything it took comes back in
+# full. A US bank account is US by nature.
+HOME_COUNTRY = "US"
+
+
+def payer_country(
+    *, payment_intent: str | None = None, subscription: str | dict[str, Any] | None = None
+) -> str | None:
+    """The country of the card (or bank account) that pays for a purchase, from its payment
+    method: a one-time payment's, else the subscription's default, which Checkout sets even
+    when a trial charges nothing yet. None when Stripe doesn't say (a method with no country,
+    such as Link, or no method found). A Stripe outage raises, so the webhook is sent again."""
+    if payment_intent:
+        method = (_get_or_none(f"/payment_intents/{payment_intent}") or {}).get("payment_method")
+    else:
+        holder = subscription
+        if isinstance(holder, str):
+            holder = _get_or_none(f"/subscriptions/{holder}")
+        method = (holder or {}).get("default_payment_method")
+    if isinstance(method, str) and method:
+        method = _get_or_none(f"/payment_methods/{method}")
+    if not isinstance(method, dict):
+        return None
+    kind = str(method.get("type") or "")
+    if kind == "us_bank_account":
+        return HOME_COUNTRY
+    country = (method.get(kind) or {}).get("country") if kind else None
+    return str(country).upper() if country else None
+
+
+def _foreign_payer(
+    *, payment_intent: str | None = None, subscription: str | dict[str, Any] | None = None
+) -> bool:
+    """True only when the payer's country is known and isn't the US. An unknown country lets
+    the purchase through (the terms still say US cards only) and is logged without details."""
+    country = payer_country(payment_intent=payment_intent, subscription=subscription)
+    if country is None:
+        log.warning("payer country unknown; purchase allowed")
+        return False
+    return country != HOME_COUNTRY
+
 
 def apply_event(db: DbSession, event: dict[str, Any], *, now: datetime | None = None) -> str:
     """Applies one webhook event once. Returns what happened (for logs and tests).
@@ -938,14 +993,29 @@ def _checkout_completed(
         person = db.get(User, user_id)
         if person is None or person.deleted_at is not None:
             return _founding_after_deletion(db, person, external_id, held, customer, paid, now)
-        if held is not None and held.first_payment == "refused":
-            if paid:  # refused as a second plan; a bank payment that cleared since comes back
-                _refund_second(external_id, "founding", None)
-            return "second_plan"
+        if held is not None and held.first_payment in REFUSED:
+            if paid:  # refused already; a bank payment that cleared since comes back
+                _refund_refused(held.first_payment, external_id, "founding", None)
+            return _outcome(held.first_payment)
         if purchase_conflict(db, user_id, "founding", exclude=external_id):
             # Two pages were open and both were paid (October 29, 2026): this one is refunded.
-            return _refuse_second_plan(
+            return _refuse_purchase(
                 db, person, external_id, "founding", None, customer, held, None, paid, now
+            )
+        if paid and _foreign_payer(payment_intent=str(obj.get("payment_intent") or "")):
+            # A card from outside the US (invariant 75): no place taken, all of it back.
+            return _refuse_purchase(
+                db,
+                person,
+                external_id,
+                "founding",
+                None,
+                customer,
+                held,
+                None,
+                paid,
+                now,
+                reason=FOREIGN_CARD,
             )
         # Every grant passes the cap: a new purchase, and one whose place was given back (a
         # failed bank payment, `expired`). Only a place still held (`incomplete`) skips it.
@@ -1000,10 +1070,10 @@ def _checkout_completed(
         return "ignored"
     external_id = str(obj["subscription"])
     row = db.scalar(select(Subscription).where(Subscription.external_id == external_id))
-    if row is not None and row.first_payment == "refused":
-        if paid:  # refused as a second plan; a bank payment that cleared since comes back
-            _refund_second(external_id, plan, obj.get("invoice"))
-        return "second_plan"
+    if row is not None and row.first_payment in REFUSED:
+        if paid:  # refused already; a bank payment that cleared since comes back
+            _refund_refused(row.first_payment, external_id, plan, obj.get("invoice"))
+        return _outcome(row.first_payment)
     person = db.get(User, user_id)
     if person is None or person.deleted_at is not None:
         return _subscription_after_deletion(
@@ -1012,8 +1082,24 @@ def _checkout_completed(
     if purchase_conflict(db, user_id, plan, exclude=external_id):
         # Two pages were open and both were paid (October 29, 2026): the plan bought first
         # stays, this one ends now and its payment comes back in full.
-        return _refuse_second_plan(
+        return _refuse_purchase(
             db, person, external_id, plan, interval, customer, row, obj.get("invoice"), paid, now
+        )
+    if paid and _foreign_payer(subscription=external_id):
+        # A card from outside the US (invariant 75): the plan never starts, not even for the
+        # moment before a later event; the subscription ends and anything charged comes back.
+        return _refuse_purchase(
+            db,
+            person,
+            external_id,
+            plan,
+            interval,
+            customer,
+            row,
+            obj.get("invoice"),
+            paid,
+            now,
+            reason=FOREIGN_CARD,
         )
     if not paid:
         # A US bank payment still clearing (October 24, 2026). Stripe calls the subscription
@@ -1076,9 +1162,15 @@ def _checkout_completed(
     return "subscribed"
 
 
-def _refund_second(external_id: str, plan: str, invoice: Any) -> None:
-    """Refund a refused second plan's payment in full, no fee (our doing), at most once."""
-    key = f"second_plan:{external_id}"
+def _outcome(first_payment: str | None) -> str:
+    """What a refused purchase reports: why it was refused."""
+    return "foreign_card" if first_payment == FOREIGN_CARD else "second_plan"
+
+
+def _refund_refused(reason: str, external_id: str, plan: str, invoice: Any) -> None:
+    """Refund a refused purchase's payment in full, no fee (our doing), at most once. Each
+    reason has its own tag, so a refusal is never refunded twice under two names."""
+    key = f"{_outcome(reason)}:{external_id}"
     if plan == "founding":
         intent = _get(f"/payment_intents/{external_id}")
         cents = int(intent.get("amount_received") or 0) or int(
@@ -1090,7 +1182,7 @@ def _refund_second(external_id: str, plan: str, invoice: Any) -> None:
         refund_invoice(first, key=key)
 
 
-def _refuse_second_plan(
+def _refuse_purchase(
     db: DbSession,
     person: User,
     external_id: str,
@@ -1101,14 +1193,18 @@ def _refuse_second_plan(
     invoice: Any,
     paid: bool,
     now: datetime,
+    *,
+    reason: str = "refused",
 ) -> str:
-    """A purchase paid while another plan was already live (two pages open at once, October
-    29, 2026; invariant 41): the earlier plan stays; this one is ended at Stripe now, its
-    payment refunded in full (a bank payment once it clears), and its row kept as `refused`,
-    which never started. The person is told once, in plain words."""
+    """A purchase that must not start: paid while another plan was already live (two pages
+    open at once, October 29, 2026; invariant 41; `refused`), or paid with a card issued
+    outside the US (October 30, 2026; invariant 75; `foreign_card`). Any earlier plan stays;
+    this one is ended at Stripe now, its payment refunded in full (a bank payment once it
+    clears), and its row kept with the reason, which never started. The person is told once,
+    in plain words."""
     if plan != "founding":
         cancel_now(external_id)
-    told = row is not None and row.first_payment == "refused"
+    told = row is not None and row.first_payment == reason
     row = _upsert(
         db,
         external_id=external_id,
@@ -1122,15 +1218,20 @@ def _refuse_second_plan(
         cancel_at_period_end=False,
     )
     row.stripe_status = "canceled"  # final: no later event reopens it
-    row.first_payment = "refused"
+    row.first_payment = reason
     row.refund_due_cents = 0
     db.flush()
     if paid:
-        _refund_second(external_id, plan, invoice)
+        _refund_refused(reason, external_id, plan, invoice)
     store_entitlements(db, person.id)
     if not told:
-        get_sender().send(second_plan_refunded_message(person.email, plan_link()))
-    return "second_plan"
+        message = (
+            foreign_card_refunded_message
+            if reason == FOREIGN_CARD
+            else second_plan_refunded_message
+        )
+        get_sender().send(message(person.email, plan_link()))
+    return _outcome(reason)
 
 
 def _subscription_after_deletion(
@@ -1815,8 +1916,22 @@ def _subscription_event(
                 db, person, external_id, plan, interval, customer, None, invoice, not clearing, now
             )
         if purchase_conflict(db, user_id, plan, exclude=external_id):
-            return _refuse_second_plan(
+            return _refuse_purchase(
                 db, person, external_id, plan, interval, customer, None, invoice, True, now
+            )
+        if not clearing and _foreign_payer(subscription=obj):
+            return _refuse_purchase(
+                db,
+                person,
+                external_id,
+                plan,
+                interval,
+                customer,
+                None,
+                invoice,
+                True,
+                now,
+                reason=FOREIGN_CARD,
             )
     row = _upsert(
         db,
