@@ -247,6 +247,8 @@ Work is divided into **chunks**, each one task with a "done when" in the spec. O
 
 ## Launch scope reminders
 
+**After launch: "What worked" stories (owner, October 31, 2026; not in launch scope).** People may post a short, anonymous, free-text story of what worked for them ("We skip eating out on weekends and saved about $100 a month for a holiday") and search everyone's stories by keyword and topic chips (Dining, Travel, Bills, Groceries). This replaces the October 29 "What helped only" decision once built. No AI and no human review: deterministic guards only (no links, phone numbers or email addresses, a fixed banned-word list, a length cap; Report, with 3 reports hiding a story; the author deletes their own; account deletion removes them), which are also what the App Store and Play require for user posts. Each card follows the one-word rule (the topic as the word, the story, "Helped me too · N"), labelled "Stories from people like you. Not advice from Qash." Open before building: the length cap (280 proposed), who may post (any active plan or trial proposed), the privacy and terms wording (one-time legal review), and the security documents' line that the server stores text people choose to share.
+
 Easy to get wrong because the mockups show more:
 
 - Import: **CSV and OFX/QFX only**, parsed on device. PDF is fast-follow 2.

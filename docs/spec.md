@@ -69,7 +69,7 @@ Design reference: the **FINAL — Modern · Pastel · Anime** page of the mockup
 
 **Later phases:** Phase 2 native apps in the stores (three looks). Phase 3 (read-only bank and card linking) is part of launch, not a later phase (Owner decision, October 12, 2026).
 
-**Parking lot (not scheduled):** investments beyond a net-worth value, more looks, more languages. **Never:** AI features (owner, October 19, 2026: "No AI ever"), subscription cancellation or bill negotiation done for the user, credit reports or scores, moving money.
+**Parking lot (not scheduled):** investments beyond a net-worth value, more looks, more languages, "What worked" stories (owner, October 31, 2026: after launch; anonymous free-text stories searchable by keyword, deterministic guards and Report only, no AI, no human review; see CLAUDE.md "Launch scope reminders"). **Never:** AI features (owner, October 19, 2026: "No AI ever"), subscription cancellation or bill negotiation done for the user, credit reports or scores, moving money.
 
 **Onboarding (owner decisions, October 20, 2026).** Choices, not a wizard: after the trial pick (which states up front how the trial works: no card, the reminder the day before (2 days before October 22, 2026), the 7 days with a note each day, the account closing, the data staying on the phone), `/setup` "Make Qash yours" lists six optional steps the person takes in any order or skips, each marked done from the data itself so it reads the same wherever it was done; Home's "Make Qash yours · n of 6" card shows the next three until all are done or the person says "Done for now". No onboarding analytics: nothing is counted or sent (we promise no trackers); trial → paid is already known from billing.
 
