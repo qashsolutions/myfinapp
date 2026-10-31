@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     s3_access_key: str
     s3_secret_key: SecretStr
 
+    # Requests running inside the app at once, and how long the rest may wait for a turn
+    # (app/request_gate.py; load test, October 31, 2026). The database pool is twice the limit.
+    max_in_flight: int = 10
+    queue_wait_seconds: float = 20.0
+
     # Security (chunk 0.5)
     ip_hash_key: SecretStr  # HMAC key: client IPs and rate-limit keys are stored as pseudonyms
     trust_proxy_headers: bool = False  # only behind our own proxy: client IP from X-Forwarded-For

@@ -13,7 +13,7 @@ import uuid
 from datetime import UTC, datetime
 from importlib import resources
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session as DbSession
 
 from app.models.group import Group
@@ -180,6 +180,23 @@ def enqueue(
             AlertSchedule.user_id == user_id, AlertSchedule.dedupe_key == dedupe_key
         )
     )
+    row = _place(db, user_id, kind, due_at, dedupe_key, existing, from_device, now)
+    db.flush()
+    return row
+
+
+def _place(
+    db: DbSession,
+    user_id: uuid.UUID,
+    kind: str,
+    due_at: datetime,
+    dedupe_key: str,
+    existing: AlertSchedule | None,
+    from_device: bool,
+    now: datetime | None,
+) -> AlertSchedule:
+    """`enqueue`'s rule for a key not yet sent, given its scheduled row if any (flushed by the
+    caller)."""
     if existing is not None:
         if existing.status == "skipped" and due_at > (now or datetime.now(UTC)):
             existing.status = "pending"
@@ -187,23 +204,30 @@ def enqueue(
             existing.type = kind
             existing.generic_label = label_for(kind, dedupe_key)
             existing.from_device = from_device
-            db.flush()
         return existing
-    row = AlertSchedule(
-        user_id=user_id,
-        due_at=due_at,
-        type=kind,
-        generic_label=label_for(kind, dedupe_key),
-        dedupe_key=dedupe_key,
-        from_device=from_device,
-    )
+    row = AlertSchedule(**_new_row(user_id, kind, due_at, dedupe_key, from_device))
     db.add(row)
-    db.flush()
     return row
 
 
+def _new_row(
+    user_id: uuid.UUID, kind: str, due_at: datetime, dedupe_key: str, from_device: bool
+) -> dict:
+    return {
+        "user_id": user_id,
+        "due_at": due_at,
+        "type": kind,
+        "generic_label": label_for(kind, dedupe_key),
+        "dedupe_key": dedupe_key,
+        "from_device": from_device,
+    }
+
+
 def replace_device_schedule(db: DbSession, user_id: uuid.UUID, items: list[dict]) -> int:
-    """The device's whole upcoming list replaces what it registered before (sent rows stay)."""
+    """The device's whole upcoming list replaces what it registered before (sent rows stay).
+
+    Each item follows `enqueue`'s rule; the sent keys and the rows already scheduled are read in
+    two queries for the whole list rather than two per item (load test, October 31, 2026)."""
     db.execute(
         delete(AlertSchedule).where(
             AlertSchedule.user_id == user_id,
@@ -212,10 +236,40 @@ def replace_device_schedule(db: DbSession, user_id: uuid.UUID, items: list[dict]
         )
     )
     db.flush()
+    keys = {item["dedupe_key"] for item in items}
+    if not keys:
+        return 0
+    sent = set(
+        db.scalars(
+            select(NotificationLog.dedupe_key).where(
+                NotificationLog.user_id == user_id, NotificationLog.dedupe_key.in_(keys)
+            )
+        )
+    )
+    scheduled = {
+        row.dedupe_key: row
+        for row in db.scalars(
+            select(AlertSchedule).where(
+                AlertSchedule.user_id == user_id, AlertSchedule.dedupe_key.in_(keys)
+            )
+        )
+    }
+    new: dict[str, dict] = {}
     count = 0
     for item in items:
-        if enqueue(db, user_id, item["type"], item["due_at"], item["dedupe_key"], from_device=True):
-            count += 1
+        key = item["dedupe_key"]
+        if key in sent:
+            continue
+        count += 1
+        if key in new:
+            continue  # scheduled by an earlier item of this list: left alone, as `enqueue` does
+        if key in scheduled:
+            _place(db, user_id, item["type"], item["due_at"], key, scheduled[key], True, None)
+        else:
+            new[key] = _new_row(user_id, item["type"], item["due_at"], key, True)
+    db.flush()
+    if new:  # one statement for every new row (the ORM would send one per row here)
+        db.execute(insert(AlertSchedule), list(new.values()))
     return count
 
 

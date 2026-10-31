@@ -295,6 +295,17 @@ written against both.
     it (`SafeToSpendLine.safeWindowText`, Home, Insights). `insights.test.tsx` "shows safe to
     spend through the next pay period…" · goldens `insights.safe_to_spend`
     "payday_in_two_days_looks_through_the_next_pay_period", "one_payday_known_ends_the_day_before_it"
+76. **A burst never stalls the API, and a request's database cost doesn't grow with the
+    number of people** (October 31, 2026; found by the load test, `services/api/loadtest`). At
+    most `STACKD_MAX_IN_FLIGHT` requests run inside the app at once (`app/request_gate.py`); the
+    rest wait their turn holding no connection or thread, and one that waits past
+    `queue_wait_seconds` is told 503 `busy`. The pool has two connections for each request let
+    in, so a request inside never waits on it. Before, 200 requests at once had every thread
+    waiting on the pool and every connection on a thread: the API sat idle until 500s. Every
+    signed-in request reads its session, account and passkey in one query
+    (`sessions.load_signed_in`); the alert schedule costs the same queries for 10 items or 300;
+    the Founding count reads only Founding rows (`ix_subscriptions_founding`).
+    `test_request_gate.py` · `test_request_cost.py`
 
 ## Accounts and money on the server
 

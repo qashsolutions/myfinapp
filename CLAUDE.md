@@ -94,6 +94,7 @@ cd services/rules && uv run python scripts/build_next_move.py  # after editing c
 cd services/rules && uv run python scripts/build_insights.py     # after editing config/insights.yaml
 cd services/rules && uv run python scripts/build_helped.py       # after editing config/helped.yaml
 pnpm -C packages/rules test -- -t "money.allocate"   # one rule's golden cases in the TS port
+cd services/api && loadtest/start-api.sh   # load test (October 31, 2026): local API on :8200 against the stackd_load database; seed, locust and per-endpoint costs in services/api/loadtest/README.md; never against production
 pnpm contrast                      # WCAG AA over every look x mode (tools/check_contrast.ts)
 pnpm guards                        # all three CI guards locally
 
