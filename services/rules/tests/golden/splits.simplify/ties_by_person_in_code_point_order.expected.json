@@ -1,0 +1,19 @@
+{
+  "payments": [
+    {
+      "from": "a",
+      "to": "c",
+      "cents": 4000
+    },
+    {
+      "from": "b",
+      "to": "d",
+      "cents": 3000
+    },
+    {
+      "from": "a",
+      "to": "d",
+      "cents": 1000
+    }
+  ]
+}

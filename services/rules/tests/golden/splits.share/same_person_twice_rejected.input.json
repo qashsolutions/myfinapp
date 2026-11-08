@@ -1,0 +1,9 @@
+{
+  "amount_cents": 9000,
+  "method": "equal",
+  "people": [
+    "you",
+    "you"
+  ],
+  "leftover_to": "you"
+}

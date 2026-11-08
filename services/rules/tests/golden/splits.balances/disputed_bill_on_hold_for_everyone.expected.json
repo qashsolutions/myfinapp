@@ -1,0 +1,19 @@
+{
+  "balances": [
+    {
+      "person": "you",
+      "cents": 9400
+    },
+    {
+      "person": "sam",
+      "cents": -9200
+    },
+    {
+      "person": "alex",
+      "cents": -200
+    }
+  ],
+  "on_hold": [
+    "cleaning"
+  ]
+}

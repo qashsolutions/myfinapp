@@ -1,0 +1,30 @@
+{
+  "people": [
+    "you",
+    "sam",
+    "alex"
+  ],
+  "bills": [
+    {
+      "id": "groceries",
+      "amount_cents": 18600,
+      "paid_by": "you",
+      "parts": [
+        {
+          "person": "you",
+          "cents": 6200
+        },
+        {
+          "person": "sam",
+          "cents": 6200
+        },
+        {
+          "person": "alex",
+          "cents": 6100
+        }
+      ],
+      "disputed": false
+    }
+  ],
+  "settlements": []
+}

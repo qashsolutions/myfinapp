@@ -1,8 +1,19 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, vi } from "vitest";
 import { openDb } from "../../src/data/db.ts";
 import { installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
+
+// The seeded entries and statements are dated October 2026; the screens show the current month,
+// so the clock is pinned to a day in that month (these broke when November began).
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-31T12:00:00"));
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 async function renderSignedIn(path: string) {
   installFakeApi({ session: readySession() });

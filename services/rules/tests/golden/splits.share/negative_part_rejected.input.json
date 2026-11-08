@@ -1,0 +1,15 @@
+{
+  "amount_cents": 9000,
+  "method": "exact",
+  "people": [
+    "you",
+    "sam",
+    "alex"
+  ],
+  "leftover_to": "you",
+  "values": {
+    "you": 10000,
+    "sam": -500,
+    "alex": -500
+  }
+}

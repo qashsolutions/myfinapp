@@ -1,0 +1,14 @@
+{
+  "payments": [
+    {
+      "from": "sam",
+      "to": "you",
+      "cents": 7600
+    },
+    {
+      "from": "alex",
+      "to": "you",
+      "cents": 1000
+    }
+  ]
+}

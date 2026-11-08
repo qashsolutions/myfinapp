@@ -1,0 +1,9 @@
+{
+  "parts": [
+    {
+      "person": "you",
+      "cents": 777
+    }
+  ],
+  "total_cents": 777
+}

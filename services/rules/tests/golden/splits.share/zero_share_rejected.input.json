@@ -1,0 +1,15 @@
+{
+  "amount_cents": 9000,
+  "method": "shares",
+  "people": [
+    "you",
+    "sam",
+    "alex"
+  ],
+  "leftover_to": "you",
+  "values": {
+    "you": 1,
+    "sam": 0,
+    "alex": 1
+  }
+}
