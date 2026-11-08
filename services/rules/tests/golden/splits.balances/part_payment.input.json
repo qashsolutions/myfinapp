@@ -1,0 +1,76 @@
+{
+  "people": [
+    "you",
+    "sam",
+    "alex"
+  ],
+  "bills": [
+    {
+      "id": "groceries",
+      "amount_cents": 18600,
+      "paid_by": "you",
+      "parts": [
+        {
+          "person": "you",
+          "cents": 6200
+        },
+        {
+          "person": "sam",
+          "cents": 6200
+        },
+        {
+          "person": "alex",
+          "cents": 6200
+        }
+      ],
+      "disputed": false
+    },
+    {
+      "id": "internet",
+      "amount_cents": 9000,
+      "paid_by": "alex",
+      "parts": [
+        {
+          "person": "you",
+          "cents": 3000
+        },
+        {
+          "person": "sam",
+          "cents": 3000
+        },
+        {
+          "person": "alex",
+          "cents": 3000
+        }
+      ],
+      "disputed": false
+    },
+    {
+      "id": "cleaning",
+      "amount_cents": 2400,
+      "paid_by": "sam",
+      "parts": [
+        {
+          "person": "you",
+          "cents": 800
+        },
+        {
+          "person": "sam",
+          "cents": 800
+        },
+        {
+          "person": "alex",
+          "cents": 800
+        }
+      ],
+      "disputed": false
+    }
+  ],
+  "settlements": [
+    {
+      "from": "sam",
+      "to": "you",
+      "cents": 4000
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "amount_cents": 777,
+  "method": "equal",
+  "people": [
+    "you"
+  ],
+  "leftover_to": "you"
+}

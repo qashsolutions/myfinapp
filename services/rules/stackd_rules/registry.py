@@ -31,6 +31,7 @@ from . import (
     next_move,
     notify,
     recurring,
+    splits,
     whatif,
 )
 from .errors import RuleError
@@ -232,6 +233,24 @@ def _goals_custom_milestones(target_cents: int, current_cents: int, checkpoints_
 
 def _groups_rank(members: list) -> dict:
     return groups.rank(members)
+
+
+def _splits_share(
+    amount_cents: int, method: str, people: list, leftover_to: str, values: object = None
+) -> dict:
+    return splits.share(amount_cents, method, people, leftover_to, values)
+
+
+def _splits_balances(people: list, bills: list, settlements: list) -> dict:
+    return splits.balances(people, bills, settlements)
+
+
+def _splits_simplify(balances: list) -> dict:
+    return splits.simplify(balances)
+
+
+def _splits_repeat_dates(start: str, every: str, as_of: str) -> dict:
+    return splits.repeat_dates(start, every, as_of)
 
 
 def _household_split_contributions(events: list, members: list) -> dict:
@@ -516,6 +535,10 @@ _BARE: dict[str, Rule] = {
     "groups.rank": _groups_rank,
     "household.split_contributions": _household_split_contributions,
     "household.combine_totals": _household_combine_totals,
+    "splits.share": _splits_share,
+    "splits.balances": _splits_balances,
+    "splits.simplify": _splits_simplify,
+    "splits.repeat_dates": _splits_repeat_dates,
     "recurring.detect": _recurring_detect,
     "recurring.yearly_cost": _recurring_yearly_cost,
     "recurring.subscription_check": _recurring_subscription_check,

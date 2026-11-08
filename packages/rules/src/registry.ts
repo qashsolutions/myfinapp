@@ -24,6 +24,7 @@ import * as networth from "./networth.ts";
 import * as nextMove from "./next_move.ts";
 import * as notify from "./notify.ts";
 import * as recurring from "./recurring.ts";
+import * as splits from "./splits.ts";
 import * as whatif from "./whatif.ts";
 
 export type JsonObject = Record<string, unknown>;
@@ -299,6 +300,26 @@ const BARE: Record<string, Rule> = {
   "household.combine_totals": (input) => {
     const { summaries } = args(input, ["summaries"]);
     return { ...household.combineTotals(summaries) };
+  },
+  "splits.share": (input) => {
+    const { amount_cents, method, people, leftover_to, values } = args(
+      input,
+      ["amount_cents", "method", "people", "leftover_to"],
+      ["values"],
+    );
+    return { ...splits.share(amount_cents, method, people, leftover_to, values ?? null) };
+  },
+  "splits.balances": (input) => {
+    const { people, bills, settlements } = args(input, ["people", "bills", "settlements"]);
+    return { ...splits.balances(people, bills, settlements) };
+  },
+  "splits.simplify": (input) => {
+    const { balances } = args(input, ["balances"]);
+    return { ...splits.simplify(balances) };
+  },
+  "splits.repeat_dates": (input) => {
+    const { start, every, as_of } = args(input, ["start", "every", "as_of"]);
+    return { ...splits.repeatDates(start, every, as_of) };
   },
   "networth.history": (input) => {
     const { dates, accounts, items } = args(input, ["dates", "accounts", "items"]);

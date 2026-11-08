@@ -1,0 +1,20 @@
+{
+  "balances": [
+    {
+      "person": "a",
+      "cents": -5000
+    },
+    {
+      "person": "b",
+      "cents": -3000
+    },
+    {
+      "person": "c",
+      "cents": 4000
+    },
+    {
+      "person": "d",
+      "cents": 4000
+    }
+  ]
+}
