@@ -100,7 +100,13 @@ export const UNSTAMPED_TABLES: ReadonlySet<string> = new Set([
 ]);
 
 /** Settings rows that describe this device or its sync state, never another device's. */
-const LOCAL_SETTING_PREFIXES = ["backup.", "household.", "alerts.last_hash", "forecast.account_id"];
+const LOCAL_SETTING_PREFIXES = [
+  "backup.",
+  "household.",
+  "split.",
+  "alerts.last_hash",
+  "forecast.account_id",
+];
 
 export interface Snapshot {
   format: typeof SNAPSHOT_FORMAT;

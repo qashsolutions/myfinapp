@@ -1760,3 +1760,65 @@ export async function creditHabits(input: {
     until: input.until,
   });
 }
+
+// ---- Split bills (chunk S.1 rules; spec "Split bills") ----
+
+export type SplitMethod = "equal" | "exact" | "percent" | "shares";
+export type SplitRepeat = "weekly" | "monthly" | "yearly";
+
+export interface SplitPart {
+  person: string;
+  cents: number;
+}
+
+/** One bill's parts: whole cents, the leftover to `leftoverTo`; exact must add up. */
+export async function splitShare(
+  amountCents: number,
+  method: SplitMethod,
+  people: string[],
+  leftoverTo: string,
+  values: Record<string, number> | null = null,
+): Promise<{ parts: SplitPart[]; total_cents: number }> {
+  return engine.call("splits.share", {
+    amount_cents: amountCents,
+    method,
+    people,
+    leftover_to: leftoverTo,
+    values,
+  });
+}
+
+export interface SplitBillFacts {
+  id: string;
+  amount_cents: number;
+  paid_by: string;
+  parts: SplitPart[];
+  disputed: boolean;
+}
+
+/** Each person's balance (positive: owed to them); a disputed bill is on hold for everyone. */
+export async function splitBalances(
+  people: string[],
+  bills: SplitBillFacts[],
+  settlements: Array<{ from: string; to: string; cents: number }>,
+): Promise<{ balances: SplitPart[]; on_hold: string[] }> {
+  return engine.call("splits.balances", { people, bills, settlements });
+}
+
+/** The fewest payments that settle everyone. */
+export async function splitSimplify(
+  balances: SplitPart[],
+): Promise<{ payments: Array<{ from: string; to: string; cents: number }> }> {
+  return engine.call("splits.simplify", { balances });
+}
+
+/** A repeating bill's due dates from its start through today. */
+export async function splitRepeatDates(
+  start: string,
+  every: SplitRepeat,
+  asOf: string,
+): Promise<string[]> {
+  return (
+    await engine.call<{ dates: string[] }>("splits.repeat_dates", { start, every, as_of: asOf })
+  ).dates;
+}
