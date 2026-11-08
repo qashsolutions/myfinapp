@@ -83,6 +83,8 @@ class User(Base, StackdRow):
     split_blocked_at: Mapped[datetime | None]
     split_reports_cleared_at: Mapped[datetime | None]
     split_double_check_since: Mapped[datetime | None]
+    # The plan end whose "you stay on as a guest" note went out (migration 0043).
+    split_guest_notice_for: Mapped[datetime | None]
     # Tester tools (owner decision, October 18, 2026; migration 0022): the plan an admin chose to
     # test with, free of charge. Ignored unless the account's email is in STACKD_ADMIN_EMAILS.
     tester_plan: Mapped[str | None] = mapped_column(String(16))

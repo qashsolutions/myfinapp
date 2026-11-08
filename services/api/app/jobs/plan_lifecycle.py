@@ -157,6 +157,19 @@ def _one(
         return
     if state["state"] != "lapsed":
         return
+    if state.get("split_guest"):
+        # In a split group: a guest now, never deleted for it (owner decision, November 8,
+        # 2026). One note per end; leaving every group starts the usual 7 days and notes.
+        if user.split_guest_notice_for != state["ended_at"]:
+            sender.send(
+                email.plan_ended_guest_message(
+                    user.email, plan_link(), trial=end_reason(db, user, state) == "trial"
+                )
+            )
+            user.split_guest_notice_for = state["ended_at"]
+            _push(db, user.id, now)
+            counts["ended"] += 1
+        return
     ended, delete_at = state["ended_at"], state["delete_at"]
     # The payment was refunded as possible fraud and this inbox may not buy again: honest
     # notes with no "keep going" (October 25, 2026).
@@ -182,6 +195,7 @@ def _one(
             theirs = access(db, other, now=now)
             if (
                 theirs["state"] == "lapsed"
+                and theirs["delete_at"] is not None  # a split guest is never closed for it
                 and now >= theirs["delete_at"]
                 and other.lapsed_notice_for == theirs["ended_at"]
             ):

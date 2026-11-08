@@ -55,6 +55,7 @@ const yearlyBack = Math.round(deleteMonth3);
             "Cancelling: in the app, Me → Plan → Cancel plan. No more charges. Your plan keeps working until the end of the period you already paid for; cancelling doesn't refund the rest of that period, monthly or yearly. You can undo the cancellation before then.",
             `Yearly plans cost less than twelve monthly payments only if you stay the year: Private ${$(priv.yearlyCents)} a year against ${$(12 * priv.monthlyCents)} monthly, Connected ${$(conn.yearlyCents)} against ${$(12 * conn.monthlyCents)}. If you delete your account early, the months used are charged at the monthly price (see Refunds). The app says this before you buy, and you tick a box to agree.`,
             "When a trial or a paid plan ends without a new plan, the app locks for 7 days so you can subscribe again or download your data. We email you before it ends, when it ends, and once a day for the 7 days. After the 7 days the account is closed and what we kept is deleted, as if you had deleted it yourself (see Refunds), except that the data on your device stays there until you download or erase it.",
+            "If you are in a split-bill group when it ends, you stay in your groups as a free guest instead, and nothing is closed for it; the 7 days start when you leave your last group.",
             "If a renewal payment fails, Stripe tries it again. A plan that stays unpaid ends, and an unpaid period is never refunded.",
           ],
         ],

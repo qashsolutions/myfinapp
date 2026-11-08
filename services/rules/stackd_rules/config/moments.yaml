@@ -213,6 +213,7 @@ push_recovery_partner: "Your partner asked you to help them get back into Qash."
 # joining a group, whose device needs the group key from a member's open app. Fixed words.
 push_split_reminder: "You have a balance in a group."
 push_split_joined: "Someone joined your group. Open Qash to let them in."
+push_split_pending: "A bill in your group is waiting for your OK."
 
 nudges:
   set_pay:

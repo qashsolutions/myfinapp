@@ -34,6 +34,8 @@ export interface Access {
    * with no trial clock or card ask, or the holder's end: `lapsed` / `paused` together).
    */
   shared: "holder" | "covered" | null;
+  /** lapsed while in a split-bill group: a free guest, never closed for it (`delete_at` null) until they leave their last group (November 8, 2026). */
+  split_guest: boolean;
 }
 
 export interface Entitlements {
@@ -51,6 +53,7 @@ export interface Entitlements {
   /** Split bills (November 8, 2026): bills a day across the groups this person runs, and people per group; 0 = a guest. */
   split_bills_per_day: number;
   split_people_max: number;
+  split_invites_per_day: number;
 }
 
 /** Free's limits, the fallback before the first server answer. A test checks them against plans.yaml. */
@@ -66,6 +69,7 @@ export const FREE_ENTITLEMENTS: Entitlements = {
   household: false,
   split_bills_per_day: 0,
   split_people_max: 0,
+  split_invites_per_day: 0,
 };
 
 const PLANS = new Set<string>(["free", "private", "connected", "founding"]);
@@ -101,6 +105,7 @@ function parseAccess(raw: unknown): Access | null {
     delete_at: text(r.delete_at),
     trial_used: r.trial_used === true,
     shared: r.shared === "holder" || r.shared === "covered" ? r.shared : null,
+    split_guest: r.split_guest === true,
   };
 }
 
@@ -119,6 +124,7 @@ export function parseEntitlements(raw: unknown): Entitlements | null {
   // A cached answer from before split bills has neither: 0, a guest, until the server says.
   const splitBills = limit(r.split_bills_per_day) ?? 0;
   const splitPeople = limit(r.split_people_max) ?? 0;
+  const splitInvites = limit(r.split_invites_per_day) ?? 0;
   if (
     plan === null ||
     goals === undefined ||
@@ -142,6 +148,7 @@ export function parseEntitlements(raw: unknown): Entitlements | null {
     household,
     split_bills_per_day: splitBills,
     split_people_max: splitPeople,
+    split_invites_per_day: splitInvites,
   };
 }
 

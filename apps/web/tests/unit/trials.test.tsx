@@ -316,7 +316,13 @@ describe("trials", () => {
   });
 
   it("every access state reaches what it may: subscribe, export, delete, and nothing else", () => {
-    const base = { plan: "free" as const, trial_ends_at: null, days: null, card_from: null };
+    const base = {
+      plan: "free" as const,
+      trial_ends_at: null,
+      days: null,
+      card_from: null,
+      split_guest: false,
+    };
     const make = (state: Access["state"], trial_used = false): Access => ({
       ...base,
       state,

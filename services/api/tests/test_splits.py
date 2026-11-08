@@ -133,20 +133,66 @@ def test_people_per_group_follow_the_organizers_plan() -> None:
     assert r.status_code == 403 and r.json()["detail"] == "plan_limit"
 
 
-def test_bills_a_day_count_for_the_organizer_whoever_adds_them() -> None:
+def test_a_guests_bill_waits_for_the_organizer_and_counts_only_when_approved() -> None:
     jordan, _, _ = person("Jordan K.", "private")  # 6 a day
     sam = person("Sam L.")
     gid = group_with(jordan, [sam])
-    for n in range(1, 7):
-        adder = jordan if n % 2 else sam[0]
-        r = adder.post(f"/api/splits/{gid}/bills")
-        assert r.status_code == 201, r.text
-        assert r.json()["today"] == {"added": n, "limit": 6}
     r = sam[0].post(f"/api/splits/{gid}/bills")
+    assert r.status_code == 201 and r.json()["status"] == "pending" and r.json()["today"] is None
+    waiting = r.json()["id"]
+    state = jordan.get(f"/api/splits/{gid}/state").json()
+    assert state["bill_ids"] == [] and [p["bill_id"] for p in state["pending"]] == [waiting]
+    assert jordan.get("/api/splits").json()["today"] == {"added": 0, "limit": 6}
+    # Only the organizer approves
+    assert sam[0].post(f"/api/splits/{gid}/bills/{waiting}/approve").status_code == 403
+    r = jordan.post(f"/api/splits/{gid}/bills/{waiting}/approve")
+    assert r.json() == {"id": waiting, "status": "approved", "today": {"added": 1, "limit": 6}}
+    assert sam[0].get(f"/api/splits/{gid}/state").json()["bill_ids"] == [waiting]
+    # The organizer's own bills count at once, up to 6 a day with the approved one
+    for n in range(2, 7):
+        r = jordan.post(f"/api/splits/{gid}/bills")
+        assert r.json()["status"] == "approved" and r.json()["today"]["added"] == n
+    r = jordan.post(f"/api/splits/{gid}/bills")
     assert r.status_code == 429 and r.json()["detail"] == "daily_limit"
-    assert jordan.get("/api/splits").json()["today"] == {"added": 6, "limit": 6}
-    # Every issued id is listed for the devices (invariant 77)
-    assert len(sam[0].get(f"/api/splits/{gid}/state").json()["bill_ids"]) == 6
+    # A guest's waiting bill can't be approved past the day's limit either
+    late = sam[0].post(f"/api/splits/{gid}/bills").json()["id"]
+    r = jordan.post(f"/api/splits/{gid}/bills/{late}/approve")
+    assert r.status_code == 429 and r.json()["detail"] == "daily_limit"
+
+
+def test_declined_bills_never_count_and_are_a_mistake_and_the_switch_stops_guests() -> None:
+    jordan, _, _ = person("Jordan K.", "private")
+    sam = person("Sam L.")
+    gid = group_with(jordan, [sam])
+    bill = sam[0].post(f"/api/splits/{gid}/bills").json()["id"]
+    assert jordan.post(f"/api/splits/{gid}/bills/{bill}/decline").status_code == 204
+    state = jordan.get(f"/api/splits/{gid}/state").json()
+    assert state["bill_ids"] == [] and state["pending"] == []
+    with get_session_factory()() as db:
+        kinds = db.scalars(
+            select(SplitMistake.kind).where(SplitMistake.user_id == uuid.UUID(sam[1]))
+        ).all()
+    assert kinds == ["bill_declined"]
+    r = jordan.patch(f"/api/splits/{gid}", json={"guests_can_add": False})
+    assert r.status_code == 200 and r.json()["guests_can_add"] is False
+    assert sam[0].patch(f"/api/splits/{gid}", json={"guests_can_add": True}).status_code == 403
+    r = sam[0].post(f"/api/splits/{gid}/bills")
+    assert r.status_code == 403 and r.json()["detail"] == "guests_cannot_add"
+    assert jordan.post(f"/api/splits/{gid}/bills").status_code == 201
+
+
+def test_email_invites_a_day_follow_the_plan() -> None:
+    jordan, _, _ = person("Jordan K.", "connected")  # 12 a day, across groups
+    first = jordan.post("/api/splits").json()["id"]
+    second = jordan.post("/api/splits").json()["id"]
+    for i in range(12):
+        gid = first if i < 8 else second
+        r = jordan.post(
+            f"/api/splits/{gid}/invites", json={"email": f"f{i}-{uuid.uuid4().hex[:4]}@example.com"}
+        )
+        assert r.status_code == 201, (i, r.text)
+    r = jordan.post(f"/api/splits/{second}/invites", json={"email": "one-more@example.com"})
+    assert r.status_code == 429 and r.json()["detail"] == "invite_limit"
 
 
 def test_connected_runs_twelve_a_day() -> None:
@@ -308,6 +354,7 @@ def test_deleting_an_account_leaves_its_groups_and_keeps_the_bills() -> None:
     sam = person("Sam L.")
     gid = group_with(jordan, [sam])
     bill = sam[0].post(f"/api/splits/{gid}/bills").json()["id"]
+    assert jordan.post(f"/api/splits/{gid}/bills/{bill}/approve").status_code == 200
     r = sam[0].post("/api/account/delete", json={"confirm": "DELETE"})
     assert r.status_code == 204, r.text
     group = jordan.get("/api/splits").json()["groups"][0]
@@ -338,6 +385,13 @@ def test_split_pushes_carry_fixed_words_and_remind_is_once_a_day() -> None:
     assert _alerts_for(jordan_id) == [
         ("split_activity", "join", "Someone joined your group. Open Qash to let them in.")
     ]
+    waiting = sam[0].post(f"/api/splits/{gid}/bills").json()["id"]
+    assert _alerts_for(jordan_id)[-1] == (
+        "split_activity",
+        "pending",
+        "A bill in your group is waiting for your OK.",
+    )
+    jordan.post(f"/api/splits/{gid}/bills/{waiting}/decline")
     bill = jordan.post(f"/api/splits/{gid}/bills").json()["id"]
     assert _alerts_for(sam[1])[-1] == ("split_activity", "bill", "Someone added a bill to a group.")
     sam[0].post(f"/api/splits/{gid}/disputes", json={"bill_id": bill})
@@ -372,3 +426,37 @@ def test_a_blocked_organizer_cant_remind() -> None:
     sam_member = group["my_member_id"]
     r = jordan.post(f"/api/splits/{gid}/remind", json={"member_id": sam_member})
     assert r.status_code == 403 and r.json()["detail"] == "split_blocked"
+
+
+def test_a_lapsed_trial_in_a_split_group_stays_a_guest_and_is_never_closed_for_it() -> None:
+    from app.jobs.plan_lifecycle import run
+
+    jordan, _, _ = person("Jordan K.", "private")
+    sam = person("Sam L.")
+    gid = group_with(jordan, [sam])
+    ended = datetime.now(UTC) - timedelta(days=10)  # past the 7 days
+    with get_session_factory()() as db, db.begin():
+        db.execute(
+            update(User)
+            .where(User.id == uuid.UUID(sam[1]))
+            .values(trial_plan="private", trial_ends_at=ended)
+        )
+    outbox().clear()
+    with get_session_factory()() as db:
+        run(db)
+    mail = [m for m in outbox() if m.to == sam[2]]
+    assert [m.subject for m in mail] == ["Your Qash trial has ended. Your split groups stay"]
+    with get_session_factory()() as db:
+        assert db.get(User, uuid.UUID(sam[1])).deleted_at is None
+        run(db)  # once per end
+    assert len([m for m in outbox() if m.to == sam[2]]) == 1
+    assert sam[0].get("/api/splits").json()["guest"] is True
+    # Leaving every group starts the usual 7 days from the leaving
+    assert sam[0].post(f"/api/splits/{gid}/leave", json={}).status_code == 204
+    access = sam[0].get("/api/billing/entitlements").json()["access"]
+    assert access["state"] == "lapsed" and access["split_guest"] is False
+    left_by = datetime.fromisoformat(access["delete_at"]) - timedelta(days=7)
+    assert abs((left_by - datetime.now(UTC)).total_seconds()) < 120
+    with get_session_factory()() as db:
+        run(db)
+        assert db.get(User, uuid.UUID(sam[1])).deleted_at is None

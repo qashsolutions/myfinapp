@@ -46,6 +46,7 @@ RECOVERY_STARTED_LABEL: str = _MOMENTS["push_recovery_started"]
 RECOVERY_PARTNER_LABEL: str = _MOMENTS["push_recovery_partner"]
 SPLIT_REMINDER_LABEL: str = _MOMENTS["push_split_reminder"]
 SPLIT_JOINED_LABEL: str = _MOMENTS["push_split_joined"]
+SPLIT_PENDING_LABEL: str = _MOMENTS["push_split_pending"]
 TITLE = "Qash"
 # Where a tap on the push lands (the service worker opens it); never a deep link with data.
 URLS: dict[str, str] = {
@@ -92,6 +93,8 @@ def label_for(kind: str, dedupe_key: str) -> str:
             return SPLIT_REMINDER_LABEL
         if dedupe_key.startswith("split:join:"):
             return SPLIT_JOINED_LABEL
+        if dedupe_key.startswith("split:pending:"):
+            return SPLIT_PENDING_LABEL
     return LABELS[kind]
 
 
