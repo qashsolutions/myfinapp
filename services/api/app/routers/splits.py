@@ -66,6 +66,7 @@ from app.security.csrf import same_site_only
 from app.security.hashing import pseudonym
 from app.security.principal import Caller, require_step_up, require_unlocked
 from app.security.rate_limit import rate_limited, session_or_ip
+from app.services import alerts
 from app.services import email as email_svc
 from app.services.otp import canonical_email
 
@@ -382,11 +383,19 @@ class LeaveIn(BaseModel):
     report: ReportReason | None = None
 
 
+class RemindIn(BaseModel):
+    member_id: uuid.UUID
+
+
 class PayConsentIn(BaseModel):
     version: str = Field(min_length=1, max_length=16)
 
 
 SplitStateOut.model_rebuild()
+
+
+def _others(db: DbSession, group_id: uuid.UUID, me: uuid.UUID) -> list[uuid.UUID]:
+    return [m.user_id for m in _live_members(db, group_id) if m.user_id and m.user_id != me]
 
 
 def _today(db: DbSession, user: User, now: datetime) -> TodayOut:
@@ -667,6 +676,17 @@ def accept_invite(
     row.used_at = now
     row.used_by = caller.user.id
     db.flush()
+    joined = db.scalar(
+        select(SplitMember.id).where(
+            SplitMember.group_id == group.id,
+            SplitMember.user_id == caller.user.id,
+            SplitMember.left_at.is_(None),
+        )
+    )
+    # Someone joined: a member's open app hands the new device the group key.
+    alerts.split_activity(
+        db, _others(db, group.id, caller.user.id), f"split:join:{group.id}:{joined}", now
+    )
     record(
         db,
         actor_id=caller.user.id,
@@ -729,6 +749,9 @@ def issue_bill(
     )
     db.add(bill)
     db.flush()
+    alerts.split_activity(
+        db, _others(db, group.id, caller.user.id), f"split:bill:{group.id}:{bill.id}", now
+    )
     db.commit()
     return BillIssued(id=bill.id, today=TodayOut(added=added + 1, limit=limit))
 
@@ -931,6 +954,8 @@ def dispute(
         return
     now = _now()
     db.add(SplitDispute(group_id=group.id, bill_id=bill.id, user_id=caller.user.id))
+    told = {u for u in (group.organizer_id, bill.created_by) if u and u != caller.user.id}
+    alerts.split_activity(db, sorted(told), f"split:dispute:{group.id}:{bill.id}", now)
     if bill.created_by != caller.user.id:
         record_mistake(db, bill.created_by, "bill_disputed", now)
     db.commit()
@@ -1055,6 +1080,35 @@ def takeover(
     group.organizer_id = caller.user.id
     db.commit()
     return _group_out(db, group, caller.user.id, _now())
+
+
+@router.post("/{group_id}/remind", status_code=status.HTTP_204_NO_CONTENT)
+def remind(
+    group_id: uuid.UUID,
+    body: RemindIn,
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    db: Annotated[DbSession, Depends(get_db)],
+) -> None:
+    """Remind: the fixed push "You have a balance in a group", at most once a day for each
+    person in each group. A blocked organizer can't ask for money (spec "Reports and blocks")."""
+    group = _group(db, group_id)
+    _membership(db, group, caller.user.id)
+    if caller.user.split_blocked_at is not None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="split_blocked")
+    target = db.get(SplitMember, body.member_id)
+    if (
+        target is None
+        or target.group_id != group.id
+        or target.left_at is not None
+        or target.user_id is None
+    ):
+        raise not_found()
+    if target.user_id == caller.user.id:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="not_yourself")
+    now = _now()
+    day = _local_day(db, target.user_id, now).isoformat()
+    alerts.split_activity(db, [target.user_id], f"split:remind:{group.id}:{target.id}:{day}", now)
+    db.commit()
 
 
 @router.post("/pay-consent", status_code=status.HTTP_204_NO_CONTENT)

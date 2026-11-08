@@ -169,6 +169,13 @@ events:
     push: "Something happened in your group"
     settings: "Group activity"
 
+  # Split bills (November 8, 2026): fixed words, never a group's name, a person or an amount.
+  split_activity:
+    when: "Someone adds or disputes a bill in a split group the user is in"
+    vars: []
+    push: "Someone added a bill to a group."
+    settings: "Split bills"
+
   weekly_recap:
     when: "The weekly recap is ready"
     vars: []
@@ -202,6 +209,10 @@ push_founding_ended: "Your Qash Founding membership has ended. Pick a plan to ke
 # account's own devices when someone starts, and to the partner who can approve. Fixed words.
 push_recovery_started: "Someone asked to get back into your Qash account. Open Qash if it wasn't you."
 push_recovery_partner: "Your partner asked you to help them get back into Qash."
+# Split bills (November 8, 2026): a reminder (at most once a day per person) and someone
+# joining a group, whose device needs the group key from a member's open app. Fixed words.
+push_split_reminder: "You have a balance in a group."
+push_split_joined: "Someone joined your group. Open Qash to let them in."
 
 nudges:
   set_pay:

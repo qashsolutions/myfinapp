@@ -58,6 +58,7 @@ const ALERT_WORDS: Record<string, string> = {
   budget_pace: "budget category line bucket plan close over spending limit percent",
   milestone_reached: "milestone jar goal reached daily summary digest",
   group_activity: "group challenge joins members daily summary digest",
+  split_activity: "split bills friends housemates reminder balance owe owed daily summary digest",
   weekly_recap: "weekly recap summary email",
 };
 

@@ -38,6 +38,10 @@ export const TYPE_COPY: Record<
     title: pushSettingsTitle("group_activity"),
     sub: (p) => withDelivery(p, "Joins and challenge ends"),
   },
+  split_activity: {
+    title: pushSettingsTitle("split_activity"),
+    sub: (p) => withDelivery(p, "Bills, joins and reminders in your groups"),
+  },
   budget_pace: {
     title: pushSettingsTitle("budget_pace"),
     sub: (p) =>
@@ -51,8 +55,13 @@ export const TYPE_COPY: Record<
       `${DAY_NAMES[Number((p.days ?? "0").split(",")[0])] ?? "Sundays"} ${clockText(p.time_of_day ?? "09:00")} · ${CHANNEL_TEXT[p.channel ?? "push"] ?? "push"}`,
   },
 };
-/** Low balance, milestones and group activity: as they happen, or one daily summary. */
-export const DIGEST_TYPES = ["shortfall_risk", "milestone_reached", "group_activity"];
+/** Low balance, milestones, group and split activity: as they happen, or one daily summary. */
+export const DIGEST_TYPES = [
+  "shortfall_risk",
+  "milestone_reached",
+  "group_activity",
+  "split_activity",
+];
 
 function withDelivery(p: NotificationSettingsOut["prefs"][string], what: string): string {
   return p.delivery === "daily"

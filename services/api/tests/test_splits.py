@@ -316,3 +316,59 @@ def test_deleting_an_account_leaves_its_groups_and_keeps_the_bills() -> None:
     with get_session_factory()() as db:
         assert db.get(SplitBill, uuid.UUID(bill)) is not None
         assert db.scalar(select(User.split_blocked_at).limit(1)) is None
+
+
+def _alerts_for(user_id: str) -> list[tuple[str, str, str]]:
+    from app.models.notification import AlertSchedule
+
+    with get_session_factory()() as db:
+        rows = db.scalars(
+            select(AlertSchedule)
+            .where(AlertSchedule.user_id == uuid.UUID(user_id))
+            .order_by(AlertSchedule.created_at)
+        ).all()
+    return [(r.type, r.dedupe_key.split(":")[1], r.generic_label) for r in rows]
+
+
+def test_split_pushes_carry_fixed_words_and_remind_is_once_a_day() -> None:
+    jordan, jordan_id, _ = person("Jordan K.", "private")
+    sam = person("Sam L.")
+    gid = group_with(jordan, [sam])
+    # Sam joining tells Jordan, whose app hands Sam's device the key
+    assert _alerts_for(jordan_id) == [
+        ("split_activity", "join", "Someone joined your group. Open Qash to let them in.")
+    ]
+    bill = jordan.post(f"/api/splits/{gid}/bills").json()["id"]
+    assert _alerts_for(sam[1])[-1] == ("split_activity", "bill", "Someone added a bill to a group.")
+    sam[0].post(f"/api/splits/{gid}/disputes", json={"bill_id": bill})
+    assert _alerts_for(jordan_id)[-1][1] == "dispute"
+
+    sam_member = next(
+        m["member_id"]
+        for m in jordan.get("/api/splits").json()["groups"][0]["members"]
+        if m["display_name"] == "Sam L."
+    )
+    for _ in range(3):
+        r = jordan.post(f"/api/splits/{gid}/remind", json={"member_id": sam_member})
+        assert r.status_code == 204
+    reminders = [a for a in _alerts_for(sam[1]) if a[1] == "remind"]
+    assert reminders == [("split_activity", "remind", "You have a balance in a group.")]
+    for kind, _, label in _alerts_for(sam[1]) + _alerts_for(jordan_id):
+        assert "Jordan" not in label and "Sam" not in label and "$" not in label, (kind, label)
+
+
+def test_a_blocked_organizer_cant_remind() -> None:
+    jordan, jordan_id, _ = person("Jordan K.", "private")
+    sam = person("Sam L.")
+    gid = group_with(jordan, [sam])
+    with get_session_factory()() as db, db.begin():
+        db.execute(
+            update(User)
+            .where(User.id == uuid.UUID(jordan_id))
+            .values(split_blocked_at=datetime.now(UTC))
+        )
+    group = sam[0].get("/api/splits").json()["groups"][0]
+    assert group["reported"] is True
+    sam_member = group["my_member_id"]
+    r = jordan.post(f"/api/splits/{gid}/remind", json={"member_id": sam_member})
+    assert r.status_code == 403 and r.json()["detail"] == "split_blocked"

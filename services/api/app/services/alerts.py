@@ -44,6 +44,8 @@ FOUNDING_ENDED_LABEL: str = _MOMENTS["push_founding_ended"]
 BUDGET_REACHED_LABEL: str = _MOMENTS["push_budget_reached"]
 RECOVERY_STARTED_LABEL: str = _MOMENTS["push_recovery_started"]
 RECOVERY_PARTNER_LABEL: str = _MOMENTS["push_recovery_partner"]
+SPLIT_REMINDER_LABEL: str = _MOMENTS["push_split_reminder"]
+SPLIT_JOINED_LABEL: str = _MOMENTS["push_split_joined"]
 TITLE = "Qash"
 # Where a tap on the push lands (the service worker opens it); never a deep link with data.
 URLS: dict[str, str] = {
@@ -55,6 +57,7 @@ URLS: dict[str, str] = {
     "group_activity": "/goals",
     "weekly_recap": "/recap",
     "budget_pace": "/budget",
+    "split_activity": "/splits",
 }
 # A budget alert key: the month, a 16-letter tag the device made from a random value it keeps
 # and the category's id (never the category, its name or an amount), and the level in bps.
@@ -72,6 +75,8 @@ DEFAULT_PREFS: dict[str, dict] = {
     "weekly_recap": {"enabled": True, "time_of_day": "09:00", "days": "0", "channel": "push"},
     # threshold: the "Tell me at" percent; none = the rules config's levels (90% and 100%)
     "budget_pace": {"enabled": True, "time_of_day": "09:00"},
+    # Split bills (November 8, 2026): on, as it happens; reminders and joins use the same switch
+    "split_activity": {"enabled": True, "delivery": "instant", "time_of_day": "19:00"},
 }
 MAX_SCHEDULE_ITEMS = 300
 
@@ -82,6 +87,11 @@ def label_for(kind: str, dedupe_key: str) -> str:
         match = BUDGET_KEY.fullmatch(dedupe_key)
         if match and int(match.group(1)) >= 10000:
             return BUDGET_REACHED_LABEL
+    if kind == "split_activity":
+        if dedupe_key.startswith("split:remind:"):
+            return SPLIT_REMINDER_LABEL
+        if dedupe_key.startswith("split:join:"):
+            return SPLIT_JOINED_LABEL
     return LABELS[kind]
 
 
@@ -235,5 +245,22 @@ def group_joined(
     count = 0
     for user_id in others:
         if enqueue(db, user_id, "group_activity", now, f"{key}:{user_id}", from_device=False):
+            count += 1
+    return count
+
+
+def split_activity(
+    db: DbSession,
+    user_ids: list[uuid.UUID],
+    key: str,
+    now: datetime | None = None,
+) -> int:
+    """Split bills (November 8, 2026): one push per person for one thing that happened in a
+    group (a bill added or disputed, someone joined, a reminder). The key carries ids and a
+    date only; the label is fixed text chosen from its prefix."""
+    now = now or datetime.now(UTC)
+    count = 0
+    for user_id in user_ids:
+        if enqueue(db, user_id, "split_activity", now, f"{key}:{user_id}", from_device=False):
             count += 1
     return count

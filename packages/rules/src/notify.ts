@@ -14,6 +14,7 @@ export const TYPES = [
   "group_activity",
   "weekly_recap",
   "budget_pace",
+  "split_activity",
 ] as const;
 export type AlertType = (typeof TYPES)[number];
 

@@ -84,7 +84,7 @@ describe("Notifications", () => {
     renderApp("/me/notifications");
     await screen.findByRole("navigation", { name: "Primary" });
     const list = await screen.findByRole("list", { name: "Alert types" });
-    expect(within(list).getAllByRole("listitem")).toHaveLength(8);
+    expect(within(list).getAllByRole("listitem")).toHaveLength(9);
     expect(within(list).getByRole("switch", { name: "Group activity alerts" })).not.toBeChecked();
     await user.click(within(list).getByRole("switch", { name: "Group activity alerts" }));
     await waitFor(() =>

@@ -3739,6 +3739,20 @@
         "title": "RegisterVerifyRequest",
         "type": "object"
       },
+      "RemindIn": {
+        "properties": {
+          "member_id": {
+            "format": "uuid",
+            "title": "Member Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "member_id"
+        ],
+        "title": "RemindIn",
+        "type": "object"
+      },
       "ScheduleIn": {
         "properties": {
           "items": {
@@ -8785,6 +8799,53 @@
           }
         },
         "summary": "Remove Member",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/remind": {
+      "post": {
+        "description": "Remind: the fixed push \"You have a balance in a group\", at most once a day for each\nperson in each group. A blocked organizer can't ask for money (spec \"Reports and blocks\").",
+        "operationId": "remind_api_splits__group_id__remind_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemindIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remind",
         "tags": [
           "splits"
         ]

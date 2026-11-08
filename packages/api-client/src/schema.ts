@@ -1935,6 +1935,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/splits/{group_id}/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remind
+         * @description Remind: the fixed push "You have a balance in a group", at most once a day for each
+         *     person in each group. A blocked organizer can't ask for money (spec "Reports and blocks").
+         */
+        post: operations["remind_api_splits__group_id__remind_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/splits/{group_id}/state": {
         parameters: {
             query?: never;
@@ -3499,6 +3520,14 @@ export interface components {
             };
             /** Label */
             label?: string | null;
+        };
+        /** RemindIn */
+        RemindIn: {
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
         };
         /** ScheduleIn */
         ScheduleIn: {
@@ -7000,6 +7029,39 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remind_api_splits__group_id__remind_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RemindIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
