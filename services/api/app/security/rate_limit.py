@@ -43,6 +43,9 @@ LIMITS: dict[str, Limit] = {
     # households, offices and carrier NAT, so they no longer spend the attempts above.
     "passkey_options": Limit("passkey_options", 60, timedelta(minutes=15)),
     "invite_join": Limit("invite_join", 10, timedelta(hours=1)),
+    # Split-bill email invites (November 8, 2026; proposed, awaiting the owner's sign-off): each
+    # one emails a stranger's inbox, so a few dozen a day per signed-in device.
+    "split_invite": Limit("split_invite", 20, timedelta(hours=24)),
     "export": Limit("export", 5, timedelta(hours=24)),  # per signed-in device; each one emails
     # "What helped" answers (owner sign-off, October 29, 2026): a few changes a visit, never a loop.
     "group_helped": Limit("group_helped", 8, timedelta(hours=1)),  # per signed-in device

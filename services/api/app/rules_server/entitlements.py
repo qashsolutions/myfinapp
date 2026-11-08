@@ -35,6 +35,8 @@ LIMIT_KEYS = (
     "bank_links_max",
     "backup",
     "household",
+    "split_bills_per_day",
+    "split_people_max",
 )
 
 

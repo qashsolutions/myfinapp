@@ -16,6 +16,7 @@ from app.models.linking import LinkSession
 from app.models.otp_code import OtpCode
 from app.models.rate_limit import RateLimitBucket
 from app.models.recovery import AccountRecovery
+from app.models.split import SplitInvite, SplitMistake
 from app.models.webauthn_challenge import WebauthnChallenge
 
 
@@ -62,6 +63,18 @@ def purge(db: DbSession, *, now: datetime | None = None) -> dict[str, int]:
         # Household invites: 7-day codes, kept a week past expiry.
         "household_invites": db.execute(
             delete(HouseholdInvite).where(HouseholdInvite.expires_at < now - timedelta(days=7))
+        ).rowcount,
+        # Split-bill invites (November 8, 2026): kept a week past expiry, except a declined one,
+        # which is what stops that sender asking the same inbox again.
+        "split_invites": db.execute(
+            delete(SplitInvite).where(
+                SplitInvite.expires_at < now - timedelta(days=7),
+                SplitInvite.declined_at.is_(None),
+            )
+        ).rowcount,
+        # Split-bill mistakes only count for 30 days; kept 60.
+        "split_mistakes": db.execute(
+            delete(SplitMistake).where(SplitMistake.created_at < now - timedelta(days=60))
         ).rowcount,
         # Payment-webhook receipts (only event ids, to ignore redeliveries): 13 months.
         "billing_event_ids": db.execute(

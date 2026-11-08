@@ -295,6 +295,7 @@ def soft_delete(
     until the person decides (owner, October 20, 2026); every other deletion erases them."""
     now = now or datetime.now(UTC)
     _lock_person(db, user.id)
+    from app.routers import splits as split_groups  # noqa: PLC0415 - avoids a router import cycle
     from app.routers.household import (  # noqa: PLC0415 - avoids a router import cycle
         leave_households,
     )
@@ -346,6 +347,7 @@ def soft_delete(
     # The encrypted backup goes now (docs/spec.md "Delete account"); the device wipes its own copy.
     backup_store.delete_all(db, user.id)
     leave_households(db, user.id, now=now, split=split)
+    split_groups.leave_all(db, user.id, now=now)  # bills stay, as a former member's
     from app.routers.linking import revoke_all  # noqa: PLC0415 - same cycle as above
 
     revoke_all(db, user.id)

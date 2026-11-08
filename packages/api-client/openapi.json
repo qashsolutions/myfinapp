@@ -369,6 +369,24 @@
         "title": "BackupStatus",
         "type": "object"
       },
+      "BillIssued": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "today": {
+            "$ref": "#/components/schemas/TodayOut"
+          }
+        },
+        "required": [
+          "id",
+          "today"
+        ],
+        "title": "BillIssued",
+        "type": "object"
+      },
       "BillingOut": {
         "properties": {
           "available": {
@@ -1434,6 +1452,47 @@
         "title": "DeviceSync",
         "type": "object"
       },
+      "DisputeIn": {
+        "properties": {
+          "bill_id": {
+            "format": "uuid",
+            "title": "Bill Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bill_id"
+        ],
+        "title": "DisputeIn",
+        "type": "object"
+      },
+      "DisputeOut": {
+        "properties": {
+          "bill_id": {
+            "format": "uuid",
+            "title": "Bill Id",
+            "type": "string"
+          },
+          "member_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Id"
+          }
+        },
+        "required": [
+          "bill_id",
+          "member_id"
+        ],
+        "title": "DisputeOut",
+        "type": "object"
+      },
       "EmailChangeRequest": {
         "properties": {
           "new_email": {
@@ -2215,6 +2274,107 @@
         "title": "HouseholdStatus",
         "type": "object"
       },
+      "InviteCardOut": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "group_id": {
+            "format": "uuid",
+            "title": "Group Id",
+            "type": "string"
+          },
+          "member_since": {
+            "title": "Member Since",
+            "type": "string"
+          },
+          "organizer_email": {
+            "title": "Organizer Email",
+            "type": "string"
+          },
+          "organizer_initial": {
+            "title": "Organizer Initial",
+            "type": "string"
+          },
+          "organizer_name": {
+            "title": "Organizer Name",
+            "type": "string"
+          },
+          "pays_with_card": {
+            "title": "Pays With Card",
+            "type": "boolean"
+          },
+          "people": {
+            "title": "People",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "group_id",
+          "organizer_name",
+          "organizer_initial",
+          "organizer_email",
+          "member_since",
+          "pays_with_card",
+          "people",
+          "expires_at"
+        ],
+        "title": "InviteCardOut",
+        "type": "object"
+      },
+      "InviteCreated": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "expires_at",
+          "token"
+        ],
+        "title": "InviteCreated",
+        "type": "object"
+      },
+      "InviteIn": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "email_again": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email Again"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "InviteIn",
+        "type": "object"
+      },
       "InviteOut": {
         "properties": {
           "code": {
@@ -2382,6 +2542,53 @@
           "updated_at"
         ],
         "title": "KeyOut",
+        "type": "object"
+      },
+      "KeyRequestIn": {
+        "properties": {
+          "device_key_id": {
+            "maxLength": 64,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Device Key Id",
+            "type": "string"
+          },
+          "public_key": {
+            "maxLength": 1373,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Public Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "device_key_id",
+          "public_key"
+        ],
+        "title": "KeyRequestIn",
+        "type": "object"
+      },
+      "LeaveIn": {
+        "properties": {
+          "report": {
+            "anyOf": [
+              {
+                "enum": [
+                  "dont_know",
+                  "not_owed",
+                  "pushy",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report"
+          }
+        },
+        "title": "LeaveIn",
         "type": "object"
       },
       "LeaveOutcomeOut": {
@@ -3019,6 +3226,21 @@
           "credential"
         ],
         "title": "PasskeySignInRequest",
+        "type": "object"
+      },
+      "PayConsentIn": {
+        "properties": {
+          "version": {
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "PayConsentIn",
         "type": "object"
       },
       "PlanEventOut": {
@@ -3815,6 +4037,306 @@
         "title": "SignedPayloadIn",
         "type": "object"
       },
+      "SplitBlobIn": {
+        "properties": {
+          "ciphertext": {
+            "maxLength": 349533,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Ciphertext",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ciphertext",
+          "version"
+        ],
+        "title": "SplitBlobIn",
+        "type": "object"
+      },
+      "SplitBlobOut": {
+        "properties": {
+          "ciphertext": {
+            "title": "Ciphertext",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "member_id": {
+            "format": "uuid",
+            "title": "Member Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "member_id",
+          "kind",
+          "ciphertext",
+          "version",
+          "updated_at"
+        ],
+        "title": "SplitBlobOut",
+        "type": "object"
+      },
+      "SplitGroupOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "invites": {
+            "items": {
+              "$ref": "#/components/schemas/SplitInviteOut"
+            },
+            "title": "Invites",
+            "type": "array"
+          },
+          "is_organizer": {
+            "title": "Is Organizer",
+            "type": "boolean"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/SplitMemberOut"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "my_member_id": {
+            "format": "uuid",
+            "title": "My Member Id",
+            "type": "string"
+          },
+          "people_max": {
+            "title": "People Max",
+            "type": "integer"
+          },
+          "reported": {
+            "title": "Reported",
+            "type": "boolean"
+          },
+          "writable": {
+            "title": "Writable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "is_organizer",
+          "my_member_id",
+          "members",
+          "invites",
+          "people_max",
+          "writable",
+          "reported"
+        ],
+        "title": "SplitGroupOut",
+        "type": "object"
+      },
+      "SplitInviteOut": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "expires_at"
+        ],
+        "title": "SplitInviteOut",
+        "type": "object"
+      },
+      "SplitKeyOut": {
+        "properties": {
+          "device_key_id": {
+            "title": "Device Key Id",
+            "type": "string"
+          },
+          "member_id": {
+            "format": "uuid",
+            "title": "Member Id",
+            "type": "string"
+          },
+          "public_key": {
+            "title": "Public Key",
+            "type": "string"
+          },
+          "wrapped_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wrapped Key"
+          }
+        },
+        "required": [
+          "member_id",
+          "device_key_id",
+          "public_key",
+          "wrapped_key"
+        ],
+        "title": "SplitKeyOut",
+        "type": "object"
+      },
+      "SplitMemberOut": {
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "guest": {
+            "title": "Guest",
+            "type": "boolean"
+          },
+          "initial": {
+            "title": "Initial",
+            "type": "string"
+          },
+          "is_me": {
+            "title": "Is Me",
+            "type": "boolean"
+          },
+          "is_organizer": {
+            "title": "Is Organizer",
+            "type": "boolean"
+          },
+          "joined_at": {
+            "format": "date-time",
+            "title": "Joined At",
+            "type": "string"
+          },
+          "member_id": {
+            "format": "uuid",
+            "title": "Member Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "member_id",
+          "display_name",
+          "initial",
+          "is_me",
+          "is_organizer",
+          "guest",
+          "joined_at"
+        ],
+        "title": "SplitMemberOut",
+        "type": "object"
+      },
+      "SplitStateOut": {
+        "properties": {
+          "bill_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Bill Ids",
+            "type": "array"
+          },
+          "blobs": {
+            "items": {
+              "$ref": "#/components/schemas/SplitBlobOut"
+            },
+            "title": "Blobs",
+            "type": "array"
+          },
+          "disputes": {
+            "items": {
+              "$ref": "#/components/schemas/DisputeOut"
+            },
+            "title": "Disputes",
+            "type": "array"
+          },
+          "keys": {
+            "items": {
+              "$ref": "#/components/schemas/SplitKeyOut"
+            },
+            "title": "Keys",
+            "type": "array"
+          },
+          "writable": {
+            "title": "Writable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "blobs",
+          "bill_ids",
+          "disputes",
+          "keys",
+          "writable"
+        ],
+        "title": "SplitStateOut",
+        "type": "object"
+      },
+      "SplitsOut": {
+        "properties": {
+          "blocked": {
+            "title": "Blocked",
+            "type": "boolean"
+          },
+          "can_create": {
+            "title": "Can Create",
+            "type": "boolean"
+          },
+          "double_check": {
+            "title": "Double Check",
+            "type": "boolean"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/SplitGroupOut"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "guest": {
+            "title": "Guest",
+            "type": "boolean"
+          },
+          "today": {
+            "$ref": "#/components/schemas/TodayOut"
+          }
+        },
+        "required": [
+          "groups",
+          "can_create",
+          "guest",
+          "today",
+          "double_check",
+          "blocked"
+        ],
+        "title": "SplitsOut",
+        "type": "object"
+      },
       "StatusOut": {
         "properties": {
           "session": {
@@ -4051,6 +4573,39 @@
         "title": "TesterIn",
         "type": "object"
       },
+      "TodayOut": {
+        "properties": {
+          "added": {
+            "title": "Added",
+            "type": "integer"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "added",
+          "limit"
+        ],
+        "title": "TodayOut",
+        "type": "object"
+      },
+      "TokenIn": {
+        "properties": {
+          "token": {
+            "maxLength": 128,
+            "minLength": 16,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "TokenIn",
+        "type": "object"
+      },
       "TrialIn": {
         "properties": {
           "plan": {
@@ -4177,6 +4732,22 @@
           "code"
         ],
         "title": "VerifyIn",
+        "type": "object"
+      },
+      "WrappedKeyIn": {
+        "properties": {
+          "wrapped_key": {
+            "maxLength": 1373,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Wrapped Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wrapped_key"
+        ],
+        "title": "WrappedKeyIn",
         "type": "object"
       },
       "YouPayOut": {
@@ -7489,6 +8060,820 @@
         "summary": "Remove Passkey",
         "tags": [
           "security"
+        ]
+      }
+    },
+    "/api/splits": {
+      "get": {
+        "operationId": "list_splits_api_splits_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Splits",
+        "tags": [
+          "splits"
+        ]
+      },
+      "post": {
+        "operationId": "create_split_api_splits_post",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitGroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Create Split",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/invites/accept": {
+      "post": {
+        "operationId": "accept_invite_api_splits_invites_accept_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitGroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Invite",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/invites/decline": {
+      "post": {
+        "description": "\"I don't know <name>\": nobody is added, that sender can't invite this inbox again, and it\ncounts as one of the sender's mistakes (spec \"Mistakes\").",
+        "operationId": "decline_invite_api_splits_invites_decline_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decline Invite",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/invites/lookup": {
+      "post": {
+        "operationId": "lookup_invite_api_splits_invites_lookup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteCardOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lookup Invite",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/pay-consent": {
+      "post": {
+        "description": "The person ticked both boxes on \"Check first\": the warning's version and the time only;\nwho and how much stay on the device (invariant 78).",
+        "operationId": "pay_consent_api_splits_pay_consent_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayConsentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pay Consent",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/bills": {
+      "post": {
+        "description": "One bill id against the organizer's daily limit; a guest's bill counts for the organizer\n(spec \"Limits\"). Edits, deletes, settling up and repeats never call this.",
+        "operationId": "issue_bill_api_splits__group_id__bills_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillIssued"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Issue Bill",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/blobs/ledger": {
+      "put": {
+        "operationId": "put_ledger_api_splits__group_id__blobs_ledger_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SplitBlobIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Ledger",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/blobs/profile": {
+      "put": {
+        "description": "Payment handles: only their owner saves them, after Face ID (spec \"Payment handles\").",
+        "operationId": "put_profile_api_splits__group_id__blobs_profile_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SplitBlobIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Profile",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/disputes": {
+      "post": {
+        "description": "A bill on hold for everyone until fixed; a mistake against whoever added it.",
+        "operationId": "dispute_api_splits__group_id__disputes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisputeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dispute",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/disputes/{bill_id}/close": {
+      "post": {
+        "description": "The organizer fixed the bill (closes every dispute on it), or a disputer withdraws.",
+        "operationId": "close_dispute_api_splits__group_id__disputes__bill_id__close_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bill_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bill Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Close Dispute",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/invites": {
+      "post": {
+        "operationId": "invite_api_splits__group_id__invites_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Invite",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/invites/{invite_id}": {
+      "delete": {
+        "operationId": "cancel_invite_api_splits__group_id__invites__invite_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invite Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Invite",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/keys/request": {
+      "put": {
+        "operationId": "request_key_api_splits__group_id__keys_request_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyRequestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Key",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/keys/{member_id}/{device_key_id}": {
+      "put": {
+        "operationId": "wrap_key_api_splits__group_id__keys__member_id___device_key_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Member Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "device_key_id",
+            "required": true,
+            "schema": {
+              "title": "Device Key Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WrappedKeyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Wrap Key",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/leave": {
+      "post": {
+        "description": "Leaving never forgives anything: the leaver's bills stay with the group. \"Report and\nleave\" adds one report against the organizer (spec \"Reports and blocks\").",
+        "operationId": "leave_api_splits__group_id__leave_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leave",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/members/{member_id}": {
+      "delete": {
+        "description": "The organizer removes someone; the device checks the balance first (\"Settle first\").",
+        "operationId": "remove_member_api_splits__group_id__members__member_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Member Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Member",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/state": {
+      "get": {
+        "operationId": "state_api_splits__group_id__state_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitStateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "State",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/takeover": {
+      "post": {
+        "description": "\"Run this group\": a member with a plan, when the organizer can't (spec \"When the\norganizer's plan ends\").",
+        "operationId": "takeover_api_splits__group_id__takeover_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitGroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Takeover",
+        "tags": [
+          "splits"
         ]
       }
     },

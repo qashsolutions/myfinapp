@@ -85,6 +85,22 @@ def deletion_code_message(to: str, code: str, ttl_minutes: int, link: str) -> Me
     )
 
 
+def split_invite_message(to: str, name: str, masked: str, link: str) -> Message:
+    """A split-bill invite (November 8, 2026): who asks, never a group's name or an amount. The
+    link works only after signing in with the code sent to this inbox."""
+    return Message(
+        to=to,
+        subject=f"{name} invited you to split bills on Qash",
+        text=(
+            f"{name} ({masked}) invited you to split bills on Qash. It's free for you: no plan, "
+            f"no card, no bank.\n\nOpen the invite: {link}\n\n"
+            "Only this email address can join, and the invite stops working in 7 days. If you "
+            "don't know them, open it and choose \"I don't know them\"; they can't invite you "
+            "again. Qash never asks you to send money.\n"
+        ),
+    )
+
+
 def otp_message(to: str, code: str, ttl_minutes: int) -> Message:
     return Message(
         to=to,

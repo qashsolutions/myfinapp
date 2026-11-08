@@ -22,6 +22,7 @@ from app.routers import (
     public_plans,
     recovery,
     security,
+    splits,
 )
 from app.security.cors import PublicCors
 from app.security.headers import SecurityHeaders
@@ -64,6 +65,7 @@ def create_app() -> FastAPI:
     app.include_router(billing.router)
     app.include_router(backup.router)
     app.include_router(household.router)
+    app.include_router(splits.router)
     app.include_router(linking.router)
     app.include_router(public_account.router)
     app.include_router(public_plans.router)
