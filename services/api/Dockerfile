@@ -42,6 +42,12 @@ COPY --from=build /srv/rules /srv/rules
 COPY --from=build /srv/api /srv/api
 WORKDIR /srv/api
 
+# The base image can lag Debian's security fixes (November 8, 2026: zlib1g, CVE-2026-85091):
+# take every fixed package at build time, so the image scan only fails on what has no fix yet.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN useradd --system --uid 10001 --create-home api && chown -R api:api /srv/api
 USER api
 EXPOSE 8000
