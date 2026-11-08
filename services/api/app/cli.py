@@ -123,6 +123,30 @@ def purge_audit() -> int:
     return 0
 
 
+def split_unblock(user_id: str) -> int:
+    """Support lifts a split-bill block after a person looked (spec "Reports and blocks"):
+    earlier reports stop counting, and the decision is in the audit log."""
+    import uuid
+    from datetime import UTC, datetime
+
+    from app.db import get_session_factory
+    from app.models.user import User
+    from app.security.audit import AuditAction, record
+
+    with get_session_factory()() as session:
+        user = session.get(User, uuid.UUID(user_id))
+        if user is None or user.split_blocked_at is None:
+            print("not blocked")
+            return 1
+        now = datetime.now(UTC)
+        user.split_blocked_at = None
+        user.split_reports_cleared_at = now
+        record(session, actor_id=None, action=AuditAction.SPLIT_UNBLOCKED, target=f"user:{user.id}")
+        session.commit()
+    print("unblocked")
+    return 0
+
+
 def plan_lifecycle() -> int:
     """Trial and plan-end emails, and deleting accounts 7 days after a plan ends (hourly)."""
     from app.db import get_session_factory
@@ -234,6 +258,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("purge-expired", help="delete expired codes, challenges, counters, invites")
     sub.add_parser("plan-lifecycle", help="trial and plan-end emails; delete 7 days after an end")
     sub.add_parser("settle-deletions", help="end and refund plans Stripe kept for deleted accounts")
+    u = sub.add_parser("split-unblock", help="support lifts a split-bill block (records it)")
+    u.add_argument("user_id")
     sub.add_parser("jobs-loop", help="run every scheduled job forever (the jobs container)")
     o = sub.add_parser("openapi", help="print the OpenAPI document, or write/check a file")
     o.add_argument("-o", "--output", default=None)
@@ -261,6 +287,8 @@ def main(argv: list[str] | None = None) -> int:
         return plan_lifecycle()
     if args.cmd == "settle-deletions":
         return settle_deletions()
+    if args.cmd == "split-unblock":
+        return split_unblock(args.user_id)
     if args.cmd == "jobs-loop":
         return jobs_loop()
     return 2

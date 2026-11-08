@@ -28,6 +28,18 @@ from app.models.plan_event import PlanEvent
 from app.models.rate_limit import RateLimitBucket
 from app.models.recovery import AccountRecovery
 from app.models.session import Session
+from app.models.split import (
+    SplitBill,
+    SplitBlob,
+    SplitDispute,
+    SplitGroup,
+    SplitInvite,
+    SplitKey,
+    SplitMember,
+    SplitMistake,
+    SplitPayConsent,
+    SplitReport,
+)
 from app.models.trial_claim import TrialClaim
 from app.models.user import User
 from app.models.webauthn_challenge import WebauthnChallenge
@@ -60,6 +72,16 @@ __all__ = [
     "PushSubscription",
     "RateLimitBucket",
     "Session",
+    "SplitReport",
+    "SplitPayConsent",
+    "SplitMistake",
+    "SplitMember",
+    "SplitKey",
+    "SplitInvite",
+    "SplitGroup",
+    "SplitDispute",
+    "SplitBlob",
+    "SplitBill",
     "StackdRow",
     "Subscription",
     "TrialClaim",

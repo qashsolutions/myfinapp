@@ -1,0 +1,20 @@
+# Split bills: safety thresholds (owner decisions, November 8, 2026; docs/spec.md "Split bills";
+# invariant 79). The plan limits (bills a day, people a group) are in plans.yaml.
+version: 1
+invites:
+  ttl_days: 7  # an invite works once, for its own inbox, for this long
+mistakes:
+  # "I don't know <name>" on an invite and a disputed bill are mistakes against whoever sent
+  # or added it. This many within the window switch the double-check on; it switches off once
+  # a window passes with no new mistake.
+  threshold: 3
+  window_days: 30
+reports:
+  # This many different people reporting one organizer block them from running split groups
+  # until support lifts it.
+  threshold: 3
+handles:
+  # A payment handle changed this recently is flagged on every pay screen.
+  changed_recently_days: 3
+pay_warning:
+  version: "2026-11-08"  # the "Check first" wording; joins the terms' one-time legal review

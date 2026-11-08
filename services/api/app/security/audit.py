@@ -41,6 +41,13 @@ class AuditAction(StrEnum):
     HOUSEHOLD_INVITED = "household_invited"
     HOUSEHOLD_JOINED = "household_joined"
     HOUSEHOLD_LEFT = "household_left"
+    # Split bills (November 8, 2026): group ids and user ids only, never amounts or names.
+    SPLIT_CREATED = "split_created"
+    SPLIT_INVITED = "split_invited"
+    SPLIT_JOINED = "split_joined"
+    SPLIT_LEFT = "split_left"
+    SPLIT_REPORTED = "split_reported"
+    SPLIT_UNBLOCKED = "split_unblocked"  # support lifted a block (stackd-api split-unblock)
     BANK_CONNECTED = "bank_connected"  # Phase 3
     BANK_DISCONNECTED = "bank_disconnected"  # Phase 3
     BANK_AUTO_REVOKED = "bank_auto_revoked"  # chunk 3.4: 60 days without opening the app

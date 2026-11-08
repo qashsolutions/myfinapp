@@ -48,6 +48,9 @@ export interface Entitlements {
   bank_links_max: number | null;
   backup: boolean;
   household: boolean;
+  /** Split bills (November 8, 2026): bills a day across the groups this person runs, and people per group; 0 = a guest. */
+  split_bills_per_day: number;
+  split_people_max: number;
 }
 
 /** Free's limits, the fallback before the first server answer. A test checks them against plans.yaml. */
@@ -61,6 +64,8 @@ export const FREE_ENTITLEMENTS: Entitlements = {
   bank_links_max: 0,
   backup: false,
   household: false,
+  split_bills_per_day: 0,
+  split_people_max: 0,
 };
 
 const PLANS = new Set<string>(["free", "private", "connected", "founding"]);
@@ -111,6 +116,9 @@ export function parseEntitlements(raw: unknown): Entitlements | null {
   const create = flag(r.groups_create);
   const backup = flag(r.backup);
   const household = flag(r.household);
+  // A cached answer from before split bills has neither: 0, a guest, until the server says.
+  const splitBills = limit(r.split_bills_per_day) ?? 0;
+  const splitPeople = limit(r.split_people_max) ?? 0;
   if (
     plan === null ||
     goals === undefined ||
@@ -132,6 +140,8 @@ export function parseEntitlements(raw: unknown): Entitlements | null {
     bank_links_max: banks,
     backup,
     household,
+    split_bills_per_day: splitBills,
+    split_people_max: splitPeople,
   };
 }
 
