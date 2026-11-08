@@ -51,6 +51,13 @@ written against both.
    aside.** Any reader of `goal_events` reads withdrawals; "set aside" counts `newMoneyIn`.
    `home.test.tsx` "money moved out of a jar…" · `recap.test.tsx` · `money-month.test.tsx`
 
+76. **A shared bill counts once, as the person's own share** (November 8, 2026; split bills).
+   A bill paid on a card splits that entry: the person's share keeps its category and the rest
+   is a not-counted part "Owed to me", so the parts still add up to the bank's row (rule 1).
+   Money a friend sends back is "Paid back", never income; a payment sent to settle is spending
+   once, in the category the person picks. Tests: `apps/web/tests/invariants/money-month.test.tsx`
+   "a split bill counts the share once" (chunk S.3).
+
 ## What the person did survives
 
 6. **Edits survive a sync.** A name, category, note, tags, Don't count, transfer and recurring
@@ -591,6 +598,22 @@ written against both.
     `test_household_one_rule.py` "a page paid after joining…", "the invite says when the joiner
     pays…", "a covered person stops their own plan…" · `household-plan.test.tsx` "asks before
     joining…", "Keep mine joins…", "the Plan screen says the household covers them…"
+
+77. **Only the organizer changes a group's money, on every device** (November 8, 2026). The
+   server can't read a bill, so every device merges a group's ledger the same way and ignores
+   an edit, delete, split change, people change or leftover-cent choice not written by the
+   organizer's own blob; a bill counts only when its id was issued by the server (the daily
+   limit). Tests: `packages/rules` and `apps/web/tests/unit/splits-merge.test.ts` (chunk S.3).
+78. **Nothing about a shared bill leaves a device readable** (November 8, 2026). Group and
+   people names, bills, amounts, splits and payment handles travel only as ciphertext under the
+   group key; tables, pushes, emails, logs and audit rows hold ids, counts and dates only, and a
+   payment confirmation leaves only its warning version and time. Tests: the leak sweep's split
+   step and `services/api/tests/test_splits.py` (chunks S.2, S.3).
+79. **Limits and blocks are the server's** (November 8, 2026). Bills per day, people per group,
+   the 7-day single-use invite bound to one email, the 3-mistake double-check and the
+   3-reporter block are decided in `routers/splits.py` against `plans.yaml` and
+   `rules_server/splits.yaml`, never by a device. Tests: `services/api/tests/test_splits.py`,
+   `tests/authz/test_split_routes.py` (chunk S.2).
 
 ## Offline and the way in
 
