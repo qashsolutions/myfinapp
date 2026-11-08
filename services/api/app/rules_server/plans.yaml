@@ -16,6 +16,7 @@ plans:
     household: false
     split_bills_per_day: 0  # split bills (owner decisions, November 7–8, 2026): free accounts join as guests only
     split_people_max: 0
+    split_invites_per_day: 0
   private:
     label: Private
     price_cents: { monthly: 300, yearly: 2000 }
@@ -28,6 +29,7 @@ plans:
     household: false
     split_bills_per_day: 6  # bills added a day across the groups this person runs; a guest's count here
     split_people_max: 6  # people in one split group, the organizer included
+    split_invites_per_day: 6  # email invites a day (owner decision, November 8, 2026)
   connected:
     label: Connected
     price_cents: { monthly: 700, yearly: 6500 }
@@ -40,6 +42,7 @@ plans:
     household: true
     split_bills_per_day: 12
     split_people_max: 12
+    split_invites_per_day: 12
 # Trials (owner decision, October 14, 2026; 3 days on either plan since October 22, 2026,
 # trials already running keep their own end): there is no lasting Free plan. A new person picks
 # one trial, once per email, no card to start. From `card_from_day` the app asks for a card (the first charge is at the trial's end);

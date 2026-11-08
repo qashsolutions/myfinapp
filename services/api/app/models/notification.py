@@ -34,13 +34,14 @@ ALERT_TYPES = (
     "group_activity",
     "weekly_recap",
     "budget_pace",
+    "split_activity",
 )
 PLATFORMS = ("web", "ios", "android")
 CHANNELS = ("push", "email", "summary")
 RECAP_CHANNELS = ("push", "email", "both")  # how the weekly recap arrives (fast-follow 6)
 DELIVERIES = ("instant", "daily")  # as it happens, or one daily summary
 # The event alerts with no time of their own may wait for one daily summary instead.
-DIGEST_TYPES = ("shortfall_risk", "milestone_reached", "group_activity")
+DIGEST_TYPES = ("shortfall_risk", "milestone_reached", "group_activity", "split_activity")
 STATUSES = ("pending", "deferred", "summary", "sent", "skipped")
 
 

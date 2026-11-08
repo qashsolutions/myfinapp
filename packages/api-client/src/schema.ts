@@ -1728,6 +1728,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/splits/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Settings */
+        patch: operations["settings_api_splits__group_id__patch"];
+        trace?: never;
+    };
     "/api/splits/{group_id}/bills": {
         parameters: {
             query?: never;
@@ -1739,10 +1756,49 @@ export interface paths {
         put?: never;
         /**
          * Issue Bill
-         * @description One bill id against the organizer's daily limit; a guest's bill counts for the organizer
-         *     (spec "Limits"). Edits, deletes, settling up and repeats never call this.
+         * @description A bill id. The organizer's bill counts at once against their daily limit. Anyone else's
+         *     waits for the organizer's OK and changes no balance until then (owner decision, November 8,
+         *     2026); it counts toward the limit only when approved. Edits, deletes, settling up and
+         *     repeats never call this.
          */
         post: operations["issue_bill_api_splits__group_id__bills_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/splits/{group_id}/bills/{bill_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Bill */
+        post: operations["approve_bill_api_splits__group_id__bills__bill_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/splits/{group_id}/bills/{bill_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline Bill
+         * @description Declined: never counted, never on anyone's balance; a mistake for whoever added it.
+         */
+        post: operations["decline_bill_api_splits__group_id__bills__bill_id__decline_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1930,6 +1986,27 @@ export interface paths {
          * @description The organizer removes someone; the device checks the balance first ("Settle first").
          */
         delete: operations["remove_member_api_splits__group_id__members__member_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/splits/{group_id}/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remind
+         * @description Remind: the fixed push "You have a balance in a group", at most once a day for each
+         *     person in each group. A blocked organizer can't ask for money (spec "Reports and blocks").
+         */
+        post: operations["remind_api_splits__group_id__remind_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2233,7 +2310,12 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            today: components["schemas"]["TodayOut"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "approved" | "pending";
+            today: components["schemas"]["TodayOut"] | null;
         };
         /** BillingOut */
         BillingOut: {
@@ -2856,6 +2938,11 @@ export interface components {
             /** Template Key */
             template_key: string;
         };
+        /** GroupSettingsIn */
+        GroupSettingsIn: {
+            /** Guests Can Add */
+            guests_can_add: boolean;
+        };
         /** GroupSummary */
         GroupSummary: {
             /**
@@ -3358,6 +3445,16 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** PendingBillOut */
+        PendingBillOut: {
+            /**
+             * Bill Id
+             * Format: uuid
+             */
+            bill_id: string;
+            /** Member Id */
+            member_id: string | null;
+        };
         /** PlanEventOut */
         PlanEventOut: {
             /** Amount Cents */
@@ -3500,6 +3597,14 @@ export interface components {
             /** Label */
             label?: string | null;
         };
+        /** RemindIn */
+        RemindIn: {
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+        };
         /** ScheduleIn */
         ScheduleIn: {
             /** Items */
@@ -3630,6 +3735,8 @@ export interface components {
         };
         /** SplitGroupOut */
         SplitGroupOut: {
+            /** Guests Can Add */
+            guests_can_add: boolean;
             /**
              * Id
              * Format: uuid
@@ -3713,6 +3820,8 @@ export interface components {
             disputes: components["schemas"]["DisputeOut"][];
             /** Keys */
             keys: components["schemas"]["SplitKeyOut"][];
+            /** Pending */
+            pending: components["schemas"]["PendingBillOut"][];
             /** Writable */
             writable: boolean;
         };
@@ -6663,6 +6772,41 @@ export interface operations {
             };
         };
     };
+    settings_api_splits__group_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupSettingsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitGroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     issue_bill_api_splits__group_id__bills_post: {
         parameters: {
             query?: never;
@@ -6682,6 +6826,68 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BillIssued"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_bill_api_splits__group_id__bills__bill_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+                bill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillIssued"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_bill_api_splits__group_id__bills__bill_id__decline_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+                bill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -7000,6 +7206,39 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remind_api_splits__group_id__remind_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RemindIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {

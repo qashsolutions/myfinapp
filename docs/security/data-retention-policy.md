@@ -41,6 +41,7 @@ This policy sets how long Qash Solutions Inc. keeps each kind of data, how it is
 | Split-bill invites (a keyed hash of the invited inbox, never the address) | Database | 7 days, then a week; a declined invite while the sender's account exists, so they can't ask that inbox again | Deleted | `stackd-api purge-expired`, daily |
 | Split-bill mistakes and reports (ids and a reason code only) | Database | Mistakes 60 days; reports while the reported account exists | Deleted | `stackd-api purge-expired`; account deletion |
 | Pay-warning acceptances (the warning's version and time; never who or how much) | Database | While the account exists | Deleted with the account | `purge-deleted` |
+| An account whose trial or plan ended while it is in a split-bill group | Database | Kept as a free guest while in a group; closed 7 days after leaving the last one | Closed and deleted like any other ended plan | `stackd-api plan-lifecycle` |
 | Notification settings, push addresses, alert schedule, sent-alert record | Database | While the account exists | Push addresses switched off and unsent alerts dropped at once on account deletion; the rest deleted with the account; a push address is switched off as soon as a push service reports it no longer exists | `purge-deleted`; alert dispatch |
 | Security (audit) log | Database | 13 months | Deleted | `stackd-api purge-audit`, daily |
 | Sign-in codes | Database | Expire after 10 minutes; deleted after 1 day (never during an active lockout) | Deleted | `stackd-api purge-expired`, daily |

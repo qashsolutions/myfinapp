@@ -97,6 +97,9 @@ def compile_catalog(data: dict) -> dict:
         "push_founding_ended",
         "push_recovery_started",
         "push_recovery_partner",
+        "push_split_reminder",
+        "push_split_joined",
+        "push_split_pending",
     ):
         fixed[name] = str(data[name])
         if PLACEHOLDER.findall(fixed[name]):

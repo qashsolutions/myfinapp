@@ -65,7 +65,8 @@ from app.security.client import client_ip
 from app.security.csrf import same_site_only
 from app.security.hashing import pseudonym
 from app.security.principal import Caller, require_step_up, require_unlocked
-from app.security.rate_limit import rate_limited, session_or_ip
+from app.security.rate_limit import rate_limited
+from app.services import alerts
 from app.services import email as email_svc
 from app.services.otp import canonical_email
 
@@ -130,7 +131,9 @@ def _added_today(db: DbSession, user_id: uuid.UUID, day: date) -> int:
     return int(
         db.scalar(
             select(func.count(SplitBill.id)).where(
-                SplitBill.counted_for == user_id, SplitBill.counted_day == day
+                SplitBill.counted_for == user_id,
+                SplitBill.counted_day == day,
+                SplitBill.status == "approved",
             )
         )
         or 0
@@ -284,6 +287,7 @@ class SplitGroupOut(BaseModel):
     invites: list[SplitInviteOut]  # the organizer's pending ones; empty for everyone else
     people_max: int
     writable: bool  # bills and edits allowed (an organizer who can run it)
+    guests_can_add: bool  # the organizer's switch: guests' bills wait for their OK
     reported: bool  # the organizer is blocked after reports: "Don't pay unless you're sure"
 
 
@@ -329,7 +333,17 @@ class InviteCardOut(BaseModel):
 
 class BillIssued(BaseModel):
     id: uuid.UUID
-    today: TodayOut
+    status: Literal["approved", "pending"]
+    today: TodayOut | None  # the organizer's count once it counts; null while it waits
+
+
+class GroupSettingsIn(BaseModel):
+    guests_can_add: bool
+
+
+class PendingBillOut(BaseModel):
+    bill_id: uuid.UUID
+    member_id: uuid.UUID | None
 
 
 class SplitBlobIn(BaseModel):
@@ -363,7 +377,8 @@ class SplitKeyOut(BaseModel):
 
 class SplitStateOut(BaseModel):
     blobs: list[SplitBlobOut]
-    bill_ids: list[uuid.UUID]
+    bill_ids: list[uuid.UUID]  # approved: the only bills a device counts (invariant 77)
+    pending: list[PendingBillOut]  # waiting for the organizer's OK
     disputes: list[DisputeOut]
     keys: list[SplitKeyOut]
     writable: bool
@@ -382,11 +397,19 @@ class LeaveIn(BaseModel):
     report: ReportReason | None = None
 
 
+class RemindIn(BaseModel):
+    member_id: uuid.UUID
+
+
 class PayConsentIn(BaseModel):
     version: str = Field(min_length=1, max_length=16)
 
 
 SplitStateOut.model_rebuild()
+
+
+def _others(db: DbSession, group_id: uuid.UUID, me: uuid.UUID) -> list[uuid.UUID]:
+    return [m.user_id for m in _live_members(db, group_id) if m.user_id and m.user_id != me]
 
 
 def _today(db: DbSession, user: User, now: datetime) -> TodayOut:
@@ -437,6 +460,7 @@ def _group_out(db: DbSession, group: SplitGroup, me: uuid.UUID, now: datetime) -
         invites=invites,
         people_max=_people_max(db, group),
         writable=_writable(db, group),
+        guests_can_add=group.guests_can_add,
         reported=organizer is not None and organizer.split_blocked_at is not None,
     )
 
@@ -507,7 +531,6 @@ def create_split(
 @router.post(
     "/{group_id}/invites",
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(rate_limited("split_invite", key=session_or_ip))],
 )
 def invite(
     group_id: uuid.UUID,
@@ -547,6 +570,22 @@ def invite(
             raise HTTPException(status.HTTP_409_CONFLICT, detail="already_member")
     if len(members) + _pending_invites(db, group.id, now) >= _people_max(db, group):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="plan_limit")
+    # Email invites a day by plan, 6 / 12 (owner decision, November 8, 2026), on their own day.
+    zone = db.scalar(
+        select(NotificationSettings.timezone).where(NotificationSettings.user_id == caller.user.id)
+    )
+    try:
+        tz = ZoneInfo(zone or "UTC")
+    except (KeyError, ValueError):
+        tz = ZoneInfo("UTC")
+    day_start = datetime.combine(now.astimezone(tz).date(), datetime.min.time(), tz)
+    sent_today = db.scalar(
+        select(func.count(SplitInvite.id)).where(
+            SplitInvite.invited_by == caller.user.id, SplitInvite.created_at >= day_start
+        )
+    )
+    if int(sent_today or 0) >= int(_limits(db, caller.user.id).get("split_invites_per_day") or 0):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="invite_limit")
     # A new invite to the same inbox replaces the earlier one.
     db.execute(
         update(SplitInvite)
@@ -667,6 +706,17 @@ def accept_invite(
     row.used_at = now
     row.used_by = caller.user.id
     db.flush()
+    joined = db.scalar(
+        select(SplitMember.id).where(
+            SplitMember.group_id == group.id,
+            SplitMember.user_id == caller.user.id,
+            SplitMember.left_at.is_(None),
+        )
+    )
+    # Someone joined: a member's open app hands the new device the group key.
+    alerts.split_activity(
+        db, _others(db, group.id, caller.user.id), f"split:join:{group.id}:{joined}", now
+    )
     record(
         db,
         actor_id=caller.user.id,
@@ -700,37 +750,133 @@ def decline_invite(
 # ---- bills, ledger and keys ----
 
 
+def _count_for_organizer(
+    db: DbSession, group: SplitGroup, bill: SplitBill, now: datetime
+) -> TodayOut:
+    """Approve a bill against the organizer's daily limit (one count at a time per organizer,
+    whichever of their groups asks). 429 daily_limit when the day is full."""
+    organizer = db.get(User, group.organizer_id) if group.organizer_id else None
+    assert organizer is not None  # _writable
+    db.execute(select(User.id).where(User.id == organizer.id).with_for_update())
+    day = _local_day(db, organizer.id, now)
+    limit = int(_limits(db, organizer.id).get("split_bills_per_day") or 0)
+    added = _added_today(db, organizer.id, day)
+    if added >= limit:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="daily_limit")
+    bill.status = "approved"
+    bill.counted_for = organizer.id
+    bill.counted_day = day
+    db.flush()
+    return TodayOut(added=added + 1, limit=limit)
+
+
 @router.post("/{group_id}/bills", status_code=status.HTTP_201_CREATED)
 def issue_bill(
     group_id: uuid.UUID,
     caller: Annotated[Caller, Depends(require_unlocked)],
     db: Annotated[DbSession, Depends(get_db)],
 ) -> BillIssued:
-    """One bill id against the organizer's daily limit; a guest's bill counts for the organizer
-    (spec "Limits"). Edits, deletes, settling up and repeats never call this."""
+    """A bill id. The organizer's bill counts at once against their daily limit. Anyone else's
+    waits for the organizer's OK and changes no balance until then (owner decision, November 8,
+    2026); it counts toward the limit only when approved. Edits, deletes, settling up and
+    repeats never call this."""
     group = db.scalar(select(SplitGroup).where(SplitGroup.id == group_id).with_for_update())
     if group is None:
         raise not_found()
     _membership(db, group, caller.user.id)
     if not _writable(db, group):
         raise HTTPException(status.HTTP_409_CONFLICT, detail="read_only")
-    organizer = db.get(User, group.organizer_id)
-    assert organizer is not None  # _writable
-    # One count at a time per organizer, whichever of their groups asks.
-    db.execute(select(User.id).where(User.id == organizer.id).with_for_update())
     now = _now()
-    day = _local_day(db, organizer.id, now)
-    limit = int(_limits(db, organizer.id).get("split_bills_per_day") or 0)
-    added = _added_today(db, organizer.id, day)
-    if added >= limit:
-        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="daily_limit")
-    bill = SplitBill(
-        group_id=group.id, created_by=caller.user.id, counted_for=organizer.id, counted_day=day
+    if group.organizer_id == caller.user.id:
+        bill = SplitBill(group_id=group.id, created_by=caller.user.id, status="approved")
+        db.add(bill)
+        today = _count_for_organizer(db, group, bill, now)
+        alerts.split_activity(
+            db, _others(db, group.id, caller.user.id), f"split:bill:{group.id}:{bill.id}", now
+        )
+        db.commit()
+        return BillIssued(id=bill.id, status="approved", today=today)
+    if not group.guests_can_add:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="guests_cannot_add")
+    # Waiting bills from one person can't outrun what the organizer could approve in a day.
+    assert group.organizer_id is not None  # _writable
+    limit = int(_limits(db, group.organizer_id).get("split_bills_per_day") or 0)
+    waiting = db.scalar(
+        select(func.count(SplitBill.id)).where(
+            SplitBill.group_id == group.id,
+            SplitBill.created_by == caller.user.id,
+            SplitBill.status == "pending",
+        )
     )
+    if int(waiting or 0) >= limit:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="daily_limit")
+    bill = SplitBill(group_id=group.id, created_by=caller.user.id, status="pending")
     db.add(bill)
     db.flush()
+    alerts.split_activity(db, [group.organizer_id], f"split:pending:{group.id}:{bill.id}", now)
     db.commit()
-    return BillIssued(id=bill.id, today=TodayOut(added=added + 1, limit=limit))
+    return BillIssued(id=bill.id, status="pending", today=None)
+
+
+def _pending_bill(db: DbSession, group: SplitGroup, bill_id: uuid.UUID) -> SplitBill:
+    bill = db.scalar(select(SplitBill).where(SplitBill.id == bill_id).with_for_update())
+    if bill is None or bill.group_id != group.id or bill.status != "pending":
+        raise not_found()
+    return bill
+
+
+@router.post("/{group_id}/bills/{bill_id}/approve")
+def approve_bill(
+    group_id: uuid.UUID,
+    bill_id: uuid.UUID,
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    db: Annotated[DbSession, Depends(get_db)],
+) -> BillIssued:
+    group = _group(db, group_id)
+    _membership(db, group, caller.user.id)
+    _organizer_only(group, caller)
+    if not _writable(db, group):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="read_only")
+    bill = _pending_bill(db, group, bill_id)
+    now = _now()
+    today = _count_for_organizer(db, group, bill, now)
+    alerts.split_activity(
+        db, _others(db, group.id, caller.user.id), f"split:bill:{group.id}:{bill.id}", now
+    )
+    db.commit()
+    return BillIssued(id=bill.id, status="approved", today=today)
+
+
+@router.post("/{group_id}/bills/{bill_id}/decline", status_code=status.HTTP_204_NO_CONTENT)
+def decline_bill(
+    group_id: uuid.UUID,
+    bill_id: uuid.UUID,
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    db: Annotated[DbSession, Depends(get_db)],
+) -> None:
+    """Declined: never counted, never on anyone's balance; a mistake for whoever added it."""
+    group = _group(db, group_id)
+    _membership(db, group, caller.user.id)
+    _organizer_only(group, caller)
+    bill = _pending_bill(db, group, bill_id)
+    bill.status = "declined"
+    record_mistake(db, bill.created_by, "bill_declined", _now())
+    db.commit()
+
+
+@router.patch("/{group_id}")
+def settings(
+    group_id: uuid.UUID,
+    body: GroupSettingsIn,
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    db: Annotated[DbSession, Depends(get_db)],
+) -> SplitGroupOut:
+    group = _group(db, group_id)
+    _membership(db, group, caller.user.id)
+    _organizer_only(group, caller)
+    group.guests_can_add = body.guests_can_add
+    db.commit()
+    return _group_out(db, group, caller.user.id, _now())
 
 
 @router.get("/{group_id}/state")
@@ -782,15 +928,24 @@ def state(
             select(SplitKey).where(SplitKey.group_id == group.id).order_by(SplitKey.created_at)
         )
     ]
-    bill_ids = list(
-        db.scalars(
-            select(SplitBill.id)
-            .where(SplitBill.group_id == group.id)
-            .order_by(SplitBill.created_at, SplitBill.id)
-        )
-    )
+    bills = db.scalars(
+        select(SplitBill)
+        .where(SplitBill.group_id == group.id, SplitBill.status != "declined")
+        .order_by(SplitBill.created_at, SplitBill.id)
+    ).all()
     return SplitStateOut(
-        blobs=blobs, bill_ids=bill_ids, disputes=disputes, keys=keys, writable=_writable(db, group)
+        blobs=blobs,
+        bill_ids=[b.id for b in bills if b.status == "approved"],
+        pending=[
+            PendingBillOut(
+                bill_id=b.id, member_id=member_of.get(b.created_by) if b.created_by else None
+            )
+            for b in bills
+            if b.status == "pending"
+        ],
+        disputes=disputes,
+        keys=keys,
+        writable=_writable(db, group),
     )
 
 
@@ -931,6 +1086,8 @@ def dispute(
         return
     now = _now()
     db.add(SplitDispute(group_id=group.id, bill_id=bill.id, user_id=caller.user.id))
+    told = {u for u in (group.organizer_id, bill.created_by) if u and u != caller.user.id}
+    alerts.split_activity(db, sorted(told), f"split:dispute:{group.id}:{bill.id}", now)
     if bill.created_by != caller.user.id:
         record_mistake(db, bill.created_by, "bill_disputed", now)
     db.commit()
@@ -1055,6 +1212,35 @@ def takeover(
     group.organizer_id = caller.user.id
     db.commit()
     return _group_out(db, group, caller.user.id, _now())
+
+
+@router.post("/{group_id}/remind", status_code=status.HTTP_204_NO_CONTENT)
+def remind(
+    group_id: uuid.UUID,
+    body: RemindIn,
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    db: Annotated[DbSession, Depends(get_db)],
+) -> None:
+    """Remind: the fixed push "You have a balance in a group", at most once a day for each
+    person in each group. A blocked organizer can't ask for money (spec "Reports and blocks")."""
+    group = _group(db, group_id)
+    _membership(db, group, caller.user.id)
+    if caller.user.split_blocked_at is not None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="split_blocked")
+    target = db.get(SplitMember, body.member_id)
+    if (
+        target is None
+        or target.group_id != group.id
+        or target.left_at is not None
+        or target.user_id is None
+    ):
+        raise not_found()
+    if target.user_id == caller.user.id:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="not_yourself")
+    now = _now()
+    day = _local_day(db, target.user_id, now).isoformat()
+    alerts.split_activity(db, [target.user_id], f"split:remind:{group.id}:{target.id}:{day}", now)
+    db.commit()
 
 
 @router.post("/pay-consent", status_code=status.HTTP_204_NO_CONTENT)

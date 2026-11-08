@@ -23,6 +23,7 @@ PUSH_TYPES = {
     "group_activity",
     "weekly_recap",
     "budget_pace",
+    "split_activity",
 }
 
 

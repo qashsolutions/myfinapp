@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session as DbSession
 from app.config import get_settings
 from app.models.billing import Entitlement, Subscription
 from app.models.household import Household, HouseholdMember
+from app.models.split import SplitMember
 from app.models.trial_claim import TrialClaim, trial_hashes
 from app.models.user import User
 
@@ -37,6 +38,7 @@ LIMIT_KEYS = (
     "household",
     "split_bills_per_day",
     "split_people_max",
+    "split_invites_per_day",
 )
 
 
@@ -306,6 +308,22 @@ def _household_end(
     return max(ends) if ends else None
 
 
+def _lapsed_end(db: DbSession, user: User, ended: datetime) -> dict[str, Any]:
+    """A lapsed account's deletion date (owner decision, November 8, 2026): while it is in a
+    split group it drops back to a guest and is never deleted for it (`split_guest`, no date);
+    once it has left every group it gets 7 days from the later of the end and the leaving."""
+    live = db.scalar(
+        select(SplitMember.id)
+        .where(SplitMember.user_id == user.id, SplitMember.left_at.is_(None))
+        .limit(1)
+    )
+    if live is not None:
+        return {"delete_at": None, "split_guest": True}
+    left = db.scalar(select(func.max(SplitMember.left_at)).where(SplitMember.user_id == user.id))
+    end = max(ended, left) if left is not None else ended
+    return {"delete_at": grace_end(end), "split_guest": False}
+
+
 def grace_end(ended: datetime) -> datetime:
     """When the 7 days after an end are over: 7 x 24 hours later, counted in UTC, whatever time
     zone the database session reads in, so a clock change never lengthens it (invariant 68)."""
@@ -448,7 +466,7 @@ def household_plan(
         "state": "lapsed",
         "plan": "free",
         "ended_at": end,
-        "delete_at": grace_end(end),
+        **_lapsed_end(db, user, end),
         "shared": "holder" if mine == end else "covered",
     }
     return HouseholdPlan(state, None, pair)
@@ -661,7 +679,7 @@ def _own_access(
         "state": "lapsed",
         "plan": "free",
         "ended_at": ended,
-        "delete_at": grace_end(ended),
+        **_lapsed_end(db, user, ended),
     }
 
 

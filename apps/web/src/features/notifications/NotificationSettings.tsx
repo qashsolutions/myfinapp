@@ -38,6 +38,7 @@ const TYPE_ORDER = [
   "budget_pace",
   "milestone_reached",
   "group_activity",
+  "split_activity",
   "weekly_recap",
 ];
 

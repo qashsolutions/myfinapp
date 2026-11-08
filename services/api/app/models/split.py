@@ -27,7 +27,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base, StackdRow
 
 BLOB_KINDS = ("ledger", "profile")
-MISTAKE_KINDS = ("invite_declined", "bill_disputed")
+MISTAKE_KINDS = ("invite_declined", "bill_disputed", "bill_declined")
 REPORT_REASONS = ("dont_know", "not_owed", "pushy", "other")
 
 
@@ -39,6 +39,9 @@ class SplitGroup(Base, StackdRow):
     organizer_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
+    # The organizer's switch (owner decision, November 8, 2026): guests may add bills, each
+    # waiting for the organizer's OK; off, only the organizer adds.
+    guests_can_add: Mapped[bool] = mapped_column(server_default=text("true"))
 
 
 class SplitMember(Base, StackdRow):
@@ -85,10 +88,14 @@ class SplitInvite(Base, StackdRow):
 
 
 class SplitBill(Base, StackdRow):
-    """A bill id the server issued: the ledger counts a bill only when its id is here
-    (invariant 77), and the organizer's daily limit counts these rows (invariant 79)."""
+    """A bill id the server issued: the ledger counts a bill only when its id is here and
+    approved (invariant 77), and the organizer's daily limit counts the approved rows
+    (invariant 79). A guest's bill is `pending` until the organizer approves or declines it."""
 
     __tablename__ = "split_bills"
+    __table_args__ = (
+        CheckConstraint("status IN ('approved', 'pending', 'declined')", name="status"),
+    )
 
     group_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("split_groups.id", ondelete="CASCADE"), index=True
@@ -96,11 +103,12 @@ class SplitBill(Base, StackdRow):
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
-    # Whose daily limit it used, and on which of their days.
+    status: Mapped[str] = mapped_column(String(16), server_default="approved")
+    # Whose daily limit it used, and on which of their days (set once approved).
     counted_for: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
-    counted_day: Mapped[date]
+    counted_day: Mapped[date | None]
 
 
 class SplitBlob(Base, StackdRow):
@@ -186,7 +194,11 @@ class SplitReport(Base, StackdRow):
 
 class SplitMistake(Base, StackdRow):
     __tablename__ = "split_mistakes"
-    __table_args__ = (CheckConstraint("kind IN ('invite_declined', 'bill_disputed')", name="kind"),)
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('invite_declined', 'bill_disputed', 'bill_declined')", name="kind"
+        ),
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True

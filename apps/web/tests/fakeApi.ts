@@ -366,6 +366,14 @@ export function defaultNotifications(): FakeApi["notifications"] {
         threshold: null,
         delivery: "instant",
       },
+      split_activity: {
+        enabled: true,
+        time_of_day: "19:00",
+        days: null,
+        lead_days: null,
+        threshold: null,
+        delivery: "instant",
+      },
       weekly_recap: {
         enabled: true,
         time_of_day: "09:00",

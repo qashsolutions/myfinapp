@@ -157,6 +157,25 @@ def plan_ending_message(
     )
 
 
+def plan_ended_guest_message(to: str, link: str, *, trial: bool = True) -> Message:
+    """The trial or plan ended while the person is in a split group (owner decision, November 8,
+    2026): they stay on as a guest, free, and nothing is deleted for it."""
+    what = "trial" if trial else "plan"
+    return Message(
+        to=to,
+        subject=f"Your Qash {what} has ended. Your split groups stay",
+        text=(
+            f"Hi! Your Qash {what} has ended.\n\n"
+            "You're in a split group, so you keep Splits as a guest, free: add bills, see who "
+            "owes what and settle up. Budgets, goals and the rest of Qash are paused, and what's "
+            "on your device stays there.\n\n"
+            f"Want everything back? Pick a plan here:\n{link}\n\n"
+            "If you leave all your groups, you'll have 7 days to choose a plan or download your "
+            "data before the account closes.\n"
+        ),
+    )
+
+
 def plan_ended_message(
     to: str, delete_on: str, link: str, *, trial: bool = True, shared: bool = False
 ) -> Message:

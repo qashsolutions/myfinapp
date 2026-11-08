@@ -376,12 +376,28 @@
             "title": "Id",
             "type": "string"
           },
+          "status": {
+            "enum": [
+              "approved",
+              "pending"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
           "today": {
-            "$ref": "#/components/schemas/TodayOut"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TodayOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "id",
+          "status",
           "today"
         ],
         "title": "BillIssued",
@@ -1997,6 +2013,19 @@
         "title": "GroupPreview",
         "type": "object"
       },
+      "GroupSettingsIn": {
+        "properties": {
+          "guests_can_add": {
+            "title": "Guests Can Add",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "guests_can_add"
+        ],
+        "title": "GroupSettingsIn",
+        "type": "object"
+      },
       "GroupSummary": {
         "properties": {
           "end_date": {
@@ -3243,6 +3272,33 @@
         "title": "PayConsentIn",
         "type": "object"
       },
+      "PendingBillOut": {
+        "properties": {
+          "bill_id": {
+            "format": "uuid",
+            "title": "Bill Id",
+            "type": "string"
+          },
+          "member_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Id"
+          }
+        },
+        "required": [
+          "bill_id",
+          "member_id"
+        ],
+        "title": "PendingBillOut",
+        "type": "object"
+      },
       "PlanEventOut": {
         "properties": {
           "amount_cents": {
@@ -3739,6 +3795,20 @@
         "title": "RegisterVerifyRequest",
         "type": "object"
       },
+      "RemindIn": {
+        "properties": {
+          "member_id": {
+            "format": "uuid",
+            "title": "Member Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "member_id"
+        ],
+        "title": "RemindIn",
+        "type": "object"
+      },
       "ScheduleIn": {
         "properties": {
           "items": {
@@ -4096,6 +4166,10 @@
       },
       "SplitGroupOut": {
         "properties": {
+          "guests_can_add": {
+            "title": "Guests Can Add",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -4145,6 +4219,7 @@
           "invites",
           "people_max",
           "writable",
+          "guests_can_add",
           "reported"
         ],
         "title": "SplitGroupOut",
@@ -4282,6 +4357,13 @@
             "title": "Keys",
             "type": "array"
           },
+          "pending": {
+            "items": {
+              "$ref": "#/components/schemas/PendingBillOut"
+            },
+            "title": "Pending",
+            "type": "array"
+          },
           "writable": {
             "title": "Writable",
             "type": "boolean"
@@ -4290,6 +4372,7 @@
         "required": [
           "blobs",
           "bill_ids",
+          "pending",
           "disputes",
           "keys",
           "writable"
@@ -8255,9 +8338,62 @@
         ]
       }
     },
+    "/api/splits/{group_id}": {
+      "patch": {
+        "operationId": "settings_api_splits__group_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupSettingsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitGroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Settings",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
     "/api/splits/{group_id}/bills": {
       "post": {
-        "description": "One bill id against the organizer's daily limit; a guest's bill counts for the organizer\n(spec \"Limits\"). Edits, deletes, settling up and repeats never call this.",
+        "description": "A bill id. The organizer's bill counts at once against their daily limit. Anyone else's\nwaits for the organizer's OK and changes no balance until then (owner decision, November 8,\n2026); it counts toward the limit only when approved. Edits, deletes, settling up and\nrepeats never call this.",
         "operationId": "issue_bill_api_splits__group_id__bills_post",
         "parameters": [
           {
@@ -8294,6 +8430,106 @@
           }
         },
         "summary": "Issue Bill",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/bills/{bill_id}/approve": {
+      "post": {
+        "operationId": "approve_bill_api_splits__group_id__bills__bill_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bill_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bill Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillIssued"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Bill",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/bills/{bill_id}/decline": {
+      "post": {
+        "description": "Declined: never counted, never on anyone's balance; a mistake for whoever added it.",
+        "operationId": "decline_bill_api_splits__group_id__bills__bill_id__decline_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bill_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bill Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decline Bill",
         "tags": [
           "splits"
         ]
@@ -8785,6 +9021,53 @@
           }
         },
         "summary": "Remove Member",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/remind": {
+      "post": {
+        "description": "Remind: the fixed push \"You have a balance in a group\", at most once a day for each\nperson in each group. A blocked organizer can't ask for money (spec \"Reports and blocks\").",
+        "operationId": "remind_api_splits__group_id__remind_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemindIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remind",
         "tags": [
           "splits"
         ]
