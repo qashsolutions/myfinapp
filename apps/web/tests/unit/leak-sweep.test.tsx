@@ -26,6 +26,7 @@ import {
   isFailure,
 } from "../../src/features/linking/linking.ts";
 import { syncConnection } from "../../src/features/linking/sync.ts";
+import { addBill, createSplitGroup } from "../../src/features/splits/useSplits.ts";
 import { applyMapping, guessMapping } from "../../src/importers/csv.ts";
 import { type FakeApi, fakeMember, installFakeApi, mayasGroup, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
@@ -97,7 +98,9 @@ function sweep(api: Pick<FakeApi, "calls">) {
       JSON.stringify(call.body ?? {}),
     ].join(" ");
     const isBlob =
-      call.path === "/api/backup/blob" || call.path.startsWith("/api/household/blobs/");
+      call.path === "/api/backup/blob" ||
+      call.path.startsWith("/api/household/blobs/") ||
+      /^\/api\/splits\/[^/]+\/blobs\//.test(call.path);
     if (isBlob) {
       const body = call.body as { ciphertext?: string } | undefined;
       expect(body?.ciphertext, `${call.path} must carry base64url ciphertext`).toMatch(B64URL);
@@ -352,6 +355,30 @@ describe("nothing about money leaves the device unencrypted", () => {
       }
     }
 
+    // 6c. Split bills (chunk S.3b): a group named after the merchant and a bill for the amount;
+    // the server gets an id, a count and ciphertext under the group's key (invariant 78)
+    const split = await createSplitGroup(db, {
+      name: MERCHANT,
+      kind: "friends",
+      usual_method: "equal",
+      leftover: "payer",
+    });
+    expect(split.ok).toBe(true);
+    if (split.ok) {
+      const added = await addBill(db, split.group, {
+        date: "2026-10-09",
+        what: MERCHANT,
+        amount_cents: CENTS,
+        paid_by: split.group.my_member_id,
+        people: [split.group.my_member_id],
+        method: "equal",
+        values: null,
+        leftover_to: split.group.my_member_id,
+        repeat: null,
+      });
+      expect(added.ok).toBe(true);
+    }
+
     // 7. Export: the one request adds server-held data; the money stays here
     expect((await collectExport(db, null, TODAY.toISOString())).length).toBeGreaterThan(3);
 
@@ -367,6 +394,8 @@ describe("nothing about money leaves the device unencrypted", () => {
           "/api/groups/g-sweep/helped",
           "/api/linking/finish",
           "/api/linking/bc1/sync",
+          "/api/splits/sg1/bills",
+          "/api/splits/sg1/blobs/ledger",
         ])
           expect([...seen], `the sweep never exercised ${must}`).toContain(must);
         // The budget alert went on the schedule too (as a month, a tag and a level only)

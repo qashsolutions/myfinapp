@@ -1,0 +1,54 @@
+.split-chips {
+  border: 0;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.split-chips .kind-chips {
+  margin-top: 6px;
+}
+.split-pay {
+  align-items: center;
+  border-top: 1px solid var(--c-line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+.split-pay:first-of-type {
+  border-top: 0;
+}
+.split-pay__text {
+  flex: 1 1 12rem;
+}
+.split-pay__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.split-people {
+  border: 0;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.split-person {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-height: 44px;
+}
+.split-person__name {
+  flex: 1;
+}
+.split-person .auth__input {
+  max-width: 8rem;
+}
+.split-preview {
+  font-size: var(--fs-small);
+}
+.split-qr {
+  display: block;
+  margin: 12px auto;
+  max-width: 240px;
+  width: 100%;
+}

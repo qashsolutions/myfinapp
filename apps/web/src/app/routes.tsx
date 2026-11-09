@@ -52,6 +52,9 @@ import { KeptOnPhone } from "../features/settings/KeptOnPhone.tsx";
 import { LookSettings } from "../features/settings/LookSettings.tsx";
 import { MeLayout } from "../features/settings/MeLayout.tsx";
 import { SettingsScreen } from "../features/settings/SettingsScreen.tsx";
+import { AddSplitBill } from "../features/splits/AddSplitBill.tsx";
+import { NewSplitGroup } from "../features/splits/NewSplitGroup.tsx";
+import { SplitGroupScreen } from "../features/splits/SplitGroupScreen.tsx";
 import { SubscriptionsScreen } from "../features/subscriptions/SubscriptionsScreen.tsx";
 import { SubscriptionWordsScreen } from "../features/subscriptions/SubscriptionWordsScreen.tsx";
 import { WhatIfScreen } from "../features/whatif/WhatIfScreen.tsx";
@@ -92,6 +95,11 @@ export function AppRoutes() {
           <Route path="groups/new" element={<CreateGroup />} />
           <Route path="groups/join" element={<JoinGroup />} />
           <Route path="groups/:id" element={<ChallengeDetail />} />
+          <Route path="splits/new" element={<NewSplitGroup />} />
+          <Route path="splits/:id" element={<SplitGroupScreen />} />
+          <Route path="splits/:id/bills/new" element={<AddSplitBill />} />
+          <Route path="splits/:id/bills/:billId" element={<AddSplitBill />} />
+          <Route path="splits" element={<Navigate to="/goals?tab=splits" replace />} />
           <Route path="insights" element={<InsightsHub />} />
           <Route path="insights/spending" element={<SpendingScreen />} />
           <Route path="insights/fixed-flexible" element={<FixedFlexibleScreen />} />

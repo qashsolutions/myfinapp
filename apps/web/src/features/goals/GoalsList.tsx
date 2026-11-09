@@ -3,13 +3,14 @@ import "../entries/entries.css";
 
 import { Button, buttonClass, Card, Chip, Illustration, List } from "@stackd/ui";
 import { useId, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { Goal } from "../../data/db.ts";
 import { todayIso } from "../../lib/format.ts";
 import { DESKTOP_QUERY, useMediaQuery } from "../../lib/useMediaQuery.ts";
 import { ChallengesTab } from "../groups/ChallengesTab.tsx";
+import { SplitsTab } from "../splits/SplitsTab.tsx";
 import { GoalCard, GoalRow } from "./GoalCard.tsx";
 import { useGoalCaps } from "./useGoalCaps.ts";
 import { setPriorities, useGoals } from "./useGoals.ts";
@@ -24,7 +25,11 @@ export function GoalsList() {
   const ids = useId();
   const goals = useGoals();
   const caps = useGoalCaps();
-  const [tab, setTab] = useState<"jars" | "challenges">("jars");
+  const [params] = useSearchParams();
+  const asked = params.get("tab");
+  const [tab, setTab] = useState<"jars" | "challenges" | "splits">(
+    asked === "challenges" || asked === "splits" ? asked : "jars",
+  );
   const desktop = useMediaQuery(DESKTOP_QUERY); // both panes side by side from 900px
   const [reordering, setReordering] = useState(false);
   const { db } = useDb();
@@ -167,6 +172,7 @@ export function GoalsList() {
             [
               ["jars", `Jars · ${mine.length}`],
               ["challenges", "Challenges"],
+              ["splits", "Splits"],
             ] as const
           ).map(([value, label]) => (
             <label className="segmented__option" key={value}>
@@ -196,13 +202,27 @@ export function GoalsList() {
               Challenges
             </h2>
             <ChallengesTab />
+            <h2 className="section-title" id="splits-pane-h">
+              Splits
+            </h2>
+            <SplitsTab />
           </section>
         </div>
       ) : null}
-      {!desktop ? tab === "jars" ? jars : <ChallengesTab /> : null}
-      <p className="auth__fineprint">
-        Jars are virtual: logging a deposit records it here. Your money stays where it is.
-      </p>
+      {!desktop ? (
+        tab === "jars" ? (
+          jars
+        ) : tab === "challenges" ? (
+          <ChallengesTab />
+        ) : (
+          <SplitsTab />
+        )
+      ) : null}
+      {tab === "splits" && !desktop ? null : (
+        <p className="auth__fineprint">
+          Jars are virtual: logging a deposit records it here. Your money stays where it is.
+        </p>
+      )}
     </>
   );
 }
