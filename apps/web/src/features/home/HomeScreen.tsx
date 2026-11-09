@@ -1,3 +1,4 @@
+import { OwedHomeCard } from "../splits/OwedHomeCard.tsx";
 import "./home.css";
 import type { BudgetSummary } from "../../engine/bridge.ts";
 import { ENTRIES_PATH } from "../entries/paths.ts";
@@ -153,6 +154,7 @@ export function HomeScreen() {
     ),
     found: <FoundCard asOf={today} />,
     sub_check: <SubCheckHomeCard today={today} />,
+    owed: <OwedHomeCard />,
     month_review: <MonthReviewHomeCard today={today} />,
     where:
       hasMoney && totals?.by_category.some((c) => c.out_cents > 0) ? (

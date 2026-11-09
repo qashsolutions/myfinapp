@@ -39,14 +39,15 @@ export function SplitsTab() {
       {splits.groups.length > 0 ? (
         <Card as="section" aria-label="Your balance across groups">
           <Word>{word}</Word>
-          <p className="sk-card__hero">
-            {total === 0 ? "Settled" : formatCents(Math.abs(total))}
-            {total === 0 ? null : (
+          {total === 0 ? null : (
+            <p className="sk-card__hero">
+              {formatCents(Math.abs(total))}
               <span className="sk-card__hero-unit">{total > 0 ? " owed to you" : " you owe"}</span>
-            )}
-          </p>
+            </p>
+          )}
           <p>
-            Across {splits.groups.length} {splits.groups.length === 1 ? "group" : "groups"}.
+            {total === 0 ? "Everyone's settled up across " : "Across "}
+            {splits.groups.length} {splits.groups.length === 1 ? "group" : "groups"}.
           </p>
         </Card>
       ) : null}

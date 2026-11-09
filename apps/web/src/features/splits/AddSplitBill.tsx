@@ -3,11 +3,13 @@ import "../auth/auth.css";
 import "../groups/groups.css";
 
 import { Button, Card } from "@stackd/ui";
+import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
+import type { Entry } from "../../data/db.ts";
 import {
   parseAmount,
   type SplitMethod,
@@ -17,6 +19,7 @@ import {
 import { formatCents, todayIso } from "../../lib/format.ts";
 import { parseWholeNumber } from "../../lib/ownValues.ts";
 import { ChipChoice } from "./ChipChoice.tsx";
+import { shareEntry } from "./entryShare.ts";
 import { MAX_WHAT, type ShownBill } from "./ledger.ts";
 import {
   addBill,
@@ -75,8 +78,15 @@ function typedFrom(bill: ShownBill): Record<string, string> {
  */
 export function AddSplitBill() {
   const { id, billId } = useParams();
+  const [params] = useSearchParams();
+  const entryId = billId ? null : params.get("entry");
+  const { db } = useDb();
+  const entry = useLiveQuery(
+    async () => (entryId ? ((await db.entries.get(entryId)) ?? null) : null),
+    [db, entryId],
+  );
   const { splits, group, view, refresh } = useSplitGroup(id);
-  if (!group || !view || !splits) {
+  if (!group || !view || !splits || entry === undefined) {
     return (
       <>
         <ScreenHeader
@@ -109,6 +119,7 @@ export function AddSplitBill() {
       usual={view.merged.group?.usual_method ?? "equal"}
       leftoverRule={view.merged.group?.leftover ?? "payer"}
       editing={editing}
+      entry={entry && entry.direction === "out" && !entry.split_bill ? entry : null}
       doubleCheck={splits.double_check}
       today={splits.today}
       onSaved={refresh}
@@ -121,6 +132,7 @@ function BillForm({
   usual,
   leftoverRule,
   editing,
+  entry,
   doubleCheck,
   today,
   onSaved,
@@ -129,6 +141,8 @@ function BillForm({
   usual: SplitMethod;
   leftoverRule: string;
   editing: ShownBill | null;
+  /** Split on an entry: the bill starts from it, and saving splits it (invariant 76). */
+  entry: Entry | null;
   doubleCheck: boolean;
   today: { added: number; limit: number };
   onSaved: () => Promise<void>;
@@ -142,16 +156,15 @@ function BillForm({
   const back = `/splits/${group.id}`;
   const organizerName = group.members.find((m) => m.is_organizer)?.display_name ?? "The organizer";
 
-  const [amountText, setAmountText] = useState(
-    editing ? (editing.amount_cents / 100).toFixed(2) : "",
-  );
+  const start = editing?.amount_cents ?? entry?.amount_cents ?? null;
+  const [amountText, setAmountText] = useState(start === null ? "" : (start / 100).toFixed(2));
   const [method, setMethod] = useState<SplitMethod>(editing?.method ?? (runsIt ? usual : "equal"));
   const [people, setPeople] = useState<string[]>(editing?.people ?? live);
   const [typed, setTyped] = useState<Record<string, string>>(editing ? typedFrom(editing) : {});
   const [repeat, setRepeat] = useState<SplitRepeat | null>(editing?.repeat ?? null);
-  const [what, setWhat] = useState(editing?.what ?? "");
+  const [what, setWhat] = useState(editing?.what ?? entry?.merchant.slice(0, MAX_WHAT) ?? "");
   const [paidBy, setPaidBy] = useState(editing?.paid_by ?? group.my_member_id);
-  const [date, setDate] = useState(editing?.date ?? todayIso());
+  const [date, setDate] = useState(editing?.date ?? entry?.date ?? todayIso());
   const [leftover, setLeftover] = useState<string>(
     editing && editing.leftover_to !== editing.paid_by
       ? editing.leftover_to
@@ -234,11 +247,20 @@ function BillForm({
     if (!draft) return;
     setBusy(true);
     const r = editing ? await editBill(db, group, editing, draft) : await addBill(db, group, draft);
-    setBusy(false);
     if (!r.ok) {
+      setBusy(false);
       setError(splitErrorText(r.code));
       return;
     }
+    // Split on an entry I paid: only my share stays counted (invariant 76).
+    if (
+      entry &&
+      "bill_id" in r &&
+      draft.paid_by === group.my_member_id &&
+      draft.amount_cents === entry.amount_cents
+    )
+      await shareEntry(db, entry.id, mine, `${group.id}:${r.bill_id}`);
+    setBusy(false);
     await onSaved();
     navigate(back, { replace: true });
   }
@@ -261,6 +283,12 @@ function BillForm({
   return (
     <>
       <ScreenHeader title={editing ? "Edit bill" : "Add a bill"} actions={null} back={back} />
+      {entry ? (
+        <p className="auth__hint">
+          From your entry · {entry.merchant} · {formatCents(entry.amount_cents)}. Saving keeps only
+          your share in your spending.
+        </p>
+      ) : null}
       <label className="auth__field">
         <span className="auth__label">1 · How much?</span>
         <input

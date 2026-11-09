@@ -249,7 +249,9 @@ export async function addBill(
   db: StackdDb,
   group: SplitGroupOut,
   draft: BillDraft,
-): Promise<{ ok: true; status: "approved" | "pending" } | { ok: false; code: string }> {
+): Promise<
+  { ok: true; status: "approved" | "pending"; bill_id: string } | { ok: false; code: string }
+> {
   const parts = await partsOf(draft);
   if ("error" in parts) return { ok: false, code: parts.error };
   const r = await api.POST("/api/splits/{group_id}/bills", {
@@ -272,7 +274,7 @@ export async function addBill(
     bills: [...l.bills.filter((b) => b.id !== bill.id), bill],
   }));
   if (!saved) return { ok: false, code: "not_saved" };
-  return { ok: true, status: issued.status };
+  return { ok: true, status: issued.status, bill_id: issued.id };
 }
 
 /** The organizer's correction of any bill (pending ones too); a repeat's copies follow it. */

@@ -115,6 +115,8 @@ describe("receipt photos", () => {
             // Home's restore offer on a plan with backup: two reads, no body
             "/api/billing/entitlements",
             "/api/backup",
+            // Home's Split bills card: the list of groups, no body
+            "/api/splits",
           ].includes(c.path),
       ),
     ).toEqual([]);

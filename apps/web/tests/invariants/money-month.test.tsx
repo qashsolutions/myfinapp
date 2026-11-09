@@ -10,6 +10,7 @@
  *   Card, a statement: groceries −$150 · dining −$60 · office supplies −$40 (Don't count)
  *                      payment received +$500 (the other side of the transfer)
  *   Jars:              $300 into the Emergency fund, then $100 moved to Trip
+ *   Split bills (S.3): the groceries shared three ways in a group; Sam sends back $50
  *
  * By hand: Got $3,000 · Spent $1,200 + $22 + $150 + $60 = $1,432 · Kept $1,568.
  * Set aside $300 (a move is not new money). The Emergency fund holds $200, Trip $100.
@@ -29,6 +30,7 @@ import { setCounted } from "../../src/features/entries/entryActions.ts";
 import { addGoalEvent, moveMoney } from "../../src/features/goals/useGoals.ts";
 import { commitImport, parseFile, prepareRows } from "../../src/features/imports/importFlow.ts";
 import { applySync, type SyncOut, type SyncTxn } from "../../src/features/linking/sync.ts";
+import { createSplitGroup } from "../../src/features/splits/useSplits.ts";
 import { applyMapping, guessMapping } from "../../src/importers/csv.ts";
 import { emptyLinking, installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
@@ -93,7 +95,7 @@ const NOW = new Date("2026-10-20T15:00:00Z");
 
 /** The server, which still lists the bank connection (else the app unlinks Checking). */
 function server() {
-  installFakeApi({
+  return installFakeApi({
     session: readySession(),
     linking: {
       ...emptyLinking(),
@@ -493,5 +495,105 @@ describe("a month through every money path (docs/invariants.md)", () => {
     await waitFor(() => expect(week).toHaveTextContent("Spent $22.00"));
     const jars = screen.getByRole("region", { name: "Jars" });
     await waitFor(() => expect(jars).toHaveTextContent("No deposits these 7 days"));
+  });
+
+  it("a split bill counts the share once (invariant 76)", async () => {
+    // The $150 groceries shared three ways: only my $50 stays spending, the $100 is "Owed to me"
+    // and never counted; Sam's $50 back by Venmo is "Paid back", never income.
+    // By hand: Got $3,000 · Spent $1,432 − $100 = $1,332 · Kept $1,668.
+    const db = await theMonth();
+    await posted(db);
+    const api = server();
+    const made = await createSplitGroup(db, {
+      name: "Apartment 4B",
+      kind: "home",
+      usual_method: "equal",
+      leftover: "payer",
+    });
+    expect(made.ok).toBe(true);
+    const g = api.splits.groups[0];
+    const at = NOW.toISOString();
+    g?.members.push(
+      { member_id: "m-u-sam", user_id: "u-sam", display_name: "Sam", guest: true, joined_at: at },
+      {
+        member_id: "m-u-alex",
+        user_id: "u-alex",
+        display_name: "Alex",
+        guest: true,
+        joined_at: at,
+      },
+    );
+    const groceries = (await db.entries.toArray()).find((e) =>
+      e.merchant.startsWith("WHOLE FOODS"),
+    ) as Entry;
+
+    const user = userEvent.setup();
+    renderApp(`/entries/${groceries.id}`);
+    await screen.findByRole("heading", { level: 1, name: "Edit entry" });
+    await user.click(await screen.findByRole("link", { name: "Share it in a split group" }));
+    await screen.findByRole("heading", { level: 1, name: "Add a bill" });
+    await waitFor(() => expect(screen.getByLabelText("1 · How much?")).toHaveValue("150.00"));
+    expect(await screen.findByText("Only $50.00 counts as yours.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add bill" }));
+    await screen.findByText("Sam pays you $50.00");
+
+    const shared = (await db.entries.toArray()).filter(
+      (e) => e.id === groceries.id || e.split_parent_id === groceries.id,
+    );
+    expect(shared.map((e) => [e.merchant, e.amount_cents, Boolean(e.not_counted)])).toEqual(
+      expect.arrayContaining([
+        ["WHOLE FOODS MARKET", 5000, false],
+        ["Owed to me", 10000, true],
+      ]),
+    );
+    // Shared once: the editor no longer offers it
+    cleanup();
+    server();
+    renderApp(`/entries/${groceries.id}`);
+    await screen.findByRole("heading", { level: 1, name: "Edit entry" });
+    await screen.findByRole("button", { name: "Split this entry" });
+    expect(screen.queryByRole("link", { name: "Share it in a split group" })).toBeNull();
+    cleanup();
+
+    // Sam's $50 arrives by Venmo and is marked Paid back
+    await applySync(
+      db,
+      "bc1",
+      page({
+        added: [
+          txn({
+            transaction_id: "t-venmo",
+            date: "2026-10-19",
+            direction: "in",
+            amount_cents: 5000,
+            description: "VENMO CASHOUT",
+          }),
+        ],
+      }),
+      NOW,
+    );
+    server();
+    renderApp("/entries/lnk-t-venmo");
+    await screen.findByRole("heading", { level: 1, name: "Edit entry" });
+    await user.click(await screen.findByRole("switch", { name: /Paid back by a friend/ }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("heading", { level: 1, name: "Money in & out" });
+    expect(await db.entries.get("lnk-t-venmo")).toMatchObject({
+      paid_back: true,
+      not_counted: true,
+    });
+    cleanup();
+
+    server();
+    renderApp("/");
+    const hero = await screen.findByRole("link", { name: "Kept this month, open Money in & out" });
+    await waitFor(() =>
+      expect(hero).toHaveTextContent("Got $3,000.00 · Spent $1,332.00 · Kept $1,668.00"),
+    );
+    // The bank's rows are whole: my share plus Owed to me is the $150 on the statement
+    const rows = (await db.entries.toArray()).filter(
+      (e) => e.id === groceries.id || e.split_parent_id === groceries.id,
+    );
+    expect(rows.reduce((s, e) => s + e.amount_cents, 0)).toBe(15000);
   });
 });
