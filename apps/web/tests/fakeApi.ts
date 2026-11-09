@@ -12,6 +12,7 @@ import type {
   SessionInfo,
 } from "../src/data/api.ts";
 import { cancelConsent, changeConsent, purchaseConsent, sameConsent } from "./fakeConsent.ts";
+import { emptySplits, type FakeSplits, handleSplits } from "./fakeSplits.ts";
 
 export const VALID_CODE = "482913";
 
@@ -25,6 +26,9 @@ export const FAKE_LIMITS: Record<string, Record<string, unknown>> = {
     bank_links_max: 0,
     backup: false,
     household: false,
+    split_bills_per_day: 0,
+    split_people_max: 0,
+    split_invites_per_day: 0,
   },
   private: {
     goals_active_max: 4,
@@ -34,6 +38,9 @@ export const FAKE_LIMITS: Record<string, Record<string, unknown>> = {
     bank_links_max: 0,
     backup: true,
     household: false,
+    split_bills_per_day: 6,
+    split_people_max: 6,
+    split_invites_per_day: 6,
   },
   connected: {
     goals_active_max: 10,
@@ -43,6 +50,9 @@ export const FAKE_LIMITS: Record<string, Record<string, unknown>> = {
     bank_links_max: 3,
     backup: true,
     household: true,
+    split_bills_per_day: 12,
+    split_people_max: 12,
+    split_invites_per_day: 12,
   },
 };
 
@@ -304,6 +314,8 @@ export interface FakeApi {
   households: FakeHouseholds;
   /** Linking (Phase 3): connections on the "server"; `nextLink` is what the next finish returns. */
   linking: FakeLinking;
+  /** Split bills (chunk S.2's router): see tests/fakeSplits.ts. */
+  splits: FakeSplits;
   /** Getting back in without a passkey (invariant 74). The partner's code is `RECOVERY_CODE`. */
   recovery: {
     status: "none" | "waiting" | "ready";
@@ -527,6 +539,7 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     backup: emptyBackup(),
     households: emptyHouseholds(),
     linking: emptyLinking(),
+    splits: emptySplits(),
     ...overrides,
   };
   const notificationsOut = () => ({
@@ -938,6 +951,8 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       FAKE_LIMITS[state.billing.plan === "founding" ? "connected" : state.billing.plan];
     const me = state.session.user?.id ?? ME;
     const deviceLabel = state.session.device_label ?? "Safari on iPhone";
+    const split = handleSplits(state.splits, method, path, b, me, myName(), limits);
+    if (split) return split;
     // Linking (Phase 3, chunk 3.2): Hosted Link URLs, finish once, disconnect.
     if (method === "GET" && path === "/api/linking") {
       const cap = limits?.bank_links_max;
