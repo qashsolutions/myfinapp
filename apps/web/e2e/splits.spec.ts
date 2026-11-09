@@ -8,9 +8,29 @@ function sent(page: Page): string[] {
     const path = new URL(r.url()).pathname;
     // Ciphertext and wrapped keys are base64url; any short run of letters can appear in them.
     if (!path.startsWith("/api/") || /\/(blobs|keys)\//.test(path)) return;
-    out.push(`${r.url()} ${r.postData() ?? ""}`);
+    out.push(`${safeDecode(r.url())} ${r.postData() ?? ""}`);
   });
   return out;
+}
+
+/** A URL read as text, so a name sent as `Lake%20house` is still caught. */
+function safeDecode(url: string): string {
+  try {
+    return decodeURIComponent(url);
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Fails when a readable name went out. Markers are whole names, never a short code like "7Q":
+ * sign-up sends the passkey's credential as a kilobyte or two of base64url, where any two
+ * characters turn up by chance in about a third of runs (the flaky failures of November 9, 2026).
+ */
+function expectNothingReadable(lines: string[], names: string[]) {
+  for (const line of lines)
+    for (const name of names)
+      expect(line.includes(name), `${name} in ${line.slice(0, 120)}`).toBe(false);
 }
 
 /** The split group's screen, read fresh from the server. */
@@ -111,9 +131,10 @@ test("split bills: the organizer starts a group, a friend joins, bills wait for 
   await expect(friend.getByRole("region", { name: "Your balance" })).toContainText("Clear");
 
   // Invariant 78: no group name, bill or what it was for went out readable from either device
-  for (const line of [...orgSent, ...friendSent])
-    for (const secret of ["Lake house", "7Q", "Internet", "Snacks"])
-      expect(line.includes(secret), `${secret} in ${line.slice(0, 120)}`).toBe(false);
+  expectNothingReadable(
+    [...orgSent, ...friendSent],
+    ["Lake house", "Internet", "Snacks", "Lake house 7Q", "Internet 7Q", "Snacks 7Q"],
+  );
 });
 
 test("@phone split bills: a free guest joins from the email link, disputes, pays through Check first and leaves", async ({
@@ -227,7 +248,13 @@ test("@phone split bills: a free guest joins from the email link, disputes, pays
   await report.getByRole("button", { name: "Report and leave" }).click();
   await expect(guest).toHaveURL(/\/(splits|start)$/);
 
-  for (const line of guestSent)
-    for (const secret of ["Cabin", "3W", "Firewood", "Matches", "cabin-host"])
-      expect(line.includes(secret), `${secret} in ${line.slice(0, 120)}`).toBe(false);
+  expectNothingReadable(guestSent, [
+    "Cabin",
+    "Firewood",
+    "Matches",
+    "cabin-host",
+    "Cabin 3W",
+    "Firewood 3W",
+    "Matches 3W",
+  ]);
 });
