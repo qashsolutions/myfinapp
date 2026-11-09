@@ -28,9 +28,9 @@ import {
 import { parseAmount } from "../../src/engine/bridge.ts";
 import { setCounted } from "../../src/features/entries/entryActions.ts";
 import { addGoalEvent, moveMoney } from "../../src/features/goals/useGoals.ts";
-import { createSplitGroup } from "../../src/features/splits/useSplits.ts";
 import { commitImport, parseFile, prepareRows } from "../../src/features/imports/importFlow.ts";
 import { applySync, type SyncOut, type SyncTxn } from "../../src/features/linking/sync.ts";
+import { createSplitGroup } from "../../src/features/splits/useSplits.ts";
 import { applyMapping, guessMapping } from "../../src/importers/csv.ts";
 import { emptyLinking, installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
@@ -515,7 +515,13 @@ describe("a month through every money path (docs/invariants.md)", () => {
     const at = NOW.toISOString();
     g?.members.push(
       { member_id: "m-u-sam", user_id: "u-sam", display_name: "Sam", guest: true, joined_at: at },
-      { member_id: "m-u-alex", user_id: "u-alex", display_name: "Alex", guest: true, joined_at: at },
+      {
+        member_id: "m-u-alex",
+        user_id: "u-alex",
+        display_name: "Alex",
+        guest: true,
+        joined_at: at,
+      },
     );
     const groceries = (await db.entries.toArray()).find((e) =>
       e.merchant.startsWith("WHOLE FOODS"),

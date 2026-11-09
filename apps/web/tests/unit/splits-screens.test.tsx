@@ -248,7 +248,9 @@ describe("Split bills: the organizer", () => {
     renderApp("/");
     await user.click(await screen.findByRole("button", { name: "Add entry or receipt" }));
     await user.click(await screen.findByRole("button", { name: /A split/ }));
-    expect(await screen.findByRole("heading", { level: 1, name: "Add a bill" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Add a bill" }),
+    ).toBeInTheDocument();
     expect(api.splits.groups[0]?.id).toBe(gid);
   });
 
