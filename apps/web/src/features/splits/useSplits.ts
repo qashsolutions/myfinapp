@@ -17,7 +17,13 @@ import {
 } from "../../engine/bridge.ts";
 import { todayIso } from "../../lib/format.ts";
 import type { GroupMeta, LedgerBlob, PayApp, ShownBill, SplitBill } from "./ledger.ts";
-import { newGroupKey, pullGroup, type SplitView, updateMyLedger } from "./splitSync.ts";
+import {
+  forgetGroupBlobs,
+  newGroupKey,
+  pullGroup,
+  type SplitView,
+  updateMyLedger,
+} from "./splitSync.ts";
 
 export type SplitsOut = components["schemas"]["SplitsOut"];
 export type SplitGroupOut = components["schemas"]["SplitGroupOut"];
@@ -125,10 +131,15 @@ export function useSplitViews(groups: SplitGroupOut[] | null, background = true)
     if (key === null || !list) return;
     let alive = true;
     void (async () => {
+      // A few groups at a time: each one that hasn't changed is a list of versions (S.5).
       const next = new Map<string, SplitView>();
-      for (const g of list) {
-        const view = await viewOf(db, g, background);
-        if (view) next.set(g.id, view);
+      for (let i = 0; i < list.length; i += 4) {
+        const batch = list.slice(i, i + 4);
+        const got = await Promise.all(batch.map((g) => viewOf(db, g, background)));
+        got.forEach((view, j) => {
+          const g = batch[j];
+          if (view && g) next.set(g.id, view);
+        });
       }
       if (alive) setViews(next);
     })();
@@ -488,13 +499,19 @@ export const REPORT_REASONS: ReadonlyArray<readonly [ReportReason, string]> = [
 ];
 
 /** Leave; "Report and leave" adds one report against the organizer (spec "Reports and blocks"). */
-export async function leaveGroup(groupId: string, report: ReportReason | null): Promise<Result> {
+export async function leaveGroup(
+  db: StackdDb,
+  groupId: string,
+  report: ReportReason | null,
+): Promise<Result> {
   const r = await api.POST("/api/splits/{group_id}/leave", {
     params: { path: { group_id: groupId } },
     body: report ? { report } : {},
   });
   const failure = failureOf(r);
-  return failure ? fail(codeOf(failure)) : OK;
+  if (failure) return fail(codeOf(failure));
+  await forgetGroupBlobs(db, groupId);
+  return OK;
 }
 
 /** Plain words for the server's and the rule's codes. */
@@ -518,6 +535,7 @@ export function splitErrorText(code: string): string {
     invalid_share: "Each share needs a whole number above 0.",
     values_must_match_people: "Fill in everyone who's in.",
     not_saved: "Couldn't save. Try again when you're online.",
+    too_many_groups: "That's 20 groups at once. Leave one to start or join another.",
     too_many_dates: "That first date is too far back for a repeating bill. Pick a later one.",
     warning_changed: "The warning changed. Close this and open it again.",
     other_email: "This invite is for a different email. Sign in with the address it was sent to.",

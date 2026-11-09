@@ -65,6 +65,8 @@ export interface FakeSplits {
   seq: number;
   /** The next N ledger or profile writes fail with a 500 (a server or network hiccup). */
   failBlobWrites: number;
+  /** Each state read: which group, and how many blob versions the device said it held. */
+  stateReads: Array<{ group_id: string; known: number }>;
 }
 
 export function emptySplits(): FakeSplits {
@@ -81,6 +83,7 @@ export function emptySplits(): FakeSplits {
     reminded: [],
     seq: 0,
     failBlobWrites: 0,
+    stateReads: [],
   };
 }
 
@@ -204,9 +207,13 @@ export function handleSplits(
     g.guests_can_add = Boolean(b.guests_can_add);
     return json(out(g));
   }
-  if (method === "GET" && rest === "state")
+  if ((method === "GET" || method === "POST") && rest === "state") {
+    // POST sends the versions this device holds; only the others come back (chunk S.5).
+    const known = (method === "POST" ? (b.known ?? {}) : {}) as Record<string, number>;
+    s.stateReads.push({ group_id: g.id, known: Object.keys(known).length });
     return json({
-      blobs: g.blobs,
+      blobs: g.blobs.filter((x) => known[`${x.member_id}/${x.kind}`] !== x.version),
+      versions: g.blobs.map(({ member_id, kind, version }) => ({ member_id, kind, version })),
       bill_ids: g.bills.filter((x) => x.status === "approved").map((x) => x.id),
       pending: g.bills
         .filter((x) => x.status === "pending")
@@ -218,13 +225,14 @@ export function handleSplits(
       keys: g.keys.map((k) => (k.member_id === member.member_id ? k : { ...k, wrapped_key: null })),
       writable: g.writable,
     });
-  const blob = rest.match(/^blobs\/(ledger|profile)$/);
+  }
+  const blob = rest.match(/^blobs\/(ledger|profile|ledger\/[0-9]{4}-(?:0[1-9]|1[0-2]))$/);
   if (method === "PUT" && blob) {
     if (s.failBlobWrites > 0) {
       s.failBlobWrites -= 1;
       return json({ detail: "error" }, 500);
     }
-    const kind = blob[1] as string;
+    const kind = (blob[1] as string).replace("ledger/", "ledger:");
     const at = g.blobs.findIndex((x) => x.member_id === member.member_id && x.kind === kind);
     const version = Number(b.version);
     if (at >= 0 && version <= (g.blobs[at]?.version ?? 0))

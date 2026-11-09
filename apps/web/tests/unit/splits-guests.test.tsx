@@ -13,8 +13,8 @@ import {
   toBase64url,
 } from "../../src/data/backup/crypto.ts";
 import { openDb } from "../../src/data/db.ts";
-import { emptyLedger, type SplitBill } from "../../src/features/splits/ledger.ts";
-import { blobAad, rememberGroupKey } from "../../src/features/splits/splitSync.ts";
+import { emptyLedger, type LedgerBlob, type SplitBill } from "../../src/features/splits/ledger.ts";
+import { blobAad, rememberGroupKey, sealLedger } from "../../src/features/splits/splitSync.ts";
 import { type FakeApi, freeBilling, installFakeApi, readySession } from "../fakeApi.ts";
 import type { FakeSplitMember } from "../fakeSplits.ts";
 import { renderApp } from "../render.tsx";
@@ -67,15 +67,29 @@ function guestApi(opts: { inGroup: boolean }): FakeApi {
 async function blob(api: FakeApi, member: string, kind: "ledger" | "profile", value: unknown) {
   const g = api.splits.groups[0];
   if (!g) throw new Error("no group");
-  const sealed = await encryptJson(fromBase64url(KEY), value, blobAad(GID, kind, member));
-  g.blobs = g.blobs.filter((x) => !(x.member_id === member && x.kind === kind));
-  g.blobs.push({
-    member_id: member,
-    kind,
-    ciphertext: toBase64url(sealed),
-    version: 1,
-    updated_at: AT,
-  });
+  const rows =
+    kind === "ledger"
+      ? await sealLedger(fromBase64url(KEY), GID, member, value as LedgerBlob, AT.slice(0, 7))
+      : [
+          {
+            kind,
+            ciphertext: toBase64url(
+              await encryptJson(fromBase64url(KEY), value, blobAad(GID, kind, member)),
+            ),
+          },
+        ];
+  const kinds = new Set(rows.map((r) => r.kind));
+  g.blobs = g.blobs.filter(
+    (x) => !(x.member_id === member && (kinds.has(x.kind) || x.kind.startsWith(kind))),
+  );
+  for (const r of rows)
+    g.blobs.push({
+      member_id: member,
+      kind: r.kind,
+      ciphertext: r.ciphertext,
+      version: 1,
+      updated_at: AT,
+    });
 }
 
 const internet: SplitBill = {

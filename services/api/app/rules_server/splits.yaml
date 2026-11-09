@@ -18,3 +18,8 @@ handles:
   changed_recently_days: 3
 pay_warning:
   version: "2026-11-08"  # the "Check first" wording; joins the terms' one-time legal review
+groups:
+  # Split groups one person can be in at once (owner decision, November 9, 2026): groups they
+  # organize, and groups they joined as someone else's guest, counted apart.
+  organize_max: 20
+  join_max: 20

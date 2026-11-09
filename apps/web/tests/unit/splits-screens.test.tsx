@@ -5,11 +5,11 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
-import { encryptJson, toBase64url } from "../../src/data/backup/crypto.ts";
 import { openDb } from "../../src/data/db.ts";
 import { emptyLedger, type LedgerBlob, type SplitBill } from "../../src/features/splits/ledger.ts";
-import { blobAad, groupKey } from "../../src/features/splits/splitSync.ts";
+import { groupKey, openLedger, sealLedger } from "../../src/features/splits/splitSync.ts";
 import { createSplitGroup } from "../../src/features/splits/useSplits.ts";
+import { todayIso } from "../../src/lib/format.ts";
 import { type FakeApi, installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 
@@ -48,15 +48,27 @@ async function writeLedger(api: FakeApi, gid: string, member: string, ledger: Le
   if (!key) throw new Error("no key");
   const g = api.splits.groups.find((x) => x.id === gid);
   if (!g) throw new Error("no group");
-  const old = g.blobs.find((b) => b.member_id === member && b.kind === "ledger");
-  const row = {
-    member_id: member,
-    kind: "ledger",
-    ciphertext: toBase64url(await encryptJson(key, ledger, blobAad(gid, "ledger", member))),
-    version: (old?.version ?? 0) + 1,
-    updated_at: new Date().toISOString(),
-  };
-  g.blobs = [...g.blobs.filter((b) => b !== old), row];
+  const rows = await sealLedger(key, gid, member, ledger, todayIso().slice(0, 7));
+  for (const r of rows) {
+    const old = g.blobs.find((b) => b.member_id === member && b.kind === r.kind);
+    g.blobs = [
+      ...g.blobs.filter((b) => b !== old),
+      {
+        member_id: member,
+        kind: r.kind,
+        ciphertext: r.ciphertext,
+        version: (old?.version ?? 0) + 1,
+        updated_at: new Date().toISOString(),
+      },
+    ];
+  }
+}
+
+async function readLedger(api: FakeApi, gid: string, member: string): Promise<LedgerBlob> {
+  const key = await groupKey(openDb("u1"), gid);
+  if (!key) throw new Error("no key");
+  const g = api.splits.groups.find((x) => x.id === gid);
+  return (await openLedger(key, gid, member, g?.blobs ?? [])) ?? emptyLedger();
 }
 
 function bill(id: string, by: string, amount: number, parts: number[], what: string): SplitBill {
@@ -85,11 +97,7 @@ async function seedGroceries(api: FakeApi, gid: string) {
   const key = await groupKey(openDb("u1"), gid);
   if (!key) throw new Error("no key");
   // My ledger already holds the group's name; add the bill to it.
-  const mine = g?.blobs.find((b) => b.member_id === ME);
-  const { decryptJson, fromBase64url } = await import("../../src/data/backup/crypto.ts");
-  const current = mine
-    ? await decryptJson<LedgerBlob>(key, fromBase64url(mine.ciphertext), blobAad(gid, "ledger", ME))
-    : emptyLedger();
+  const current = await readLedger(api, gid, ME);
   await writeLedger(api, gid, ME, {
     ...current,
     bills: [...current.bills, bill("b-groc", ME, 18600, [6200, 6200, 6200], "Groceries")],

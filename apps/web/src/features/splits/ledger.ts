@@ -94,9 +94,9 @@ export function emptyLedger(): LedgerBlob {
 }
 
 /**
- * The largest bill counted (a technical guard, November 9, 2026, proposed): $100 million, so the
- * sums of every bill a group could hold stay inside the engine's exact integers and one absurd
- * bill can never stop everyone's balances.
+ * The largest bill counted (a technical guard; signed off by the owner November 9, 2026): $100
+ * million, so the sums of every bill a group could hold stay inside the engine's exact integers
+ * and one absurd bill can never stop everyone's balances.
  */
 export const MAX_BILL_CENTS = 10_000_000_000;
 
@@ -329,4 +329,311 @@ export function parseProfile(value: unknown): ProfileBlob | null {
     changed: v.changed && typeof v.changed === "object" ? v.changed : {},
     saved_at: typeof v.saved_at === "string" ? v.saved_at : "",
   };
+}
+
+// ---- monthly pages (chunk S.5, November 9, 2026) ----
+//
+// On the server a member's ledger is a small head (`ledger`: the organizer's group settings) and
+// one page a month (`ledger:YYYY-MM`: what they recorded that month), each a blob of its own, so
+// no ledger ever fills up. A page is written compactly: member ids once in `p`, then indexes.
+// Reading puts the pages back together as one `LedgerBlob`; writing puts each change back on the
+// page it came from, and anything new on the newest page.
+
+export const PAGE_FORMAT = 2;
+const MONTH = /^[0-9]{4}-(0[1-9]|1[0-2])$/;
+
+export interface LedgerPage {
+  bills: SplitBill[];
+  edits: Record<string, SplitBill | null>;
+  approved: Record<string, SplitBill>;
+  settlements: SplitSettlement[];
+}
+
+export interface HeadBlob {
+  v: typeof PAGE_FORMAT;
+  group: GroupMeta | null;
+}
+
+const METHOD_CODES = ["equal", "exact", "percent", "shares"] as const;
+const REPEAT_CODES = ["weekly", "monthly", "yearly"] as const;
+const APP_CODES = ["venmo", "cashapp", "paypal", "other"] as const;
+
+/** [id, date, what, amount, paid by, people, method, values, leftover to, parts, repeat,
+ * repeat until, updated at]; people are indexes into the page's `p`, and values and parts line up
+ * with the bill's people (null where a person has none). */
+type PackedBill = [
+  string,
+  string,
+  string,
+  number,
+  number,
+  number[],
+  number,
+  Array<number | null> | null,
+  number,
+  Array<number | null>,
+  number | null,
+  string | null,
+  string,
+];
+/** [id, from, to, cents, date, via, confirms, at] */
+type PackedSettlement = [string, number, number, number, string, number, string | null, string];
+
+export interface PageBlob {
+  v: typeof PAGE_FORMAT;
+  p: string[];
+  b: PackedBill[];
+  e: Array<[string, PackedBill | null]>;
+  a: Array<[string, PackedBill]>;
+  s: PackedSettlement[];
+}
+
+export function emptyPage(): LedgerPage {
+  return { bills: [], edits: {}, approved: {}, settlements: [] };
+}
+
+export const isMonth = (m: string): boolean => MONTH.test(m);
+
+/** The page a member's blob kind names, or null for the head and anything else. */
+export function pageMonth(kind: string): string | null {
+  const m = kind.startsWith("ledger:") ? kind.slice(7) : null;
+  return m && isMonth(m) ? m : null;
+}
+
+export function encodePage(page: LedgerPage): PageBlob {
+  const p: string[] = [];
+  const at = new Map<string, number>();
+  const ix = (id: string) => {
+    let i = at.get(id);
+    if (i === undefined) {
+      i = p.length;
+      p.push(id);
+      at.set(id, i);
+    }
+    return i;
+  };
+  const bill = (b: SplitBill): PackedBill => {
+    const parts = new Map(b.parts.map((x) => [x.person, x.cents]));
+    return [
+      b.id,
+      b.date,
+      b.what,
+      b.amount_cents,
+      ix(b.paid_by),
+      b.people.map(ix),
+      METHOD_CODES.indexOf(b.method as (typeof METHOD_CODES)[number]),
+      b.values ? b.people.map((x) => b.values?.[x] ?? null) : null,
+      ix(b.leftover_to),
+      b.people.map((x) => parts.get(x) ?? null),
+      b.repeat ? REPEAT_CODES.indexOf(b.repeat) : null,
+      b.repeat_until,
+      b.updated_at,
+    ];
+  };
+  return {
+    v: PAGE_FORMAT,
+    p,
+    b: page.bills.map(bill),
+    e: Object.entries(page.edits).map(([id, b]) => [id, b ? bill(b) : null]),
+    a: Object.entries(page.approved).map(([id, b]) => [id, bill(b)]),
+    s: page.settlements.map((x) => [
+      x.id,
+      ix(x.from),
+      ix(x.to),
+      x.cents,
+      x.date,
+      APP_CODES.indexOf(x.via),
+      x.confirms,
+      x.at,
+    ]),
+  };
+}
+
+/** A page read back, or null when it isn't one. Anything malformed comes out as a bill or a
+ * settlement that `isValidBill` / `isValidSettlement` then leaves out, never as a throw. */
+export function decodePage(value: unknown, author: string): LedgerPage | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Partial<PageBlob>;
+  if (v.v !== PAGE_FORMAT || !Array.isArray(v.p)) return null;
+  const p = v.p;
+  const who = (i: unknown): string =>
+    typeof i === "number" &&
+    Number.isInteger(i) &&
+    i >= 0 &&
+    i < p.length &&
+    typeof p[i] === "string"
+      ? (p[i] as string)
+      : "";
+  const code = <T>(list: readonly T[], i: unknown): T | undefined =>
+    typeof i === "number" && Number.isInteger(i) ? list[i] : undefined;
+  const bill = (x: unknown): SplitBill | null => {
+    if (!Array.isArray(x) || x.length !== 13) return null;
+    const [
+      id,
+      date,
+      what,
+      amount,
+      paidBy,
+      people,
+      method,
+      values,
+      leftover,
+      parts,
+      repeat,
+      until,
+      at,
+    ] = x as unknown[];
+    if (!Array.isArray(people) || !Array.isArray(parts)) return null;
+    const ids = people.map(who);
+    const vals = Array.isArray(values) ? values : null;
+    return {
+      id: id as string,
+      date: date as string,
+      what: what as string,
+      amount_cents: amount as number,
+      paid_by: who(paidBy),
+      people: ids,
+      method: code(METHOD_CODES, method) as SplitMethod,
+      values: vals
+        ? Object.fromEntries(
+            ids.flatMap((person, i) => (vals[i] == null ? [] : [[person, vals[i] as number]])),
+          )
+        : null,
+      leftover_to: who(leftover),
+      parts: ids.flatMap((person, i) =>
+        parts[i] == null ? [] : [{ person, cents: parts[i] as number }],
+      ),
+      repeat: repeat === null ? null : ((code(REPEAT_CODES, repeat) ?? "?") as SplitRepeat),
+      repeat_until: (until ?? null) as string | null,
+      added_by: author,
+      updated_at: typeof at === "string" ? at : "",
+    };
+  };
+  const pairs = (list: unknown): Array<[string, unknown]> =>
+    Array.isArray(list)
+      ? list.filter(
+          (e): e is [string, unknown] =>
+            Array.isArray(e) && e.length === 2 && typeof e[0] === "string",
+        )
+      : [];
+  const page = emptyPage();
+  for (const x of Array.isArray(v.b) ? v.b : []) {
+    const b = bill(x);
+    if (b) page.bills.push(b);
+  }
+  for (const [id, x] of pairs(v.e)) {
+    if (x === null) page.edits[id] = null;
+    else {
+      const b = bill(x);
+      if (b) page.edits[id] = b;
+    }
+  }
+  for (const [id, x] of pairs(v.a)) {
+    const b = bill(x);
+    if (b) page.approved[id] = b;
+  }
+  for (const x of Array.isArray(v.s) ? v.s : []) {
+    if (!Array.isArray(x) || x.length !== 8) continue;
+    const [id, from, to, cents, date, via, confirms, at] = x as unknown[];
+    page.settlements.push({
+      id: id as string,
+      from: who(from),
+      to: who(to),
+      cents: cents as number,
+      date: date as string,
+      via: (code(APP_CODES, via) ?? "?") as PayApp,
+      confirms: (confirms ?? null) as string | null,
+      at: typeof at === "string" ? at : "",
+    });
+  }
+  return page;
+}
+
+export function parseHead(value: unknown): HeadBlob | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Partial<HeadBlob>;
+  if (v.v !== PAGE_FORMAT) return null;
+  return { v: PAGE_FORMAT, group: v.group ?? null };
+}
+
+const byMonth = (pages: Map<string, LedgerPage>) =>
+  [...pages.entries()].sort(([a], [b]) => compareText(a, b));
+
+/** A member's pages as one ledger: a later page's copy of a bill, a settlement, an edit or an
+ * approval wins over an earlier one's. */
+export function combinePages(head: HeadBlob | null, pages: Map<string, LedgerPage>): LedgerBlob {
+  const bills = new Map<string, SplitBill>();
+  const settlements = new Map<string, SplitSettlement>();
+  const out = emptyLedger();
+  for (const [, page] of byMonth(pages)) {
+    for (const b of page.bills) bills.set(b.id, b);
+    for (const s of page.settlements) settlements.set(s.id, s);
+    Object.assign(out.edits, page.edits);
+    Object.assign(out.approved as Record<string, SplitBill>, page.approved);
+  }
+  out.bills = [...bills.values()];
+  out.settlements = [...settlements.values()];
+  out.group = head?.group ?? null;
+  return out;
+}
+
+/** The same value whatever order its keys were written in. */
+export function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value && typeof value === "object")
+    return `{${Object.keys(value)
+      .sort(compareText)
+      .map((k) => `${JSON.stringify(k)}:${canonical((value as Record<string, unknown>)[k])}`)
+      .join(",")}}`;
+  return JSON.stringify(value) ?? "null";
+}
+
+/**
+ * Where a changed ledger goes: every bill and settlement stays on the page it was recorded on
+ * (removed ones leave it), anything new goes on `month`, a changed edit or approval is written
+ * on `month` (the later page wins), and a withdrawn one leaves every page. Returns every page,
+ * changed or not; the caller writes the ones whose content changed.
+ */
+export function placeOnPages(
+  before: Map<string, LedgerPage>,
+  next: LedgerBlob,
+  month: string,
+): Map<string, LedgerPage> {
+  const billAt = new Map<string, string>();
+  const settledAt = new Map<string, string>();
+  for (const [m, page] of byMonth(before)) {
+    for (const b of page.bills) billAt.set(b.id, m);
+    for (const s of page.settlements) settledAt.set(s.id, m);
+  }
+  const was = combinePages(null, before);
+  const out = new Map<string, LedgerPage>();
+  for (const [m, page] of before)
+    out.set(m, { ...emptyPage(), edits: { ...page.edits }, approved: { ...page.approved } });
+  if (!out.has(month)) out.set(month, emptyPage());
+  const pageOf = (m: string) => out.get(m) ?? (out.set(m, emptyPage()).get(m) as LedgerPage);
+
+  const lastById = <T extends { id: string }>(list: T[]) => [
+    ...new Map(list.map((x) => [x.id, x])).values(),
+  ];
+  for (const b of lastById(next.bills)) pageOf(billAt.get(b.id) ?? month).bills.push(b);
+  for (const s of lastById(next.settlements))
+    pageOf(settledAt.get(s.id) ?? month).settlements.push(s);
+
+  const place = <T>(
+    field: "edits" | "approved",
+    old: Record<string, T>,
+    now: Record<string, T>,
+  ) => {
+    for (const [id, value] of Object.entries(now)) {
+      if (Object.hasOwn(old, id) && canonical(old[id]) === canonical(value)) continue;
+      (pageOf(month)[field] as Record<string, T>)[id] = value;
+    }
+    for (const id of Object.keys(old)) {
+      if (Object.hasOwn(now, id)) continue;
+      for (const page of out.values()) delete (page[field] as Record<string, T>)[id];
+    }
+  };
+  place("edits", was.edits, recordOf<SplitBill | null>(next.edits));
+  place("approved", was.approved ?? {}, recordOf<SplitBill>(next.approved));
+  return out;
 }

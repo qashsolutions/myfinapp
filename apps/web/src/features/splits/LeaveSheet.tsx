@@ -1,6 +1,7 @@
 import { Button, Sheet } from "@stackd/ui";
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { useDb } from "../../data/DbProvider.tsx";
 import { formatCents } from "../../lib/format.ts";
 import { useEntitlements } from "../billing/entitlements.ts";
 import { ChipChoice } from "./ChipChoice.tsx";
@@ -27,6 +28,7 @@ export function LeaveSheet({
   onClose: () => void;
 }) {
   const navigate = useNavigate();
+  const { db } = useDb();
   const { refresh } = useEntitlements();
   const [reporting, setReporting] = useState(startWithReport);
   const [reason, setReason] = useState<ReportReason | null>(null);
@@ -36,7 +38,7 @@ export function LeaveSheet({
 
   async function leave() {
     setBusy(true);
-    const r = await leaveGroup(groupId, reporting ? reason : null);
+    const r = await leaveGroup(db, groupId, reporting ? reason : null);
     setBusy(false);
     if (!r.ok) return setError(splitErrorText(r.code));
     await refresh(); // leaving a last group changes what a guest's app is

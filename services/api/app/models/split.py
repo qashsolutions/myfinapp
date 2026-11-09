@@ -27,6 +27,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base, StackdRow
 
 BLOB_KINDS = ("ledger", "profile")
+# A ledger page: a member's bills, settlements, edits and approvals recorded in one month
+# (chunk S.5, November 9, 2026), so no member's ledger ever fills up. `ledger` alone is the head:
+# the organizer's group settings.
+LEDGER_PAGE = r"^ledger:[0-9]{4}-(0[1-9]|1[0-2])$"
+BLOB_KIND_CHECK = f"kind IN ('ledger', 'profile') OR kind ~ '{LEDGER_PAGE}'"
 MISTAKE_KINDS = ("invite_declined", "bill_disputed", "bill_declined")
 REPORT_REASONS = ("dont_know", "not_owed", "pushy", "other")
 
@@ -115,7 +120,7 @@ class SplitBlob(Base, StackdRow):
     __tablename__ = "split_blobs"
     __table_args__ = (
         UniqueConstraint("group_id", "member_id", "kind"),
-        CheckConstraint("kind IN ('ledger', 'profile')", name="kind"),
+        CheckConstraint(BLOB_KIND_CHECK, name="kind"),
     )
 
     group_id: Mapped[uuid.UUID] = mapped_column(

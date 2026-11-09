@@ -35,6 +35,8 @@ def test_non_member_gets_404_everywhere() -> None:
     assert bob.get(f"/api/splits/{gid}/state").status_code == 404
     assert bob.post(f"/api/splits/{gid}/bills").status_code == 404
     assert bob.put(f"/api/splits/{gid}/blobs/ledger", json=blob).status_code == 404
+    assert bob.put(f"/api/splits/{gid}/blobs/ledger/2026-11", json=blob).status_code == 404
+    assert bob.post(f"/api/splits/{gid}/state", json={"known": {}}).status_code == 404
     assert (
         bob.post(f"/api/splits/{gid}/invites", json={"email": "x@example.com"}).status_code == 404
     )
