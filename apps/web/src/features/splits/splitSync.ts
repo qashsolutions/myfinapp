@@ -34,6 +34,7 @@ import {
 import {
   balanceFacts,
   emptyLedger,
+  isValidBill,
   type LedgerBlob,
   type Merged,
   merge,
@@ -300,10 +301,22 @@ export async function computeView(
     `${b.id}|${b.date}|${b.repeat}`;
   const repeats = new Map<string, string[]>();
   for (const ledger of ledgers.values()) {
-    const candidates = [...ledger.bills, ...Object.values(ledger.edits)];
+    const candidates = [
+      ...(Array.isArray(ledger.bills) ? ledger.bills : []),
+      ...Object.values(ledger.edits && typeof ledger.edits === "object" ? ledger.edits : {}),
+      ...Object.values(
+        ledger.approved && typeof ledger.approved === "object" ? ledger.approved : {},
+      ),
+    ];
     for (const b of candidates) {
-      if (b?.repeat && approved.has(b.id) && !repeats.has(repeatKey(b)))
-        repeats.set(repeatKey(b), await splitRepeatDates(b.date, b.repeat, asOf));
+      if (!isValidBill(b) || !b.repeat || !approved.has(b.id) || repeats.has(repeatKey(b)))
+        continue;
+      // A repeat with too many dates to add (a start years back) counts once instead of
+      // stopping the whole group's view; the form refuses such a start.
+      repeats.set(
+        repeatKey(b),
+        await splitRepeatDates(b.date, b.repeat, asOf).catch(() => [b.date]),
+      );
     }
   }
   const merged = merge({

@@ -281,9 +281,7 @@ export function SplitGroupScreen() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() =>
-                      act(() => decideBill(group.id, b.base_id, "decline"), "Declined.")
-                    }
+                    onClick={() => act(() => decideBill(db, group, b, "decline"), "Declined.")}
                   >
                     Decline
                   </Button>
@@ -297,9 +295,7 @@ export function SplitGroupScreen() {
                     size="sm"
                     variant="secondary"
                     disabled={atLimit}
-                    onClick={() =>
-                      act(() => decideBill(group.id, b.base_id, "approve"), "Approved.")
-                    }
+                    onClick={() => act(() => decideBill(db, group, b, "approve"), "Approved.")}
                   >
                     Approve
                   </Button>

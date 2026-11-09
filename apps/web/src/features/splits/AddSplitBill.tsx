@@ -179,6 +179,8 @@ function BillForm({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // The id the server issued when a save failed: Try again reuses it.
+  const [issued, setIssued] = useState<{ id: string; status: "approved" | "pending" } | null>(null);
 
   const everyone = useMemo(() => {
     const all = [...live];
@@ -246,9 +248,13 @@ function BillForm({
   async function save() {
     if (!draft) return;
     setBusy(true);
-    const r = editing ? await editBill(db, group, editing, draft) : await addBill(db, group, draft);
+    const r = editing
+      ? await editBill(db, group, editing, draft)
+      : await addBill(db, group, draft, issued);
     if (!r.ok) {
       setBusy(false);
+      const kept = "issued" in r ? (r.issued as typeof issued | undefined) : undefined;
+      if (kept) setIssued(kept);
       setError(splitErrorText(r.code));
       return;
     }

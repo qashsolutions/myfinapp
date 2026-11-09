@@ -63,6 +63,8 @@ export interface FakeSplits {
   blocked: boolean;
   reminded: string[];
   seq: number;
+  /** The next N ledger or profile writes fail with a 500 (a server or network hiccup). */
+  failBlobWrites: number;
 }
 
 export function emptySplits(): FakeSplits {
@@ -78,6 +80,7 @@ export function emptySplits(): FakeSplits {
     blocked: false,
     reminded: [],
     seq: 0,
+    failBlobWrites: 0,
   };
 }
 
@@ -217,6 +220,10 @@ export function handleSplits(
     });
   const blob = rest.match(/^blobs\/(ledger|profile)$/);
   if (method === "PUT" && blob) {
+    if (s.failBlobWrites > 0) {
+      s.failBlobWrites -= 1;
+      return json({ detail: "error" }, 500);
+    }
     const kind = blob[1] as string;
     const at = g.blobs.findIndex((x) => x.member_id === member.member_id && x.kind === kind);
     const version = Number(b.version);

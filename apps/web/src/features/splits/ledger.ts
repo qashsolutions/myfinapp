@@ -70,6 +70,9 @@ export interface LedgerBlob {
   bills: SplitBill[];
   /** Organizer only: a bill id → its corrected copy, or null when deleted. */
   edits: Record<string, SplitBill | null>;
+  /** Organizer only: someone else's bill as the organizer approved it. That copy counts, so
+   * its author can't change an approved bill by rewriting their own ledger (November 9, 2026). */
+  approved?: Record<string, SplitBill>;
   settlements: SplitSettlement[];
   /** Organizer only. */
   group: GroupMeta | null;
@@ -87,7 +90,73 @@ export interface ProfileBlob {
 }
 
 export function emptyLedger(): LedgerBlob {
-  return { v: LEDGER_VERSION, bills: [], edits: {}, settlements: [], group: null };
+  return { v: LEDGER_VERSION, bills: [], edits: {}, approved: {}, settlements: [], group: null };
+}
+
+/**
+ * The largest bill counted (a technical guard, November 9, 2026, proposed): $100 million, so the
+ * sums of every bill a group could hold stay inside the engine's exact integers and one absurd
+ * bill can never stop everyone's balances.
+ */
+export const MAX_BILL_CENTS = 10_000_000_000;
+
+const DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+const METHODS_SET = new Set(["equal", "exact", "percent", "shares"]);
+const REPEATS_SET = new Set(["weekly", "monthly", "yearly"]);
+const APPS = new Set(["venmo", "cashapp", "paypal", "other"]);
+const isText = (v: unknown): v is string =>
+  typeof v === "string" && v.length > 0 && v.length <= 200;
+const isCents = (v: unknown, min: number): v is number =>
+  typeof v === "number" && Number.isInteger(v) && v >= min && v <= MAX_BILL_CENTS;
+
+/** A bill every device can count: whole cents that add up, each person once, known fields. */
+export function isValidBill(b: unknown): b is SplitBill {
+  if (!b || typeof b !== "object") return false;
+  const x = b as Partial<SplitBill>;
+  if (!isText(x.id) || !isText(x.added_by) || !isText(x.paid_by) || !isText(x.leftover_to))
+    return false;
+  if (typeof x.date !== "string" || !DATE.test(x.date) || typeof x.what !== "string") return false;
+  if (!isCents(x.amount_cents, 1) || !METHODS_SET.has(x.method as string)) return false;
+  if (x.repeat !== null && !REPEATS_SET.has(x.repeat as string)) return false;
+  if (x.repeat_until !== null && !(typeof x.repeat_until === "string" && DATE.test(x.repeat_until)))
+    return false;
+  if (!Array.isArray(x.people) || x.people.length === 0 || !x.people.every(isText)) return false;
+  if (new Set(x.people).size !== x.people.length || !Array.isArray(x.parts)) return false;
+  const seen = new Set<string>();
+  let sum = 0;
+  for (const p of x.parts) {
+    if (!p || !isText(p.person) || !isCents(p.cents, 0)) return false;
+    if (seen.has(p.person) || !x.people.includes(p.person)) return false;
+    seen.add(p.person);
+    sum += p.cents;
+  }
+  return sum === x.amount_cents;
+}
+
+export function isValidSettlement(s: unknown): s is SplitSettlement {
+  if (!s || typeof s !== "object") return false;
+  const x = s as Partial<SplitSettlement>;
+  return (
+    isText(x.id) &&
+    isText(x.from) &&
+    isText(x.to) &&
+    x.from !== x.to &&
+    isCents(x.cents, 1) &&
+    typeof x.date === "string" &&
+    DATE.test(x.date) &&
+    APPS.has(x.via as string) &&
+    (x.confirms === null || isText(x.confirms))
+  );
+}
+
+function billsOf(ledger: LedgerBlob | undefined): SplitBill[] {
+  return Array.isArray(ledger?.bills) ? ledger.bills.filter(isValidBill) : [];
+}
+
+function recordOf<T>(value: unknown): Record<string, T> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, T>)
+    : {};
 }
 
 export interface MergeInput {
@@ -127,11 +196,12 @@ function byDateThenId(a: { date: string; id: string }, b: { date: string; id: st
 export function merge(input: MergeInput): Merged {
   const { organizer, ledgers } = input;
   const own = organizer ? ledgers.get(organizer) : undefined;
-  const edits = own?.edits ?? {};
+  const edits = recordOf<SplitBill | null>(own?.edits);
+  const pins = recordOf<SplitBill>(own?.approved);
   const bills: ShownBill[] = [];
   const seen = new Set<string>();
   for (const [author, ledger] of ledgers) {
-    for (const raw of ledger.bills) {
+    for (const raw of billsOf(ledger)) {
       // A bill is its author's: a copy in someone else's ledger never counts.
       if (raw.added_by !== author || seen.has(raw.id)) continue;
       const approved = input.approved.has(raw.id);
@@ -139,13 +209,18 @@ export function merge(input: MergeInput): Merged {
       seen.add(raw.id);
       const edit = Object.hasOwn(edits, raw.id) ? edits[raw.id] : undefined;
       if (edit === null) continue; // deleted by the organizer
-      const bill: SplitBill = edit ? { ...edit, id: raw.id, added_by: raw.added_by } : raw;
+      // Someone else's approved bill counts as the organizer approved it (their pinned copy).
+      const pin =
+        approved && author !== organizer && isValidBill(pins[raw.id]) ? pins[raw.id] : undefined;
+      const base: SplitBill = pin ? { ...pin, id: raw.id, added_by: raw.added_by } : raw;
+      const bill: SplitBill =
+        edit && isValidBill(edit) ? { ...edit, id: raw.id, added_by: raw.added_by } : base;
       const shown: ShownBill = {
         ...bill,
         base_id: raw.id,
         status: approved ? "approved" : "pending",
         disputed: input.disputed.has(raw.id),
-        edited: Boolean(edit),
+        edited: Boolean(edit && isValidBill(edit)),
       };
       bills.push(shown);
       if (approved && bill.repeat) {
@@ -163,8 +238,8 @@ export function merge(input: MergeInput): Merged {
   const offered: Claim[] = [];
   const confirmed = new Set<string>();
   for (const [author, ledger] of ledgers) {
-    for (const s of ledger.settlements) {
-      if (s.cents <= 0 || s.from === s.to) continue;
+    for (const s of Array.isArray(ledger?.settlements) ? ledger.settlements : []) {
+      if (!isValidSettlement(s)) continue;
       if (author === s.to || author === organizer) {
         settlements.push(s);
         if (s.confirms) confirmed.add(s.confirms);
@@ -175,7 +250,13 @@ export function merge(input: MergeInput): Merged {
   }
   settlements.sort(byDateThenId);
   const claims = offered.filter((c) => !confirmed.has(c.id)).sort(byDateThenId);
-  return { group: own?.group ?? null, bills, settlements, claims };
+  const group = own?.group;
+  return {
+    group: group && typeof group === "object" && typeof group.name === "string" ? group : null,
+    bills,
+    settlements,
+    claims,
+  };
 }
 
 /** The facts `splits.balances` takes: approved bills only; a pending one moves nobody. */
@@ -230,7 +311,8 @@ export function parseLedger(value: unknown): LedgerBlob | null {
   return {
     v: LEDGER_VERSION,
     bills: v.bills,
-    edits: v.edits && typeof v.edits === "object" ? v.edits : {},
+    edits: recordOf(v.edits),
+    approved: recordOf(v.approved),
     settlements: v.settlements,
     group: v.group ?? null,
   };

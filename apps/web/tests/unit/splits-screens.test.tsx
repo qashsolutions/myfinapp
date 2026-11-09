@@ -274,6 +274,67 @@ describe("Split bills: the organizer", () => {
     expect(screen.queryByRole("link", { name: "+ New group" })).toBeNull();
   });
 
+  it("a save that fails after the bill's id was issued retries with the same id", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    renderApp(`/splits/${gid}/bills/new`);
+    await user.type(await screen.findByLabelText("1 · How much?"), "30");
+    await user.type(screen.getByLabelText("What's it for?"), "Pizza");
+    await screen.findByText("Only $10.00 counts as yours.");
+    api.splits.failBlobWrites = 1; // the server fails the save once
+    await user.click(screen.getByRole("button", { name: "Add bill" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save");
+    expect(api.splits.added_today).toBe(1);
+    await user.click(screen.getByRole("button", { name: "Add bill" }));
+    expect(await screen.findByText("Sam pays you $10.00")).toBeInTheDocument();
+    // One bill, one of the day's count, whatever the retries
+    expect(api.splits.added_today).toBe(1);
+    expect(api.splits.groups[0]?.bills).toHaveLength(1);
+  });
+
+  it("refuses a repeating bill whose first date is too far back to add", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    renderApp(`/splits/${gid}/bills/new`);
+    await user.type(await screen.findByLabelText("1 · How much?"), "30");
+    await user.type(screen.getByLabelText("What's it for?"), "Gym");
+    await user.click(screen.getByRole("radio", { name: "Weekly" }));
+    const date = screen.getByLabelText("First date");
+    await user.clear(date);
+    await user.type(date, "2010-01-01");
+    await screen.findByText("Only $10.00 counts as yours.");
+    await user.click(screen.getByRole("button", { name: "Add bill" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("too far back");
+    expect(api.splits.added_today).toBe(0);
+  });
+
+  it("an approved guest bill can't be changed by its author afterwards", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    api.splits.groups[0]?.bills.push({ id: "b-clean", created_by: "u-sam", status: "pending" });
+    await writeLedger(api, gid, SAM, {
+      ...emptyLedger(),
+      bills: [bill("b-clean", SAM, 2400, [800, 800, 800], "Cleaning")],
+    });
+    renderApp(`/splits/${gid}`);
+    const waiting = await screen.findByRole("region", { name: "Waiting for your OK" });
+    await user.click(within(waiting).getByRole("button", { name: "Approve" }));
+    expect(await screen.findByText("You pay Sam $8.00")).toBeInTheDocument();
+    // Sam rewrites the approved bill to $2,400 in his own ledger
+    await writeLedger(api, gid, SAM, {
+      ...emptyLedger(),
+      bills: [bill("b-clean", SAM, 240000, [80000, 80000, 80000], "Cleaning")],
+    });
+    cleanup();
+    installFakeApi({ session: readySession(), splits: api.splits });
+    renderApp(`/splits/${gid}`);
+    expect(await screen.findByText("You pay Sam $8.00")).toBeInTheDocument();
+    expect(screen.queryByText(/\$800\.00/)).toBeNull();
+  });
+
   it("stops at the day's limit: Done for today", async () => {
     const api = installFakeApi({ session: readySession() });
     const gid = await seedGroup(api);
