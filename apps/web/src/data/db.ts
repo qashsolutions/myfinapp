@@ -176,6 +176,22 @@ export interface OwnSubscriptionWord {
 }
 
 /**
+ * A split group's encrypted blobs as the server last sent them (chunk S.5, November 9, 2026):
+ * ciphertext only, opened with the group key when read. Device-only (never synced or exported);
+ * opening a group asks the server only for the blobs whose version changed.
+ */
+export interface SplitBlobCache {
+  /** `<group>/<member>/<kind>` */
+  id: string;
+  group_id: string;
+  member_id: string;
+  kind: string;
+  ciphertext: string;
+  version: number;
+  updated_at: string;
+}
+
+/**
  * "Check first" (spec "Before you pay", owner decision November 8, 2026): one row each time the
  * person ticked both boxes before paying someone in a split group. On the device, in the backup
  * and the export; the server keeps only the warning's version and the time.
@@ -543,6 +559,7 @@ export class StackdDb extends Dexie {
   own_subscription_kinds!: EntityTable<OwnSubscriptionKind, "id">;
   own_subscription_words!: EntityTable<OwnSubscriptionWord, "id">;
   split_payments!: EntityTable<SplitPayment, "id">;
+  split_blobs!: EntityTable<SplitBlobCache, "id">;
   files!: EntityTable<StoredFile, "id">;
   computed_results!: EntityTable<ComputedResult, "id">;
   budgets!: EntityTable<Budget, "id">;
@@ -652,6 +669,8 @@ export class StackdDb extends Dexie {
     });
     // Split bills (S.4): the Check first confirmations, Me → Payments I confirmed.
     this.version(19).stores({ split_payments: "id, group_id, at" });
+    // Split bills at scale (S.5): the group blobs this device already holds.
+    this.version(20).stores({ split_blobs: "id, group_id" });
   }
 }
 

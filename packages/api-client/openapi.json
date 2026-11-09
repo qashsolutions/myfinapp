@@ -666,6 +666,30 @@
         "title": "BlobSaved",
         "type": "object"
       },
+      "BlobVersionOut": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "member_id": {
+            "format": "uuid",
+            "title": "Member Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "member_id",
+          "kind",
+          "version"
+        ],
+        "title": "BlobVersionOut",
+        "type": "object"
+      },
       "CancelIn": {
         "properties": {
           "consent": {
@@ -4364,6 +4388,13 @@
             "title": "Pending",
             "type": "array"
           },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/BlobVersionOut"
+            },
+            "title": "Versions",
+            "type": "array"
+          },
           "writable": {
             "title": "Writable",
             "type": "boolean"
@@ -4371,6 +4402,7 @@
         },
         "required": [
           "blobs",
+          "versions",
           "bill_ids",
           "pending",
           "disputes",
@@ -4418,6 +4450,20 @@
           "blocked"
         ],
         "title": "SplitsOut",
+        "type": "object"
+      },
+      "StateIn": {
+        "properties": {
+          "known": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "maxProperties": 4000,
+            "title": "Known",
+            "type": "object"
+          }
+        },
+        "title": "StateIn",
         "type": "object"
       },
       "StatusOut": {
@@ -8581,6 +8627,63 @@
         ]
       }
     },
+    "/api/splits/{group_id}/blobs/ledger/{page}": {
+      "put": {
+        "description": "One month's page of my ledger: what I recorded that month (chunk S.5).",
+        "operationId": "put_ledger_page_api_splits__group_id__blobs_ledger__page__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$",
+              "title": "Page",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SplitBlobIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Ledger Page",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
     "/api/splits/{group_id}/blobs/profile": {
       "put": {
         "description": "Payment handles: only their owner saves them, after Face ID (spec \"Payment handles\").",
@@ -9111,6 +9214,58 @@
           }
         },
         "summary": "State",
+        "tags": [
+          "splits"
+        ]
+      },
+      "post": {
+        "description": "The state with only the blobs this device doesn't already hold at their version (chunk\nS.5): opening a group that hasn't changed downloads a list of versions, not every ledger.",
+        "operationId": "state_since_api_splits__group_id__state_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitStateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "State Since",
         "tags": [
           "splits"
         ]

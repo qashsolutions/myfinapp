@@ -13,7 +13,9 @@ reports and the 3-reporter block.
 - POST /api/splits/invites/lookup | accept | decline: the invite card, by its token
 - POST /api/splits/{id}/bills: issue a bill id against the organizer's daily limit
 - GET  /api/splits/{id}/state: blobs, issued bill ids, open disputes, key handovers
+- POST /api/splits/{id}/state: the same, with only the blobs whose version this device lacks
 - PUT  /api/splits/{id}/blobs/{kind}: my ledger, or my profile (payment handles: step-up)
+- PUT  /api/splits/{id}/blobs/ledger/{YYYY-MM}: one month's page of my ledger
 - PUT  /api/splits/{id}/keys/request, PUT …/keys/{member_id}/{device_key_id}: key handover
 - POST /api/splits/{id}/disputes, POST …/disputes/{bill_id}/close
 - POST /api/splits/{id}/leave (optionally reporting the organizer), DELETE …/members/{member_id}
@@ -24,6 +26,7 @@ reports and the 3-reporter block.
 from __future__ import annotations
 
 import hashlib
+import re
 import secrets
 import uuid
 from datetime import UTC, date, datetime, timedelta
@@ -34,8 +37,9 @@ from zoneinfo import ZoneInfo
 
 import yaml
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import Path as PathParam
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session as DbSession
 
 from app.config import get_settings
@@ -44,6 +48,7 @@ from app.models.billing import Subscription
 from app.models.notification import NotificationSettings
 from app.models.split import (
     BLOB_KINDS,
+    LEDGER_PAGE,
     SplitBill,
     SplitBlob,
     SplitDispute,
@@ -76,6 +81,8 @@ CONFIG_PATH = Path(__file__).resolve().parent.parent / "rules_server" / "splits.
 MAX_LEDGER_BYTES = 256 * 1024
 MAX_PROFILE_BYTES = 4 * 1024
 MAX_KEY_BYTES = 1024
+# The most blob versions a device may say it already holds (12 members x many months of pages).
+MAX_KNOWN = 4000
 BlobKind = Literal["ledger", "profile"]
 ReportReason = Literal["dont_know", "not_owed", "pushy", "other"]
 
@@ -228,6 +235,26 @@ def _membership(db: DbSession, group: SplitGroup, user_id: uuid.UUID) -> SplitMe
     return member
 
 
+def _check_group_cap(db: DbSession, user_id: uuid.UUID, *, organize: bool) -> None:
+    """At most `organize_max` groups organized and `join_max` joined as a guest at once
+    (splits.yaml, owner decision November 9, 2026). The person's row is locked first, so two
+    requests at once can't both take the last place. 409 too_many_groups."""
+    db.scalar(select(User.id).where(User.id == user_id).with_for_update())
+    in_groups = select(SplitMember.group_id).where(
+        SplitMember.user_id == user_id, SplitMember.left_at.is_(None)
+    )
+    mine = SplitGroup.organizer_id == user_id
+    held = db.scalar(
+        select(func.count(SplitGroup.id)).where(
+            SplitGroup.id.in_(in_groups),
+            mine if organize else or_(SplitGroup.organizer_id.is_(None), ~mine),
+        )
+    )
+    cap = int(config()["groups"]["organize_max" if organize else "join_max"])
+    if int(held or 0) >= cap:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="too_many_groups")
+
+
 def _organizer_only(group: SplitGroup, caller: Caller) -> None:
     if group.organizer_id != caller.user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="organizer_only")
@@ -375,8 +402,22 @@ class SplitKeyOut(BaseModel):
     wrapped_key: str | None
 
 
+class BlobVersionOut(BaseModel):
+    member_id: uuid.UUID
+    kind: str
+    version: int
+
+
+class StateIn(BaseModel):
+    # "<member id>/<kind>" -> the version this device already holds.
+    known: dict[str, int] = Field(default_factory=dict, max_length=MAX_KNOWN)
+
+
 class SplitStateOut(BaseModel):
+    # Every blob the device lacks (all of them on a plain GET).
     blobs: list[SplitBlobOut]
+    # Every blob in the group and its version, so a device keeps what it holds and drops the rest.
+    versions: list[BlobVersionOut]
     bill_ids: list[uuid.UUID]  # approved: the only bills a device counts (invariant 77)
     pending: list[PendingBillOut]  # waiting for the organizer's OK
     disputes: list[DisputeOut]
@@ -508,6 +549,7 @@ def create_split(
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="split_blocked")
     if not _can_run(db, caller.user):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="plan_required")
+    _check_group_cap(db, caller.user.id, organize=True)
     now = _now()
     group = SplitGroup(organizer_id=caller.user.id)
     db.add(group)
@@ -702,6 +744,7 @@ def accept_invite(
     # The invite itself held a place; still never past the organizer's limit today.
     if len(members) >= _people_max(db, group):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="plan_limit")
+    _check_group_cap(db, caller.user.id, organize=False)
     db.add(SplitMember(group_id=group.id, user_id=caller.user.id, joined_at=now))
     row.used_at = now
     row.used_by = caller.user.id
@@ -885,22 +928,52 @@ def state(
     caller: Annotated[Caller, Depends(require_unlocked)],
     db: Annotated[DbSession, Depends(get_db)],
 ) -> SplitStateOut:
+    return _state(db, group_id, caller, {})
+
+
+@router.post("/{group_id}/state")
+def state_since(
+    group_id: uuid.UUID,
+    body: StateIn,
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    db: Annotated[DbSession, Depends(get_db)],
+) -> SplitStateOut:
+    """The state with only the blobs this device doesn't already hold at their version (chunk
+    S.5): opening a group that hasn't changed downloads a list of versions, not every ledger."""
+    return _state(db, group_id, caller, body.known)
+
+
+def _state(
+    db: DbSession, group_id: uuid.UUID, caller: Caller, known: dict[str, int]
+) -> SplitStateOut:
     group = _group(db, group_id)
     me = _membership(db, group, caller.user.id)
-    blobs = [
-        SplitBlobOut(
-            member_id=b.member_id,
-            kind=b.kind,
-            ciphertext=encode_b64url(b.ciphertext),
-            version=b.version,
-            updated_at=b.updated_at,
-        )
-        for b in db.scalars(
-            select(SplitBlob)
-            .where(SplitBlob.group_id == group.id)
-            .order_by(SplitBlob.kind, SplitBlob.member_id)
-        )
-    ]
+    # Versions first; the ciphertext is read only for the blobs the device lacks.
+    rows = db.execute(
+        select(SplitBlob.id, SplitBlob.member_id, SplitBlob.kind, SplitBlob.version)
+        .where(SplitBlob.group_id == group.id)
+        .order_by(SplitBlob.kind, SplitBlob.member_id)
+    ).all()
+    versions = [BlobVersionOut(member_id=r.member_id, kind=r.kind, version=r.version) for r in rows]
+    wanted = [r.id for r in rows if known.get(f"{r.member_id}/{r.kind}") != r.version]
+    blobs = (
+        [
+            SplitBlobOut(
+                member_id=b.member_id,
+                kind=b.kind,
+                ciphertext=encode_b64url(b.ciphertext),
+                version=b.version,
+                updated_at=b.updated_at,
+            )
+            for b in db.scalars(
+                select(SplitBlob)
+                .where(SplitBlob.id.in_(wanted))
+                .order_by(SplitBlob.kind, SplitBlob.member_id)
+            )
+        ]
+        if wanted
+        else []
+    )
     member_of = {
         m.user_id: m.id
         for m in db.scalars(select(SplitMember).where(SplitMember.group_id == group.id))
@@ -935,6 +1008,7 @@ def state(
     ).all()
     return SplitStateOut(
         blobs=blobs,
+        versions=versions,
         bill_ids=[b.id for b in bills if b.status == "approved"],
         pending=[
             PendingBillOut(
@@ -950,7 +1024,7 @@ def state(
 
 
 def _put_blob(db: DbSession, group: SplitGroup, member: SplitMember, kind: str, body: SplitBlobIn):
-    assert kind in BLOB_KINDS
+    assert kind in BLOB_KINDS or re.match(LEDGER_PAGE, kind)
     limit = MAX_PROFILE_BYTES if kind == "profile" else MAX_LEDGER_BYTES
     data = decode_b64url(body.ciphertext, max_bytes=limit)
     row = db.scalar(
@@ -961,6 +1035,9 @@ def _put_blob(db: DbSession, group: SplitGroup, member: SplitMember, kind: str, 
         )
     )
     if row is None:
+        if kind.startswith("ledger:") and not _page_open(kind, _now()):
+            # A new page only for the month around today, so pages grow one a month at most.
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="page_closed")
         row = SplitBlob(
             group_id=group.id, member_id=member.id, kind=kind, ciphertext=data, version=body.version
         )
@@ -985,6 +1062,29 @@ def put_ledger(
     group = _group(db, group_id)
     member = _membership(db, group, caller.user.id)
     _put_blob(db, group, member, "ledger", body)
+
+
+def _page_open(kind: str, now: datetime) -> bool:
+    """A month a device may start a page for: this month in UTC, or the one either side (a
+    person's own day can be in the next or the last month)."""
+    year, month = (int(x) for x in kind.removeprefix("ledger:").split("-"))
+    at = year * 12 + month - 1
+    today = now.year * 12 + now.month - 1
+    return abs(at - today) <= 1
+
+
+@router.put("/{group_id}/blobs/ledger/{page}", status_code=status.HTTP_204_NO_CONTENT)
+def put_ledger_page(
+    group_id: uuid.UUID,
+    page: Annotated[str, PathParam(pattern=r"^[0-9]{4}-(0[1-9]|1[0-2])$")],
+    body: SplitBlobIn,
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    db: Annotated[DbSession, Depends(get_db)],
+) -> None:
+    """One month's page of my ledger: what I recorded that month (chunk S.5)."""
+    group = _group(db, group_id)
+    member = _membership(db, group, caller.user.id)
+    _put_blob(db, group, member, f"ledger:{page}", body)
 
 
 @router.put("/{group_id}/blobs/profile", status_code=status.HTTP_204_NO_CONTENT)
@@ -1209,6 +1309,7 @@ def takeover(
         _limits(db, caller.user.id).get("split_people_max") or 0
     ):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="plan_limit")
+    _check_group_cap(db, caller.user.id, organize=True)
     group.organizer_id = caller.user.id
     db.commit()
     return _group_out(db, group, caller.user.id, _now())

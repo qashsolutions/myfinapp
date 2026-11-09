@@ -607,19 +607,27 @@ written against both.
    its copy), so its author can't change it later; a bill or payment that doesn't add up, isn't
    whole cents, is past $100 million or is the wrong shape is left out, and a repeat with too
    many dates counts once, so one ledger can never change or stop everyone's view (November 9,
-   2026). Tests: `packages/rules`, `apps/web/tests/unit/splits-merge.test.ts`,
-   `splits-negative.test.ts` and `splits-screens.test.tsx` (an approved bill rewritten, a
-   retried save reusing its id); the server's half in `services/api/tests/test_splits_negative.py`.
+   2026). A member's ledger is a head and one page a month (chunk S.5, November 9, 2026); every
+   device puts the pages back together the same way (a later month's copy wins), a change is
+   written back on the page it came from and anything new on the newest page, and a broken page
+   reads as bills every device leaves out, never as an error. Tests: `packages/rules`,
+   `apps/web/tests/unit/splits-merge.test.ts`, `splits-negative.test.ts`, `splits-scale.test.ts`
+   and `splits-screens.test.tsx` (an approved bill rewritten, a retried save reusing its id); the
+   server's half in `services/api/tests/test_splits_negative.py` and `test_split_pages.py`.
 78. **Nothing about a shared bill leaves a device readable** (November 8, 2026). Group and
    people names, bills, amounts, splits and payment handles travel only as ciphertext under the
    group key; tables, pushes, emails, logs and audit rows hold ids, counts and dates only, and a
-   payment confirmation leaves only its warning version and time. Tests: the leak sweep's split
-   step and `services/api/tests/test_splits.py` (chunks S.2, S.3).
+   payment confirmation leaves only its warning version and time. A group's key travels only in
+   the person's encrypted backup, never in the export; this device's handover key pair never
+   leaves it (owner decision, November 9, 2026). Tests: the leak sweep's split step,
+   `export-secrets.test.ts` and `services/api/tests/test_splits.py` (chunks S.2, S.3, S.5).
 79. **Limits and blocks are the server's** (November 8, 2026). Bills per day, people per group,
    the 7-day single-use invite bound to one email, the 3-mistake double-check and the
-   3-reporter block are decided in `routers/splits.py` against `plans.yaml` and
-   `rules_server/splits.yaml`, never by a device. Tests: `services/api/tests/test_splits.py`,
-   `tests/authz/test_split_routes.py` (chunk S.2).
+   3-reporter block, the 20 groups organized and 20 joined at once (owner decision, November 9,
+   2026) and a new ledger page only for the month around today are decided in
+   `routers/splits.py` against `plans.yaml` and `rules_server/splits.yaml`, never by a device.
+   Tests: `services/api/tests/test_splits.py`, `test_split_pages.py`,
+   `tests/authz/test_split_routes.py` (chunks S.2, S.5).
 
 ## Offline and the way in
 

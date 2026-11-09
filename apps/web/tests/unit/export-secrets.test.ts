@@ -17,6 +17,9 @@ const SECRETS: Record<string, string> = {
   "alerts.tag_salt": "TAGSALTSECRET5",
   "alerts.last_hash": "LASTHASHSECRET6",
   "linking.cursor.conn-1": "CURSORSECRET7",
+  // Split bills (November 9, 2026): a group's key and this device's handover key pair.
+  "split.key.g-1": "SPLITGROUPKEY9",
+  "split.device": "SPLITDEVICEKEY10",
 };
 
 async function seeded() {
@@ -60,7 +63,14 @@ describe("the export leaves out this device's secrets", () => {
     const db = await seeded();
     const snap = await buildSnapshot(db, { rulesVersion: "t", deviceId: "A" });
     const all = JSON.stringify(snap);
-    for (const key of ["backup.key", "backup.recovery_key", "household.key"])
+    for (const key of ["backup.key", "backup.recovery_key", "household.key", "split.device"])
       expect(all, key).not.toContain(SECRETS[key]);
+  });
+
+  it("the backup carries split group keys, so losing a device never loses a group", async () => {
+    // Owner decision, November 9, 2026: group keys travel in the encrypted backup only.
+    const db = await seeded();
+    const snap = await buildSnapshot(db, { rulesVersion: "t", deviceId: "A" });
+    expect(JSON.stringify(snap)).toContain(SECRETS["split.key.g-1"]);
   });
 });

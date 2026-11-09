@@ -102,11 +102,16 @@ export const UNSTAMPED_TABLES: ReadonlySet<string> = new Set([
   "goal_milestones",
 ]);
 
-/** Settings rows that describe this device or its sync state, never another device's. */
+/**
+ * Settings rows that describe this device or its sync state, never another device's. A split
+ * group's key (`split.key.<id>`) is not one of them: it travels in the encrypted backup, so a
+ * lost device never loses a group (owner decision, November 9, 2026); this device's handover key
+ * pair (`split.device`) stays here.
+ */
 const LOCAL_SETTING_PREFIXES = [
   "backup.",
   "household.",
-  "split.",
+  "split.device",
   "alerts.last_hash",
   "forecast.account_id",
 ];

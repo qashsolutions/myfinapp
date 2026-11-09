@@ -1822,6 +1822,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/splits/{group_id}/blobs/ledger/{page}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Ledger Page
+         * @description One month's page of my ledger: what I recorded that month (chunk S.5).
+         */
+        put: operations["put_ledger_page_api_splits__group_id__blobs_ledger__page__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/splits/{group_id}/blobs/profile": {
         parameters: {
             query?: never;
@@ -2022,7 +2042,12 @@ export interface paths {
         /** State */
         get: operations["state_api_splits__group_id__state_get"];
         put?: never;
-        post?: never;
+        /**
+         * State Since
+         * @description The state with only the blobs this device doesn't already hold at their version (chunk
+         *     S.5): opening a group that hasn't changed downloads a list of versions, not every ledger.
+         */
+        post: operations["state_since_api_splits__group_id__state_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2406,6 +2431,18 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /** BlobVersionOut */
+        BlobVersionOut: {
+            /** Kind */
+            kind: string;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
             /** Version */
             version: number;
         };
@@ -3822,6 +3859,8 @@ export interface components {
             keys: components["schemas"]["SplitKeyOut"][];
             /** Pending */
             pending: components["schemas"]["PendingBillOut"][];
+            /** Versions */
+            versions: components["schemas"]["BlobVersionOut"][];
             /** Writable */
             writable: boolean;
         };
@@ -3838,6 +3877,13 @@ export interface components {
             /** Guest */
             guest: boolean;
             today: components["schemas"]["TodayOut"];
+        };
+        /** StateIn */
+        StateIn: {
+            /** Known */
+            known?: {
+                [key: string]: number;
+            };
         };
         /** StatusOut */
         StatusOut: {
@@ -6933,6 +6979,40 @@ export interface operations {
             };
         };
     };
+    put_ledger_page_api_splits__group_id__blobs_ledger__page__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+                page: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SplitBlobIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     put_profile_api_splits__group_id__blobs_profile_put: {
         parameters: {
             query?: never;
@@ -7268,6 +7348,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitStateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    state_since_api_splits__group_id__state_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StateIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

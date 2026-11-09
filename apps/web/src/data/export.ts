@@ -40,7 +40,9 @@ function dollars(cents: number): string {
  * Settings that never go in the export (October 29, 2026): keys to the person's data, not the
  * data. The backup key and recovery key open the server backups, the household key opens the
  * household's shared blobs, the alert salt hides categories in alert keys, a linking cursor is
- * a bank sync's place; the rest of `backup.` is this device's sync bookkeeping. A key ending
+ * a bank sync's place, a split group's key opens its ledgers and `split.device` is this device's
+ * private handover key (November 9, 2026); the rest of `backup.` is this device's sync
+ * bookkeeping. A key ending
  * in "." names every key that starts with it. Nothing changes for the person: these stay on
  * this device and keep working; the export never needed them.
  */
@@ -50,6 +52,8 @@ export const EXPORT_LEFT_OUT_SETTINGS: readonly string[] = [
   "alerts.tag_salt",
   "alerts.last_hash",
   "linking.cursor.",
+  "split.key.",
+  "split.device",
 ];
 
 export function exportsSetting(key: string): boolean {

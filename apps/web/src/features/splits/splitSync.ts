@@ -1,8 +1,9 @@
 /**
  * Split bills on this device (chunk S.3a; spec "Split bills"; invariants 77–78).
  *
- * A group's key is made on the organizer's device and kept here only (`settings` `split.key.<id>`,
- * never synced or backed up). It reaches another device either in the QR code's `#k=` fragment
+ * A group's key is made on the organizer's device and kept in `settings` `split.key.<id>`, which
+ * travels in the person's encrypted backup and never in the export (owner decision, November 9,
+ * 2026), so a lost device never loses a group. It reaches another member's device either in the QR code's `#k=` fragment
  * or wrapped to that device's own public key by a member's device that holds it: the device
  * posts a P-256 public key; a member's device derives a one-off key with an ephemeral P-256 pair
  * (ECDH, HKDF-SHA256) and wraps the group key under it. The server only ever holds opaque bytes.
@@ -10,6 +11,9 @@
  * Every blob is AES-256-GCM under the group key with `stackd-split:<group>:<kind>:<member>` as
  * associated data, so a blob can't be moved to another member's name. Nothing here sends an
  * amount, a name or a group's name in the clear.
+ *
+ * A member's ledger is a head and one page a month (chunk S.5; `ledger.ts`). This device keeps
+ * the blobs it has seen (`split_blobs`, ciphertext) and asks the server only for what changed.
  */
 
 import { clientFor, failureOf } from "../../data/api.ts";
@@ -24,24 +28,34 @@ import {
   randomBytes,
   toBase64url,
 } from "../../data/backup/crypto.ts";
-import type { StackdDb } from "../../data/db.ts";
+import type { SplitBlobCache, StackdDb } from "../../data/db.ts";
 import {
   type SplitPart,
   splitBalances,
   splitRepeatDates,
   splitSimplify,
 } from "../../engine/bridge.ts";
+import { todayIso } from "../../lib/format.ts";
+import { compareText } from "../../lib/order.ts";
 import {
   balanceFacts,
-  emptyLedger,
+  canonical,
+  combinePages,
+  decodePage,
+  encodePage,
+  type HeadBlob,
   isValidBill,
   type LedgerBlob,
+  type LedgerPage,
   type Merged,
   merge,
+  PAGE_FORMAT,
   type ProfileBlob,
-  parseLedger,
+  pageMonth,
+  parseHead,
   parseProfile,
   peopleIn,
+  placeOnPages,
 } from "./ledger.ts";
 
 const KEY_PREFIX = "split.key.";
@@ -79,7 +93,8 @@ async function putSetting(db: StackdDb, key: string, value: unknown): Promise<vo
   await db.settings.put({ key, value, updated_at: new Date().toISOString() });
 }
 
-export const blobAad = (groupId: string, kind: "ledger" | "profile", memberId: string) =>
+/** `kind` is `ledger` (the head), `ledger:YYYY-MM` (a page) or `profile`. */
+export const blobAad = (groupId: string, kind: string, memberId: string) =>
   `stackd-split:${groupId}:${kind}:${memberId}`;
 const keyAad = (groupId: string, memberId: string, deviceKeyId: string) =>
   `stackd-split-key:${groupId}:${memberId}:${deviceKeyId}`;
@@ -166,14 +181,16 @@ export async function unwrapOnDevice(
 
 // ---- server calls ----
 
+type Blob = {
+  member_id: string;
+  kind: string;
+  ciphertext: string;
+  version: number;
+  updated_at: string;
+};
+
 type State = {
-  blobs: Array<{
-    member_id: string;
-    kind: string;
-    ciphertext: string;
-    version: number;
-    updated_at: string;
-  }>;
+  blobs: Blob[];
   bill_ids: string[];
   pending: Array<{ bill_id: string; member_id: string | null }>;
   disputes: Array<{ bill_id: string; member_id: string | null }>;
@@ -186,12 +203,64 @@ type State = {
   writable: boolean;
 };
 
-async function fetchState(groupId: string, background: boolean): Promise<State | null> {
-  const r = await clientFor(background).GET("/api/splits/{group_id}/state", {
-    params: { path: { group_id: groupId } },
-  });
-  if (failureOf(r) || !r.data) return null;
-  return r.data as State;
+const cacheId = (groupId: string, memberId: string, kind: string) =>
+  `${groupId}/${memberId}/${kind}`;
+
+async function remember(db: StackdDb, groupId: string, b: Blob): Promise<void> {
+  const row: SplitBlobCache = {
+    id: cacheId(groupId, b.member_id, b.kind),
+    group_id: groupId,
+    ...b,
+  };
+  await db.split_blobs.put(row);
+}
+
+/** This device's copies of a group's blobs, dropped when it leaves or is removed. */
+export async function forgetGroupBlobs(db: StackdDb, groupId: string): Promise<void> {
+  await db.split_blobs.where("group_id").equals(groupId).delete();
+}
+
+/**
+ * The group's state with every blob: the server sends only the ones this device lacks at their
+ * version (chunk S.5), the rest come from `split_blobs`.
+ */
+async function fetchState(
+  db: StackdDb,
+  groupId: string,
+  background: boolean,
+): Promise<State | null> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const held =
+      attempt === 0 ? await db.split_blobs.where("group_id").equals(groupId).toArray() : [];
+    const known = Object.fromEntries(held.map((c) => [`${c.member_id}/${c.kind}`, c.version]));
+    const r = await clientFor(background).POST("/api/splits/{group_id}/state", {
+      params: { path: { group_id: groupId } },
+      body: { known },
+    });
+    const failure = failureOf(r);
+    if (failure?.status === 404) await forgetGroupBlobs(db, groupId);
+    if (failure || !r.data) return null;
+    const data = r.data as State & {
+      versions: Array<{ member_id: string; kind: string; version: number }>;
+    };
+    const fresh = new Map(data.blobs.map((b) => [`${b.member_id}/${b.kind}`, b]));
+    const cached = new Map(held.map((c) => [`${c.member_id}/${c.kind}`, c]));
+    for (const b of data.blobs) await remember(db, groupId, b);
+    const blobs: Blob[] = [];
+    let missing = false;
+    for (const v of data.versions) {
+      const id = `${v.member_id}/${v.kind}`;
+      const b = fresh.get(id) ?? cached.get(id);
+      if (b && b.version === v.version) blobs.push(b);
+      else missing = true;
+    }
+    const live = new Set(data.versions.map((v) => cacheId(groupId, v.member_id, v.kind)));
+    const gone = held.filter((c) => !live.has(c.id)).map((c) => c.id);
+    if (gone.length) await db.split_blobs.bulkDelete(gone);
+    // A copy went missing between the read and the answer: ask once more for everything.
+    if (!missing) return { ...data, blobs };
+  }
+  return null;
 }
 
 /**
@@ -251,30 +320,47 @@ async function handOver(
   return true;
 }
 
+interface MemberLedger {
+  head: HeadBlob | null;
+  pages: Map<string, LedgerPage>;
+}
+
 async function readBlobs(
   key: Uint8Array,
   groupId: string,
-  state: State,
+  state: Pick<State, "blobs">,
 ): Promise<{
   ledgers: Map<string, LedgerBlob>;
+  raw: Map<string, MemberLedger>;
   profiles: Map<string, ProfileBlob & { updated_at: string }>;
   versions: Map<string, number>;
 }> {
-  const ledgers = new Map<string, LedgerBlob>();
+  const raw = new Map<string, MemberLedger>();
   const profiles = new Map<string, ProfileBlob & { updated_at: string }>();
   const versions = new Map<string, number>();
+  const ledgerOf = (member: string): MemberLedger => {
+    let l = raw.get(member);
+    if (!l) {
+      l = { head: null, pages: new Map() };
+      raw.set(member, l);
+    }
+    return l;
+  };
   for (const b of state.blobs) {
-    if (b.kind !== "ledger" && b.kind !== "profile") continue;
-    versions.set(`${b.kind}:${b.member_id}`, b.version);
+    const month = pageMonth(b.kind);
+    if (b.kind !== "ledger" && b.kind !== "profile" && !month) continue;
+    versions.set(`${b.member_id}/${b.kind}`, b.version);
     try {
       const value = await decryptJson<unknown>(
         key,
         fromBase64url(b.ciphertext),
         blobAad(groupId, b.kind, b.member_id),
       );
-      if (b.kind === "ledger") {
-        const ledger = parseLedger(value);
-        if (ledger) ledgers.set(b.member_id, ledger);
+      if (month) {
+        const page = decodePage(value, b.member_id);
+        if (page) ledgerOf(b.member_id).pages.set(month, page);
+      } else if (b.kind === "ledger") {
+        ledgerOf(b.member_id).head = parseHead(value);
       } else {
         const profile = parseProfile(value);
         if (profile) profiles.set(b.member_id, { ...profile, updated_at: b.updated_at });
@@ -283,7 +369,56 @@ async function readBlobs(
       // A blob this key can't open (moved, or written under another key) is left out.
     }
   }
-  return { ledgers, profiles, versions };
+  const ledgers = new Map<string, LedgerBlob>();
+  for (const [member, l] of raw) ledgers.set(member, combinePages(l.head, l.pages));
+  return { ledgers, raw, profiles, versions };
+}
+
+/** A member's ledger as the blobs it is stored in (tests seed a fake server with these). */
+export async function sealLedger(
+  key: Uint8Array,
+  groupId: string,
+  memberId: string,
+  ledger: LedgerBlob,
+  month: string,
+): Promise<Array<{ kind: string; ciphertext: string }>> {
+  const pages = placeOnPages(new Map(), ledger, month);
+  const out = [
+    {
+      kind: "ledger",
+      ciphertext: toBase64url(
+        await encryptJson(
+          key,
+          { v: PAGE_FORMAT, group: ledger.group } satisfies HeadBlob,
+          blobAad(groupId, "ledger", memberId),
+        ),
+      ),
+    },
+  ];
+  for (const [m, page] of pages) {
+    const kind = `ledger:${m}`;
+    out.push({
+      kind,
+      ciphertext: toBase64url(
+        await encryptJson(key, encodePage(page), blobAad(groupId, kind, memberId)),
+      ),
+    });
+  }
+  return out;
+}
+
+/** A member's ledger read back from its blobs. */
+export async function openLedger(
+  key: Uint8Array,
+  groupId: string,
+  memberId: string,
+  blobs: Array<{ member_id: string; kind: string; ciphertext: string }>,
+): Promise<LedgerBlob | null> {
+  const mine = blobs
+    .filter((b) => b.member_id === memberId)
+    .map((b) => ({ ...b, version: 1, updated_at: "" }));
+  const { ledgers } = await readBlobs(key, groupId, { blobs: mine });
+  return ledgers.get(memberId) ?? null;
 }
 
 export async function computeView(
@@ -352,7 +487,7 @@ export async function pullGroup(
   asOf: string,
   background = false,
 ): Promise<SplitView | null> {
-  const state = await fetchState(groupId, background);
+  const state = await fetchState(db, groupId, background);
   if (!state) return null;
   const hasKey = await handOver(db, groupId, me.memberId, state, background);
   const key = hasKey ? await groupKey(db, groupId) : null;
@@ -373,10 +508,46 @@ export async function pullGroup(
   return computeView(groupId, me.organizer, me.live, ledgers, state, profiles, asOf);
 }
 
+/** Write one of my blobs one version on, and keep the copy. "stale" when another write won. */
+async function writeBlob(
+  db: StackdDb,
+  key: Uint8Array,
+  groupId: string,
+  myMemberId: string,
+  kind: string,
+  value: unknown,
+  version: number,
+): Promise<"ok" | "stale" | "failed"> {
+  const ciphertext = toBase64url(await encryptJson(key, value, blobAad(groupId, kind, myMemberId)));
+  const month = pageMonth(kind);
+  const r = month
+    ? await clientFor(false).PUT("/api/splits/{group_id}/blobs/ledger/{page}", {
+        params: { path: { group_id: groupId, page: month } },
+        body: { ciphertext, version },
+      })
+    : await clientFor(false).PUT(
+        kind === "profile"
+          ? "/api/splits/{group_id}/blobs/profile"
+          : "/api/splits/{group_id}/blobs/ledger",
+        { params: { path: { group_id: groupId } }, body: { ciphertext, version } },
+      );
+  if (failureOf(r)) return r.response.status === 409 ? "stale" : "failed";
+  await remember(db, groupId, {
+    member_id: myMemberId,
+    kind,
+    ciphertext,
+    version,
+    updated_at: new Date().toISOString(),
+  });
+  return "ok";
+}
+
 /**
  * Change my own ledger: read the server's copy (another device of mine may have written it),
- * apply the change, and write it back one version on. 409 means another write came first:
- * read again and retry once.
+ * apply the change, and write back only the pages it touched, each one version on: a bill or a
+ * settlement stays on the page it was recorded on, anything new goes on this month's (or my
+ * newest) page, the group's settings on the head. 409 means another write came first: read
+ * again and retry once (a bill or settlement written twice is kept once, by its id).
  */
 export async function updateMyLedger(
   db: StackdDb,
@@ -387,18 +558,37 @@ export async function updateMyLedger(
   const key = await groupKey(db, groupId);
   if (!key) return false;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const state = await fetchState(groupId, false);
+    const state = await fetchState(db, groupId, false);
     if (!state) return false;
-    const { ledgers, versions } = await readBlobs(key, groupId, state);
-    const next = change(ledgers.get(myMemberId) ?? emptyLedger());
-    const version = (versions.get(`ledger:${myMemberId}`) ?? 0) + 1;
-    const sealed = await encryptJson(key, next, blobAad(groupId, "ledger", myMemberId));
-    const r = await clientFor(false).PUT("/api/splits/{group_id}/blobs/ledger", {
-      params: { path: { group_id: groupId } },
-      body: { ciphertext: toBase64url(sealed), version },
-    });
-    if (!failureOf(r)) return true;
-    if (r.response.status !== 409) return false;
+    const { raw, versions } = await readBlobs(key, groupId, state);
+    const mine = raw.get(myMemberId) ?? { head: null, pages: new Map<string, LedgerPage>() };
+    const before = combinePages(mine.head, mine.pages);
+    const next = change(before);
+    const newest = [...mine.pages.keys()].sort(compareText).at(-1);
+    const thisMonth = todayIso().slice(0, 7);
+    const month = newest && compareText(newest, thisMonth) > 0 ? newest : thisMonth;
+    const writes: Array<{ kind: string; value: unknown }> = [];
+    if (canonical(next.group ?? null) !== canonical(before.group ?? null))
+      writes.push({ kind: "ledger", value: { v: PAGE_FORMAT, group: next.group ?? null } });
+    for (const [m, page] of placeOnPages(mine.pages, next, month)) {
+      const old = mine.pages.get(m);
+      const empty = !page.bills.length && !page.settlements.length;
+      const nothing =
+        empty && !Object.keys(page.edits).length && !Object.keys(page.approved).length;
+      if (old ? canonical(encodePage(old)) === canonical(encodePage(page)) : nothing) continue;
+      writes.push({ kind: `ledger:${m}`, value: encodePage(page) });
+    }
+    let stale = false;
+    for (const w of writes) {
+      const version = (versions.get(`${myMemberId}/${w.kind}`) ?? 0) + 1;
+      const done = await writeBlob(db, key, groupId, myMemberId, w.kind, w.value, version);
+      if (done === "failed") return false;
+      if (done === "stale") {
+        stale = true;
+        break;
+      }
+    }
+    if (!stale) return true;
   }
   return false;
 }
@@ -417,18 +607,13 @@ export async function updateMyProfile(
   const key = await groupKey(db, groupId);
   if (!key) return "no_key";
   for (let attempt = 0; attempt < 2; attempt++) {
-    const state = await fetchState(groupId, false);
+    const state = await fetchState(db, groupId, false);
     if (!state) return "failed";
     const { profiles, versions } = await readBlobs(key, groupId, state);
     const next = change(profiles.get(myMemberId) ?? null);
-    const version = (versions.get(`profile:${myMemberId}`) ?? 0) + 1;
-    const sealed = await encryptJson(key, next, blobAad(groupId, "profile", myMemberId));
-    const r = await clientFor(false).PUT("/api/splits/{group_id}/blobs/profile", {
-      params: { path: { group_id: groupId } },
-      body: { ciphertext: toBase64url(sealed), version },
-    });
-    if (!failureOf(r)) return "ok";
-    if (r.response.status !== 409) return "failed";
+    const version = (versions.get(`${myMemberId}/profile`) ?? 0) + 1;
+    const done = await writeBlob(db, key, groupId, myMemberId, "profile", next, version);
+    if (done !== "stale") return done;
   }
   return "failed";
 }
