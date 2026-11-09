@@ -175,6 +175,27 @@ export interface OwnSubscriptionWord {
   updated_at: string;
 }
 
+/**
+ * "Check first" (spec "Before you pay", owner decision November 8, 2026): one row each time the
+ * person ticked both boxes before paying someone in a split group. On the device, in the backup
+ * and the export; the server keeps only the warning's version and the time.
+ */
+export interface SplitPayment {
+  id: string;
+  group_id: string;
+  /** Who was paid, as shown then. */
+  to_name: string;
+  to_member: string;
+  cents: number;
+  app: "venmo" | "cashapp" | "paypal";
+  handle: string;
+  knows_them: true;
+  owes_this: true;
+  warning_version: string;
+  at: string;
+  updated_at: string;
+}
+
 export interface MerchantRule {
   id: string;
   match: string;
@@ -521,6 +542,7 @@ export class StackdDb extends Dexie {
   merchant_names!: EntityTable<MerchantName, "id">;
   own_subscription_kinds!: EntityTable<OwnSubscriptionKind, "id">;
   own_subscription_words!: EntityTable<OwnSubscriptionWord, "id">;
+  split_payments!: EntityTable<SplitPayment, "id">;
   files!: EntityTable<StoredFile, "id">;
   computed_results!: EntityTable<ComputedResult, "id">;
   budgets!: EntityTable<Budget, "id">;
@@ -628,6 +650,8 @@ export class StackdDb extends Dexie {
       own_subscription_kinds: "id",
       own_subscription_words: "id, &match, kind",
     });
+    // Split bills (S.4): the Check first confirmations, Me → Payments I confirmed.
+    this.version(19).stores({ split_payments: "id, group_id, at" });
   }
 }
 

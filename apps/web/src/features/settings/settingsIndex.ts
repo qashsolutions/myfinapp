@@ -31,7 +31,7 @@ export const GROUPS: SettingsGroup[] = [
   {
     key: "groups",
     title: "Groups & household",
-    blurb: "Challenges, your partner",
+    blurb: "Challenges, split bills, your partner",
     path: "/me/groups",
   },
   { key: "look", title: "Look & feel", blurb: "App look, dark mode, sounds", path: "/me/look" },
@@ -233,6 +233,24 @@ export const ENTRIES: SettingEntry[] = [
     group: "groups",
     path: "/goals",
     words: "groups challenges invite code leave members",
+  },
+  {
+    label: "Split bills",
+    group: "groups",
+    path: "/splits",
+    words: "split splitwise share bills roommates housemates trip friends owe owed",
+  },
+  {
+    label: "How friends pay me",
+    group: "groups",
+    path: "/me/split-pay",
+    words: "venmo cash app cashtag paypal handle pay me split",
+  },
+  {
+    label: "Payments I confirmed",
+    group: "groups",
+    path: "/me/split-payments",
+    words: "check first paid sent confirmed split venmo",
   },
   {
     label: "Couples & household",

@@ -20,6 +20,24 @@ export function GroupsSettings() {
           onClick={go("/goals")}
         />
         <ListRow
+          label="Split bills"
+          sublabel="Your groups, who owes whom"
+          href="/splits"
+          onClick={go("/splits")}
+        />
+        <ListRow
+          label="How friends pay me"
+          sublabel="Your Venmo, Cash App or PayPal for your groups"
+          href="/me/split-pay"
+          onClick={go("/me/split-pay")}
+        />
+        <ListRow
+          label="Payments I confirmed"
+          sublabel="Each Check first before you paid someone"
+          href="/me/split-payments"
+          onClick={go("/me/split-payments")}
+        />
+        <ListRow
           label="Couples & household"
           sublabel="Invite your partner, shared jars, the month together"
           href="/me/household"

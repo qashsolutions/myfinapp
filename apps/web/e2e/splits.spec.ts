@@ -28,6 +28,7 @@ test("split bills: the organizer starts a group, a friend joins, bills wait for 
   await org.goto("/goals?tab=splits");
   await org.getByRole("link", { name: "+ New group" }).click();
   await org.getByLabel("Group name").fill("Lake house 7Q");
+  await org.getByLabel("Your name, as the group sees it").fill("Jordan");
   await org.getByRole("button", { name: "Create and invite" }).click();
   await expect(org.getByRole("heading", { level: 1, name: "Lake house 7Q" })).toBeVisible();
   const gid = new URL(org.url()).pathname.split("/").at(-1) as string;
@@ -112,5 +113,121 @@ test("split bills: the organizer starts a group, a friend joins, bills wait for 
   // Invariant 78: no group name, bill or what it was for went out readable from either device
   for (const line of [...orgSent, ...friendSent])
     for (const secret of ["Lake house", "7Q", "Internet", "Snacks"])
+      expect(line.includes(secret), `${secret} in ${line.slice(0, 120)}`).toBe(false);
+});
+
+test("@phone split bills: a free guest joins from the email link, disputes, pays through Check first and leaves", async ({
+  browser,
+}) => {
+  const org = await (await browser.newContext()).newPage();
+  await readyAccount(org, "split-host");
+  // The organizer saves how friends pay them (a passkey check first)
+  await org.goto("/goals?tab=splits");
+  await org.getByRole("link", { name: "+ New group" }).click();
+  await org.getByLabel("Group name").fill("Cabin 3W");
+  await org.getByLabel("Your name, as the group sees it").fill("Jordan");
+  await org.getByRole("button", { name: "Create and invite" }).click();
+  await expect(org.getByRole("heading", { level: 1, name: "Cabin 3W" })).toBeVisible();
+  const gid = new URL(org.url()).pathname.split("/").at(-1) as string;
+  const guestEmail = newEmail("split-guest");
+  const sheet = org.getByRole("dialog", { name: "Invite by email" });
+  await sheet.getByLabel("Their email").fill(guestEmail);
+  const invited = org.waitForResponse(
+    (r) => r.request().method() === "POST" && r.url().endsWith(`/api/splits/${gid}/invites`),
+  );
+  await sheet.getByRole("button", { name: "Send invite" }).click();
+  const { token } = (await (await invited).json()) as { token: string };
+  await sheet.getByRole("button", { name: "Done" }).click();
+
+  // The guest signs up with that inbox and never picks a trial: the invite still opens
+  const guest = await (await browser.newContext()).newPage();
+  const guestSent = sent(guest);
+  await signUp(guest, guestEmail);
+  await expect(guest).toHaveURL(/\/start/);
+  await guest.goto(`/splits/join#t=${token}`);
+  await expect(guest.getByRole("region", { name: "Who's inviting you" })).toContainText(
+    "invited you to split bills",
+  );
+  await guest.getByLabel("Your name, as the group sees it").fill("Sam");
+  await guest.getByRole("button", { name: "I know Jordan · Join" }).click();
+  // The two-tab guest app, waiting for the key from the organizer's device
+  const nav = guest.getByRole("navigation", { name: "Primary" });
+  await expect(nav.getByRole("link")).toHaveText(["Splits", "Me"]);
+  await expect(guest.getByText(/needs the group's key/)).toBeVisible();
+  await org.goto(`/splits/${gid}`);
+  await expect(org.getByRole("list", { name: "People" }).getByRole("listitem")).toHaveCount(2);
+
+  // The organizer adds a bill, and saves how friends pay them
+  await org.getByRole("link", { name: "Add a bill" }).click();
+  await org.getByLabel("1 · How much?").fill("120");
+  await org.getByLabel("What's it for?").fill("Firewood 3W");
+  await org.getByRole("button", { name: "Add bill" }).click();
+  await expect(org.getByText(/pays you \$60\.00/)).toBeVisible();
+  await org.goto("/me/split-pay");
+  await org.getByLabel("Venmo").fill("@cabin-host");
+  await org.getByRole("button", { name: "Save" }).click();
+  await expect(org.getByText("Saved in 1 group.")).toBeVisible();
+
+  // The guest sees it, disputes it, withdraws, then adds a bill of their own (it waits)
+  await expect(async () => {
+    await guest.goto(`/splits/${gid}`);
+    await expect(guest.getByRole("heading", { level: 1, name: "Cabin 3W" })).toBeVisible({
+      timeout: 2_000,
+    });
+  }).toPass({ timeout: 20_000 });
+  await expect(guest.getByText(/You pay .* \$60\.00/)).toBeVisible();
+  await guest.getByRole("button", { name: /Firewood 3W/ }).click();
+  await guest.getByRole("button", { name: "This isn't right · Dispute" }).click();
+  await expect(guest.getByText(/1 disputed bill is on hold/)).toBeVisible();
+  await guest.getByRole("button", { name: /Firewood 3W/ }).click();
+  await guest.getByRole("button", { name: "Withdraw my dispute" }).click();
+  await expect(guest.getByText(/You pay .* \$60\.00/)).toBeVisible();
+  await guest.getByRole("link", { name: "Add a bill" }).click();
+  await guest.getByLabel("1 · How much?").fill("20");
+  await guest.getByLabel("What's it for?").fill("Matches 3W");
+  await guest.getByRole("button", { name: /^Send to / }).click();
+  await expect(guest.getByRole("heading", { name: /^Waiting for / })).toBeVisible();
+
+  // Check first, then the organizer's Venmo with the amount; "I've paid" waits for them
+  const pay = guest.locator(".split-pay").filter({ hasText: /You pay .* \$60\.00/ });
+  await pay.getByRole("button", { name: "Pay" }).click();
+  const check = guest.getByRole("dialog", { name: "Check first" });
+  await expect(check).toContainText("Money you send can't be pulled back.");
+  await expect(check).toContainText("Changed recently");
+  await check.getByRole("checkbox", { name: /in real life/ }).check();
+  await check.getByRole("checkbox", { name: "I checked the bills and I owe this amount." }).check();
+  await check.getByRole("button", { name: "Continue" }).click();
+  await expect(check.getByRole("link", { name: "Open Venmo · $60.00" })).toHaveAttribute(
+    "href",
+    "https://venmo.com/cabin-host?txn=pay&amount=60.00",
+  );
+  await check.getByRole("button", { name: "I've paid · Mark paid" }).click();
+  await expect(guest.getByText(/Waiting for .* to confirm your \$60\.00/)).toBeVisible();
+  await guest.goto("/me/split-payments");
+  await expect(guest.getByRole("list", { name: "Payments I confirmed" })).toContainText("$60.00");
+
+  // The organizer confirms it and approves the guest's bill: $10 the other way
+  await org.goto(`/splits/${gid}`);
+  await org
+    .getByRole("region", { name: "Did they pay you?" })
+    .getByRole("button", { name: "Confirm" })
+    .click();
+  await org
+    .getByRole("region", { name: "Waiting for your OK" })
+    .getByRole("button", { name: "Approve" })
+    .click();
+  await expect(org.getByText(/You pay .* \$10\.00/)).toBeVisible();
+
+  // The guest reports and leaves
+  await guest.goto(`/splits/${gid}`);
+  await guest.getByRole("button", { name: "Leave or report" }).click();
+  await guest.getByRole("button", { name: "Something's wrong? Report and leave" }).click();
+  const report = guest.getByRole("dialog", { name: "Report and leave" });
+  await report.getByRole("radio", { name: "Something else" }).check();
+  await report.getByRole("button", { name: "Report and leave" }).click();
+  await expect(guest).toHaveURL(/\/(splits|start)$/);
+
+  for (const line of guestSent)
+    for (const secret of ["Cabin", "3W", "Firewood", "Matches", "cabin-host"])
       expect(line.includes(secret), `${secret} in ${line.slice(0, 120)}`).toBe(false);
 });

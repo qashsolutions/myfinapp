@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router";
+import { useSplitGuest } from "../../features/splits/guest.ts";
 import { AddChooser } from "./AddChooser.tsx";
 
 const APP_NAME = "Qash";
@@ -7,6 +8,8 @@ const APP_NAME = "Qash";
 /** The global + button: icon-only on phones, "Add entry or receipt" from 600px. Opens the chooser. */
 export function AddButton() {
   const [open, setOpen] = useState(false);
+  // A split-bill guest's app has nothing else to add: bills are added in a group.
+  if (useSplitGuest()) return null;
   return (
     <>
       <button type="button" className="add-btn" onClick={() => setOpen(true)}>

@@ -75,10 +75,14 @@ export interface LedgerBlob {
   group: GroupMeta | null;
 }
 
+export type HandleApp = Exclude<PayApp, "other">;
+
 export interface ProfileBlob {
   v: typeof LEDGER_VERSION;
   name: string;
-  handles: Partial<Record<Exclude<PayApp, "other">, string>>;
+  handles: Partial<Record<HandleApp, string>>;
+  /** When each handle last changed: "Changed recently · check with <name>" for 3 days. */
+  changed: Partial<Record<HandleApp, string>>;
   saved_at: string;
 }
 
@@ -240,6 +244,7 @@ export function parseProfile(value: unknown): ProfileBlob | null {
     v: LEDGER_VERSION,
     name: v.name,
     handles: v.handles && typeof v.handles === "object" ? v.handles : {},
+    changed: v.changed && typeof v.changed === "object" ? v.changed : {},
     saved_at: typeof v.saved_at === "string" ? v.saved_at : "",
   };
 }

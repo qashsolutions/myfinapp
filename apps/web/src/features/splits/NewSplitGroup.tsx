@@ -9,8 +9,10 @@ import { useNavigate } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { SplitMethod } from "../../engine/bridge.ts";
+import { useSession } from "../auth/useSession.tsx";
 import { ChipChoice } from "./ChipChoice.tsx";
 import { createSplitGroup, GROUP_KINDS, MAX_NAME, METHODS, splitErrorText } from "./useSplits.ts";
+import { NAME_MAX, saveYourName } from "./yourName.ts";
 
 /** New group (canvas "New group"): a name, what it's for and how it usually splits. The key is
  * made on this device; the name travels only inside the encrypted ledger. */
@@ -22,6 +24,9 @@ export function NewSplitGroup() {
   const [method, setMethod] = useState<SplitMethod>("equal");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const session = useSession();
+  const needsName = !session.info?.user?.display_name;
+  const [yourName, setYourName] = useState("");
 
   async function create() {
     const clean = trimSpaces(name);
@@ -32,6 +37,11 @@ export function NewSplitGroup() {
     if (clean.length > MAX_NAME) {
       setError(`Keep it to ${MAX_NAME} characters.`);
       return;
+    }
+    if (needsName) {
+      const problem = await saveYourName(yourName);
+      if (problem) return setError(problem);
+      await session.refresh();
     }
     setBusy(true);
     const r = await createSplitGroup(db, {
@@ -61,6 +71,18 @@ export function NewSplitGroup() {
           onChange={(e) => setName(e.target.value)}
         />
       </label>
+      {needsName ? (
+        <label className="auth__field">
+          <span className="auth__label">Your name, as the group sees it</span>
+          <input
+            className="auth__input"
+            value={yourName}
+            maxLength={NAME_MAX}
+            autoComplete="name"
+            onChange={(e) => setYourName(e.target.value)}
+          />
+        </label>
+      ) : null}
       <ChipChoice
         legend="What's it for?"
         options={GROUP_KINDS}

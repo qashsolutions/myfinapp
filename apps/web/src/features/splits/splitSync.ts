@@ -65,6 +65,8 @@ export interface SplitView {
   balances: SplitPart[];
   onHold: string[];
   payments: Array<{ from: string; to: string; cents: number }>;
+  /** Open disputes: which bill, and the member who raised it. */
+  disputes: Array<{ bill_id: string; member_id: string | null }>;
   writable: boolean;
 }
 
@@ -324,6 +326,7 @@ export async function computeView(
     balances,
     onHold: on_hold,
     payments,
+    disputes: state.disputes,
     writable: state.writable,
   };
 }
@@ -349,6 +352,7 @@ export async function pullGroup(
       balances: [],
       onHold: [],
       payments: [],
+      disputes: [],
       writable: state.writable,
     };
   }
@@ -386,22 +390,34 @@ export async function updateMyLedger(
   return false;
 }
 
-/** My payment handles and name, in my own profile (the route asks for a fresh passkey check). */
-export async function saveMyProfile(
+/**
+ * My payment handles and name in one group's encrypted profile (spec "Payment handles"): read
+ * the server's copy, change it, write one version on (the route asks for a fresh passkey check,
+ * which the caller gets first). Only I can write my profile; nobody else can change my handles.
+ */
+export async function updateMyProfile(
   db: StackdDb,
   groupId: string,
   myMemberId: string,
-  profile: ProfileBlob,
-  version: number,
-): Promise<boolean> {
+  change: (profile: ProfileBlob | null) => ProfileBlob,
+): Promise<"ok" | "no_key" | "failed"> {
   const key = await groupKey(db, groupId);
-  if (!key) return false;
-  const sealed = await encryptJson(key, profile, blobAad(groupId, "profile", myMemberId));
-  const r = await clientFor(false).PUT("/api/splits/{group_id}/blobs/profile", {
-    params: { path: { group_id: groupId } },
-    body: { ciphertext: toBase64url(sealed), version },
-  });
-  return !failureOf(r);
+  if (!key) return "no_key";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const state = await fetchState(groupId, false);
+    if (!state) return "failed";
+    const { profiles, versions } = await readBlobs(key, groupId, state);
+    const next = change(profiles.get(myMemberId) ?? null);
+    const version = (versions.get(`profile:${myMemberId}`) ?? 0) + 1;
+    const sealed = await encryptJson(key, next, blobAad(groupId, "profile", myMemberId));
+    const r = await clientFor(false).PUT("/api/splits/{group_id}/blobs/profile", {
+      params: { path: { group_id: groupId } },
+      body: { ciphertext: toBase64url(sealed), version },
+    });
+    if (!failureOf(r)) return "ok";
+    if (r.response.status !== 409) return "failed";
+  }
+  return "failed";
 }
 
 /** The QR code's link for an invite: the token and the key ride in the fragment only. */

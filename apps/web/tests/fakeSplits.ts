@@ -37,8 +37,26 @@ export interface FakeSplitGroup {
   reported: boolean;
 }
 
+export interface FakeInviteCard {
+  token: string;
+  group_id: string;
+  /** The inbox it was sent to; another signed-in inbox gets 403 other_email. */
+  email: string;
+  organizer_name: string;
+  organizer_email: string;
+  member_since: string;
+  pays_with_card: boolean;
+  /** Who to add on accept (the joining member). */
+  member: FakeSplitMember;
+}
+
 export interface FakeSplits {
   groups: FakeSplitGroup[];
+  /** Invites someone sent to this person (the guest's side). */
+  inbox: FakeInviteCard[];
+  declined: string[];
+  consents: string[];
+  left: Array<{ group_id: string; report: string | null }>;
   added_today: number;
   invites_today: number;
   double_check: boolean;
@@ -50,6 +68,10 @@ export interface FakeSplits {
 export function emptySplits(): FakeSplits {
   return {
     groups: [],
+    inbox: [],
+    declined: [],
+    consents: [],
+    left: [],
     added_today: 0,
     invites_today: 0,
     double_check: false,
@@ -71,6 +93,7 @@ export function handleSplits(
   me: string,
   myName: string,
   limits: Record<string, unknown> | undefined,
+  myEmail = "",
 ): Response | null {
   if (!path.startsWith("/api/splits")) return null;
   const perDay = Number(limits?.split_bills_per_day ?? 0);
@@ -134,6 +157,37 @@ export function handleSplits(
     };
     s.groups.push(g);
     return json(out(g), 201);
+  }
+  const invite = path.match(/^\/api\/splits\/invites\/(lookup|accept|decline)$/);
+  if (method === "POST" && invite) {
+    const card = s.inbox.find((c) => c.token === b.token);
+    if (!card || s.declined.includes(card.token)) return json({ detail: "not_found" }, 404);
+    if (card.email !== myEmail) return json({ detail: "other_email" }, 403);
+    const g = s.groups.find((x) => x.id === card.group_id);
+    if (!g) return json({ detail: "not_found" }, 404);
+    if (invite[1] === "lookup")
+      return json({
+        group_id: g.id,
+        organizer_name: card.organizer_name,
+        organizer_initial: card.organizer_name[0] ?? "?",
+        organizer_email: card.organizer_email,
+        member_since: card.member_since,
+        pays_with_card: card.pays_with_card,
+        people: g.members.length,
+        expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+      });
+    s.inbox = s.inbox.filter((c) => c !== card);
+    if (invite[1] === "decline") {
+      s.declined.push(card.token);
+      return empty();
+    }
+    g.members.push(card.member);
+    return json(out(g));
+  }
+  if (method === "POST" && path === "/api/splits/pay-consent") {
+    if (b.version !== "2026-11-08") return json({ detail: "warning_changed" }, 409);
+    s.consents.push(JSON.stringify(b));
+    return empty();
   }
   const m = path.match(/^\/api\/splits\/([^/]+)(?:\/(.+))?$/);
   if (!m) return json({ detail: "not_found" }, 404);
@@ -263,8 +317,22 @@ export function handleSplits(
     return empty();
   }
   if (method === "POST" && rest === "leave") {
+    s.left.push({ group_id: g.id, report: (b.report as string | undefined) ?? null });
     g.members = g.members.filter((x) => x.user_id !== me);
     return empty();
+  }
+  if (method === "POST" && rest === "disputes") {
+    if (!g.disputes.some((d) => d.bill_id === b.bill_id && d.member_id === member.member_id))
+      g.disputes.push({ bill_id: String(b.bill_id), member_id: member.member_id });
+    return empty();
+  }
+  const close = rest.match(/^disputes\/([^/]+)\/close$/);
+  if (method === "POST" && close) {
+    const before = g.disputes.length;
+    g.disputes = g.disputes.filter(
+      (d) => d.bill_id !== close[1] || (!organizer && d.member_id !== member.member_id),
+    );
+    return g.disputes.length < before ? empty() : json({ detail: "not_found" }, 404);
   }
   return json({ detail: "not_found" }, 404);
 }

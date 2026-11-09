@@ -3,12 +3,16 @@ import "../auth/auth.css";
 
 import { Button, buttonClass, Card, Chip, List, ListRow, Toggle } from "@stackd/ui";
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import { formatCents, formatDay } from "../../lib/format.ts";
+import { BillSheet } from "./BillSheet.tsx";
+import { CheckFirstSheet } from "./CheckFirstSheet.tsx";
 import { InviteSheet } from "./InviteSheet.tsx";
+import { LeaveSheet } from "./LeaveSheet.tsx";
+import type { ShownBill } from "./ledger.ts";
 import { RemoveSheet } from "./RemoveSheet.tsx";
 import { type Payment, SettleSheet } from "./SettleSheet.tsx";
 import { balanceText } from "./SplitsTab.tsx";
@@ -34,13 +38,15 @@ const REPEAT_WORD = { weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" } a
 export function SplitGroupScreen() {
   const { id } = useParams();
   const { db } = useDb();
-  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { splits, group, view, error, refresh } = useSplitGroup(id);
   const [inviting, setInviting] = useState(false);
   const [settle, setSettle] = useState<Payment | null>(null);
   const [removing, setRemoving] = useState<SplitMemberOut | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [paying, setPaying] = useState<Payment | null>(null);
+  const [openBill, setOpenBill] = useState<ShownBill | null>(null);
+  const [leaving, setLeaving] = useState<"leave" | "report" | null>(null);
 
   useEffect(() => {
     if (params.get("invite") === "1" && group?.is_organizer) {
@@ -180,6 +186,8 @@ export function SplitGroupScreen() {
               p.to === me ? "you" : nameOf(p.to)
             } ${formatCents(p.cents)}`;
             const mayMark = p.from === me || p.to === me || group.is_organizer;
+            const handles = view.profiles.get(p.to)?.handles ?? {};
+            const mayPay = p.from === me && Object.values(handles).some(Boolean);
             const mayRemind =
               p.from !== me &&
               (p.to === me || group.is_organizer) &&
@@ -201,8 +209,13 @@ export function SplitGroupScreen() {
                     </Button>
                   ) : null}
                   {mayMark ? (
-                    <Button size="sm" variant="secondary" onClick={() => setSettle(p)}>
+                    <Button size="sm" variant="ghost" onClick={() => setSettle(p)}>
                       Mark paid
+                    </Button>
+                  ) : null}
+                  {mayPay ? (
+                    <Button size="sm" variant="secondary" onClick={() => setPaying(p)}>
+                      Pay
                     </Button>
                   ) : null}
                 </span>
@@ -336,19 +349,8 @@ export function SplitGroupScreen() {
           {approved.map((b) => (
             <ListRow
               key={b.id}
-              href={
-                group.is_organizer && group.writable
-                  ? `/splits/${group.id}/bills/${b.base_id}`
-                  : undefined
-              }
-              onClick={
-                group.is_organizer && group.writable
-                  ? (e) => {
-                      e.preventDefault();
-                      navigate(`/splits/${group.id}/bills/${b.base_id}`);
-                    }
-                  : undefined
-              }
+              onClick={() => setOpenBill(b)}
+              chevron
               label={
                 <>
                   {b.what}
@@ -426,6 +428,45 @@ export function SplitGroupScreen() {
       <p className="auth__fineprint">
         Qash never moves money. Pay each other your usual way, then mark it paid.
       </p>
+      {group.is_organizer ? null : (
+        <Button block variant="ghost" onClick={() => setLeaving("leave")}>
+          <span style={{ color: "var(--c-danger)" }}>Leave or report</span>
+        </Button>
+      )}
+      <BillSheet
+        group={group}
+        view={view}
+        bill={openBill}
+        onClose={() => setOpenBill(null)}
+        onChanged={refresh}
+      />
+      <CheckFirstSheet
+        key={paying ? `${paying.from}>${paying.to}` : "none"}
+        group={group}
+        payment={paying}
+        toName={paying ? nameOf(paying.to) : ""}
+        profile={paying ? (view.profiles.get(paying.to) ?? null) : null}
+        reported={
+          group.reported &&
+          paying !== null &&
+          group.members.some((m) => m.is_organizer && m.member_id === paying.to)
+        }
+        onClose={() => setPaying(null)}
+        onReport={() => {
+          setPaying(null);
+          setLeaving("report");
+        }}
+        onPaid={refresh}
+      />
+      <LeaveSheet
+        key={leaving ?? "closed"}
+        groupId={group.id}
+        organizerName={organizerName}
+        balance={mine}
+        open={leaving !== null}
+        startWithReport={leaving === "report"}
+        onClose={() => setLeaving(null)}
+      />
 
       <InviteSheet
         group={group}

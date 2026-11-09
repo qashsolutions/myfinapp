@@ -308,16 +308,22 @@ def _household_end(
     return max(ends) if ends else None
 
 
+def _in_split_group(db: DbSession, user: User) -> bool:
+    return (
+        db.scalar(
+            select(SplitMember.id)
+            .where(SplitMember.user_id == user.id, SplitMember.left_at.is_(None))
+            .limit(1)
+        )
+        is not None
+    )
+
+
 def _lapsed_end(db: DbSession, user: User, ended: datetime) -> dict[str, Any]:
     """A lapsed account's deletion date (owner decision, November 8, 2026): while it is in a
     split group it drops back to a guest and is never deleted for it (`split_guest`, no date);
     once it has left every group it gets 7 days from the later of the end and the leaving."""
-    live = db.scalar(
-        select(SplitMember.id)
-        .where(SplitMember.user_id == user.id, SplitMember.left_at.is_(None))
-        .limit(1)
-    )
-    if live is not None:
+    if _in_split_group(db, user):
         return {"delete_at": None, "split_guest": True}
     left = db.scalar(select(func.max(SplitMember.left_at)).where(SplitMember.user_id == user.id))
     end = max(ended, left) if left is not None else ended
@@ -674,7 +680,14 @@ def _own_access(
         used = db.scalar(
             select(TrialClaim.id).where(TrialClaim.email_hash.in_(trial_hashes(user.email)))
         )
-        return {"state": "choose", "plan": "free", "trial_used": used is not None}
+        # Someone who joined a split group as a guest and never picked a trial uses the
+        # two-tab guest app (spec "Guests"); they're offered the trial from there.
+        return {
+            "state": "choose",
+            "plan": "free",
+            "trial_used": used is not None,
+            "split_guest": _in_split_group(db, user),
+        }
     return {
         "state": "lapsed",
         "plan": "free",

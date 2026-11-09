@@ -427,6 +427,43 @@ export async function cancelInvite(groupId: string, inviteId: string): Promise<R
   return failure ? fail(codeOf(failure)) : OK;
 }
 
+export async function disputeBill(groupId: string, billId: string): Promise<Result> {
+  const r = await api.POST("/api/splits/{group_id}/disputes", {
+    params: { path: { group_id: groupId } },
+    body: { bill_id: billId },
+  });
+  const failure = failureOf(r);
+  return failure ? fail(codeOf(failure)) : OK;
+}
+
+/** The organizer closes every dispute on a bill once fixed; a disputer withdraws their own. */
+export async function closeDispute(groupId: string, billId: string): Promise<Result> {
+  const r = await api.POST("/api/splits/{group_id}/disputes/{bill_id}/close", {
+    params: { path: { group_id: groupId, bill_id: billId } },
+  });
+  const failure = failureOf(r);
+  return failure ? fail(codeOf(failure)) : OK;
+}
+
+export type ReportReason = "dont_know" | "not_owed" | "pushy" | "other";
+
+export const REPORT_REASONS: ReadonlyArray<readonly [ReportReason, string]> = [
+  ["dont_know", "I don't know them"],
+  ["not_owed", "Asked for money I don't owe"],
+  ["pushy", "Pushy or threatening"],
+  ["other", "Something else"],
+];
+
+/** Leave; "Report and leave" adds one report against the organizer (spec "Reports and blocks"). */
+export async function leaveGroup(groupId: string, report: ReportReason | null): Promise<Result> {
+  const r = await api.POST("/api/splits/{group_id}/leave", {
+    params: { path: { group_id: groupId } },
+    body: report ? { report } : {},
+  });
+  const failure = failureOf(r);
+  return failure ? fail(codeOf(failure)) : OK;
+}
+
 /** Plain words for the server's and the rule's codes. */
 export function splitErrorText(code: string): string {
   const words: Record<string, string> = {
@@ -448,6 +485,9 @@ export function splitErrorText(code: string): string {
     invalid_share: "Each share needs a whole number above 0.",
     values_must_match_people: "Fill in everyone who's in.",
     not_saved: "Couldn't save. Try again when you're online.",
+    warning_changed: "The warning changed. Close this and open it again.",
+    other_email: "This invite is for a different email. Sign in with the address it was sent to.",
+    not_found: "This invite has expired or was already used. Ask for a new one.",
     offline: "You're offline. Try again when connected.",
   };
   return words[code] ?? "Something went wrong. Try again.";
