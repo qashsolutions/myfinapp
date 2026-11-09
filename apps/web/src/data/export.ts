@@ -99,6 +99,7 @@ export async function collectExport(
     statementFiles,
     ownSubscriptionKinds,
     ownSubscriptionWords,
+    splitPayments,
   ] = await Promise.all([
     db.accounts.toArray(),
     db.categories.toArray(),
@@ -126,6 +127,7 @@ export async function collectExport(
     db.files.where("kind").equals("statement").toArray(),
     db.own_subscription_kinds.toArray(),
     db.own_subscription_words.toArray(),
+    db.split_payments.toArray(),
   ]);
   const settings = allSettings.filter((s) => exportsSetting(s.key));
   const statementPath = (f: { id: string; name: string }) =>
@@ -225,6 +227,7 @@ export async function collectExport(
         merchant_names: merchantNames,
         own_subscription_kinds: ownSubscriptionKinds,
         own_subscription_words: ownSubscriptionWords,
+        split_payments: splitPayments,
         recurring_series: recurring,
         debts,
         emergency_fund: fund ?? null,

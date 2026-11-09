@@ -603,7 +603,13 @@ written against both.
    server can't read a bill, so every device merges a group's ledger the same way and ignores
    an edit, delete, split change, people change or leftover-cent choice not written by the
    organizer's own blob; a bill counts only when its id was issued by the server (the daily
-   limit). Tests: `packages/rules` and `apps/web/tests/unit/splits-merge.test.ts` (chunk S.3).
+   limit). An approved bill counts as the organizer approved it (the organizer's device pins
+   its copy), so its author can't change it later; a bill or payment that doesn't add up, isn't
+   whole cents, is past $100 million or is the wrong shape is left out, and a repeat with too
+   many dates counts once, so one ledger can never change or stop everyone's view (November 9,
+   2026). Tests: `packages/rules`, `apps/web/tests/unit/splits-merge.test.ts`,
+   `splits-negative.test.ts` and `splits-screens.test.tsx` (an approved bill rewritten, a
+   retried save reusing its id); the server's half in `services/api/tests/test_splits_negative.py`.
 78. **Nothing about a shared bill leaves a device readable** (November 8, 2026). Group and
    people names, bills, amounts, splits and payment handles travel only as ciphertext under the
    group key; tables, pushes, emails, logs and audit rows hold ids, counts and dates only, and a

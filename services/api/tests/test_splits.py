@@ -460,3 +460,17 @@ def test_a_lapsed_trial_in_a_split_group_stays_a_guest_and_is_never_closed_for_i
     with get_session_factory()() as db:
         run(db)
         assert db.get(User, uuid.UUID(sam[1])).deleted_at is None
+
+
+def test_a_new_invitee_who_never_picked_a_trial_uses_the_guest_app() -> None:
+    jordan, _, _ = person("Jordan K.", "private")
+    sam = person("Sam L.")
+    before = sam[0].get("/api/billing/entitlements").json()["access"]
+    assert before["state"] == "choose" and before["split_guest"] is False
+    gid = group_with(jordan, [sam])
+    access = sam[0].get("/api/billing/entitlements").json()["access"]
+    assert access["state"] == "choose" and access["split_guest"] is True
+    # Leaving their last group: offered the trial again, nothing else changes
+    assert sam[0].post(f"/api/splits/{gid}/leave", json={}).status_code == 204
+    after = sam[0].get("/api/billing/entitlements").json()["access"]
+    assert after["state"] == "choose" and after["split_guest"] is False

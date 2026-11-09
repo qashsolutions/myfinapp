@@ -51,7 +51,12 @@ def set_user(user_id: uuid.UUID, **fields) -> None:
 
 def test_a_new_account_picks_one_trial_with_no_card() -> None:
     client, _, _ = signed_up()
-    assert access(client) == {"state": "choose", "plan": "free", "trial_used": False}
+    assert access(client) == {
+        "state": "choose",
+        "plan": "free",
+        "trial_used": False,
+        "split_guest": False,
+    }
     r = client.post("/api/billing/trial", json={"plan": "connected"})
     assert r.status_code == 200, r.text
     got = r.json()
@@ -361,7 +366,12 @@ def test_signing_up_again_says_the_trial_was_used_so_the_app_offers_plans() -> N
     assert first.post("/api/billing/trial", json={"plan": "private"}).status_code == 200
     assert first.post("/api/account/delete", json={"confirm": "DELETE"}).status_code == 204
     again, _, _ = signed_up(email)
-    assert access(again) == {"state": "choose", "plan": "free", "trial_used": True}
+    assert access(again) == {
+        "state": "choose",
+        "plan": "free",
+        "trial_used": True,
+        "split_guest": False,
+    }
     r = again.post("/api/billing/trial", json={"plan": "private"})
     assert r.status_code == 409 and r.json()["detail"] == "trial_used"
     stripe = FakeStripe()

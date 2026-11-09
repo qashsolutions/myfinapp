@@ -1,13 +1,15 @@
 import { cx } from "@stackd/ui";
 import { Link, useLocation } from "react-router";
-import { activeTab, TABS } from "../tabs.ts";
+import { useSplitGuest } from "../../features/splits/guest.ts";
+import { activeTab, GUEST_TABS, TABS } from "../tabs.ts";
 
 /** Phone: the floating five-tab bar, text labels, active tab filled with accent-1. */
 export function TabBar() {
-  const current = activeTab(useLocation().pathname);
+  const tabs = useSplitGuest() ? GUEST_TABS : TABS;
+  const current = activeTab(useLocation().pathname, tabs);
   return (
     <nav className="tabbar" aria-label="Primary">
-      {TABS.map((t) => (
+      {tabs.map((t) => (
         <Link
           key={t.path}
           to={t.path}

@@ -2,12 +2,14 @@ import { cx } from "@stackd/ui";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useSession } from "../../features/auth/useSession.tsx";
-import { activeTab, TABS } from "../tabs.ts";
+import { useSplitGuest } from "../../features/splits/guest.ts";
+import { activeTab, GUEST_TABS, TABS } from "../tabs.ts";
 import { Logo } from "./Logo.tsx";
 
 /** 900px and up (WIDE_QUERY): the left rail with the brand and the same five destinations. */
 export function SideRail() {
-  const current = activeTab(useLocation().pathname);
+  const tabs = useSplitGuest() ? GUEST_TABS : TABS;
+  const current = activeTab(useLocation().pathname, tabs);
   return (
     <aside className="rail">
       <div className="rail__brand">
@@ -15,7 +17,7 @@ export function SideRail() {
         <span>Qash</span>
       </div>
       <nav className="rail__nav" aria-label="Primary">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <Link
             key={t.path}
             to={t.path}

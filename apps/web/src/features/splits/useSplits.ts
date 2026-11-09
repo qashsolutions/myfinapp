@@ -9,7 +9,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { type ApiFailure, api, clientFor, failureOf } from "../../data/api.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { StackdDb } from "../../data/db.ts";
-import { type SplitMethod, type SplitRepeat, splitShare } from "../../engine/bridge.ts";
+import {
+  type SplitMethod,
+  type SplitRepeat,
+  splitRepeatDates,
+  splitShare,
+} from "../../engine/bridge.ts";
 import { todayIso } from "../../lib/format.ts";
 import type { GroupMeta, LedgerBlob, PayApp, ShownBill, SplitBill } from "./ledger.ts";
 import { newGroupKey, pullGroup, type SplitView, updateMyLedger } from "./splitSync.ts";
@@ -249,17 +254,31 @@ export async function addBill(
   db: StackdDb,
   group: SplitGroupOut,
   draft: BillDraft,
+  /** An id the server already issued for this bill when its save failed: try again with it,
+   * so a retry never spends another of the day's bills (November 9, 2026). */
+  issued: { id: string; status: "approved" | "pending" } | null = null,
 ): Promise<
-  { ok: true; status: "approved" | "pending"; bill_id: string } | { ok: false; code: string }
+  | { ok: true; status: "approved" | "pending"; bill_id: string }
+  | { ok: false; code: string; issued?: { id: string; status: "approved" | "pending" } }
 > {
   const parts = await partsOf(draft);
   if ("error" in parts) return { ok: false, code: parts.error };
-  const r = await api.POST("/api/splits/{group_id}/bills", {
-    params: { path: { group_id: group.id } },
-  });
-  const failure = failureOf(r);
-  if (failure || !r.data) return { ok: false, code: codeOf(failure) };
-  const issued = r.data;
+  if (draft.repeat) {
+    // A repeat with too many dates to add at once (a first date years back) is refused here.
+    const many = await splitRepeatDates(draft.date, draft.repeat, todayIso()).then(
+      () => false,
+      () => true,
+    );
+    if (many) return { ok: false, code: "too_many_dates" };
+  }
+  if (!issued) {
+    const r = await api.POST("/api/splits/{group_id}/bills", {
+      params: { path: { group_id: group.id } },
+    });
+    const failure = failureOf(r);
+    if (failure || !r.data) return { ok: false, code: codeOf(failure) };
+    issued = { id: r.data.id, status: r.data.status };
+  }
   const bill: SplitBill = {
     ...draft,
     id: issued.id,
@@ -273,7 +292,7 @@ export async function addBill(
     ...l,
     bills: [...l.bills.filter((b) => b.id !== bill.id), bill],
   }));
-  if (!saved) return { ok: false, code: "not_saved" };
+  if (!saved) return { ok: false, code: "not_saved", issued };
   return { ok: true, status: issued.status, bill_id: issued.id };
 }
 
@@ -340,12 +359,26 @@ export async function stopRepeating(
   return saved ? OK : fail("not_saved");
 }
 
+/**
+ * Approve or decline someone else's bill. Approving first pins the bill as the organizer sees
+ * it into the organizer's own ledger, so its author can't change it afterwards (invariant 77).
+ */
 export async function decideBill(
-  groupId: string,
-  billId: string,
+  db: StackdDb,
+  group: SplitGroupOut,
+  bill: ShownBill,
   decision: "approve" | "decline",
 ): Promise<Result> {
-  const params = { params: { path: { group_id: groupId, bill_id: billId } } };
+  if (decision === "approve") {
+    const { base_id, status: _s, disputed: _d, edited: _e, ...rest } = bill;
+    const pinned: SplitBill = { ...rest, id: base_id };
+    const saved = await updateMyLedger(db, group.id, group.my_member_id, (l) => ({
+      ...l,
+      approved: { ...(l.approved ?? {}), [base_id]: pinned },
+    }));
+    if (!saved) return fail("not_saved");
+  }
+  const params = { params: { path: { group_id: group.id, bill_id: bill.base_id } } };
   const r =
     decision === "approve"
       ? await api.POST("/api/splits/{group_id}/bills/{bill_id}/approve", params)
@@ -427,6 +460,43 @@ export async function cancelInvite(groupId: string, inviteId: string): Promise<R
   return failure ? fail(codeOf(failure)) : OK;
 }
 
+export async function disputeBill(groupId: string, billId: string): Promise<Result> {
+  const r = await api.POST("/api/splits/{group_id}/disputes", {
+    params: { path: { group_id: groupId } },
+    body: { bill_id: billId },
+  });
+  const failure = failureOf(r);
+  return failure ? fail(codeOf(failure)) : OK;
+}
+
+/** The organizer closes every dispute on a bill once fixed; a disputer withdraws their own. */
+export async function closeDispute(groupId: string, billId: string): Promise<Result> {
+  const r = await api.POST("/api/splits/{group_id}/disputes/{bill_id}/close", {
+    params: { path: { group_id: groupId, bill_id: billId } },
+  });
+  const failure = failureOf(r);
+  return failure ? fail(codeOf(failure)) : OK;
+}
+
+export type ReportReason = "dont_know" | "not_owed" | "pushy" | "other";
+
+export const REPORT_REASONS: ReadonlyArray<readonly [ReportReason, string]> = [
+  ["dont_know", "I don't know them"],
+  ["not_owed", "Asked for money I don't owe"],
+  ["pushy", "Pushy or threatening"],
+  ["other", "Something else"],
+];
+
+/** Leave; "Report and leave" adds one report against the organizer (spec "Reports and blocks"). */
+export async function leaveGroup(groupId: string, report: ReportReason | null): Promise<Result> {
+  const r = await api.POST("/api/splits/{group_id}/leave", {
+    params: { path: { group_id: groupId } },
+    body: report ? { report } : {},
+  });
+  const failure = failureOf(r);
+  return failure ? fail(codeOf(failure)) : OK;
+}
+
 /** Plain words for the server's and the rule's codes. */
 export function splitErrorText(code: string): string {
   const words: Record<string, string> = {
@@ -448,6 +518,10 @@ export function splitErrorText(code: string): string {
     invalid_share: "Each share needs a whole number above 0.",
     values_must_match_people: "Fill in everyone who's in.",
     not_saved: "Couldn't save. Try again when you're online.",
+    too_many_dates: "That first date is too far back for a repeating bill. Pick a later one.",
+    warning_changed: "The warning changed. Close this and open it again.",
+    other_email: "This invite is for a different email. Sign in with the address it was sent to.",
+    not_found: "This invite has expired or was already used. Ask for a new one.",
     offline: "You're offline. Try again when connected.",
   };
   return words[code] ?? "Something went wrong. Try again.";

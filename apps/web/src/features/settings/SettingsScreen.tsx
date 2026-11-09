@@ -11,6 +11,8 @@ import { useSession } from "../auth/useSession.tsx";
 import { summaryLine, useBilling } from "../billing/billing.ts";
 import { parseEntitlements } from "../billing/entitlements.ts";
 import { InstallGuide } from "../pwa/InstallGuide.tsx";
+import { useSplitGuest } from "../splits/guest.ts";
+import { GuestMe } from "./GuestMe.tsx";
 import { GroupRows, SettingsSearch } from "./SettingsNav.tsx";
 
 /** "Private trial", "Private · yearly", or "Your plan" while it loads. */
@@ -32,6 +34,12 @@ export function usePlanLine(): { title: string; detail: string } {
  * (spec hard constraint 5).
  */
 export function SettingsScreen() {
+  // A split-bill guest's Me is short (spec "Guests").
+  if (useSplitGuest()) return <GuestMe />;
+  return <FullSettings />;
+}
+
+function FullSettings() {
   const session = useSession();
   const navigate = useNavigate();
   const [installOpen, setInstallOpen] = useState(false);

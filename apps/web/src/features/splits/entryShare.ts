@@ -19,8 +19,7 @@ export async function shareEntry(
 ): Promise<boolean> {
   return db.transaction("rw", db.entries, async () => {
     const e = await db.entries.get(entryId);
-    if (!e || e.direction !== "out" || e.is_transfer || e.split_parent_id || e.split_bill)
-      return false;
+    if (e?.direction !== "out" || e.is_transfer || e.split_parent_id || e.split_bill) return false;
     const shared = await db.entries
       .filter((x) => x.split_parent_id === e.id && Boolean(x.split_bill))
       .count();

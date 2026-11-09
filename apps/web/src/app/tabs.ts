@@ -12,6 +12,12 @@ export const TABS: readonly Tab[] = [
   { path: "/me", label: "Me" },
 ];
 
+/** A split-bill guest's two tabs (spec "Guests"). */
+export const GUEST_TABS: readonly Tab[] = [
+  { path: "/splits", label: "Splits" },
+  { path: "/me", label: "Me" },
+];
+
 /**
  * Screens outside a tab's own path that belong to the tab they are reached from (October 29,
  * 2026): What if, the month review and credit habits open from Insights. A path not listed here
@@ -25,13 +31,13 @@ const REACHED_FROM: Readonly<Record<string, string>> = {
 };
 
 /** The tab path to show as current for a location, or null when none is. */
-export function activeTab(pathname: string): string | null {
+export function activeTab(pathname: string, tabs: readonly Tab[] = TABS): string | null {
   const own = Object.entries(REACHED_FROM).find(
     ([p]) => pathname === p || pathname.startsWith(`${p}/`),
   );
   if (own) return own[1];
   if (pathname === "/") return "/";
-  const tab = TABS.find(
+  const tab = tabs.find(
     (t) => t.path !== "/" && (pathname === t.path || pathname.startsWith(`${t.path}/`)),
   );
   return tab?.path ?? null;

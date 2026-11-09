@@ -53,9 +53,13 @@ import { LookSettings } from "../features/settings/LookSettings.tsx";
 import { MeLayout } from "../features/settings/MeLayout.tsx";
 import { SettingsScreen } from "../features/settings/SettingsScreen.tsx";
 import { AddSplitBill } from "../features/splits/AddSplitBill.tsx";
+import { HowFriendsPayMe } from "../features/splits/HowFriendsPayMe.tsx";
+import { JoinSplit } from "../features/splits/JoinSplit.tsx";
 import { NewSplitGroup } from "../features/splits/NewSplitGroup.tsx";
+import { PaymentsConfirmed } from "../features/splits/PaymentsConfirmed.tsx";
 import { SplitGroupScreen } from "../features/splits/SplitGroupScreen.tsx";
 import { SplitPicker } from "../features/splits/SplitPicker.tsx";
+import { SplitsHome } from "../features/splits/SplitsHome.tsx";
 import { SubscriptionsScreen } from "../features/subscriptions/SubscriptionsScreen.tsx";
 import { SubscriptionWordsScreen } from "../features/subscriptions/SubscriptionWordsScreen.tsx";
 import { WhatIfScreen } from "../features/whatif/WhatIfScreen.tsx";
@@ -101,7 +105,8 @@ export function AppRoutes() {
           <Route path="splits/:id" element={<SplitGroupScreen />} />
           <Route path="splits/:id/bills/new" element={<AddSplitBill />} />
           <Route path="splits/:id/bills/:billId" element={<AddSplitBill />} />
-          <Route path="splits" element={<Navigate to="/goals?tab=splits" replace />} />
+          <Route path="splits" element={<SplitsHome />} />
+          <Route path="splits/join" element={<JoinSplit />} />
           <Route path="insights" element={<InsightsHub />} />
           <Route path="insights/spending" element={<SpendingScreen />} />
           <Route path="insights/fixed-flexible" element={<FixedFlexibleScreen />} />
@@ -134,6 +139,8 @@ export function AppRoutes() {
             <Route path="notifications" element={<NotificationSettings />} />
             <Route path="plan" element={<PlanScreen />} />
             <Route path="household" element={<HouseholdScreen />} />
+            <Route path="split-pay" element={<HowFriendsPayMe />} />
+            <Route path="split-payments" element={<PaymentsConfirmed />} />
             <Route path="linking" element={<LinkedAccounts />} />
             <Route path="linking/done" element={<LinkDone />} />
           </Route>

@@ -951,7 +951,16 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       FAKE_LIMITS[state.billing.plan === "founding" ? "connected" : state.billing.plan];
     const me = state.session.user?.id ?? ME;
     const deviceLabel = state.session.device_label ?? "Safari on iPhone";
-    const split = handleSplits(state.splits, method, path, b, me, myName(), limits);
+    const split = handleSplits(
+      state.splits,
+      method,
+      path,
+      b,
+      me,
+      myName(),
+      limits,
+      state.session.user?.email ?? "",
+    );
     if (split) return split;
     // Linking (Phase 3, chunk 3.2): Hosted Link URLs, finish once, disconnect.
     if (method === "GET" && path === "/api/linking") {
