@@ -2,7 +2,7 @@
 // bill through the engine, a guest's bill waiting for the OK, Mark paid, Remove, the day's limit
 // and double-check. Nothing readable about a bill or a group's name leaves the device (78).
 
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { encryptJson, toBase64url } from "../../src/data/backup/crypto.ts";
@@ -222,6 +222,34 @@ describe("Split bills: the organizer", () => {
     // Alex's share is forgiven; Sam still owes theirs
     expect(await screen.findByText("Sam pays you $62.00")).toBeInTheDocument();
     expect(screen.queryByText(/Alex pays/)).not.toBeInTheDocument();
+  });
+
+  it("Home's Split bills card shows what I'm owed, and hides with no groups", async () => {
+    const api = installFakeApi({ session: readySession() });
+    renderApp("/");
+    await screen.findByRole("link", { name: "Kept this month, open Money in & out" });
+    await waitFor(() => expect(api.calls.some((c) => c.path === "/api/splits")).toBe(true));
+    expect(screen.queryByRole("link", { name: "Split bills, open Splits" })).toBeNull();
+    cleanup();
+
+    const again = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(again);
+    await seedGroceries(again, gid);
+    renderApp("/");
+    const card = await screen.findByRole("link", { name: "Split bills, open Splits" });
+    await waitFor(() => expect(card).toHaveTextContent(/Owed\+\$124\.00/));
+    expect(card).toHaveTextContent(/pays you \$62\.00/);
+  });
+
+  it("the + button's A split goes straight to Add a bill in my only group", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    renderApp("/");
+    await user.click(await screen.findByRole("button", { name: "Add entry or receipt" }));
+    await user.click(await screen.findByRole("button", { name: /A split/ }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Add a bill" })).toBeInTheDocument();
+    expect(api.splits.groups[0]?.id).toBe(gid);
   });
 
   it("stops at the day's limit: Done for today", async () => {

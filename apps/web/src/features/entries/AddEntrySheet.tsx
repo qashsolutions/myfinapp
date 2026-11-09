@@ -1,9 +1,9 @@
 import "./entries.css";
 
-import { Button, Toggle } from "@stackd/ui";
+import { Button, buttonClass, Toggle } from "@stackd/ui";
 import { useLiveQuery } from "dexie-react-hooks";
 import { type FormEvent, useEffect, useId, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { recordDeletion } from "../../data/backup/snapshot.ts";
 import { useDb } from "../../data/DbProvider.tsx";
@@ -66,6 +66,7 @@ export function AddEntrySheet() {
   const [note, setNote] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [isCounted, setIsCounted] = useState(true);
+  const [paidBack, setPaidBack] = useState(false);
   const [renameAll, setRenameAll] = useState(true);
   const [alike, setAlike] = useState(0);
   // Opened from a row's "Duplicate?": the entry it looks like.
@@ -88,6 +89,7 @@ export function AddEntrySheet() {
       setNote(existing.note ?? "");
       setTags(existing.tags ?? []);
       setIsCounted(!existing.not_counted);
+      setPaidBack(Boolean(existing.paid_back));
       setRenameAll(true);
       setAlwaysRule(false);
       void likeThis(db, existing).then((rows) => setAlike(rows.length));
@@ -235,7 +237,9 @@ export function AddEntrySheet() {
       is_recurring: existing?.is_recurring ?? false,
       note: note.trim() ? note.trim().slice(0, NOTE_MAX) : null,
       tags,
-      not_counted: isCounted ? undefined : true,
+      // Paid back for a shared bill is never income (invariant 76)
+      not_counted: isCounted && !(paidBack && direction === "in") ? undefined : true,
+      paid_back: paidBack && direction === "in" ? true : undefined,
       created_at: existing?.created_at ?? now,
       updated_at: now,
     };
@@ -534,6 +538,14 @@ export function AddEntrySheet() {
           </div>
         ) : null}
         <div className="fields">
+          {direction === "in" && !isTransfer ? (
+            <Toggle
+              label="Paid back by a friend"
+              description="Settles a shared bill, so it isn't income"
+              checked={paidBack}
+              onChange={setPaidBack}
+            />
+          ) : null}
           <Toggle
             label="Count in my spending"
             description="Off: left out of totals, budgets and insights; still in your balance"
@@ -587,9 +599,19 @@ export function AddEntrySheet() {
                 </Button>
               </div>
             ) : (
-              <Button type="button" variant="ghost" onClick={() => setSplitOpen(true)}>
-                Split this entry
-              </Button>
+              <>
+                <Button type="button" variant="ghost" onClick={() => setSplitOpen(true)}>
+                  Split this entry
+                </Button>
+                {direction === "out" && !existing.split_parent_id && !existing.split_bill ? (
+                  <Link
+                    to={`/splits/add?entry=${encodeURIComponent(existing.id)}`}
+                    className={buttonClass({ variant: "ghost" })}
+                  >
+                    Share it in a split group
+                  </Link>
+                ) : null}
+              </>
             )}
           </div>
         ) : null}

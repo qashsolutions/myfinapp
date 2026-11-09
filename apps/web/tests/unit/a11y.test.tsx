@@ -89,6 +89,7 @@ const signedIn: Array<[string, string | RegExp]> = [
   ["/goals/new", "New goal"],
   ["/goals?tab=splits", "Goals"],
   ["/splits/new", "New group"],
+  ["/splits/add", "Add a split"],
   ["/forecast", "Next 30 days"],
   ["/bills", "Bills & debt"],
   ["/emergency", "Emergency fund"],

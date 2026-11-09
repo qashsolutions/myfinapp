@@ -1,7 +1,7 @@
 import { List, ListRow, Sheet } from "@stackd/ui";
 import { useNavigate } from "react-router";
 
-/** What the global + button offers (docs/spec.md: manual entry, receipt photo, statement import). */
+/** What the global + button offers (docs/spec.md: manual entry, receipt photo, statement import, a split bill). */
 export function AddChooser({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const go = (path: string) => {
@@ -27,6 +27,12 @@ export function AddChooser({ open, onClose }: { open: boolean; onClose: () => vo
           label="A receipt"
           sublabel="A photo, kept on this device"
           onClick={() => go("/add?with=receipt")}
+          chevron
+        />
+        <ListRow
+          label="A split"
+          sublabel="A bill you share with friends or housemates"
+          onClick={() => go("/splits/add")}
           chevron
         />
       </List>

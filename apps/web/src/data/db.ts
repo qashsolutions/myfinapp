@@ -84,6 +84,11 @@ export interface Entry {
   not_counted?: boolean;
   /** The person named this entry themselves, so a bank sync never puts the bank's text back. */
   renamed?: boolean;
+  /** Split bills (invariant 76): `<group id>:<bill id>` on an entry shared in a group (which
+   * keeps the person's own share) and on its not-counted "Owed to me" part. */
+  split_bill?: string;
+  /** Money a friend sent back for a shared bill: "Paid back", never income (invariant 76). */
+  paid_back?: boolean;
   created_at: string;
   updated_at: string;
 }

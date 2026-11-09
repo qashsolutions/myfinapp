@@ -147,12 +147,16 @@ export function SplitGroupScreen() {
           {group.is_organizer ? " · You run it" : ` · Run by ${organizerName}`}
         </span>
         <Word>{word}</Word>
-        <p className="sk-card__hero">
-          {mine === 0 ? "Settled" : formatCents(Math.abs(mine))}
-          {mine === 0 ? null : (
-            <span className="sk-card__hero-unit">{mine > 0 ? " owed to you" : " you owe"}</span>
-          )}
-        </p>
+        {mine === 0 ? (
+          <p>Everyone's settled up.</p>
+        ) : (
+          <p className="sk-card__hero">
+            {formatCents(Math.abs(mine))}
+            {mine === 0 ? null : (
+              <span className="sk-card__hero-unit">{mine > 0 ? " owed to you" : " you owe"}</span>
+            )}
+          </p>
+        )}
         {view.onHold.length > 0 ? (
           <p>
             {view.onHold.length} disputed {view.onHold.length === 1 ? "bill is" : "bills are"} on
