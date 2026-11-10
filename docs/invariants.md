@@ -301,7 +301,10 @@ written against both.
     (`insights.safe_to_spend` `paydays`, out `window` and `payday`) and every screen's words follow
     it (`SafeToSpendLine.safeWindowText`, Home, Insights). `insights.test.tsx` "shows safe to
     spend through the next pay period…" · goldens `insights.safe_to_spend`
-    "payday_in_two_days_looks_through_the_next_pay_period", "one_payday_known_ends_the_day_before_it"
+    "payday_in_two_days_looks_through_the_next_pay_period", "one_payday_known_ends_the_day_before_it".
+    A forecast is read only for a day it covers: one made for another day shows nothing until
+    it is redone, and a rule's refusal shows nothing rather than escaping (November 10, 2026;
+    `safe-to-spend-stale.test.tsx`).
 80. **A burst never stalls the API, and a request's database cost doesn't grow with the
     number of people** (October 31, 2026; found by the load tests of October 31 and November 9, 2026). At
     most `STACKD_MAX_IN_FLIGHT` requests run inside the app at once (`app/request_gate.py`); the
