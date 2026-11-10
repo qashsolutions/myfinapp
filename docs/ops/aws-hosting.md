@@ -42,18 +42,29 @@ When busy (since November 10, 2026): up to two more API nodes, added and removed
 
 The API grows and shrinks with load; nothing is paid for until it is needed.
 
-- **Auto-scaler:** `.github/workflows/autoscale.yml`, every 5 minutes in the GitHub environment
-  `autoscale` (protected branches only), as the role `qash-autoscale` over OIDC. It reads
-  `qash-api`'s 5-minute CPU averages from Lightsail and adds a node after 10 minutes above
-  `UP_PCT`, removes one after an hour below `DOWN_PCT`, never below 1 or above 3 nodes (the
-  owner's cap), skips while a deploy or change is in progress, and emails admin@ through
-  `qash-alerts` on every change and, hourly, while busy at the cap. Lightsail changes capacity
-  without downtime and bills each node by the hour ($0.0134 for Micro, capped at $10 a month).
-- **`qash-autoscale`** (created November 10, 2026): trusted only for
-  `repo:qashsolutions@214873019/myfinapp@1436082183:environment:autoscale`; inline policy
-  `autoscale`: `lightsail:GetContainerServices`, `GetContainerServiceMetricData` and
-  `UpdateContainerService` on `qash-api` only (plus `GetContainerServices` on `*`, as
-  `qash-deploy` has), `sns:Publish` on `qash-alerts`; `qash-deny-bedrock` attached.
+- **Auto-scaler:** the Lambda `qash-autoscale` (`services/api/scripts/autoscale_lambda.py`,
+  Python 3.12 on arm64, 128 MB, 30 s), run by the EventBridge Scheduler schedule `qash-autoscale`
+  (no retries): every 4 hours on the hour UTC (`cron(0 */4 * * ? *)`) until launch (owner,
+  November 10, 2026), then back to every 5 minutes (`rate(5 minutes)`); the email when busy at the cap goes
+  out from a run in an hour's first 5 minutes, so the schedule stays on the hour. It reads `qash-api`'s 5-minute CPU averages
+  from Lightsail and adds a node after 10 minutes above `UP_PCT` (60), removes one after an hour
+  below `DOWN_PCT` (25), never below 1 or above 3 nodes (the owner's cap), skips while a deploy
+  or change is in progress, and emails admin@ through `qash-alerts` on every change and, hourly,
+  while busy at the cap. Lightsail changes capacity without downtime and bills each node by the
+  hour ($0.0134 for Micro, capped at $10 a month). The scaler itself is inside the free tiers
+  ($0). It started on GitHub Actions the same day, but GitHub ran this repository's schedules
+  9-10 hours late, so it moved here. To update the code: zip the file and
+  `aws lambda update-function-code --function-name qash-autoscale --zip-file fileb://…`; to run
+  it by hand: `aws lambda invoke --function-name qash-autoscale out.json`. Logs:
+  `/aws/lambda/qash-autoscale`, kept 30 days. Lightsail starts a service's CPU history again at
+  each deploy, so after a deploy it waits 10 minutes to add and an hour to remove.
+- **Roles** (created November 10, 2026; `qash-deny-bedrock` on both): `qash-autoscale-fn`, the
+  function's, trusted by Lambda from this account only: `lightsail:GetContainerServices` and
+  `UpdateContainerService` on `qash-api` only, `GetContainerServices` and
+  `GetContainerServiceMetricData` (read-only; Lightsail allows no narrower resource for it) on
+  `*`, `sns:Publish` on `qash-alerts`, and writing its own log group. `qash-autoscale-scheduler`,
+  trusted by EventBridge Scheduler from this account only: `lambda:InvokeFunction` on
+  `qash-autoscale` only.
 - **Jobs on every node:** each node carries the `jobs` container; every job takes a Postgres
   advisory lock (`cli.job_lock`, invariant 82), so two nodes never run one at once.
 - **Database:** `qash-db` (`micro_2_0`) allows 81 connections. Each API node uses at most 20
@@ -68,6 +79,14 @@ The API grows and shrinks with load; nothing is paid for until it is needed.
   42-46% CPU, 150 at 61-75% with the slowest answers at seconds, about 16 requests a second at
   most; Small (0.5 vCPU, $15), 200 people at 43-51% CPU. Three Micro nodes are about 300 people
   comfortably; real people act far less often.
+- **Tested with 5,000 people** (November 10, 2026; a temporary copy, its database and a twin of
+  the scaler pointed only at it, all deleted the same hour, under $0.20; everyone acting every
+  ~30 s for 55 minutes): the scaler went 1 to 2 nodes at 20:27 UTC and 2 to 3 at 20:32, one step
+  per check, then held at the cap with CPU at 99-100%. Three Micro nodes answered about 35
+  requests a second; the rest (79% of 439,063) were told 503 `busy` straight away by the
+  request gate, plus 864 502s from Lightsail (0.2%), and no 500s: nothing stalled or crashed.
+  5,000 people at that pace need far more than 3 Micro nodes, and more than 3 nodes needs a
+  bigger database (81 connections).
 - **Review:** weekly for the first 4 weeks after launch (peak CPU, the slowest 5% of responses,
   503 `busy` answers, scaling emails, the bill), then monthly; at once on a cap email or alarm.
 
