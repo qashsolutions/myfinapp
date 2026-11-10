@@ -19,7 +19,15 @@ ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
 @lru_cache
 def get_engine() -> Engine:
-    return create_engine(get_settings().database_url, pool_pre_ping=True)
+    # Two connections for every request the gate lets in (app/request_gate.py): its own and a
+    # rate limit's, so a request inside the app never waits on the pool.
+    settings = get_settings()
+    return create_engine(
+        settings.database_url,
+        pool_pre_ping=True,
+        pool_size=settings.max_in_flight,
+        max_overflow=settings.max_in_flight,
+    )
 
 
 @lru_cache

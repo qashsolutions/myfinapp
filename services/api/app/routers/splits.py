@@ -63,7 +63,12 @@ from app.models.split import (
 from app.models.user import User
 from app.routers.backup import B64, decode_b64url, encode_b64url
 from app.routers.groups import _shown_name
-from app.rules_server.entitlements import active_subscription, effective_plan, limits_for
+from app.rules_server.entitlements import (
+    active_subscription,
+    effective_plan,
+    limits_for,
+    may_have_plan,
+)
 from app.security.audit import AuditAction, record
 from app.security.authz import not_found
 from app.security.client import client_ip
@@ -458,52 +463,108 @@ def _today(db: DbSession, user: User, now: datetime) -> TodayOut:
     return TodayOut(added=_added_today(db, user.id, _local_day(db, user.id, now)), limit=limit)
 
 
-def _group_out(db: DbSession, group: SplitGroup, me: uuid.UUID, now: datetime) -> SplitGroupOut:
-    members = _live_members(db, group.id)
-    mine = next(m for m in members if m.user_id == me)
-    out: list[SplitMemberOut] = []
-    for m in members:
-        person = db.get(User, m.user_id) if m.user_id else None
-        name, initial = _shown_name(person) if person else ("Former member", "-")
+class _Plans:
+    """Who can run split groups, for one request: each person's plan is asked once, and only of
+    the people `may_have_plan` names; anyone it leaves out is free (invariant 81). Opening
+    split groups used to ask the plan rule again for every member of every group."""
+
+    def __init__(self, db: DbSession, users: list[User], now: datetime) -> None:
+        self.db = db
+        self.maybe = may_have_plan(db, users, now=now)
+        self.limits_of: dict[uuid.UUID, dict[str, Any]] = {}
+
+    def limits(self, user_id: uuid.UUID) -> dict[str, Any]:
+        if user_id not in self.limits_of:
+            self.limits_of[user_id] = (
+                _limits(self.db, user_id) if user_id in self.maybe else limits_for("free")
+            )
+        return self.limits_of[user_id]
+
+    def runs(self, user: User | None) -> bool:
+        """`_can_run`, with the plan asked through `limits`."""
+        if user is None or user.deleted_at is not None or user.split_blocked_at is not None:
+            return False
+        return int(self.limits(user.id).get("split_people_max") or 0) > 0
+
+
+def _groups_out(
+    db: DbSession, groups: list[SplitGroup], me: User, now: datetime
+) -> tuple[list[SplitGroupOut], _Plans]:
+    """Every group's row for the list, in a fixed number of queries however many groups and
+    people (invariant 81): members, people and open invites are read once for all of them."""
+    ids = [g.id for g in groups]
+    members_of: dict[uuid.UUID, list[SplitMember]] = {gid: [] for gid in ids}
+    if ids:
+        for m in db.scalars(
+            select(SplitMember)
+            .where(SplitMember.group_id.in_(ids), SplitMember.left_at.is_(None))
+            .order_by(SplitMember.joined_at, SplitMember.id)
+        ):
+            members_of[m.group_id].append(m)
+    wanted = {m.user_id for ms in members_of.values() for m in ms if m.user_id}
+    wanted |= {g.organizer_id for g in groups if g.organizer_id}
+    wanted.add(me.id)
+    people = (
+        {u.id: u for u in db.scalars(select(User).where(User.id.in_(wanted)))} if wanted else {}
+    )
+    plans = _Plans(db, list(people.values()), now)
+    organized = [g.id for g in groups if g.organizer_id == me.id]
+    invites_of: dict[uuid.UUID, list[SplitInviteOut]] = {gid: [] for gid in organized}
+    if organized:
+        for i in db.scalars(
+            select(SplitInvite)
+            .where(
+                SplitInvite.group_id.in_(organized),
+                SplitInvite.used_at.is_(None),
+                SplitInvite.declined_at.is_(None),
+                SplitInvite.cancelled_at.is_(None),
+                SplitInvite.expires_at > now,
+            )
+            .order_by(SplitInvite.created_at)
+        ):
+            invites_of[i.group_id].append(SplitInviteOut(id=i.id, expires_at=i.expires_at))
+    out: list[SplitGroupOut] = []
+    for group in groups:
+        members = members_of[group.id]
+        mine = next(m for m in members if m.user_id == me.id)
+        rows: list[SplitMemberOut] = []
+        for m in members:
+            person = people.get(m.user_id) if m.user_id else None
+            name, initial = _shown_name(person) if person else ("Former member", "-")
+            rows.append(
+                SplitMemberOut(
+                    member_id=m.id,
+                    display_name=name,
+                    initial=initial,
+                    is_me=m.user_id == me.id,
+                    is_organizer=m.user_id is not None and m.user_id == group.organizer_id,
+                    guest=not plans.runs(person),
+                    joined_at=m.joined_at,
+                )
+            )
+        organizer = people.get(group.organizer_id) if group.organizer_id else None
         out.append(
-            SplitMemberOut(
-                member_id=m.id,
-                display_name=name,
-                initial=initial,
-                is_me=m.user_id == me,
-                is_organizer=m.user_id is not None and m.user_id == group.organizer_id,
-                guest=person is None or not _can_run(db, person),
-                joined_at=m.joined_at,
+            SplitGroupOut(
+                id=group.id,
+                is_organizer=group.organizer_id == me.id,
+                my_member_id=mine.id,
+                members=rows,
+                invites=invites_of.get(group.id, []),
+                people_max=int(plans.limits(organizer.id).get("split_people_max") or 0)
+                if organizer
+                else 0,
+                writable=plans.runs(organizer),
+                guests_can_add=group.guests_can_add,
+                reported=organizer is not None and organizer.split_blocked_at is not None,
             )
         )
-    invites: list[SplitInviteOut] = []
-    if group.organizer_id == me:
-        invites = [
-            SplitInviteOut(id=i.id, expires_at=i.expires_at)
-            for i in db.scalars(
-                select(SplitInvite)
-                .where(
-                    SplitInvite.group_id == group.id,
-                    SplitInvite.used_at.is_(None),
-                    SplitInvite.declined_at.is_(None),
-                    SplitInvite.cancelled_at.is_(None),
-                    SplitInvite.expires_at > now,
-                )
-                .order_by(SplitInvite.created_at)
-            )
-        ]
-    organizer = db.get(User, group.organizer_id) if group.organizer_id else None
-    return SplitGroupOut(
-        id=group.id,
-        is_organizer=group.organizer_id == me,
-        my_member_id=mine.id,
-        members=out,
-        invites=invites,
-        people_max=_people_max(db, group),
-        writable=_writable(db, group),
-        guests_can_add=group.guests_can_add,
-        reported=organizer is not None and organizer.split_blocked_at is not None,
-    )
+    return out, plans
+
+
+def _group_out(db: DbSession, group: SplitGroup, me: uuid.UUID, now: datetime) -> SplitGroupOut:
+    user = db.get(User, me)
+    assert user is not None
+    return _groups_out(db, [group], user, now)[0][0]
 
 
 # ---- groups ----
@@ -520,18 +581,27 @@ def list_splits(
             SplitMember.user_id == caller.user.id, SplitMember.left_at.is_(None)
         )
     ).all()
-    groups = [
-        _group_out(db, g, caller.user.id, now)
-        for g in db.scalars(
-            select(SplitGroup).where(SplitGroup.id.in_(group_ids)).order_by(SplitGroup.created_at)
-        )
-    ]
-    runs = _can_run(db, caller.user)
+    groups, plans = _groups_out(
+        db,
+        list(
+            db.scalars(
+                select(SplitGroup)
+                .where(SplitGroup.id.in_(group_ids))
+                .order_by(SplitGroup.created_at)
+            )
+        ),
+        caller.user,
+        now,
+    )
+    mine = plans.limits(caller.user.id)
     out = SplitsOut(
         groups=groups,
-        can_create=runs,
-        guest=int(_limits(db, caller.user.id).get("split_people_max") or 0) == 0,
-        today=_today(db, caller.user, now),
+        can_create=plans.runs(caller.user),
+        guest=int(mine.get("split_people_max") or 0) == 0,
+        today=TodayOut(
+            added=_added_today(db, caller.user.id, _local_day(db, caller.user.id, now)),
+            limit=int(mine.get("split_bills_per_day") or 0),
+        ),
         double_check=double_check(db, caller.user, now),
         blocked=caller.user.split_blocked_at is not None,
     )
