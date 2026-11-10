@@ -651,6 +651,12 @@ written against both.
    household), each once per request (`splits._Plans`); everyone else is free. The rule itself
    still decides for anyone named, and a new way to hold a plan joins `may_have_plan` in the
    same change. `services/api/tests/test_split_cost.py`
+82. **Two copies of the API never run the same job at the same moment** (November 10, 2026;
+   owner decision to scale the API out to up to 3 nodes, each carrying the jobs container).
+   `stackd-api jobs-loop` runs every job inside `cli.job_lock`, a Postgres advisory lock on a
+   connection of its own; a node that finds a job locked skips that turn, and a node that dies
+   frees its locks with its connection. Every job is written to be run again, so a run right
+   after another's finds nothing left to do. `services/api/tests/test_jobs_once.py`
 
 ## Offline and the way in
 

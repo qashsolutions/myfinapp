@@ -1,0 +1,91 @@
+name: autoscale
+
+# Adds and removes copies (nodes) of the Lightsail service qash-api as load needs them (owner
+# decision, November 10, 2026; docs/ops/aws-hosting.md, "Scaling"). Lightsail changes capacity
+# without downtime but never on its own, so this runs every 5 minutes:
+# - up one node when CPU averaged above UP_PCT for the last 10 minutes,
+# - down one node when CPU stayed below DOWN_PCT for the last hour,
+# - never below MIN_NODES or above MAX_NODES (the owner's spending cap: 3),
+# and emails admin@ through the qash-alerts topic on every change and while held at the cap.
+# AWS access is the role qash-autoscale through GitHub's OIDC (no stored keys): it can read
+# qash-api's state and metrics, change its node count, and publish to qash-alerts. Nothing else.
+# Every node also runs the jobs container; jobs take a database lock (invariant 82).
+# Measured on a temporary Micro node (November 10, 2026; split-bills mix, everyone acting every
+# ~30 s): 100 people at once 42-46% CPU, 150 at 61-75% with the slowest answers stretching,
+# about 16 requests a second at most. UP_PCT 60 adds a node at roughly 130 people per node.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: autoscale
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  scale:
+    if: github.repository == 'qashsolutions/myfinapp'
+    runs-on: ubuntu-latest
+    environment: autoscale
+    timeout-minutes: 5
+    env:
+      AWS_REGION: us-east-1
+      SERVICE: qash-api
+      TOPIC: arn:aws:sns:us-east-1:236823123138:qash-alerts
+      MIN_NODES: 1
+      MAX_NODES: 3
+      UP_PCT: 60
+      DOWN_PCT: 25
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::236823123138:role/qash-autoscale
+          aws-region: us-east-1
+
+      - name: Decide and scale
+        run: |
+          set -euo pipefail
+          read -r state scale power < <(aws lightsail get-container-services --service-name "$SERVICE" \
+            --query 'containerServices[0].[state,scale,power]' --output text)
+          echo "state=$state scale=$scale power=$power"
+          # A deploy or an earlier change still in progress: leave it alone this time.
+          if [ "$state" != "RUNNING" ]; then echo "not running; skip"; exit 0; fi
+          now=$(date -u +%s)
+          cpu() {  # 5-minute CPU averages over the last $1 minutes, oldest first
+            aws lightsail get-container-service-metric-data --service-name "$SERVICE" \
+              --metric-name CPUUtilization --statistics Average --period 300 \
+              --start-time "$((now - $1 * 60))" --end-time "$now" \
+              --query 'sort_by(metricData,&timestamp)[].average' --output text
+          }
+          recent=$(cpu 10); hour=$(cpu 60)
+          echo "last 10 min: $recent | last hour: $hour"
+          all() { [ -n "$1" ] && awk -v t="$2" -v op="$3" '{ for (i = 1; i <= NF; i++) if ((op == "gt" && $i <= t) || (op == "lt" && $i >= t)) bad = 1 } END { exit bad }' <<< "$1"; }
+          count() { wc -w <<< "$1" | tr -d ' '; }
+          target=$scale
+          if [ "$(count "$recent")" -ge 2 ] && all "$recent" "$UP_PCT" gt; then
+            if [ "$scale" -lt "$MAX_NODES" ]; then target=$((scale + 1)); else at_cap=1; fi
+          elif [ "$(count "$hour")" -ge 11 ] && all "$hour" "$DOWN_PCT" lt && [ "$scale" -gt "$MIN_NODES" ]; then
+            target=$((scale - 1))
+          fi
+          if [ "$target" != "$scale" ]; then
+            aws lightsail update-container-service --service-name "$SERVICE" --scale "$target" \
+              --query 'containerService.[scale,state]' --output text
+            aws sns publish --topic-arn "$TOPIC" --subject "Qash API: $scale -> $target nodes" \
+              --message "The auto-scaler changed qash-api from $scale to $target node(s) ($power). CPU, 5-minute averages: last 10 min $recent; last hour $hour. Cap: $MAX_NODES." \
+              --query MessageId --output text
+          elif [ "${at_cap:-0}" = 1 ]; then
+            # Held at the cap while busy: tell the owner once an hour, not every 5 minutes.
+            if [ "$(date -u +%M)" -lt 5 ]; then
+              aws sns publish --topic-arn "$TOPIC" --subject "Qash API: busy at the cap of $MAX_NODES nodes" \
+                --message "qash-api has been above ${UP_PCT}% CPU for 10 minutes on all $MAX_NODES nodes ($power). Raising the cap or the node size is the owner's call. CPU: $recent." \
+                --query MessageId --output text
+            fi
+            echo "at the cap"
+          else
+            echo "no change"
+          fi

@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import argparse
 import sys
+import zlib
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 from alembic import command
 
@@ -182,6 +185,26 @@ def purge_expired() -> int:
     return 0
 
 
+@contextmanager
+def job_lock(name: str) -> Iterator[bool]:
+    """True while this node holds the job's lock, False when another node is running it
+    (invariant 82, November 10, 2026): a Postgres advisory lock on a connection of its own,
+    held for the whole job and freed when it ends, or by Postgres if the node dies. Every job is
+    written to be run again, so a skipped turn only waits for the next one."""
+    from sqlalchemy import func, select
+
+    key = zlib.crc32(f"stackd-job:{name}".encode())
+    with get_engine().connect() as conn:
+        held = bool(conn.scalar(select(func.pg_try_advisory_lock(key))))
+        conn.commit()
+        try:
+            yield held
+        finally:
+            if held:
+                conn.execute(select(func.pg_advisory_unlock(key)))
+                conn.commit()
+
+
 DISPATCH_EVERY_SECONDS = 60
 DAILY_EVERY_SECONDS = 24 * 60 * 60
 HOURLY_SECONDS = 60 * 60
@@ -210,7 +233,11 @@ def jobs_loop(rounds: int | None = None, sleep=None, clock=None) -> int:
         for job in jobs:
             ok = True
             try:
-                job()
+                with job_lock(job.__name__) as mine:
+                    if mine:
+                        job()
+                    else:
+                        print(f"job {job.__name__} is running on another node", flush=True)
             except Exception as exc:  # noqa: BLE001 - keep the loop alive; the log has the trace
                 ok = False
                 print(f"job {job.__name__} failed", flush=True)

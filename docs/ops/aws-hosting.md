@@ -36,7 +36,40 @@ DNS: Route 53 zone qash.solutions (Z095710719TZRUIM7EES4)   TLS: one ACM certifi
 | Secrets | Container environment set by the deploy workflow from GitHub secrets | 0 |
 | **Total** | | **~27–30** |
 
-Later, not now: the High-availability database plan (~$30), a second container node (~$10).
+When busy (since November 10, 2026): up to two more API nodes, added and removed by the auto-scaler, $0.0134 an hour each (at most +$20 a month). Later, not now: the High-availability database plan (~$30).
+
+## Scaling (owner decision, November 10, 2026)
+
+The API grows and shrinks with load; nothing is paid for until it is needed.
+
+- **Auto-scaler:** `.github/workflows/autoscale.yml`, every 5 minutes in the GitHub environment
+  `autoscale` (protected branches only), as the role `qash-autoscale` over OIDC. It reads
+  `qash-api`'s 5-minute CPU averages from Lightsail and adds a node after 10 minutes above
+  `UP_PCT`, removes one after an hour below `DOWN_PCT`, never below 1 or above 3 nodes (the
+  owner's cap), skips while a deploy or change is in progress, and emails admin@ through
+  `qash-alerts` on every change and, hourly, while busy at the cap. Lightsail changes capacity
+  without downtime and bills each node by the hour ($0.0134 for Micro, capped at $10 a month).
+- **`qash-autoscale`** (created November 10, 2026): trusted only for
+  `repo:qashsolutions@214873019/myfinapp@1436082183:environment:autoscale`; inline policy
+  `autoscale`: `lightsail:GetContainerServices`, `GetContainerServiceMetricData` and
+  `UpdateContainerService` on `qash-api` only (plus `GetContainerServices` on `*`, as
+  `qash-deploy` has), `sns:Publish` on `qash-alerts`; `qash-deny-bedrock` attached.
+- **Jobs on every node:** each node carries the `jobs` container; every job takes a Postgres
+  advisory lock (`cli.job_lock`, invariant 82), so two nodes never run one at once.
+- **Database:** `qash-db` (`micro_2_0`) allows 81 connections. Each API node uses at most 20
+  (two per request let in, `STACKD_MAX_IN_FLIGHT` 10) plus a few for jobs, so 3 nodes fit with
+  room to spare; more than 3 needs a bigger database plan first. Lightsail alarms
+  `qash-db-cpu-high` (CPU above 60% for 15 minutes) and `qash-db-connections-high` (above 65
+  for 10 minutes) email admin@ through the Lightsail contact method (verified by the owner).
+  Moving the database to a bigger plan is a manual step with a short outage: do it in a quiet
+  hour when an alarm says so.
+- **Measured** (November 10, 2026, a temporary Micro node and database, deleted the same hour;
+  everyone in split groups acting every ~30 s, a heavy pattern): Micro, 100 people at once
+  42-46% CPU, 150 at 61-75% with the slowest answers at seconds, about 16 requests a second at
+  most; Small (0.5 vCPU, $15), 200 people at 43-51% CPU. Three Micro nodes are about 300 people
+  comfortably; real people act far less often.
+- **Review:** weekly for the first 4 weeks after launch (peak CPU, the slowest 5% of responses,
+  503 `busy` answers, scaling emails, the bill), then monthly; at once on a cap email or alarm.
 
 ## Steps
 
