@@ -317,6 +317,13 @@ written against both.
     the Founding count reads only Founding rows (`ix_subscriptions_founding`).
     `test_request_gate.py` · `test_request_cost.py`
 
+83. **A screen that is gone takes no late answer** (November 10, 2026; CI failed now and then
+    with "window is not defined" when a split screen's refresh answered after its test ended).
+    A hook that awaits the server and then sets state checks first that it is still on screen
+    (`useSplits` keeps a mounted ref; `useSplitGroup` treats leaving as a newer refresh; effects
+    use an `alive` flag). `apps/web/tests/unit/splits-unmount.test.tsx` holds the answer,
+    unmounts, removes `window` as teardown does, then answers.
+
 ## Accounts and money on the server
 
 12. **Every deletion path locks the person before their plans**, the order every Stripe webhook
