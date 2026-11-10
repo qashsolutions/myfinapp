@@ -69,15 +69,25 @@ export function useSplits(options: { background?: boolean } = {}): {
   const [splits, setSplits] = useState<SplitsOut | null>(null);
   const [error, setError] = useState<ApiFailure | null>(null);
   const background = options.background ?? false;
+  // A screen that is gone takes no late answer (November 10, 2026).
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const refresh = useCallback(async () => {
     const r = await clientFor(background).GET("/api/splits");
     const failure = failureOf(r);
     if (failure || !r.data) {
-      setError(failure);
+      if (mounted.current) setError(failure);
       return null;
     }
-    setSplits(r.data);
-    setError(null);
+    if (mounted.current) {
+      setSplits(r.data);
+      setError(null);
+    }
     return r.data;
   }, [background]);
   useEffect(() => {
@@ -184,6 +194,9 @@ export function useSplitGroup(groupId: string | undefined) {
   }, [db, groupId]);
   useEffect(() => {
     void refresh();
+    return () => {
+      latest.current++; // gone: any refresh still out is out of date
+    };
   }, [refresh]);
   const group = splits?.groups.find((g) => g.id === groupId) ?? null;
   return { splits, group, view, error, refresh };
