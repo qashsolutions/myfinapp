@@ -43,8 +43,10 @@ When busy (since November 10, 2026): up to two more API nodes, added and removed
 The API grows and shrinks with load; nothing is paid for until it is needed.
 
 - **Auto-scaler:** the Lambda `qash-autoscale` (`services/api/scripts/autoscale_lambda.py`,
-  Python 3.12 on arm64, 128 MB, 30 s), run every 5 minutes by the EventBridge Scheduler schedule
-  `qash-autoscale` (`rate(5 minutes)`, no retries). It reads `qash-api`'s 5-minute CPU averages
+  Python 3.12 on arm64, 128 MB, 30 s), run by the EventBridge Scheduler schedule `qash-autoscale`
+  (no retries): every 4 hours on the hour UTC (`cron(0 */4 * * ? *)`) until launch (owner,
+  November 10, 2026), then back to every 5 minutes (`rate(5 minutes)`); the email when busy at the cap goes
+  out from a run in an hour's first 5 minutes, so the schedule stays on the hour. It reads `qash-api`'s 5-minute CPU averages
   from Lightsail and adds a node after 10 minutes above `UP_PCT` (60), removes one after an hour
   below `DOWN_PCT` (25), never below 1 or above 3 nodes (the owner's cap), skips while a deploy
   or change is in progress, and emails admin@ through `qash-alerts` on every change and, hourly,
@@ -77,6 +79,14 @@ The API grows and shrinks with load; nothing is paid for until it is needed.
   42-46% CPU, 150 at 61-75% with the slowest answers at seconds, about 16 requests a second at
   most; Small (0.5 vCPU, $15), 200 people at 43-51% CPU. Three Micro nodes are about 300 people
   comfortably; real people act far less often.
+- **Tested with 5,000 people** (November 10, 2026; a temporary copy, its database and a twin of
+  the scaler pointed only at it, all deleted the same hour, under $0.20; everyone acting every
+  ~30 s for 55 minutes): the scaler went 1 to 2 nodes at 20:27 UTC and 2 to 3 at 20:32, one step
+  per check, then held at the cap with CPU at 99-100%. Three Micro nodes answered about 35
+  requests a second; the rest (79% of 439,063) were told 503 `busy` straight away by the
+  request gate, plus 864 502s from Lightsail (0.2%), and no 500s: nothing stalled or crashed.
+  5,000 people at that pace need far more than 3 Micro nodes, and more than 3 nodes needs a
+  bigger database (81 connections).
 - **Review:** weekly for the first 4 weeks after launch (peak CPU, the slowest 5% of responses,
   503 `busy` answers, scaling emails, the bill), then monthly; at once on a cap email or alarm.
 

@@ -81,7 +81,7 @@ def test_scaling_up_changes_only_qash_api_and_emails() -> None:
     ls, sns = FakeLightsail("RUNNING", 1, [50] * 10 + [72, 81]), FakeSns()
     assert _run(ls, sns)["action"] == "scaled"
     assert ls.updates == [("qash-api", 2)]
-    assert sns.sent == ["Qash API: 1 -> 2 nodes"]
+    assert sns.sent == ["Qash API (qash-api): 1 -> 2 nodes"]
 
 
 def test_a_deploy_in_progress_is_left_alone() -> None:
@@ -95,5 +95,5 @@ def test_at_the_cap_emails_once_an_hour() -> None:
     _run(ls, sns, minute=30)
     assert sns.sent == []
     _run(ls, sns, minute=2)
-    assert sns.sent == ["Qash API: busy at the cap of 3 nodes"]
+    assert sns.sent == ["Qash API (qash-api): busy at the cap of 3 nodes"]
     assert ls.updates == []

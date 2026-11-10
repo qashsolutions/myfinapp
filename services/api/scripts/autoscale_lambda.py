@@ -1,5 +1,6 @@
-"""The API's auto-scaler: an AWS Lambda run every 5 minutes by EventBridge Scheduler (owner
-decision, November 10, 2026; docs/ops/aws-hosting.md, "Scaling").
+"""The API's auto-scaler: an AWS Lambda run by EventBridge Scheduler, every 4 hours on the hour
+until launch, then every 5 minutes (owner decision, November 10, 2026; docs/ops/aws-hosting.md,
+"Scaling").
 
 Lightsail changes a container service's node count without downtime but never on its own. This
 reads qash-api's CPU (5-minute averages) and:
@@ -83,7 +84,7 @@ def run(lightsail, sns, *, service: str, topic: str, limits: Limits, now: dateti
         lightsail.update_container_service(serviceName=service, scale=d.target)
         sns.publish(
             TopicArn=topic,
-            Subject=f"Qash API: {scale} -> {d.target} nodes",
+            Subject=f"Qash API ({service}): {scale} -> {d.target} nodes",
             Message=f"The auto-scaler changed {service} from {scale} to {d.target} node(s) "
             f"({power}): CPU {d.why}. CPU %, 5-minute averages: {cpu}. Cap: {limits.max_nodes}.",
         )
@@ -91,7 +92,7 @@ def run(lightsail, sns, *, service: str, topic: str, limits: Limits, now: dateti
     if d.at_cap and now.minute < 5:  # tell the owner once an hour, not every 5 minutes
         sns.publish(
             TopicArn=topic,
-            Subject=f"Qash API: busy at the cap of {limits.max_nodes} nodes",
+            Subject=f"Qash API ({service}): busy at the cap of {limits.max_nodes} nodes",
             Message=f"{service} has been above {limits.up_pct:g}% CPU for 10 minutes on all "
             f"{limits.max_nodes} nodes ({power}). Raising the cap or the node size is the "
             f"owner's call. {cpu}.",
