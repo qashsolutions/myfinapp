@@ -42,18 +42,27 @@ When busy (since November 10, 2026): up to two more API nodes, added and removed
 
 The API grows and shrinks with load; nothing is paid for until it is needed.
 
-- **Auto-scaler:** `.github/workflows/autoscale.yml`, every 5 minutes in the GitHub environment
-  `autoscale` (protected branches only), as the role `qash-autoscale` over OIDC. It reads
-  `qash-api`'s 5-minute CPU averages from Lightsail and adds a node after 10 minutes above
-  `UP_PCT`, removes one after an hour below `DOWN_PCT`, never below 1 or above 3 nodes (the
-  owner's cap), skips while a deploy or change is in progress, and emails admin@ through
-  `qash-alerts` on every change and, hourly, while busy at the cap. Lightsail changes capacity
-  without downtime and bills each node by the hour ($0.0134 for Micro, capped at $10 a month).
-- **`qash-autoscale`** (created November 10, 2026): trusted only for
-  `repo:qashsolutions@214873019/myfinapp@1436082183:environment:autoscale`; inline policy
-  `autoscale`: `lightsail:GetContainerServices`, `GetContainerServiceMetricData` and
-  `UpdateContainerService` on `qash-api` only (plus `GetContainerServices` on `*`, as
-  `qash-deploy` has), `sns:Publish` on `qash-alerts`; `qash-deny-bedrock` attached.
+- **Auto-scaler:** the Lambda `qash-autoscale` (`services/api/scripts/autoscale_lambda.py`,
+  Python 3.12 on arm64, 128 MB, 30 s), run every 5 minutes by the EventBridge Scheduler schedule
+  `qash-autoscale` (`rate(5 minutes)`, no retries). It reads `qash-api`'s 5-minute CPU averages
+  from Lightsail and adds a node after 10 minutes above `UP_PCT` (60), removes one after an hour
+  below `DOWN_PCT` (25), never below 1 or above 3 nodes (the owner's cap), skips while a deploy
+  or change is in progress, and emails admin@ through `qash-alerts` on every change and, hourly,
+  while busy at the cap. Lightsail changes capacity without downtime and bills each node by the
+  hour ($0.0134 for Micro, capped at $10 a month). The scaler itself is inside the free tiers
+  ($0). It started on GitHub Actions the same day, but GitHub ran this repository's schedules
+  9-10 hours late, so it moved here. To update the code: zip the file and
+  `aws lambda update-function-code --function-name qash-autoscale --zip-file fileb://…`; to run
+  it by hand: `aws lambda invoke --function-name qash-autoscale out.json`. Logs:
+  `/aws/lambda/qash-autoscale`, kept 30 days. Lightsail starts a service's CPU history again at
+  each deploy, so after a deploy it waits 10 minutes to add and an hour to remove.
+- **Roles** (created November 10, 2026; `qash-deny-bedrock` on both): `qash-autoscale-fn`, the
+  function's, trusted by Lambda from this account only: `lightsail:GetContainerServices` and
+  `UpdateContainerService` on `qash-api` only, `GetContainerServices` and
+  `GetContainerServiceMetricData` (read-only; Lightsail allows no narrower resource for it) on
+  `*`, `sns:Publish` on `qash-alerts`, and writing its own log group. `qash-autoscale-scheduler`,
+  trusted by EventBridge Scheduler from this account only: `lambda:InvokeFunction` on
+  `qash-autoscale` only.
 - **Jobs on every node:** each node carries the `jobs` container; every job takes a Postgres
   advisory lock (`cli.job_lock`, invariant 82), so two nodes never run one at once.
 - **Database:** `qash-db` (`micro_2_0`) allows 81 connections. Each API node uses at most 20
