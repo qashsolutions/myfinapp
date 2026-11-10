@@ -21,7 +21,6 @@ from app.models.user import User
 from app.security.authz import Principal
 from app.security.step_up import require_fresh_passkey
 from app.services import sessions as sessions_svc
-from app.services.webauthn import credentials_for
 
 
 @dataclass(frozen=True)
@@ -35,13 +34,10 @@ def _load(request: Request, db: DbSession) -> Caller | None:
     token = request.cookies.get(sessions_svc.COOKIE_NAME)
     if not token:
         return None
-    row = sessions_svc.load_session(db, token)
-    if row is None:
+    found = sessions_svc.load_signed_in(db, token)
+    if found is None:
         return None
-    user = db.get(User, row.user_id)
-    if user is None or user.deleted_at is not None:
-        return None
-    has_passkeys = bool(credentials_for(db, user.id))
+    row, user, has_passkeys = found
     principal = Principal(
         user_id=user.id,
         session_id=row.id,

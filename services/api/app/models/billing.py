@@ -6,7 +6,17 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, Text, UniqueConstraint, Uuid, false
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+    false,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, StackdRow
@@ -27,6 +37,9 @@ class Subscription(Base, StackdRow):
         CheckConstraint(_one_of("plan", PLANS), name="plan"),
         CheckConstraint(_one_of("source", SOURCES), name="source"),
         CheckConstraint(_one_of("status", STATUSES), name="status"),
+        # The Founding count (entitlements.founding_taken) reads only Founding rows, so the Plan
+        # screen's "places left" never scans every subscription (load test, October 31, 2026).
+        Index("ix_subscriptions_founding", "status", postgresql_where=text("plan = 'founding'")),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(

@@ -302,6 +302,17 @@ written against both.
     it (`SafeToSpendLine.safeWindowText`, Home, Insights). `insights.test.tsx` "shows safe to
     spend through the next pay period…" · goldens `insights.safe_to_spend`
     "payday_in_two_days_looks_through_the_next_pay_period", "one_payday_known_ends_the_day_before_it"
+80. **A burst never stalls the API, and a request's database cost doesn't grow with the
+    number of people** (October 31, 2026; found by the load tests of October 31 and November 9, 2026). At
+    most `STACKD_MAX_IN_FLIGHT` requests run inside the app at once (`app/request_gate.py`); the
+    rest wait their turn holding no connection or thread, and one that waits past
+    `queue_wait_seconds` is told 503 `busy`. The pool has two connections for each request let
+    in, so a request inside never waits on it. Before, 200 requests at once had every thread
+    waiting on the pool and every connection on a thread: the API sat idle until 500s. Every
+    signed-in request reads its session, account and passkey in one query
+    (`sessions.load_signed_in`); the alert schedule costs the same queries for 10 items or 300;
+    the Founding count reads only Founding rows (`ix_subscriptions_founding`).
+    `test_request_gate.py` · `test_request_cost.py`
 
 ## Accounts and money on the server
 
@@ -628,6 +639,15 @@ written against both.
    `routers/splits.py` against `plans.yaml` and `rules_server/splits.yaml`, never by a device.
    Tests: `services/api/tests/test_splits.py`, `test_split_pages.py`,
    `tests/authz/test_split_routes.py` (chunks S.2, S.5).
+81. **Opening split groups costs the same however many people are in them** (November 9,
+   2026; found by the split-bills load test: one 10-person group's list was 109–124 queries, a
+   plan lookup for every member, and 5,000 people at once stalled the API). `GET /api/splits`
+   reads members, people and open invites once for all the caller's groups
+   (`splits._groups_out`), and asks the plan rule only about the people
+   `entitlements.may_have_plan` names (a tester plan, any subscription row, a running trial, a
+   household), each once per request (`splits._Plans`); everyone else is free. The rule itself
+   still decides for anyone named, and a new way to hold a plan joins `may_have_plan` in the
+   same change. `services/api/tests/test_split_cost.py`
 
 ## Offline and the way in
 

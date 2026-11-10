@@ -709,6 +709,38 @@ def tester_plan(user: User | None) -> str | None:
     return user.tester_plan if user is not None and user.tester_plan and is_tester(user) else None
 
 
+def may_have_plan(
+    db: DbSession, users: list[User], *, now: datetime | None = None
+) -> set[uuid.UUID]:
+    """Of these people, who could have a plan at all: a tester plan, a subscription row of any
+    kind, a trial still running, or a household (whose plan may cover them). Two queries for
+    any number of people (load test, November 9, 2026; invariant 81).
+
+    Generous on purpose: it never leaves out someone `household_plan` gives a plan, so anyone
+    it leaves out is free, and anyone it names still goes through the rule itself. A new way to
+    hold a plan joins this list in the same change (`test_split_cost.py` checks it)."""
+    now = now or datetime.now(UTC)
+    ids = [u.id for u in users]
+    if not ids:
+        return set()
+    maybe = {
+        u.id
+        for u in users
+        if tester_plan(u) or (u.trial_plan and u.trial_ends_at and u.trial_ends_at > now)
+    }
+    maybe.update(
+        db.scalars(select(Subscription.user_id).where(Subscription.user_id.in_(ids)).distinct())
+    )
+    maybe.update(
+        db.scalars(
+            select(HouseholdMember.user_id).where(
+                HouseholdMember.user_id.in_(ids), HouseholdMember.left_at.is_(None)
+            )
+        )
+    )
+    return maybe
+
+
 def effective_plan(
     db: DbSession, user_id: uuid.UUID, *, tester: bool = True
 ) -> tuple[str, Subscription | None]:
