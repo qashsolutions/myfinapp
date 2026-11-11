@@ -5,7 +5,8 @@ import { newEmail, readyAccount, setName, signUp } from "./helpers.ts";
  * Split bills, round two (chunk S.6, November 10, 2026): the organizer sets the usual split by
  * shares and a friend's bill follows it; the bill's history shows the approval and the change;
  * paying a friend back is added to the payer's spending once; and when the organizer's account
- * is deleted, the friend runs the group with every correction kept.
+ * is deleted, the friend runs the group with every correction kept. S.7: the payment's note in
+ * the group's History.
  */
 
 async function openGroup(page: Page, gid: string) {
@@ -103,9 +104,18 @@ test("split bills round two: usual split by shares, a bill's history, paying bac
   await org.getByRole("button", { name: "Mark paid" }).click();
   const paid = org.getByRole("dialog", { name: "Mark paid" });
   await expect(paid.getByRole("switch", { name: "Add it to my spending" })).toBeChecked();
+  await paid.getByLabel("Note (optional)").fill("Venmo on Sunday");
   await paid.getByRole("button", { name: "Mark paid" }).click();
   await expect(paid).toBeHidden();
   await expect(org.getByRole("region", { name: "Your balance" })).toContainText("Clear");
+
+  // The group's History (S.7): the payment with its note, the change, who added what.
+  await org.getByRole("button", { name: "History" }).click();
+  const log = org.getByRole("dialog", { name: "History" });
+  await expect(log.getByText(/You paid Riley \$30\.00 · Venmo on Sunday/)).toBeVisible();
+  await expect(log.getByText(/You changed Firewood 9X: amount \$30\.00 → \$45\.00/)).toBeVisible();
+  await expect(log.getByText(/Added Firewood 9X, \$30\.00, by Riley/)).toBeVisible();
+  await org.keyboard.press("Escape");
   await org.goto("/money?view=transactions");
   await expect(org.getByText("Paid Riley")).toHaveCount(1);
 

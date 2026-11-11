@@ -1,9 +1,10 @@
 import { Button, Sheet } from "@stackd/ui";
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { useDb } from "../../data/DbProvider.tsx";
 import { shortDate, shortTime } from "../../lib/dates.ts";
 import { formatCents, formatDay } from "../../lib/format.ts";
-import { billHistory, type ShownBill } from "./ledger.ts";
+import { billHistory, NOTE_MAX, type ShownBill } from "./ledger.ts";
 import type { SplitView } from "./splitSync.ts";
 import {
   authorityOf,
@@ -11,6 +12,7 @@ import {
   disputeBill,
   namesOf,
   type SplitGroupOut,
+  saveDisputeNote,
   splitErrorText,
 } from "./useSplits.ts";
 
@@ -34,8 +36,10 @@ export function BillSheet({
   onChanged: () => Promise<void>;
 }) {
   const navigate = useNavigate();
+  const { db } = useDb();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [why, setWhy] = useState("");
   if (!bill) return null;
   const nameOf = namesOf(group);
   const me = group.my_member_id;
@@ -126,14 +130,31 @@ export function BillSheet({
         </Button>
       ) : null}
       {!group.is_organizer && !mineOpen && involved ? (
-        <Button
-          block
-          variant="ghost"
-          disabled={busy}
-          onClick={() => run(() => disputeBill(group.id, bill.base_id))}
-        >
-          This isn't right · Dispute
-        </Button>
+        <>
+          <label className="auth__field">
+            <span className="auth__label">What's wrong? (optional)</span>
+            <input
+              className="auth__input"
+              value={why}
+              maxLength={NOTE_MAX}
+              onChange={(e) => setWhy(e.target.value)}
+            />
+          </label>
+          <Button
+            block
+            variant="ghost"
+            disabled={busy}
+            onClick={() =>
+              run(async () => {
+                const r = await disputeBill(group.id, bill.base_id);
+                if (r.ok && why.trim()) await saveDisputeNote(db, group, bill.base_id, why);
+                return r;
+              })
+            }
+          >
+            This isn't right · Dispute
+          </Button>
+        </>
       ) : null}
     </Sheet>
   );

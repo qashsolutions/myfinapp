@@ -356,6 +356,12 @@ written against both.
     every device showing the same group…" · `splits-screens.test.tsx` "an organizer who left…" ·
     `test_splits.py::test_devices_are_told_whose_corrections_stood…` ·
     `e2e/splits-round2.spec.ts`.
+88. **A split ledger page stays readable to every build** (November 10, 2026; S.7). A page's
+    settlement rows keep their 8 fields; what S.7 added (a payment's note and undo, a dispute's
+    note) travels in fields an older build ignores (`x`, `d`), and a page holding only a note is
+    still written. An undone payment moves nobody, is listed as undone, and its spending entry
+    is deleted with a tombstone. `splits-s7.test.ts` · `splits-screens.test.tsx` "a payment's
+    note shows in History…" · `splits-guests.test.tsx` "disputes a bill…".
 
 ## Accounts and money on the server
 

@@ -6,7 +6,7 @@ import { parseAmount } from "../../engine/bridge.ts";
 import { formatCents } from "../../lib/format.ts";
 import { ChipChoice } from "./ChipChoice.tsx";
 import { useSplitGuest } from "./guest.ts";
-import type { PayApp } from "./ledger.ts";
+import { NOTE_MAX, type PayApp } from "./ledger.ts";
 import { addSettleSpending, settleDefaults } from "./settleSpending.ts";
 import {
   namesOf,
@@ -42,6 +42,7 @@ export function SettleSheet({
   const nameOf = namesOf(group);
   const [amountText, setAmountText] = useState("");
   const [via, setVia] = useState<PayApp>("venmo");
+  const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Paying a friend counts once as my spending (S.6, invariant 76); a guest has no budget.
@@ -58,6 +59,7 @@ export function SettleSheet({
   );
   useEffect(() => {
     setAmountText(payment ? (payment.cents / 100).toFixed(2) : "");
+    setNote("");
     setError(null);
   }, [payment]);
   useEffect(() => {
@@ -88,7 +90,7 @@ export function SettleSheet({
     }
     if (cents <= 0) return setError(splitErrorText("invalid_amount"));
     setBusy(true);
-    const r = await recordPayment(db, group, { ...payment, cents, via });
+    const r = await recordPayment(db, group, { ...payment, cents, via, note });
     if (r.ok && iPay && addSpending)
       await addSettleSpending(db, {
         groupId: group.id,
@@ -119,6 +121,16 @@ export function SettleSheet({
         />
       </label>
       <ChipChoice legend="Paid with" options={PAY_APPS} value={via} onChange={(v) => setVia(v)} />
+      <label className="auth__field">
+        <span className="auth__label">Note (optional)</span>
+        <input
+          className="auth__input"
+          value={note}
+          maxLength={NOTE_MAX}
+          placeholder="For the cabin weekend"
+          onChange={(e) => setNote(e.target.value)}
+        />
+      </label>
       {iPay ? (
         <>
           <Toggle

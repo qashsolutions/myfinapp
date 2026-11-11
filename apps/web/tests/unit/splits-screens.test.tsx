@@ -411,6 +411,46 @@ describe("Split bills: the organizer", () => {
     expect(history).toHaveTextContent("Approved by You");
   });
 
+  it("a payment's note shows in History, and Undo takes it back with its spending entry (S.7)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    api.splits.groups[0]?.bills.push({ id: "b-sam", created_by: "u-sam", status: "approved" });
+    await writeLedger(api, gid, SAM, {
+      ...emptyLedger(),
+      bills: [bill("b-sam", SAM, 9000, [3000, 3000, 3000], "Utilities")],
+    });
+    renderApp(`/splits/${gid}`);
+    const row = (await screen.findByText("You pay Sam $30.00")).closest(
+      ".split-pay",
+    ) as HTMLElement;
+    await user.click(within(row).getByRole("button", { name: "Mark paid" }));
+    const sheet = await screen.findByRole("dialog", { name: "Mark paid" });
+    await user.type(within(sheet).getByLabelText("Note (optional)"), "cash at dinner");
+    await user.click(within(sheet).getByRole("button", { name: "Mark paid" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Mark paid" })).toBeNull());
+    const db = openDb("u1");
+    await waitFor(async () =>
+      expect((await db.entries.toArray()).filter((e) => e.split_settle)).toHaveLength(1),
+    );
+
+    await user.click(screen.getByRole("button", { name: "History" }));
+    const history = await screen.findByRole("dialog", { name: "History" });
+    const line = within(history)
+      .getByText(/You paid Sam \$30\.00 · cash at dinner/)
+      .closest("li") as HTMLElement;
+    expect(within(history).getByText(/Added Utilities, \$90\.00, by Sam/)).toBeInTheDocument();
+    await user.click(within(line).getByRole("button", { name: "Undo" }));
+    expect(await within(history).findByText("Undone. It no longer counts.")).toBeInTheDocument();
+    expect(
+      await within(history).findByText(/You paid Sam \$30\.00 · cash at dinner · undone/),
+    ).toBeInTheDocument();
+    await waitFor(async () =>
+      expect((await db.entries.toArray()).filter((e) => e.split_settle)).toHaveLength(0),
+    );
+    noSecretsLeft(api, ["cash at dinner"]);
+  });
+
   it("removes someone who owes only by forgiving it; someone owed is settled first", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });
@@ -454,9 +494,10 @@ describe("Split bills: the organizer", () => {
     renderApp("/");
     await user.click(await screen.findByRole("button", { name: "Add entry or receipt" }));
     await user.click(await screen.findByRole("button", { name: /A split/ }));
-    expect(
-      await screen.findByRole("heading", { level: 1, name: "Add a bill" }),
-    ).toBeInTheDocument();
+    // The form itself: the screen shows a loading header first, then the form's own, so a
+    // heading found early can be gone by the time it's checked (a flake, November 10, 2026).
+    expect(await screen.findByLabelText("1 · How much?")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Add a bill" })).toBeInTheDocument();
     expect(api.splits.groups[0]?.id).toBe(gid);
   });
 

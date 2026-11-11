@@ -499,7 +499,14 @@ export async function pullGroup(
     return {
       groupId,
       hasKey: false,
-      merged: { group: null, bills: [], settlements: [], claims: [] },
+      merged: {
+        group: null,
+        bills: [],
+        settlements: [],
+        claims: [],
+        undone: [],
+        dispute_notes: [],
+      },
       profiles: new Map(),
       balances: [],
       onHold: [],
@@ -579,7 +586,10 @@ export async function updateMyLedger(
       const old = mine.pages.get(m);
       const empty = !page.bills.length && !page.settlements.length;
       const nothing =
-        empty && !Object.keys(page.edits).length && !Object.keys(page.approved).length;
+        empty &&
+        !Object.keys(page.edits).length &&
+        !Object.keys(page.approved).length &&
+        !Object.keys(page.dispute_notes ?? {}).length; // a page with only a note is written (S.7)
       if (old ? canonical(encodePage(old)) === canonical(encodePage(page)) : nothing) continue;
       writes.push({ kind: `ledger:${m}`, value: encodePage(page) });
     }

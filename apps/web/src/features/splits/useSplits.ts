@@ -18,13 +18,16 @@ import {
 import { todayIso } from "../../lib/format.ts";
 import {
   asBill,
+  canUndo,
   type GroupMeta,
   type LedgerBlob,
+  NOTE_MAX,
   type PayApp,
   type ShownBill,
   type SplitBill,
   takeOverLedger,
 } from "./ledger.ts";
+import { removeSettleSpending } from "./settleSpending.ts";
 import {
   forgetGroupBlobs,
   newGroupKey,
@@ -434,7 +437,14 @@ export async function decideBill(
 export async function recordPayment(
   db: StackdDb,
   group: SplitGroupOut,
-  p: { from: string; to: string; cents: number; via: PayApp; confirms?: string | null },
+  p: {
+    from: string;
+    to: string;
+    cents: number;
+    via: PayApp;
+    confirms?: string | null;
+    note?: string | null;
+  },
 ): Promise<{ ok: true; id: string } | { ok: false; code: string }> {
   if (p.cents <= 0 || p.from === p.to) return { ok: false, code: "invalid_amount" };
   const settlement = {
@@ -446,6 +456,7 @@ export async function recordPayment(
     via: p.via,
     confirms: p.confirms ?? null,
     at: new Date().toISOString(),
+    ...(p.note?.trim() ? { note: p.note.trim().slice(0, NOTE_MAX) } : {}),
   };
   const saved = await updateMyLedger(db, group.id, group.my_member_id, (l: LedgerBlob) => ({
     ...l,
@@ -474,6 +485,47 @@ export async function takeOver(
   });
   const failure = failureOf(r);
   return failure ? fail(codeOf(failure)) : OK;
+}
+
+/**
+ * Undo a payment I recorded (S.7): within UNDO_DAYS it is marked undone in my ledger, so it
+ * moves nobody and History says so, and its "Paid <name>" spending entry goes with it.
+ */
+export async function undoPayment(
+  db: StackdDb,
+  group: SplitGroupOut,
+  settlementId: string,
+): Promise<Result> {
+  let allowed = false;
+  const saved = await updateMyLedger(db, group.id, group.my_member_id, (l) => ({
+    ...l,
+    settlements: l.settlements.map((s) => {
+      if (s.id !== settlementId || !canUndo(s, group.my_member_id, group.my_member_id, new Date()))
+        return s;
+      allowed = true;
+      return { ...s, undone_at: new Date().toISOString() };
+    }),
+  }));
+  if (!saved) return fail("not_saved");
+  if (!allowed) return fail("undo_closed");
+  await removeSettleSpending(db, group.id, settlementId);
+  return OK;
+}
+
+/** My note on a bill I dispute (S.7), kept in my own ledger next to the server's dispute row. */
+export async function saveDisputeNote(
+  db: StackdDb,
+  group: SplitGroupOut,
+  billId: string,
+  note: string,
+): Promise<Result> {
+  const clean = note.trim().slice(0, NOTE_MAX);
+  if (!clean) return OK;
+  const saved = await updateMyLedger(db, group.id, group.my_member_id, (l) => ({
+    ...l,
+    dispute_notes: { ...(l.dispute_notes ?? {}), [billId]: clean },
+  }));
+  return saved ? OK : fail("not_saved");
 }
 
 export async function remind(groupId: string, memberId: string): Promise<Result> {
@@ -589,6 +641,7 @@ export function splitErrorText(code: string): string {
     values_must_match_people: "Fill in everyone who's in.",
     not_saved: "Couldn't save. Try again when you're online.",
     organizer_active: "Someone already runs this group.",
+    undo_closed: "That payment can't be undone any more.",
     too_many_groups: "That's 20 groups at once. Leave one to start or join another.",
     too_many_dates: "That first date is too far back for a repeating bill. Pick a later one.",
     warning_changed: "The warning changed. Close this and open it again.",
