@@ -4,6 +4,7 @@ import { buttonClass, Card, List, ListRow } from "@stackd/ui";
 import { Link } from "react-router";
 import { Word } from "../../app/layout/Word.tsx";
 import { formatCents } from "../../lib/format.ts";
+import { groupTitle } from "./ledger.ts";
 import { myBalance, useSplits, useSplitViews } from "./useSplits.ts";
 
 /** "+$68" / "−$18" / "Settled": what one group means for me. */
@@ -70,7 +71,8 @@ export function SplitsTab() {
             const view = views.get(g.id);
             const cents = myBalance(view, g);
             const name =
-              view?.merged.group?.name ?? (view && !view.hasKey ? "Waiting for the key" : "Group");
+              groupTitle(view?.merged.group) ??
+              (view && !view.hasKey ? "Waiting for the key" : "Group");
             return (
               <ListRow
                 key={g.id}
@@ -87,9 +89,14 @@ export function SplitsTab() {
         </List>
       )}
       {splits.can_create ? (
-        <Link to="/splits/new" className={buttonClass({ block: true, variant: "secondary" })}>
-          + New group
-        </Link>
+        <div className="install-actions">
+          <Link to="/splits/one" className={buttonClass({ block: true })}>
+            Split with one person
+          </Link>
+          <Link to="/splits/new" className={buttonClass({ block: true, variant: "secondary" })}>
+            + New group
+          </Link>
+        </div>
       ) : splits.guest ? (
         <p className="auth__fineprint">
           Want your own groups? <Link to="/me/plan">Try Qash free for 3 days.</Link>

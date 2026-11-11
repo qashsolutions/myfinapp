@@ -4,6 +4,7 @@ import { buttonClass, Card, List, ListRow } from "@stackd/ui";
 import { useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
+import { groupTitle } from "./ledger.ts";
 import { useSplits, useSplitViews } from "./useSplits.ts";
 
 /**
@@ -41,9 +42,14 @@ export function SplitPicker() {
         <Card>
           <p>No group to add it to yet.</p>
           {splits.can_create ? (
-            <Link to="/splits/new" className={buttonClass({ block: true })}>
-              Start a group
-            </Link>
+            <>
+              <Link to={`/splits/one${suffix}`} className={buttonClass({ block: true })}>
+                Split with one person
+              </Link>
+              <Link to="/splits/new" className={buttonClass({ block: true, variant: "secondary" })}>
+                Start a group
+              </Link>
+            </>
           ) : (
             <p className="auth__fineprint">
               Want your own groups? <Link to="/me/plan">Try Qash free for 3 days.</Link>
@@ -56,7 +62,7 @@ export function SplitPicker() {
             <ListRow
               key={g.id}
               href={`/splits/${g.id}/bills/new${suffix}`}
-              label={views.get(g.id)?.merged.group?.name ?? "Group"}
+              label={groupTitle(views.get(g.id)?.merged.group) ?? "Group"}
               sublabel={`${g.members.length} ${g.members.length === 1 ? "person" : "people"}`}
             />
           ))}

@@ -55,6 +55,7 @@ import { SettingsScreen } from "../features/settings/SettingsScreen.tsx";
 import { AddSplitBill } from "../features/splits/AddSplitBill.tsx";
 import { HowFriendsPayMe } from "../features/splits/HowFriendsPayMe.tsx";
 import { JoinSplit } from "../features/splits/JoinSplit.tsx";
+import { NewOneSplit } from "../features/splits/NewOneSplit.tsx";
 import { NewSplitGroup } from "../features/splits/NewSplitGroup.tsx";
 import { PaymentsConfirmed } from "../features/splits/PaymentsConfirmed.tsx";
 import { SplitGroupScreen } from "../features/splits/SplitGroupScreen.tsx";
@@ -101,6 +102,7 @@ export function AppRoutes() {
           <Route path="groups/join" element={<JoinGroup />} />
           <Route path="groups/:id" element={<ChallengeDetail />} />
           <Route path="splits/new" element={<NewSplitGroup />} />
+          <Route path="splits/one" element={<NewOneSplit />} />
           <Route path="splits/add" element={<SplitPicker />} />
           <Route path="splits/:id" element={<SplitGroupScreen />} />
           <Route path="splits/:id/bills/new" element={<AddSplitBill />} />
