@@ -1,7 +1,7 @@
 import "../auth/auth.css";
 import "./settings.css";
 
-import { Button, Card, List, ListRow } from "@stackd/ui";
+import { List, ListRow } from "@stackd/ui";
 import { useNavigate } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { useSession } from "../auth/useSession.tsx";
@@ -48,21 +48,23 @@ export function GuestMe() {
       <p className="auth__fineprint">
         To leave or report a group, open it and tap Leave or report.
       </p>
-      <Card as="section" aria-label="Account">
-        <Button
-          variant="secondary"
-          block
-          onClick={async () => {
-            await session.signOut();
-            navigate("/welcome", { replace: true });
-          }}
-        >
-          Log out
-        </Button>
-        <Button variant="ghost" block onClick={() => navigate("/me/delete")}>
-          <span style={{ color: "var(--c-danger)" }}>Delete account</span>
-        </Button>
-      </Card>
+      <section aria-label="Account">
+        {/* Rows like every other Me row: full width, one border (November 11, 2026). */}
+        <List card>
+          <ListRow
+            label="Log out"
+            onClick={async () => {
+              await session.signOut();
+              navigate("/welcome", { replace: true });
+            }}
+          />
+          <ListRow
+            label={<span style={{ color: "var(--c-danger)" }}>Delete account</span>}
+            onClick={() => navigate("/me/delete")}
+            chevron
+          />
+        </List>
+      </section>
       <p className="auth__fineprint">
         <a href={tryPath} onClick={go(tryPath)}>
           Budgets, goals and your own groups · Try 3 days free
