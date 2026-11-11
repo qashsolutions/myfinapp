@@ -488,6 +488,26 @@ describe("Split bills: the organizer", () => {
     });
   });
 
+  it("Split with one person: a group of two behind the scenes, an invite, then Add a bill (S.9)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    renderApp("/goals?tab=splits");
+    await user.click(await screen.findByRole("link", { name: "Split with one person" }));
+    await user.type(await screen.findByLabelText("Their name"), "Sam");
+    await user.type(screen.getByLabelText("Their email"), "sam@example.com");
+    await user.type(screen.getByLabelText("Your name, as they'll see it"), "Maya");
+    await user.click(screen.getByRole("button", { name: "Invite and add a bill" }));
+    expect(await screen.findByLabelText("1 · How much?")).toBeInTheDocument();
+    const g = api.splits.groups[0];
+    expect(g?.invites.map((i) => i.email)).toEqual(["sam@example.com"]);
+    const mine = await readLedger(api, g?.id ?? "", ME);
+    expect(mine.group).toMatchObject({ name: "Sam", kind: "one" });
+    cleanup();
+    renderApp("/goals?tab=splits");
+    expect(await screen.findByText("You and Sam")).toBeInTheDocument();
+    noSecretsLeft(api, ["You and Sam"]);
+  });
+
   it("removes someone who owes only by forgiving it; someone owed is settled first", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });

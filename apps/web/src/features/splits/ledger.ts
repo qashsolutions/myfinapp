@@ -210,6 +210,12 @@ export interface ShownBill extends SplitBill {
   before_edit: SplitBill | null;
 }
 
+/** A group's name on screen: a split with one person reads "You and Sam" (S.9). */
+export function groupTitle(meta: GroupMeta | null | undefined): string | null {
+  if (!meta) return null;
+  return meta.kind === "one" ? `You and ${meta.name}` : meta.name;
+}
+
 /** A shown bill back to the stored shape, without what merge adds for the screen. */
 export function asBill(shown: ShownBill): SplitBill {
   return {

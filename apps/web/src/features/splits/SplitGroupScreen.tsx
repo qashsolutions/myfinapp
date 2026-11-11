@@ -14,7 +14,7 @@ import { GroupHistorySheet } from "./GroupHistorySheet.tsx";
 import { GroupSettingsSheet } from "./GroupSettingsSheet.tsx";
 import { InviteSheet } from "./InviteSheet.tsx";
 import { LeaveSheet } from "./LeaveSheet.tsx";
-import type { ShownBill } from "./ledger.ts";
+import { groupTitle, type ShownBill } from "./ledger.ts";
 import { RemoveSheet } from "./RemoveSheet.tsx";
 import { type Payment, SettleSheet } from "./SettleSheet.tsx";
 import { balanceText } from "./SplitsTab.tsx";
@@ -91,7 +91,7 @@ export function SplitGroupScreen() {
   const nameOf = namesOf(group);
   const me = group.my_member_id;
   const organizerName = group.members.find((m) => m.is_organizer)?.display_name ?? "the organizer";
-  const title = view.merged.group?.name ?? "Group";
+  const title = groupTitle(view.merged.group) ?? "Group";
   const mine = view.balances.find((b) => b.person === me)?.cents ?? 0;
   const word = mine > 0 ? "Owed" : mine < 0 ? "Owe" : "Clear";
   const atLimit =
