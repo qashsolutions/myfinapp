@@ -528,6 +528,22 @@ export async function saveDisputeNote(
   return saved ? OK : fail("not_saved");
 }
 
+/**
+ * S.10: tell another member in fixed words that I say I paid them ("paid") or that their
+ * payment counts now ("confirmed"). Best effort: a payment is recorded whether or not the
+ * push goes.
+ */
+export async function notifyMember(
+  groupId: string,
+  kind: "paid" | "confirmed",
+  memberId: string,
+): Promise<void> {
+  await api.POST("/api/splits/{group_id}/notify", {
+    params: { path: { group_id: groupId } },
+    body: { kind, member_id: memberId },
+  });
+}
+
 export async function remind(groupId: string, memberId: string): Promise<Result> {
   const r = await api.POST("/api/splits/{group_id}/remind", {
     params: { path: { group_id: groupId } },

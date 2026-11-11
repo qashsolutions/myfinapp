@@ -64,6 +64,8 @@ export interface FakeSplits {
   double_check: boolean;
   blocked: boolean;
   reminded: string[];
+  /** S.10: what each device asked the server to tell another member. */
+  notified: Array<{ kind: string; member_id: string }>;
   seq: number;
   /** The next N ledger or profile writes fail with a 500 (a server or network hiccup). */
   failBlobWrites: number;
@@ -83,6 +85,7 @@ export function emptySplits(): FakeSplits {
     double_check: false,
     blocked: false,
     reminded: [],
+    notified: [],
     seq: 0,
     failBlobWrites: 0,
     stateReads: [],
@@ -337,6 +340,10 @@ export function handleSplits(
   if (method === "DELETE" && removal) {
     if (!organizer) return json({ detail: "organizer_only" }, 403);
     g.members = g.members.filter((x) => x.member_id !== removal[1]);
+    return empty();
+  }
+  if (method === "POST" && rest === "notify") {
+    s.notified.push({ kind: String(b.kind), member_id: String(b.member_id) });
     return empty();
   }
   if (method === "POST" && rest === "remind") {

@@ -45,6 +45,8 @@ def test_non_member_gets_404_everywhere() -> None:
     assert bob.post(f"/api/splits/{gid}/leave", json={"report": "pushy"}).status_code == 404
     assert bob.delete(f"/api/splits/{gid}/members/{member}").status_code == 404
     assert bob.post(f"/api/splits/{gid}/takeover").status_code == 404
+    notify = {"kind": "paid", "member_id": member}
+    assert bob.post(f"/api/splits/{gid}/notify", json=notify).status_code == 404
     key = {"device_key_id": "dev-bob-01", "public_key": b64(b"pub")}
     assert bob.put(f"/api/splits/{gid}/keys/request", json=key).status_code == 404
     wrapped = {"wrapped_key": b64(b"w")}

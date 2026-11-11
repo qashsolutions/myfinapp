@@ -3069,6 +3069,29 @@
         "title": "NativeTokenIn",
         "type": "object"
       },
+      "NotifyIn": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "paid",
+              "confirmed"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "member_id": {
+            "format": "uuid",
+            "title": "Member Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "member_id"
+        ],
+        "title": "NotifyIn",
+        "type": "object"
+      },
       "OptionsOut": {
         "properties": {
           "options": {
@@ -9136,6 +9159,53 @@
           }
         },
         "summary": "Remove Member",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/notify": {
+      "post": {
+        "description": "S.10 (November 10, 2026): payments live in the encrypted ledgers, so a member's device\nasks the server to tell another member: \"Someone says they paid you\" or \"Your payment was\nconfirmed\". Fixed words; the server learns only that one of the two happened. At most\n`notify.per_day` a day per sender, receiver and group.",
+        "operationId": "notify_api_splits__group_id__notify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotifyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Notify",
         "tags": [
           "splits"
         ]

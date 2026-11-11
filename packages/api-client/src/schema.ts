@@ -2011,6 +2011,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/splits/{group_id}/notify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Notify
+         * @description S.10 (November 10, 2026): payments live in the encrypted ledgers, so a member's device
+         *     asks the server to tell another member: "Someone says they paid you" or "Your payment was
+         *     confirmed". Fixed words; the server learns only that one of the two happened. At most
+         *     `notify.per_day` a day per sender, receiver and group.
+         */
+        post: operations["notify_api_splits__group_id__notify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/splits/{group_id}/remind": {
         parameters: {
             query?: never;
@@ -3380,6 +3403,19 @@ export interface components {
             platform: "ios" | "android";
             /** Token */
             token: string;
+        };
+        /** NotifyIn */
+        NotifyIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "paid" | "confirmed";
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
         };
         /** OptionsOut */
         OptionsOut: {
@@ -7288,6 +7324,39 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    notify_api_splits__group_id__notify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotifyIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {

@@ -45,7 +45,7 @@ from sqlalchemy.orm import Session as DbSession
 from app.config import get_settings
 from app.db import get_db
 from app.models.billing import Subscription
-from app.models.notification import NotificationSettings
+from app.models.notification import AlertSchedule, NotificationSettings
 from app.models.split import (
     BLOB_KINDS,
     LEDGER_PAGE,
@@ -446,6 +446,11 @@ class LeaveIn(BaseModel):
 
 
 class RemindIn(BaseModel):
+    member_id: uuid.UUID
+
+
+class NotifyIn(BaseModel):
+    kind: Literal["paid", "confirmed"]
     member_id: uuid.UUID
 
 
@@ -976,7 +981,10 @@ def decline_bill(
     _organizer_only(group, caller)
     bill = _pending_bill(db, group, bill_id)
     bill.status = "declined"
-    record_mistake(db, bill.created_by, "bill_declined", _now())
+    now = _now()
+    record_mistake(db, bill.created_by, "bill_declined", now)
+    # S.10: whoever added it hears, in fixed words.
+    alerts.split_activity(db, [bill.created_by], f"split:declined:{group.id}:{bill.id}", now)
     db.commit()
 
 
@@ -1359,7 +1367,10 @@ def remove_member(
     if target.user_id == caller.user.id:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="organizer_cannot_remove_self")
     target.removed = True
-    _leave(db, group, target, _now())
+    now = _now()
+    _leave(db, group, target, now)
+    if target.user_id is not None:  # S.10: they hear it from Qash, not by finding the group gone
+        alerts.split_activity(db, [target.user_id], f"split:removed:{group.id}:{target.id}", now)
     db.commit()
 
 
@@ -1424,6 +1435,43 @@ def remind(
     now = _now()
     day = _local_day(db, target.user_id, now).isoformat()
     alerts.split_activity(db, [target.user_id], f"split:remind:{group.id}:{target.id}:{day}", now)
+    db.commit()
+
+
+@router.post("/{group_id}/notify", status_code=status.HTTP_204_NO_CONTENT)
+def notify(
+    group_id: uuid.UUID,
+    body: NotifyIn,
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    db: Annotated[DbSession, Depends(get_db)],
+) -> None:
+    """S.10 (November 10, 2026): payments live in the encrypted ledgers, so a member's device
+    asks the server to tell another member: "Someone says they paid you" or "Your payment was
+    confirmed". Fixed words; the server learns only that one of the two happened. At most
+    `notify.per_day` a day per sender, receiver and group."""
+    group = _group(db, group_id)
+    mine = _membership(db, group, caller.user.id)
+    target = db.get(SplitMember, body.member_id)
+    if (
+        target is None
+        or target.group_id != group.id
+        or target.left_at is not None
+        or target.user_id is None
+    ):
+        raise not_found()
+    if target.user_id == caller.user.id:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="not_yourself")
+    now = _now()
+    day = _local_day(db, target.user_id, now).isoformat()
+    prefix = f"split:{body.kind}:{group.id}:{mine.id}:{target.id}:{day}:"
+    sent = db.scalar(
+        select(func.count())
+        .select_from(AlertSchedule)
+        .where(AlertSchedule.user_id == target.user_id, AlertSchedule.dedupe_key.like(f"{prefix}%"))
+    )
+    if int(sent or 0) >= int(config()["notify"]["per_day"]):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="notify_limit")
+    alerts.split_activity(db, [target.user_id], f"{prefix}{int(sent or 0) + 1}", now)
     db.commit()
 
 

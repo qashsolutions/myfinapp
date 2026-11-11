@@ -213,6 +213,10 @@ describe("Split bills: the organizer", () => {
     await user.type(amount, "50");
     await user.click(within(sheet).getByRole("button", { name: "Mark paid" }));
     expect(await screen.findByText("Sam pays you $12.00")).toBeInTheDocument();
+    // S.10: Sam hears his payment counts, in fixed words.
+    await waitFor(() =>
+      expect(api.splits.notified).toEqual([{ kind: "confirmed", member_id: SAM }]),
+    );
     noSecretsLeft(api, ["5000", "Groceries"]);
   });
 
@@ -506,6 +510,35 @@ describe("Split bills: the organizer", () => {
     renderApp("/goals?tab=splits");
     expect(await screen.findByText("You and Sam")).toBeInTheDocument();
     noSecretsLeft(api, ["You and Sam"]);
+  });
+
+  it("confirming a payment someone says they made tells them, in fixed words (S.10)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    await seedGroceries(api, gid);
+    await writeLedger(api, gid, SAM, {
+      ...emptyLedger(),
+      settlements: [
+        {
+          id: "s-sam",
+          from: SAM,
+          to: ME,
+          cents: 6200,
+          date: "2026-11-08",
+          via: "venmo",
+          confirms: null,
+          at: "2026-11-08T10:00:00Z",
+        },
+      ],
+    });
+    renderApp(`/splits/${gid}`);
+    const asked = await screen.findByRole("region", { name: /Did they pay you/ });
+    await user.click(within(asked).getByRole("button", { name: "Confirm" }));
+    expect(await screen.findByText("Confirmed. It's settled for everyone.")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(api.splits.notified).toEqual([{ kind: "confirmed", member_id: SAM }]),
+    );
   });
 
   it("removes someone who owes only by forgiving it; someone owed is settled first", async () => {

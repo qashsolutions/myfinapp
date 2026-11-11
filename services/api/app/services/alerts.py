@@ -47,6 +47,13 @@ RECOVERY_PARTNER_LABEL: str = _MOMENTS["push_recovery_partner"]
 SPLIT_REMINDER_LABEL: str = _MOMENTS["push_split_reminder"]
 SPLIT_JOINED_LABEL: str = _MOMENTS["push_split_joined"]
 SPLIT_PENDING_LABEL: str = _MOMENTS["push_split_pending"]
+# S.10 (November 10, 2026): by key prefix, fixed words like the rest.
+SPLIT_PREFIX_LABELS: dict[str, str] = {
+    "split:paid:": _MOMENTS["push_split_paid"],
+    "split:confirmed:": _MOMENTS["push_split_confirmed"],
+    "split:declined:": _MOMENTS["push_split_declined"],
+    "split:removed:": _MOMENTS["push_split_removed"],
+}
 TITLE = "Qash"
 # Where a tap on the push lands (the service worker opens it); never a deep link with data.
 URLS: dict[str, str] = {
@@ -95,6 +102,9 @@ def label_for(kind: str, dedupe_key: str) -> str:
             return SPLIT_JOINED_LABEL
         if dedupe_key.startswith("split:pending:"):
             return SPLIT_PENDING_LABEL
+        for prefix, label in SPLIT_PREFIX_LABELS.items():
+            if dedupe_key.startswith(prefix):
+                return label
     return LABELS[kind]
 
 

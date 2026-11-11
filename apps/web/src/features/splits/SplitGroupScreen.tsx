@@ -23,6 +23,7 @@ import {
   cancelInvite,
   decideBill,
   namesOf,
+  notifyMember,
   recordPayment,
   remind,
   type SplitMemberOut,
@@ -270,17 +271,17 @@ export function SplitGroupScreen() {
                   size="sm"
                   variant="secondary"
                   onClick={() =>
-                    act(
-                      () =>
-                        recordPayment(db, group, {
-                          from: c.from,
-                          to: c.to,
-                          cents: c.cents,
-                          via: c.via,
-                          confirms: c.id,
-                        }),
-                      "Confirmed. It's settled for everyone.",
-                    )
+                    act(async () => {
+                      const r = await recordPayment(db, group, {
+                        from: c.from,
+                        to: c.to,
+                        cents: c.cents,
+                        via: c.via,
+                        confirms: c.id,
+                      });
+                      if (r.ok) void notifyMember(group.id, "confirmed", c.from); // S.10
+                      return r;
+                    }, "Confirmed. It's settled for everyone.")
                   }
                 >
                   Confirm
