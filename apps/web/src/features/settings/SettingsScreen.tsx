@@ -1,7 +1,7 @@
 import "../auth/auth.css";
 import "./settings.css";
 
-import { Button, Card, List, ListRow } from "@stackd/ui";
+import { List, ListRow } from "@stackd/ui";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
@@ -98,21 +98,23 @@ function FullSettings() {
           />
         </List>
         <GroupRows skip="account" />
-        <Card as="section" aria-label="Account" id="set-account">
-          <Button
-            variant="secondary"
-            block
-            onClick={async () => {
-              await session.signOut();
-              navigate("/welcome", { replace: true });
-            }}
-          >
-            Log out
-          </Button>
-          <Button variant="ghost" block onClick={() => navigate("/me/delete")}>
-            <span style={{ color: "var(--c-danger)" }}>Delete account</span>
-          </Button>
-        </Card>
+        <section aria-label="Account" id="set-account">
+          {/* Rows like every other Me row: full width, one border (November 11, 2026). */}
+          <List card>
+            <ListRow
+              label="Log out"
+              onClick={async () => {
+                await session.signOut();
+                navigate("/welcome", { replace: true });
+              }}
+            />
+            <ListRow
+              label={<span style={{ color: "var(--c-danger)" }}>Delete account</span>}
+              onClick={() => navigate("/me/delete")}
+              chevron
+            />
+          </List>
+        </section>
         <AppVersion />
       </SettingsSearch>
       <InstallGuide open={installOpen} onClose={() => setInstallOpen(false)} />
