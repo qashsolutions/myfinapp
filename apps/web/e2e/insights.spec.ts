@@ -66,6 +66,7 @@ test("@phone insights: rename all like it, a tag and a note, biggest & most ofte
   await page.getByLabel("Merchant").fill("Subway pass");
   await expect(page.getByRole("switch", { name: "Rename all 2 like this" })).toBeChecked();
   await page.getByRole("button", { name: /^Save/ }).click();
+  await expect(page).toHaveURL(/\/money\?view=transactions/);
   await expect(page.getByText("Subway pass")).toHaveCount(2);
   await importCsv(page, csv([`${today},METRO TRANSIT 4471,-2.90`]), 1, false);
   await expect(page.getByText("Subway pass")).toHaveCount(3);
@@ -80,6 +81,9 @@ test("@phone insights: rename all like it, a tag and a note, biggest & most ofte
   await tag.press("Enter");
   await page.getByLabel("Note").fill("Bread and cheese for Saturday");
   await page.getByRole("button", { name: /^Save/ }).click();
+  // Saved once it's back on the list: the tag chip in the editor matches too, and a reload
+  // before the save lands would cut it off.
+  await expect(page).toHaveURL(/\/money\?view=transactions/);
   await expect(page.getByText(/#Picnic/).first()).toBeVisible();
   await expect(page.getByText(/Bread and cheese for Saturday/).first()).toBeVisible();
   await page.goto("/tags");
