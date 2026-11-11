@@ -1,5 +1,5 @@
 import { Button, buttonClass, Sheet } from "@stackd/ui";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { api, failureOf } from "../../data/api.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { newId } from "../../data/db.ts";
@@ -52,6 +52,8 @@ export function CheckFirstSheet({
   const [app, setApp] = useState<HandleApp | null>(apps[0] ?? null);
   const [knows, setKnows] = useState(false);
   const [owes, setOwes] = useState(false);
+  const knowsBox = useRef<HTMLInputElement>(null);
+  const owesBox = useRef<HTMLInputElement>(null);
   const [checked, setChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -64,6 +66,12 @@ export function CheckFirstSheet({
 
   async function confirm() {
     if (!payment || !app) return;
+    // Never a dead button (November 11, 2026): both ticks are the point, so say so.
+    if (!knows || !owes) {
+      setError("Tick both boxes first.");
+      (knows ? owesBox : knowsBox).current?.focus();
+      return;
+    }
     setBusy(true);
     const r = await api.POST("/api/splits/pay-consent", { body: { version: PAY_WARNING_VERSION } });
     const failure = failureOf(r);
@@ -136,19 +144,35 @@ export function CheckFirstSheet({
             </p>
           ) : null}
           <label className="split-person">
-            <input type="checkbox" checked={knows} onChange={(e) => setKnows(e.target.checked)} /> I
-            know {toName} in real life.
+            <input
+              ref={knowsBox}
+              type="checkbox"
+              checked={knows}
+              onChange={(e) => {
+                setKnows(e.target.checked);
+                setError(null);
+              }}
+            />{" "}
+            I know {toName} in real life.
           </label>
           <label className="split-person">
-            <input type="checkbox" checked={owes} onChange={(e) => setOwes(e.target.checked)} /> I
-            checked the bills and I owe this amount.
+            <input
+              ref={owesBox}
+              type="checkbox"
+              checked={owes}
+              onChange={(e) => {
+                setOwes(e.target.checked);
+                setError(null);
+              }}
+            />{" "}
+            I checked the bills and I owe this amount.
           </label>
           {error ? (
             <p className="auth__error" role="alert">
               {error}
             </p>
           ) : null}
-          <Button block onClick={confirm} disabled={!knows || !owes || busy}>
+          <Button block onClick={confirm} disabled={busy}>
             Continue
           </Button>
           <Button block variant="ghost" onClick={onReport}>

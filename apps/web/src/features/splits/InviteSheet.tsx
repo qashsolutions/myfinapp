@@ -1,5 +1,5 @@
 import { Button, Sheet } from "@stackd/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toBase64url } from "../../data/backup/crypto.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type QrPath, qrPath } from "../auth/linkQr.ts";
@@ -33,6 +33,8 @@ export function InviteSheet({
   const [qr, setQr] = useState<QrPath | null>(null);
   const [showQr, setShowQr] = useState(false);
   const [busy, setBusy] = useState(false);
+  const emailBox = useRef<HTMLInputElement>(null);
+  const againBox = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) {
@@ -65,6 +67,17 @@ export function InviteSheet({
   const full = group.members.length + group.invites.length >= group.people_max;
 
   async function send() {
+    // Never a dead button (November 11, 2026): say what's missing and go there.
+    if (!clean.includes("@")) {
+      setError("Enter their email.");
+      emailBox.current?.focus();
+      return;
+    }
+    if (!matches) {
+      setError("The two emails don't match.");
+      againBox.current?.focus();
+      return;
+    }
     setBusy(true);
     const r = await sendInvite(group.id, clean, doubleCheck ? again.trim() : null);
     setBusy(false);
@@ -126,8 +139,12 @@ export function InviteSheet({
               className="auth__input"
               type="email"
               autoComplete="off"
+              ref={emailBox}
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError(null);
+              }}
             />
           </label>
           {doubleCheck ? (
@@ -137,8 +154,12 @@ export function InviteSheet({
                 className="auth__input"
                 type="email"
                 autoComplete="off"
+                ref={againBox}
                 value={again}
-                onChange={(e) => setAgain(e.target.value)}
+                onChange={(e) => {
+                  setAgain(e.target.value);
+                  setError(null);
+                }}
               />
             </label>
           ) : null}
@@ -156,7 +177,7 @@ export function InviteSheet({
               {error}
             </p>
           ) : null}
-          <Button block onClick={send} disabled={busy || full || !clean.includes("@") || !matches}>
+          <Button block onClick={send} disabled={busy || full}>
             Send invite
           </Button>
         </>

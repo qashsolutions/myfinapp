@@ -395,6 +395,38 @@ describe("Split bills: the organizer", () => {
     noSecretsLeft(api, ["Apartment 5C"]);
   });
 
+  it("Add bill is never a dead button: tapping it says what's missing and goes there", async () => {
+    // Owner, November 11, 2026: every field filled, Percent chosen, and Add bill stayed grey with
+    // only a small hint saying why.
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    renderApp(`/splits/${gid}/bills/new`);
+    const add = await screen.findByRole("button", { name: "Add bill" });
+    expect(add).toBeEnabled();
+    await user.click(add);
+    expect(screen.getByRole("alert")).toHaveTextContent("Enter how much.");
+    expect(screen.getByLabelText("1 · How much?")).toHaveFocus();
+
+    await user.type(screen.getByLabelText("1 · How much?"), "90");
+    await user.click(screen.getByRole("radio", { name: "Percent" }));
+    await user.click(add);
+    expect(screen.getByRole("alert")).toHaveTextContent("Fill in everyone who's in.");
+    expect(screen.getByLabelText("You, %")).toHaveFocus();
+
+    await user.type(screen.getByLabelText("You, %"), "50");
+    await user.type(screen.getByLabelText("Sam, %"), "25");
+    await user.type(screen.getByLabelText("Alex, %"), "25");
+    await user.click(add);
+    expect(screen.getByRole("alert")).toHaveTextContent("Say what it's for.");
+    expect(screen.getByLabelText("What's it for?")).toHaveFocus();
+
+    await user.type(screen.getByLabelText("What's it for?"), "Rent");
+    await user.click(add);
+    await screen.findByRole("heading", { level: 1, name: "Apartment 4B" });
+    expect(api.splits.groups[0]?.bills ?? []).not.toHaveLength(0);
+  });
+
   it("what a group is for: suggestions or the person's own words, kept encrypted (November 11, 2026)", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });
@@ -806,18 +838,42 @@ describe("Split bills: the organizer", () => {
     const sheet = await screen.findByRole("dialog", { name: "Invite by email" });
     await user.type(within(sheet).getByLabelText("Their email"), "jo@example.com");
     await user.type(within(sheet).getByLabelText("Their email again"), "jo@example.co");
-    expect(within(sheet).getByRole("button", { name: "Send invite" })).toBeDisabled();
+    await user.click(within(sheet).getByRole("button", { name: "Send invite" }));
+    expect(within(sheet).getByRole("alert")).toHaveTextContent("The two emails don't match.");
+    expect(within(sheet).getByLabelText("Their email again")).toHaveFocus();
+    expect(api.splits.groups[0]?.invites ?? []).toHaveLength(0);
     await user.type(within(sheet).getByLabelText("Their email again"), "m");
-    expect(within(sheet).getByRole("button", { name: "Send invite" })).toBeEnabled();
+    expect(within(sheet).queryByRole("alert")).toBeNull();
     await user.keyboard("{Escape}");
 
     await user.click(screen.getByRole("link", { name: "Add a bill" }));
     await user.type(await screen.findByLabelText("1 · How much?"), "30");
     await user.type(screen.getByLabelText("What's it for?"), "Pizza");
     await screen.findByText("Only $10.00 counts as yours.");
-    expect(screen.getByRole("button", { name: "Add bill" })).toBeDisabled();
-    await user.click(screen.getByRole("checkbox", { name: "Amount and people right?" }));
-    expect(screen.getByRole("button", { name: "Add bill" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Add bill" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Tick “Amount and people right?” first.");
+    const tick = screen.getByRole("checkbox", { name: "Amount and people right?" });
+    expect(tick).toHaveFocus();
+    await user.click(tick);
+    expect(screen.queryByRole("alert")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Add bill" }));
+    await screen.findByRole("heading", { level: 1, name: "Apartment 4B" });
+  });
+
+  it("with double-check on, the organizer's edit saves: the tick is only asked when adding", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    await seedGroceries(api, gid);
+    api.splits.double_check = true;
+    renderApp(`/splits/${gid}/bills/b-groc`);
+    const what = await screen.findByLabelText("What's it for?");
+    expect(screen.queryByRole("checkbox", { name: "Amount and people right?" })).toBeNull();
+    await user.clear(what);
+    await user.type(what, "Groceries and soap");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await screen.findByRole("heading", { level: 1, name: "Apartment 4B" });
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it.each([

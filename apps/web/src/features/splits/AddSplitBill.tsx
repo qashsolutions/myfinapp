@@ -4,7 +4,7 @@ import "../groups/groups.css";
 
 import { Button, Card } from "@stackd/ui";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
@@ -261,10 +261,57 @@ function BillForm({
 
   const mine = parts?.find((p) => p.person === group.my_member_id)?.cents ?? 0;
   const atLimit = runsIt && !editing && today.limit > 0 && today.added >= today.limit;
-  const ready = draft !== null && what.trim() !== "" && (!doubleCheck || checked) && !busy;
+  // The tick is asked only when adding (an edit shows no box), so an edit never waits on it.
+  const ready =
+    draft !== null && what.trim() !== "" && (!doubleCheck || editing !== null || checked) && !busy;
+  const ids = useId();
+  const amountBox = useRef<HTMLInputElement>(null);
+  const whatBox = useRef<HTMLInputElement>(null);
+  const checkBox = useRef<HTMLInputElement>(null);
+  // A message about what's missing goes once the person changes something.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: each field is the trigger
+  useEffect(() => setError(null), [amountText, method, people, typed, what, checked, byItem]);
+
+  /**
+   * Add bill is never a dead button (owner, November 11, 2026): tapping it with something
+   * missing says what, in form order, and moves there.
+   */
+  function sayWhatsMissing() {
+    let text: string;
+    let focus: HTMLElement | null = null;
+    if (!draft) {
+      if (byItem) {
+        text = problem ? splitErrorText(problem) : "Add what each item cost.";
+      } else if (amountText.trim() === "") {
+        text = "Enter how much.";
+        focus = amountBox.current;
+      } else if (problem === "invalid_amount") {
+        text = splitErrorText(problem);
+        focus = amountBox.current;
+      } else {
+        text = problem ? splitErrorText(problem) : "Tick who's in.";
+        const empty = people.find((p) => (typed[p] ?? "").trim() === "") ?? people[0];
+        focus = document.getElementById(
+          method !== "equal" && empty ? `${ids}-value-${empty}` : `${ids}-person-${everyone[0]}`,
+        );
+      }
+    } else if (what.trim() === "") {
+      text = "Say what it's for.";
+      focus = whatBox.current;
+    } else {
+      text = "Tick \u201cAmount and people right?\u201d first.";
+      focus = checkBox.current;
+    }
+    setError(text);
+    focus?.focus();
+  }
 
   async function save() {
-    if (!draft) return;
+    if (busy) return;
+    if (!ready || !draft) {
+      sayWhatsMissing();
+      return;
+    }
     setBusy(true);
     const r = editing
       ? await editBill(db, group, editing, draft)
@@ -317,6 +364,7 @@ function BillForm({
         <label className="auth__field">
           <span className="auth__label">1 · How much?</span>
           <input
+            ref={amountBox}
             className="auth__input"
             inputMode="decimal"
             placeholder="186.00"
@@ -362,6 +410,7 @@ function BillForm({
           <div className="split-person" key={p}>
             <label className="split-person__name">
               <input
+                id={`${ids}-person-${p}`}
                 type="checkbox"
                 checked={people.includes(p)}
                 disabled={!runsIt}
@@ -377,6 +426,7 @@ function BillForm({
             </label>
             {method !== "equal" && people.includes(p) ? (
               <input
+                id={`${ids}-value-${p}`}
                 className="auth__input"
                 inputMode={method === "shares" ? "numeric" : "decimal"}
                 aria-label={`${nameOf(p)}, ${unit}`}
@@ -404,6 +454,7 @@ function BillForm({
       <label className="auth__field">
         <span className="auth__label">What's it for?</span>
         <input
+          ref={whatBox}
           className="auth__input"
           value={what}
           maxLength={MAX_WHAT}
@@ -459,6 +510,7 @@ function BillForm({
         <label className="auth__field">
           <span>
             <input
+              ref={checkBox}
               type="checkbox"
               checked={checked}
               onChange={(e) => setChecked(e.target.checked)}
@@ -472,7 +524,7 @@ function BillForm({
           {error}
         </p>
       ) : null}
-      <Button block onClick={save} disabled={!ready || (doubleCheck && !editing && !checked)}>
+      <Button block onClick={save} disabled={busy}>
         {editing ? "Save changes" : runsIt ? "Add bill" : `Send to ${organizerName}`}
       </Button>
       {editing && runsIt ? (
