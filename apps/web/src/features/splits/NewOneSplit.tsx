@@ -68,7 +68,7 @@ export function NewOneSplit() {
 
   return (
     <>
-      <ScreenHeader title="Split with one person" actions={null} back="/goals?tab=splits" />
+      <ScreenHeader title="Split with one person" actions={null} back="/splits" />
       <label className="auth__field">
         <span className="auth__label">Their name</span>
         <input

@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useSplitGuest } from "../../features/splits/guest.ts";
 import { AddChooser } from "./AddChooser.tsx";
+import { MeButton } from "./MeButton.tsx";
 
 const APP_NAME = "Qash";
 
@@ -68,6 +69,7 @@ export function ScreenHeader({ title, eyebrow, back, actions }: ScreenHeaderProp
       </div>
       <div className="screen-header__actions">
         {actions === undefined ? <AddButton /> : actions}
+        <MeButton />
       </div>
     </header>
   );

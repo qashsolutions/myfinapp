@@ -172,6 +172,21 @@ export async function readyAccount(
   return email;
 }
 
+/**
+ * Opens Me as a person would (November 11, 2026: Me left the tabs): the avatar at the top right
+ * on a phone, or the rail's "signed in" footer → Your account on a computer.
+ */
+export async function openMe(page: Page): Promise<void> {
+  const rail = page.locator(".rail");
+  if (await rail.isVisible()) {
+    await rail.getByRole("button", { expanded: false }).click();
+    await rail.getByRole("link", { name: "Your account" }).click();
+  } else {
+    await page.getByRole("link", { name: "Me", exact: true }).click();
+  }
+  await expect(page.getByRole("heading", { level: 1, name: "Me" })).toBeVisible();
+}
+
 /** Me → Account → Your name: what group and household members see. */
 export async function setName(page: Page, name: string): Promise<void> {
   await page.goto("/me/account");

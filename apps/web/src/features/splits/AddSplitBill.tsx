@@ -4,7 +4,7 @@ import "../groups/groups.css";
 
 import { Button, Card } from "@stackd/ui";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
@@ -21,7 +21,8 @@ import { BillItems, type ItemsResult } from "./BillItems.tsx";
 import { ChipChoice } from "./ChipChoice.tsx";
 import { shareEntry } from "./entryShare.ts";
 import { type GroupMeta, guestSplit, MAX_WHAT, type ShownBill } from "./ledger.ts";
-import { valuesOf } from "./splitValues.ts";
+import { TotalLine, ValueBox } from "./SplitValueFields.tsx";
+import { evenValues, METHOD_HELP, totalOf, valuesOf } from "./splitValues.ts";
 import {
   addBill,
   type BillDraft,
@@ -146,6 +147,10 @@ function BillForm({
   const [typed, setTyped] = useState<Record<string, string>>(
     editing ? typedFrom(editing) : typedUsual,
   );
+  // The boxes start from an even split and follow the amount and who's in until the person
+  // types in one (owner, November 11, 2026); a saved split (an edit, the usual one) starts as is.
+  const [autoFill, setAutoFill] = useState(!editing && Object.keys(typedUsual).length === 0);
+  const [total, setTotal] = useState<{ text: string; ok: boolean } | null>(null);
   const [repeat, setRepeat] = useState<SplitRepeat | null>(editing?.repeat ?? null);
   const [what, setWhat] = useState(editing?.what ?? entry?.merchant.slice(0, MAX_WHAT) ?? "");
   const [paidBy, setPaidBy] = useState(editing?.paid_by ?? group.my_member_id);
@@ -259,12 +264,101 @@ function BillForm({
     };
   }, [amountText, method, people, typed, date, what, paidBy, leftover, repeat, byItem]);
 
+  // The even start, while nobody has typed in a box.
+  useEffect(() => {
+    if (!autoFill || byItem || method === "equal") return;
+    let alive = true;
+    void (async () => {
+      let cents: number | null = null;
+      try {
+        cents = await parseAmount(amountText);
+      } catch {
+        cents = null;
+      }
+      const even = await evenValues(
+        method,
+        people,
+        cents,
+        leftover === "payer" ? paidBy : leftover,
+      );
+      if (alive) setTyped(even);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [autoFill, byItem, method, people, amountText, leftover, paidBy]);
+
+  // The running total under the people.
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      let cents: number | null = null;
+      try {
+        cents = await parseAmount(amountText);
+      } catch {
+        cents = null;
+      }
+      const t = byItem ? null : await totalOf(method, people, typed, cents);
+      if (alive) setTotal(t);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [byItem, method, people, typed, amountText]);
+
   const mine = parts?.find((p) => p.person === group.my_member_id)?.cents ?? 0;
   const atLimit = runsIt && !editing && today.limit > 0 && today.added >= today.limit;
-  const ready = draft !== null && what.trim() !== "" && (!doubleCheck || checked) && !busy;
+  // The tick is asked only when adding (an edit shows no box), so an edit never waits on it.
+  const ready =
+    draft !== null && what.trim() !== "" && (!doubleCheck || editing !== null || checked) && !busy;
+  const ids = useId();
+  const amountBox = useRef<HTMLInputElement>(null);
+  const whatBox = useRef<HTMLInputElement>(null);
+  const checkBox = useRef<HTMLInputElement>(null);
+  // A message about what's missing goes once the person changes something.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: each field is the trigger
+  useEffect(() => setError(null), [amountText, method, people, typed, what, checked, byItem]);
+
+  /**
+   * Add bill is never a dead button (owner, November 11, 2026): tapping it with something
+   * missing says what, in form order, and moves there.
+   */
+  function sayWhatsMissing() {
+    let text: string;
+    let focus: HTMLElement | null = null;
+    if (!draft) {
+      if (byItem) {
+        text = problem ? splitErrorText(problem) : "Add what each item cost.";
+      } else if (amountText.trim() === "") {
+        text = "Enter how much.";
+        focus = amountBox.current;
+      } else if (problem === "invalid_amount") {
+        text = splitErrorText(problem);
+        focus = amountBox.current;
+      } else {
+        text = problem ? splitErrorText(problem) : "Tick who's in.";
+        const empty = people.find((p) => (typed[p] ?? "").trim() === "") ?? people[0];
+        focus = document.getElementById(
+          method !== "equal" && empty ? `${ids}-value-${empty}` : `${ids}-person-${everyone[0]}`,
+        );
+      }
+    } else if (what.trim() === "") {
+      text = "Say what it's for.";
+      focus = whatBox.current;
+    } else {
+      text = "Tick \u201cAmount and people right?\u201d first.";
+      focus = checkBox.current;
+    }
+    setError(text);
+    focus?.focus();
+  }
 
   async function save() {
-    if (!draft) return;
+    if (busy) return;
+    if (!ready || !draft) {
+      sayWhatsMissing();
+      return;
+    }
     setBusy(true);
     const r = editing
       ? await editBill(db, group, editing, draft)
@@ -317,6 +411,7 @@ function BillForm({
         <label className="auth__field">
           <span className="auth__label">1 · How much?</span>
           <input
+            ref={amountBox}
             className="auth__input"
             inputMode="decimal"
             placeholder="186.00"
@@ -334,6 +429,10 @@ function BillForm({
             if ((v as string) === "items") return setByItem(true);
             setByItem(false);
             setMethod(v);
+            // Another unit: start again from the usual split for it, else an even one.
+            const usualHere = v === usual.method && Object.keys(typedUsual).length > 0;
+            if (usualHere) setTyped(typedUsual);
+            setAutoFill(!usualHere);
           }}
         />
       ) : (
@@ -348,6 +447,7 @@ function BillForm({
                 .join(" · ")}. ${organizerName} sets how this group splits and approves your bill.`}
         </p>
       )}
+      {runsIt && !byItem ? <p className="auth__hint">{METHOD_HELP[method]}</p> : null}
       {byItem ? (
         <BillItems
           everyone={everyone}
@@ -362,6 +462,7 @@ function BillForm({
           <div className="split-person" key={p}>
             <label className="split-person__name">
               <input
+                id={`${ids}-person-${p}`}
                 type="checkbox"
                 checked={people.includes(p)}
                 disabled={!runsIt}
@@ -376,23 +477,27 @@ function BillForm({
               {nameOf(p)}
             </label>
             {method !== "equal" && people.includes(p) ? (
-              <input
-                className="auth__input"
-                inputMode={method === "shares" ? "numeric" : "decimal"}
-                aria-label={`${nameOf(p)}, ${unit}`}
+              <ValueBox
+                id={`${ids}-value-${p}`}
+                method={method}
+                label={`${nameOf(p)}, ${unit}`}
                 readOnly={!runsIt}
                 value={typed[p] ?? ""}
-                onChange={(e) => setTyped((t) => ({ ...t, [p]: e.target.value }))}
+                onChange={(text) => {
+                  setAutoFill(false);
+                  setTyped((t) => ({ ...t, [p]: text }));
+                }}
               />
             ) : null}
-            {parts ? (
+            {parts && people.includes(p) ? (
               <span className="split-preview">
-                {formatCents(parts.find((x) => x.person === p)?.cents ?? 0)}
+                {`${method === "equal" ? "" : "= "}${formatCents(parts.find((x) => x.person === p)?.cents ?? 0)}`}
               </span>
             ) : null}
           </div>
         ))}
       </fieldset>
+      {byItem ? null : <TotalLine total={total} />}
       {runsIt ? (
         <ChipChoice
           legend="3 · Repeats?"
@@ -404,6 +509,7 @@ function BillForm({
       <label className="auth__field">
         <span className="auth__label">What's it for?</span>
         <input
+          ref={whatBox}
           className="auth__input"
           value={what}
           maxLength={MAX_WHAT}
@@ -450,7 +556,7 @@ function BillForm({
       {parts && people.includes(group.my_member_id) ? (
         <p role="status">Only {formatCents(mine)} counts as yours.</p>
       ) : null}
-      {problem ? (
+      {problem && (!total || problem === "invalid_amount") ? (
         <p className="auth__hint" role="status">
           {splitErrorText(problem)}
         </p>
@@ -459,6 +565,7 @@ function BillForm({
         <label className="auth__field">
           <span>
             <input
+              ref={checkBox}
               type="checkbox"
               checked={checked}
               onChange={(e) => setChecked(e.target.checked)}
@@ -472,7 +579,7 @@ function BillForm({
           {error}
         </p>
       ) : null}
-      <Button block onClick={save} disabled={!ready || (doubleCheck && !editing && !checked)}>
+      <Button block onClick={save} disabled={busy}>
         {editing ? "Save changes" : runsIt ? "Add bill" : `Send to ${organizerName}`}
       </Button>
       {editing && runsIt ? (

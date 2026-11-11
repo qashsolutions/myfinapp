@@ -5,6 +5,7 @@
  */
 
 import type { components } from "@stackd/api-client";
+import { collapseSpaces, trimSpaces } from "@stackd/rules/text";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type ApiFailure, api, clientFor, failureOf } from "../../data/api.ts";
 import { useDb } from "../../data/DbProvider.tsx";
@@ -40,13 +41,38 @@ export type SplitsOut = components["schemas"]["SplitsOut"];
 export type SplitGroupOut = components["schemas"]["SplitGroupOut"];
 export type SplitMemberOut = components["schemas"]["SplitMemberOut"];
 
-export const GROUP_KINDS = [
-  ["home", "Home"],
+/**
+ * What a group is for (owner, November 11, 2026): suggestions plus the person's own, kept in the
+ * encrypted group settings as a chip's id or `own:<text>`. Friends and Family left the list (they
+ * say who, not what); a group saved with them, or with Other, still reads so in the box.
+ */
+export const GROUP_KINDS: Array<[string, string]> = [
+  ["home", "Home & rent"],
   ["trip", "Trip"],
-  ["friends", "Friends"],
-  ["family", "Family"],
-  ["other", "Other"],
-] as const;
+  ["dining", "Restaurant"],
+];
+
+export const KIND_OWN_MAX = 24;
+const OWN = "own:";
+const OLD_KINDS: Readonly<Record<string, string>> = {
+  friends: "Friends",
+  family: "Family",
+  other: "Other",
+};
+
+/** A saved kind as the person's own words in the box ("" for a chip or none). */
+export function ownKindText(kind: string): string {
+  return kind.startsWith(OWN) ? kind.slice(OWN.length) : (OLD_KINDS[kind] ?? "");
+}
+
+/** The box's text as a kind: a chip when it names one, else `own:<text>`; 1–24 characters. */
+export function parseOwnKind(text: string): { value: string } | { error: string } {
+  const clean = trimSpaces(collapseSpaces(text));
+  if (!clean) return { error: "Name what it's for." };
+  if (clean.length > KIND_OWN_MAX) return { error: `Keep it to ${KIND_OWN_MAX} characters.` };
+  const chip = GROUP_KINDS.find(([, label]) => label.toLowerCase() === clean.toLowerCase());
+  return { value: chip ? chip[0] : `${OWN}${clean}` };
+}
 
 export const METHODS: ReadonlyArray<readonly [SplitMethod, string]> = [
   ["equal", "Equally"],

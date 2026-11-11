@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useSession } from "../../features/auth/useSession.tsx";
 import { useSplitGuest } from "../../features/splits/guest.ts";
-import { activeTab, GUEST_TABS, TABS } from "../tabs.ts";
+import { activeTab, GUEST_TABS, ME_PATH, TABS } from "../tabs.ts";
 import { Logo } from "./Logo.tsx";
 
 /** 900px and up (WIDE_QUERY): the left rail with the brand and the same five destinations. */
@@ -33,9 +33,14 @@ export function SideRail() {
   );
 }
 
-/** The mockup's rail footer: who is signed in. Clicking it opens Your account and Log out. */
+/**
+ * The mockup's rail footer: who is signed in. Clicking it opens Your account (Me) and Log out;
+ * since Me left the tabs (November 11, 2026) it reads as current on Me's screens.
+ */
 function SignedInAs() {
   const { info, signOut } = useSession();
+  const { pathname } = useLocation();
+  const onMe = pathname === ME_PATH || pathname.startsWith(`${ME_PATH}/`);
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -81,7 +86,7 @@ function SignedInAs() {
       ) : null}
       <button
         type="button"
-        className="rail__user"
+        className={cx("rail__user", onMe && "rail__link--active")}
         aria-expanded={open}
         aria-controls="rail-account-menu"
         onClick={() => setOpen((o) => !o)}

@@ -3,14 +3,18 @@ import { Button, Sheet } from "@stackd/ui";
 import { useEffect, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { SplitMethod } from "../../engine/bridge.ts";
+import { ChipsOrOwn } from "../goals/CustomValueSheet.tsx";
 import { ChipChoice } from "./ChipChoice.tsx";
 import type { GroupMeta } from "./ledger.ts";
-import { valuesOf } from "./splitValues.ts";
+import { TotalLine, ValueBox } from "./SplitValueFields.tsx";
+import { evenValues, METHOD_HELP, totalOf, valuesOf } from "./splitValues.ts";
 import {
   GROUP_KINDS,
   MAX_NAME,
   METHODS,
   namesOf,
+  ownKindText,
+  parseOwnKind,
   type SplitGroupOut,
   saveGroupMeta,
 } from "./useSplits.ts";
@@ -66,6 +70,34 @@ export function GroupSettingsSheet({
   }, [open, meta, liveKey]);
 
   const perPerson = method === "percent" || method === "shares";
+  const [total, setTotal] = useState<{ text: string; ok: boolean } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void totalOf(perPerson ? method : "equal", liveKey.split(","), typed, null).then((t) => {
+      if (alive) setTotal(t);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [perPerson, method, liveKey, typed]);
+
+  /** Another way of splitting starts from the saved values for it, else an even split. */
+  async function pickMethod(v: SplitMethod) {
+    setMethod(v);
+    const saved = meta?.usual_method === v ? (meta?.usual_values ?? null) : null;
+    if (saved && Object.keys(saved).length > 0) {
+      setTyped(
+        Object.fromEntries(
+          Object.entries(saved).map(([p, n]) => [
+            p,
+            v === "shares" ? String(n) : (n / 100).toFixed(2),
+          ]),
+        ),
+      );
+      return;
+    }
+    setTyped(await evenValues(v, live, null, leftover === "payer" ? (live[0] ?? "") : leftover));
+  }
   const unit = method === "percent" ? "percent" : "shares";
 
   async function save() {
@@ -115,18 +147,28 @@ export function GroupSettingsSheet({
           onChange={(e) => setName(e.target.value)}
         />
       </label>
-      <ChipChoice
+      <ChipsOrOwn
+        key={kind}
+        name="group-kind"
         legend="What's it for?"
         options={GROUP_KINDS}
         value={kind}
-        onChange={(v) => setKind(v)}
+        onPick={setKind}
+        display={ownKindText}
+        own={{
+          label: "Or name your own",
+          placeholder: "Or name your own",
+          inputMode: "text",
+          parse: parseOwnKind,
+        }}
       />
       <ChipChoice
         legend="Usually split"
         options={METHODS}
         value={method}
-        onChange={(v) => setMethod(v)}
+        onChange={(v) => void pickMethod(v)}
       />
+      <p className="auth__hint">{METHOD_HELP[method]}</p>
       {perPerson ? (
         <fieldset className="split-people">
           <legend className="auth__label">
@@ -135,15 +177,15 @@ export function GroupSettingsSheet({
           {live.map((p) => (
             <div className="split-person" key={p}>
               <span className="split-person__name">{nameOf(p)}</span>
-              <input
-                className="auth__input"
-                inputMode={method === "shares" ? "numeric" : "decimal"}
-                aria-label={`${nameOf(p)}, ${unit}`}
+              <ValueBox
+                method={method}
+                label={`${nameOf(p)}, ${unit}`}
                 value={typed[p] ?? ""}
-                onChange={(e) => setTyped((t) => ({ ...t, [p]: e.target.value }))}
+                onChange={(text) => setTyped((t) => ({ ...t, [p]: text }))}
               />
             </div>
           ))}
+          <TotalLine total={total} />
         </fieldset>
       ) : null}
       <p className="auth__hint">

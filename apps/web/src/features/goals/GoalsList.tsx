@@ -3,20 +3,20 @@ import "../entries/entries.css";
 
 import { Button, buttonClass, Card, Chip, Illustration, List } from "@stackd/ui";
 import { useId, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, Navigate, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { Goal } from "../../data/db.ts";
 import { todayIso } from "../../lib/format.ts";
 import { DESKTOP_QUERY, useMediaQuery } from "../../lib/useMediaQuery.ts";
 import { ChallengesTab } from "../groups/ChallengesTab.tsx";
-import { SplitsTab } from "../splits/SplitsTab.tsx";
 import { GoalCard, GoalRow } from "./GoalCard.tsx";
 import { useGoalCaps } from "./useGoalCaps.ts";
 import { setPriorities, useGoals } from "./useGoals.ts";
 
 /**
- * The Goals tab (mockup F4Goals): Jars (every goal kind) and Challenges. Jars are grouped so ten
+ * The Goals tab (mockup F4Goals): Jars (every goal kind) and Challenges. Splits moved to its own
+ * tab on November 11, 2026; an old `?tab=splits` link goes there. Jars are grouped so ten
  * stay tidy on a phone: the top one by priority as a full card, the rest in progress as one line
  * each, then Paused and Reached folded away. The plan's usage sits above ("Using 3 of 4");
  * every kept goal counts, finished ones too; moving one to templates frees its place.
@@ -27,8 +27,8 @@ export function GoalsList() {
   const caps = useGoalCaps();
   const [params] = useSearchParams();
   const asked = params.get("tab");
-  const [tab, setTab] = useState<"jars" | "challenges" | "splits">(
-    asked === "challenges" || asked === "splits" ? asked : "jars",
+  const [tab, setTab] = useState<"jars" | "challenges">(
+    asked === "challenges" ? "challenges" : "jars",
   );
   const desktop = useMediaQuery(DESKTOP_QUERY); // both panes side by side from 900px
   const [reordering, setReordering] = useState(false);
@@ -155,6 +155,7 @@ export function GoalsList() {
         ) : null}
       </>
     );
+  if (asked === "splits") return <Navigate to="/splits" replace />;
   return (
     <>
       <ScreenHeader
@@ -172,7 +173,6 @@ export function GoalsList() {
             [
               ["jars", `Jars · ${mine.length}`],
               ["challenges", "Challenges"],
-              ["splits", "Splits"],
             ] as const
           ).map(([value, label]) => (
             <label className="segmented__option" key={value}>
@@ -202,27 +202,13 @@ export function GoalsList() {
               Challenges
             </h2>
             <ChallengesTab />
-            <h2 className="section-title" id="splits-pane-h">
-              Splits
-            </h2>
-            <SplitsTab />
           </section>
         </div>
       ) : null}
-      {!desktop ? (
-        tab === "jars" ? (
-          jars
-        ) : tab === "challenges" ? (
-          <ChallengesTab />
-        ) : (
-          <SplitsTab />
-        )
-      ) : null}
-      {tab === "splits" && !desktop ? null : (
-        <p className="auth__fineprint">
-          Jars are virtual: logging a deposit records it here. Your money stays where it is.
-        </p>
-      )}
+      {!desktop ? tab === "jars" ? jars : <ChallengesTab /> : null}
+      <p className="auth__fineprint">
+        Jars are virtual: logging a deposit records it here. Your money stays where it is.
+      </p>
     </>
   );
 }

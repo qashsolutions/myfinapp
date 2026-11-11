@@ -277,8 +277,9 @@ describe("Budget", () => {
     await waitFor(() => expect(planned).toHaveTextContent("$450.00 spent · nothing planned yet"));
     expect(within(planned).queryByRole("button", { name: "Cover it" })).toBeNull();
 
-    // Start from last month: Dining 300, Rent 1,200.
-    await user.click(within(left).getByRole("button", { name: "Start from last month" }));
+    // Start from last month: Dining 300, Rent 1,200. The button shows once last month's totals
+    // are read, so wait for it (it failed about one run in two when tapped straight away).
+    await user.click(await within(left).findByRole("button", { name: "Start from last month" }));
     await waitFor(() => expect(left).toHaveTextContent("$500.00"));
     expect(planned).toHaveTextContent("$450.00 of $300.00 · $150.00 over");
 

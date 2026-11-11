@@ -220,8 +220,8 @@ describe("Split bills: guests and safety", () => {
     ).toBeInTheDocument();
     await user.type(screen.getByLabelText("1 · How much?"), "30");
     await user.type(screen.getByLabelText(/What's it for/), "Firewood");
-    await waitFor(() => expect(screen.getByText("$20.00")).toBeInTheDocument());
-    expect(screen.getByText("$10.00")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("= $20.00")).toBeInTheDocument());
+    expect(screen.getByText("= $10.00")).toBeInTheDocument();
     expect(screen.getByLabelText("Jordan K., shares")).toHaveAttribute("readonly");
   });
 
@@ -283,11 +283,20 @@ describe("Split bills: guests and safety", () => {
     expect(sheet).toHaveTextContent("Venmo @jordan-k · saved Oct 20");
     expect(within(sheet).queryByText(/Changed recently/)).toBeNull();
     const go = within(sheet).getByRole("button", { name: "Continue" });
-    expect(go).toBeDisabled();
+    // Never a dead button: Continue says both ticks are needed and goes to the first one open.
+    await user.click(go);
+    expect(within(sheet).getByRole("alert")).toHaveTextContent("Tick both boxes first.");
+    expect(
+      within(sheet).getByRole("checkbox", { name: "I know Jordan K. in real life." }),
+    ).toHaveFocus();
     await user.click(
       within(sheet).getByRole("checkbox", { name: "I know Jordan K. in real life." }),
     );
-    expect(go).toBeDisabled();
+    await user.click(go);
+    expect(
+      within(sheet).getByRole("checkbox", { name: "I checked the bills and I owe this amount." }),
+    ).toHaveFocus();
+    expect(api.splits.consents).toEqual([]);
     await user.click(
       within(sheet).getByRole("checkbox", { name: "I checked the bills and I owe this amount." }),
     );
@@ -391,7 +400,11 @@ describe("Split bills: guests and safety", () => {
       within(sheet).getByRole("button", { name: "Something's wrong? Report and leave" }),
     );
     const report = await screen.findByRole("dialog", { name: "Report and leave" });
+    await user.click(within(report).getByRole("button", { name: "Report and leave" }));
+    expect(within(report).getByRole("alert")).toHaveTextContent("Pick what's wrong first.");
+    expect(api.splits.left).toEqual([]);
     await user.click(within(report).getByRole("radio", { name: "I don't know them" }));
+    expect(within(report).queryByRole("alert")).toBeNull();
     await user.click(within(report).getByRole("button", { name: "Report and leave" }));
     await waitFor(() => expect(api.splits.left).toEqual([{ group_id: GID, report: "dont_know" }]));
   });

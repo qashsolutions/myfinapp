@@ -118,7 +118,7 @@ describe("Split bills: the organizer", () => {
   it("starts a group from Goals → Splits and invites by email; the name never leaves readable", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });
-    renderApp("/goals?tab=splits");
+    renderApp("/splits");
     await user.click(await screen.findByRole("link", { name: "+ New group" }));
     await user.type(await screen.findByLabelText("Group name"), "Apartment 4B");
     await user.type(screen.getByLabelText("Your name, as the group sees it"), "Nia");
@@ -159,6 +159,34 @@ describe("Split bills: the organizer", () => {
     noSecretsLeft(api, ["Groceries", "18600", "6200", "Apartment"]);
   });
 
+  it("Exact starts even, follows the amount until someone types, then shows what's left", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    renderApp(`/splits/${gid}/bills/new`);
+    await user.click(await screen.findByRole("radio", { name: "Exact" }));
+    expect(
+      screen.getByText("Type each person's dollars. They add up to the total."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("You, $")).toHaveValue("");
+    await user.type(screen.getByLabelText("1 · How much?"), "90");
+    await waitFor(() => expect(screen.getByLabelText("Sam, $")).toHaveValue("30.00"));
+    expect(await screen.findByText("Adds up to $90.00 of $90.00")).toHaveClass("split-total--ok");
+    // The unit is on screen beside each box.
+    expect(screen.getAllByText("$", { selector: ".split-value__unit" })).toHaveLength(3);
+    await user.clear(screen.getByLabelText("You, $"));
+    await user.type(screen.getByLabelText("You, $"), "20");
+    expect(await screen.findByText("Adds up to $80.00 of $90.00 · $10.00 left")).toHaveClass(
+      "split-total--off",
+    );
+    // Typed values stay put when the amount changes.
+    await user.type(screen.getByLabelText("1 · How much?"), "0");
+    expect(
+      await screen.findByText("Adds up to $80.00 of $900.00 · $820.00 left"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Sam, $")).toHaveValue("30.00");
+  });
+
   it("splits by shares with the leftover cent to the person the organizer picks", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });
@@ -166,13 +194,17 @@ describe("Split bills: the organizer", () => {
     renderApp(`/splits/${gid}/bills/new`);
     await user.type(await screen.findByLabelText("1 · How much?"), "100");
     await user.click(screen.getByRole("radio", { name: "Shares" }));
-    await user.type(screen.getByLabelText("You, shares"), "1");
-    await user.type(screen.getByLabelText("Sam, shares"), "1");
-    await user.type(screen.getByLabelText("Alex, shares"), "1");
+    // The choice says what it means, and the boxes start at 1 share each (owner, November 11, 2026).
+    expect(
+      screen.getByText("Type a whole number each. 2 pays twice what 1 does."),
+    ).toBeInTheDocument();
+    for (const who of ["You", "Sam", "Alex"])
+      expect(screen.getByLabelText(`${who}, shares`)).toHaveValue("1");
+    expect(await screen.findByText("3 shares in all")).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("A leftover cent goes to"), "Sam");
     // $100 ÷ 3 = $33.33 each, the leftover cent to Sam
     expect(await screen.findByText("Only $33.33 counts as yours.")).toBeInTheDocument();
-    expect(screen.getByText("$33.34")).toBeInTheDocument();
+    expect(screen.getByText("= $33.34")).toBeInTheDocument();
   });
 
   it("a guest's bill waits for the organizer's OK and counts once approved", async () => {
@@ -377,11 +409,17 @@ describe("Split bills: the organizer", () => {
     await user.clear(name);
     await user.type(name, "Apartment 5C");
     await user.click(within(sheet).getByRole("radio", { name: "Shares" }));
+    expect(await within(sheet).findByText("3 shares in all")).toBeInTheDocument();
+    await user.clear(within(sheet).getByLabelText("You, shares"));
     await user.type(within(sheet).getByLabelText("You, shares"), "2");
-    await user.type(within(sheet).getByLabelText("Sam, shares"), "1");
+    await user.clear(within(sheet).getByLabelText("Alex, shares"));
+    expect(
+      await within(sheet).findByText("3 shares in all · fill in everyone"),
+    ).toBeInTheDocument();
     await user.click(within(sheet).getByRole("button", { name: "Save" }));
     expect(await within(sheet).findByRole("alert")).toHaveTextContent(/whole number/);
     await user.type(within(sheet).getByLabelText("Alex, shares"), "1");
+    expect(await within(sheet).findByText("4 shares in all")).toBeInTheDocument();
     await user.click(within(sheet).getByRole("button", { name: "Save" }));
     expect(
       await screen.findByRole("heading", { level: 1, name: "Apartment 5C" }),
@@ -393,6 +431,100 @@ describe("Split bills: the organizer", () => {
       usual_values: { [ME]: 2, [SAM]: 1, [ALEX]: 1 },
     });
     noSecretsLeft(api, ["Apartment 5C"]);
+  });
+
+  it("Add bill is never a dead button: tapping it says what's missing and goes there", async () => {
+    // Owner, November 11, 2026: every field filled, Percent chosen, and Add bill stayed grey with
+    // only a small hint saying why.
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    renderApp(`/splits/${gid}/bills/new`);
+    const add = await screen.findByRole("button", { name: "Add bill" });
+    expect(add).toBeEnabled();
+    await user.click(add);
+    expect(screen.getByRole("alert")).toHaveTextContent("Enter how much.");
+    expect(screen.getByLabelText("1 · How much?")).toHaveFocus();
+
+    await user.type(screen.getByLabelText("1 · How much?"), "90");
+    await user.click(screen.getByRole("radio", { name: "Percent" }));
+    // An even start: 33.34 / 33.33 / 33.33 adds up, so nothing is missing yet.
+    expect(await screen.findByText("Adds up to 100% of 100%")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("You, %"));
+    expect(await screen.findByText("Adds up to 66.66% of 100% · 33.34% left")).toHaveClass(
+      "split-total--off",
+    );
+    await user.click(add);
+    expect(screen.getByRole("alert")).toHaveTextContent("Fill in everyone who's in.");
+    expect(screen.getByLabelText("You, %")).toHaveFocus();
+
+    await user.type(screen.getByLabelText("You, %"), "50");
+    for (const who of ["Sam", "Alex"]) {
+      await user.clear(screen.getByLabelText(`${who}, %`));
+      await user.type(screen.getByLabelText(`${who}, %`), "25");
+    }
+    expect(await screen.findByText("Adds up to 100% of 100%")).toHaveClass("split-total--ok");
+    await user.click(add);
+    expect(screen.getByRole("alert")).toHaveTextContent("Say what it's for.");
+    expect(screen.getByLabelText("What's it for?")).toHaveFocus();
+
+    await user.type(screen.getByLabelText("What's it for?"), "Rent");
+    await user.click(add);
+    await screen.findByRole("heading", { level: 1, name: "Apartment 4B" });
+    expect(api.splits.groups[0]?.bills ?? []).not.toHaveLength(0);
+  });
+
+  it("what a group is for: suggestions or the person's own words, kept encrypted (November 11, 2026)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    renderApp("/splits/new");
+    expect(await screen.findByText("What's it for?")).toBeInTheDocument();
+    for (const label of ["Home & rent", "Trip", "Restaurant"]) {
+      expect(screen.getByRole("radio", { name: label })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole("radio", { name: "Friends" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Family" })).toBeNull();
+    await user.type(screen.getByLabelText("Group name"), "Book club");
+    await user.type(screen.getByLabelText("Your name, as the group sees it"), "Nia");
+    const own = screen.getByLabelText("Or name your own");
+    await user.type(own, "x".repeat(25));
+    await user.click(screen.getByRole("button", { name: "Use" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Keep it to 24 characters.");
+    await user.clear(own);
+    await user.type(own, "  Book   club snacks ");
+    await user.click(screen.getByRole("button", { name: "Use" }));
+    await user.click(screen.getByRole("button", { name: "Create and invite" }));
+    await screen.findByRole("dialog", { name: "Invite by email" });
+    const gid = api.splits.groups[0]?.id as string;
+    expect(
+      (await readLedger(api, gid, api.splits.groups[0]?.members[0]?.member_id as string)).group
+        ?.kind,
+    ).toBe("own:Book club snacks");
+    noSecretsLeft(api, ["Book club snacks"]);
+  });
+
+  it("an own kind shows again in Group settings; typing a suggestion's name picks it", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    renderApp(`/splits/${gid}`);
+    await user.click(await screen.findByRole("button", { name: "Name, usual split and more" }));
+    let sheet = await screen.findByRole("dialog", { name: "Group settings" });
+    const own = within(sheet).getByLabelText("Or name your own");
+    await user.type(own, "Ski weekend");
+    await user.click(within(sheet).getByRole("button", { name: "Use" }));
+    await user.click(within(sheet).getByRole("button", { name: "Save" }));
+    await waitFor(async () =>
+      expect((await readLedger(api, gid, ME)).group?.kind).toBe("own:Ski weekend"),
+    );
+    await user.click(await screen.findByRole("button", { name: "Name, usual split and more" }));
+    sheet = await screen.findByRole("dialog", { name: "Group settings" });
+    expect(within(sheet).getByLabelText("Or name your own")).toHaveValue("Ski weekend");
+    await user.clear(within(sheet).getByLabelText("Or name your own"));
+    await user.type(within(sheet).getByLabelText("Or name your own"), "trip");
+    await user.click(within(sheet).getByRole("button", { name: "Use" }));
+    expect(within(sheet).getByRole("radio", { name: "Trip" })).toBeChecked();
+    expect(within(sheet).getByLabelText("Or name your own")).toHaveValue("");
   });
 
   it("a bill's history: added, approved and what the organizer changed (S.6)", async () => {
@@ -495,7 +627,7 @@ describe("Split bills: the organizer", () => {
   it("Split with one person: a group of two behind the scenes, an invite, then Add a bill (S.9)", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });
-    renderApp("/goals?tab=splits");
+    renderApp("/splits");
     await user.click(await screen.findByRole("link", { name: "Split with one person" }));
     await user.type(await screen.findByLabelText("Their name"), "Sam");
     await user.type(screen.getByLabelText("Their email"), "sam@example.com");
@@ -507,7 +639,7 @@ describe("Split bills: the organizer", () => {
     const mine = await readLedger(api, g?.id ?? "", ME);
     expect(mine.group).toMatchObject({ name: "Sam", kind: "one" });
     cleanup();
-    renderApp("/goals?tab=splits");
+    renderApp("/splits");
     expect(await screen.findByText("You and Sam")).toBeInTheDocument();
     noSecretsLeft(api, ["You and Sam"]);
   });
@@ -592,7 +724,8 @@ describe("Split bills: the organizer", () => {
     expect((await db.entries.get("e-venmo"))?.not_counted).toBe(true);
     expect((await db.entries.get("e-zelle"))?.paid_back).toBeFalsy();
     expect(await screen.findByText(/Alex pays you \$62\.00/)).toBeInTheDocument();
-    expect(screen.queryByText(/Sam pays you/)).toBeNull();
+    // Alex's row was there before; Sam's leaves once the group is pulled again after the payment.
+    await waitFor(() => expect(screen.queryByText(/Sam pays you/)).toBeNull());
     await waitFor(() =>
       expect(api.splits.notified).toEqual([{ kind: "confirmed", member_id: SAM }]),
     );
@@ -660,7 +793,7 @@ describe("Split bills: the organizer", () => {
     expect(screen.queryByRole("button", { name: "Remind" })).toBeNull();
     cleanup();
     installFakeApi({ session: readySession(), splits: api.splits });
-    renderApp("/goals?tab=splits");
+    renderApp("/splits");
     expect(
       await screen.findByText("Reports have paused your groups. Support can look at it."),
     ).toBeInTheDocument();
@@ -752,18 +885,42 @@ describe("Split bills: the organizer", () => {
     const sheet = await screen.findByRole("dialog", { name: "Invite by email" });
     await user.type(within(sheet).getByLabelText("Their email"), "jo@example.com");
     await user.type(within(sheet).getByLabelText("Their email again"), "jo@example.co");
-    expect(within(sheet).getByRole("button", { name: "Send invite" })).toBeDisabled();
+    await user.click(within(sheet).getByRole("button", { name: "Send invite" }));
+    expect(within(sheet).getByRole("alert")).toHaveTextContent("The two emails don't match.");
+    expect(within(sheet).getByLabelText("Their email again")).toHaveFocus();
+    expect(api.splits.groups[0]?.invites ?? []).toHaveLength(0);
     await user.type(within(sheet).getByLabelText("Their email again"), "m");
-    expect(within(sheet).getByRole("button", { name: "Send invite" })).toBeEnabled();
+    expect(within(sheet).queryByRole("alert")).toBeNull();
     await user.keyboard("{Escape}");
 
     await user.click(screen.getByRole("link", { name: "Add a bill" }));
     await user.type(await screen.findByLabelText("1 · How much?"), "30");
     await user.type(screen.getByLabelText("What's it for?"), "Pizza");
     await screen.findByText("Only $10.00 counts as yours.");
-    expect(screen.getByRole("button", { name: "Add bill" })).toBeDisabled();
-    await user.click(screen.getByRole("checkbox", { name: "Amount and people right?" }));
-    expect(screen.getByRole("button", { name: "Add bill" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Add bill" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Tick “Amount and people right?” first.");
+    const tick = screen.getByRole("checkbox", { name: "Amount and people right?" });
+    expect(tick).toHaveFocus();
+    await user.click(tick);
+    expect(screen.queryByRole("alert")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Add bill" }));
+    await screen.findByRole("heading", { level: 1, name: "Apartment 4B" });
+  });
+
+  it("with double-check on, the organizer's edit saves: the tick is only asked when adding", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    await seedGroceries(api, gid);
+    api.splits.double_check = true;
+    renderApp(`/splits/${gid}/bills/b-groc`);
+    const what = await screen.findByLabelText("What's it for?");
+    expect(screen.queryByRole("checkbox", { name: "Amount and people right?" })).toBeNull();
+    await user.clear(what);
+    await user.type(what, "Groceries and soap");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await screen.findByRole("heading", { level: 1, name: "Apartment 4B" });
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it.each([

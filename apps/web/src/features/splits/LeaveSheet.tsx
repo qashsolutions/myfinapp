@@ -37,6 +37,7 @@ export function LeaveSheet({
   if (!open) return null;
 
   async function leave() {
+    if (reporting && !reason) return setError("Pick what's wrong first.");
     setBusy(true);
     const r = await leaveGroup(db, groupId, reporting ? reason : null);
     setBusy(false);
@@ -61,7 +62,10 @@ export function LeaveSheet({
             legend={`What's wrong with ${organizerName}?`}
             options={REPORT_REASONS}
             value={reason}
-            onChange={(v) => setReason(v)}
+            onChange={(v) => {
+              setReason(v);
+              setError(null);
+            }}
           />
           <p className="auth__hint">
             {organizerName} isn't told who reported. Qash looks at it when several people do.
@@ -73,7 +77,7 @@ export function LeaveSheet({
           {error}
         </p>
       ) : null}
-      <Button block variant="danger" onClick={leave} disabled={busy || (reporting && !reason)}>
+      <Button block variant="danger" onClick={leave} disabled={busy}>
         {reporting ? "Report and leave" : "Leave group"}
       </Button>
       {reporting ? null : (
