@@ -304,6 +304,10 @@ describe("Split bills: guests and safety", () => {
     expect(
       await screen.findByText("Waiting for Jordan K. to confirm your $45.00."),
     ).toBeInTheDocument();
+    // S.10: Jordan is asked to confirm, in fixed words; a guest has no budget to add it to.
+    await waitFor(() => expect(api.splits.notified).toEqual([{ kind: "paid", member_id: JORDAN }]));
+    expect(screen.queryByRole("switch", { name: "Add it to my spending" })).toBeNull();
+    expect((await openDb("u1").entries.toArray()).filter((e) => e.split_settle)).toEqual([]);
     for (const c of api.calls)
       for (const secret of ["jordan-k", "Internet", "Lake house", "4500"])
         if (!/\/blobs\//.test(c.path)) expect(`${c.url} ${c.raw}`).not.toContain(secret);

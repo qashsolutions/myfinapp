@@ -23,3 +23,8 @@ groups:
   # organize, and groups they joined as someone else's guest, counted apart.
   organize_max: 20
   join_max: 20
+notify:
+  # S.10 (proposed November 10, 2026): pushes one member's device asks the server to send
+  # another ("I paid you", "your payment is confirmed"), at most this many a day per sender,
+  # receiver and group.
+  per_day: 10

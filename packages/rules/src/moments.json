@@ -273,6 +273,10 @@
   "push_split_reminder": "You have a balance in a group.",
   "push_split_joined": "Someone joined your group. Open Qash to let them in.",
   "push_split_pending": "A bill in your group is waiting for your OK.",
+  "push_split_paid": "Someone says they paid you in a group. Open Qash to confirm.",
+  "push_split_confirmed": "Your payment in a group was confirmed.",
+  "push_split_declined": "A bill you added was declined.",
+  "push_split_removed": "You were removed from a group.",
   "nudges": {
     "set_pay": {
       "vars": [],

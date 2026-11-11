@@ -455,6 +455,71 @@ def test_split_pushes_carry_fixed_words_and_remind_is_once_a_day() -> None:
         assert "Jordan" not in label and "Sam" not in label and "$" not in label, (kind, label)
 
 
+def test_declined_removed_paid_and_confirmed_each_send_one_fixed_push() -> None:
+    # S.10 (November 10, 2026): four more moments, fixed words, never an amount or a name.
+    jordan, jordan_id, _ = person("Jordan K.", "private")
+    sam = person("Sam L.")
+    alex = person("Alex M.")
+    gid = group_with(jordan, [sam, alex])
+    members = jordan.get("/api/splits").json()["groups"][0]["members"]
+    member = {m["display_name"]: m["member_id"] for m in members}
+
+    waiting = sam[0].post(f"/api/splits/{gid}/bills").json()["id"]
+    jordan.post(f"/api/splits/{gid}/bills/{waiting}/decline")
+    assert _alerts_for(sam[1])[-1] == (
+        "split_activity",
+        "declined",
+        "A bill you added was declined.",
+    )
+
+    # Sam says they paid Jordan: Jordan is asked to confirm; Jordan confirms: Sam hears.
+    r = sam[0].post(
+        f"/api/splits/{gid}/notify", json={"kind": "paid", "member_id": member["Jordan K."]}
+    )
+    assert r.status_code == 204, r.text
+    assert _alerts_for(jordan_id)[-1] == (
+        "split_activity",
+        "paid",
+        "Someone says they paid you in a group. Open Qash to confirm.",
+    )
+    r = jordan.post(
+        f"/api/splits/{gid}/notify", json={"kind": "confirmed", "member_id": member["Sam L."]}
+    )
+    assert r.status_code == 204
+    assert _alerts_for(sam[1])[-1] == (
+        "split_activity",
+        "confirmed",
+        "Your payment in a group was confirmed.",
+    )
+    # Not to yourself, not to someone outside the group, and at most 10 a day each way.
+    me = sam[0].post(
+        f"/api/splits/{gid}/notify", json={"kind": "paid", "member_id": member["Sam L."]}
+    )
+    assert me.status_code == 422
+    for _ in range(9):
+        assert (
+            sam[0]
+            .post(
+                f"/api/splits/{gid}/notify", json={"kind": "paid", "member_id": member["Jordan K."]}
+            )
+            .status_code
+            == 204
+        )
+    r = sam[0].post(
+        f"/api/splits/{gid}/notify", json={"kind": "paid", "member_id": member["Jordan K."]}
+    )
+    assert r.status_code == 429 and r.json()["detail"] == "notify_limit"
+
+    assert jordan.delete(f"/api/splits/{gid}/members/{member['Alex M.']}").status_code == 204
+    assert _alerts_for(alex[1])[-1] == (
+        "split_activity",
+        "removed",
+        "You were removed from a group.",
+    )
+    for _, _, label in _alerts_for(sam[1]) + _alerts_for(jordan_id) + _alerts_for(alex[1]):
+        assert "Jordan" not in label and "Sam" not in label and "$" not in label
+
+
 def test_a_blocked_organizer_cant_remind() -> None:
     jordan, jordan_id, _ = person("Jordan K.", "private")
     sam = person("Sam L.")

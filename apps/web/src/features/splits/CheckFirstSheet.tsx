@@ -14,7 +14,8 @@ import {
   showHandle,
 } from "./payLinks.ts";
 import type { Payment } from "./SettleSheet.tsx";
-import { recordPayment, type SplitGroupOut, splitErrorText } from "./useSplits.ts";
+import { SpendingChoiceFields, useSpendingChoice } from "./SpendingChoice.tsx";
+import { notifyMember, recordPayment, type SplitGroupOut, splitErrorText } from "./useSplits.ts";
 
 function daysSince(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
@@ -54,6 +55,8 @@ export function CheckFirstSheet({
   const [checked, setChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // A payment I send is my spending once, if I choose (S.6, invariant 76).
+  const spending = useSpendingChoice(group.id, payment?.from === group.my_member_id);
   if (!payment || !profile || !app) return null;
   const handle = profile.handles[app] as string;
   const changedAt = profile.changed[app] ?? profile.saved_at;
@@ -91,8 +94,11 @@ export function CheckFirstSheet({
     if (!payment || !app) return;
     setBusy(true);
     const r = await recordPayment(db, group, { ...payment, via: app });
+    if (r.ok) await spending.apply({ settlementId: r.id, cents: payment.cents, to: toName });
     setBusy(false);
     if (!r.ok) return setError(splitErrorText(r.code));
+    // S.10: unless I run the group (then it counts at once), they're asked to confirm.
+    if (!group.is_organizer) void notifyMember(group.id, "paid", payment.to);
     await onPaid();
     onClose();
   }
@@ -168,6 +174,7 @@ export function CheckFirstSheet({
               {error}
             </p>
           ) : null}
+          <SpendingChoiceFields choice={spending} />
           <Button block variant="secondary" onClick={paid} disabled={busy}>
             I've paid · Mark paid
           </Button>

@@ -100,6 +100,10 @@ def compile_catalog(data: dict) -> dict:
         "push_split_reminder",
         "push_split_joined",
         "push_split_pending",
+        "push_split_paid",
+        "push_split_confirmed",
+        "push_split_declined",
+        "push_split_removed",
     ):
         fixed[name] = str(data[name])
         if PLACEHOLDER.findall(fixed[name]):
