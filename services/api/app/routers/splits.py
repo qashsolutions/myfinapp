@@ -321,6 +321,8 @@ class SplitGroupOut(BaseModel):
     writable: bool  # bills and edits allowed (an organizer who can run it)
     guests_can_add: bool  # the organizer's switch: guests' bills wait for their OK
     reported: bool  # the organizer is blocked after reports: "Don't pay unless you're sure"
+    # Who ran it before (S.6): devices read that member's ledger while nobody runs it.
+    previous_organizer_member_id: uuid.UUID | None = None
 
 
 class TodayOut(BaseModel):
@@ -556,6 +558,7 @@ def _groups_out(
                 writable=plans.runs(organizer),
                 guests_can_add=group.guests_can_add,
                 reported=organizer is not None and organizer.split_blocked_at is not None,
+                previous_organizer_member_id=group.previous_organizer_member_id,
             )
         )
     return out, plans
@@ -1301,6 +1304,7 @@ def _leave(db: DbSession, group: SplitGroup, member: SplitMember, now: datetime)
         db.delete(group)
     elif group.organizer_id == member.user_id:
         group.organizer_id = None  # view-and-settle until someone with a plan takes over
+        group.previous_organizer_member_id = member.id
 
 
 @router.post("/{group_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
@@ -1380,6 +1384,15 @@ def takeover(
     ):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="plan_limit")
     _check_group_cap(db, caller.user.id, organize=True)
+    if group.organizer_id is not None:  # their plan ended: they stay a member
+        previous = db.scalar(
+            select(SplitMember.id).where(
+                SplitMember.group_id == group.id,
+                SplitMember.user_id == group.organizer_id,
+                SplitMember.left_at.is_(None),
+            )
+        )
+        group.previous_organizer_member_id = previous
     group.organizer_id = caller.user.id
     db.commit()
     return _group_out(db, group, caller.user.id, _now())

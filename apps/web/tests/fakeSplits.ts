@@ -35,6 +35,8 @@ export interface FakeSplitGroup {
   guests_can_add: boolean;
   writable: boolean;
   reported: boolean;
+  /** Who ran it before (S.6): set when the organizer leaves or someone takes over. */
+  previous_organizer_member_id?: string | null;
 }
 
 export interface FakeInviteCard {
@@ -130,6 +132,7 @@ export function handleSplits(
       writable: g.writable,
       guests_can_add: g.guests_can_add,
       reported: g.reported,
+      previous_organizer_member_id: g.previous_organizer_member_id ?? null,
     };
   };
   const mineGroups = () => s.groups.filter((g) => g.members.some((m) => m.user_id === me));
@@ -202,6 +205,16 @@ export function handleSplits(
   if (!g || !member) return json({ detail: "not_found" }, 404);
   const rest = m[2] ?? "";
   const organizer = g.organizer_user === me;
+  if (method === "POST" && rest === "takeover") {
+    // As routers/splits.py takeover: only while nobody can run it, only with a plan.
+    if (g.writable) return json({ detail: "organizer_active" }, 409);
+    if (peopleMax === 0) return json({ detail: "plan_required" }, 403);
+    const was = g.members.find((x) => x.user_id !== null && x.user_id === g.organizer_user);
+    if (was) g.previous_organizer_member_id = was.member_id;
+    g.organizer_user = me;
+    g.writable = true;
+    return json(out(g));
+  }
   if (method === "PATCH" && rest === "") {
     if (!organizer) return json({ detail: "organizer_only" }, 403);
     g.guests_can_add = Boolean(b.guests_can_add);

@@ -288,6 +288,50 @@ def test_when_the_organizer_cant_run_it_the_group_is_view_and_settle_until_taken
     assert sam[0].post(f"/api/splits/{gid}/bills").status_code == 201
 
 
+def test_devices_are_told_whose_corrections_stood_when_the_organizer_goes() -> None:
+    # S.6 (November 10, 2026): edits, deletions and approvals live in the organizer's ledger.
+    # Once they leave, every device must still read that ledger, or deleted bills come back.
+    jordan, _, _ = person("Jordan K.", "private")
+    sam = person("Sam L.")
+    alex = person("Alex M.", "private")
+    gid = group_with(jordan, [sam, alex])
+    before = jordan.get("/api/splits").json()["groups"][0]
+    jordan_member = before["my_member_id"]
+    assert before["previous_organizer_member_id"] is None
+    assert jordan.post(f"/api/splits/{gid}/leave", json={}).status_code == 204
+    group = sam[0].get("/api/splits").json()["groups"][0]
+    assert group["previous_organizer_member_id"] == jordan_member
+    assert not any(m["is_organizer"] for m in group["members"])
+    r = alex[0].post(f"/api/splits/{gid}/takeover")
+    assert r.status_code == 200
+    assert r.json()["previous_organizer_member_id"] == jordan_member
+
+
+def end_plan(user_id: str) -> None:
+    from app.models.billing import Subscription
+    from app.rules_server.entitlements import store_entitlements
+
+    with get_session_factory()() as db, db.begin():
+        db.execute(
+            update(Subscription)
+            .where(Subscription.user_id == uuid.UUID(user_id))
+            .values(status="canceled", ends_at=datetime.now(UTC) - timedelta(days=1))
+        )
+        db.flush()
+        store_entitlements(db, uuid.UUID(user_id))
+
+
+def test_taking_over_from_an_organizer_whose_plan_ended_names_them() -> None:
+    jordan, jordan_id, _ = person("Jordan K.", "private")
+    alex = person("Alex M.", "private")
+    gid = group_with(jordan, [alex])
+    jordan_member = jordan.get("/api/splits").json()["groups"][0]["my_member_id"]
+    end_plan(jordan_id)
+    r = alex[0].post(f"/api/splits/{gid}/takeover")
+    assert r.status_code == 200, r.text
+    assert r.json()["previous_organizer_member_id"] == jordan_member
+
+
 def test_only_the_organizer_invites_and_removes() -> None:
     jordan, _, _ = person("Jordan K.", "private")
     sam = person("Sam L.")

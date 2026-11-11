@@ -89,6 +89,9 @@ export interface Entry {
   split_bill?: string;
   /** Money a friend sent back for a shared bill: "Paid back", never income (invariant 76). */
   paid_back?: boolean;
+  /** A payment I sent to settle a split group, added to my spending (S.6, invariant 76):
+   * `<group id>:<settlement id>`. Undoing the payment deletes the entry. */
+  split_settle?: string;
   created_at: string;
   updated_at: string;
 }
