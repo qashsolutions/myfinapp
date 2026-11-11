@@ -1,0 +1,32 @@
+{
+  "items": [
+    {
+      "cents": 3600,
+      "people": [
+        "a"
+      ]
+    },
+    {
+      "cents": 1800,
+      "people": [
+        "b"
+      ]
+    },
+    {
+      "cents": 1200,
+      "people": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    {
+      "cents": 900,
+      "people": [
+        "c"
+      ]
+    }
+  ],
+  "extras_cents": 1500,
+  "leftover_to": "a"
+}

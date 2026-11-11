@@ -241,6 +241,10 @@ def _splits_share(
     return splits.share(amount_cents, method, people, leftover_to, values)
 
 
+def _splits_itemize(items: list, extras_cents: int, leftover_to: str) -> dict:
+    return splits.itemize(items, extras_cents, leftover_to)
+
+
 def _splits_balances(people: list, bills: list, settlements: list) -> dict:
     return splits.balances(people, bills, settlements)
 
@@ -536,6 +540,7 @@ _BARE: dict[str, Rule] = {
     "household.split_contributions": _household_split_contributions,
     "household.combine_totals": _household_combine_totals,
     "splits.share": _splits_share,
+    "splits.itemize": _splits_itemize,
     "splits.balances": _splits_balances,
     "splits.simplify": _splits_simplify,
     "splits.repeat_dates": _splits_repeat_dates,

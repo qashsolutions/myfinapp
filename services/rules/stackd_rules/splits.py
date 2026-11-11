@@ -7,6 +7,10 @@ balances       per person: paid − own parts, + settlements sent − settlement
                disputed bill is on hold for everyone. Always sums to 0.
 simplify       the largest debtor pays the largest creditor the smaller amount, ties by person in
                code-point order, until everyone is at 0 (at most people − 1 payments).
+itemize        a bill split by item (chunk S.8): each item equally among its people (its
+               leftover cents to `leftover_to` when they shared it, else its first person),
+               then the extras (tax, tip, fees) by each person's items, ⌊extras × subtotal ÷
+               Σ subtotals⌋, the leftover cents to `leftover_to`.
 repeat_dates   a repeating bill's due dates from its start through as_of; monthly and yearly
                return to the start's day of the month (clamped), like forecast.upcoming.
 """
@@ -74,6 +78,43 @@ def share(
     return {
         "parts": [{"person": p, "cents": parts[p]} for p in ids],
         "total_cents": amount,
+    }
+
+
+def itemize(items: object, extras_cents: object, leftover_to: object) -> dict:
+    if not isinstance(items, list) or not items:
+        raise RuleError("no_items")
+    extras = _int(extras_cents, "invalid_extras")
+    if extras < 0:
+        raise RuleError("invalid_extras")
+    order: list[str] = []
+    subtotal: dict[str, int] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            raise RuleError("invalid_amount")
+        cents = _int(item.get("cents"), "invalid_amount")
+        if cents <= 0:
+            raise RuleError("invalid_amount")
+        ids = _people(item.get("people"))
+        for p in ids:
+            if p not in subtotal:
+                order.append(p)
+                subtotal[p] = 0
+        each = cents // len(ids)
+        for p in ids:
+            subtotal[p] += each
+        takes = leftover_to if leftover_to in ids else ids[0]
+        subtotal[takes] += cents - each * len(ids)
+    if leftover_to not in subtotal:
+        raise RuleError("leftover_to_not_in_split")
+    items_total = sum(subtotal.values())
+    parts = {p: subtotal[p] + extras * subtotal[p] // items_total for p in order}
+    parts[leftover_to] += items_total + extras - sum(parts.values())
+    return {
+        "parts": [{"person": p, "cents": parts[p]} for p in order],
+        "items_cents": items_total,
+        "extras_cents": extras,
+        "total_cents": items_total + extras,
     }
 
 

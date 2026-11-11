@@ -451,6 +451,43 @@ describe("Split bills: the organizer", () => {
     noSecretsLeft(api, ["cash at dinner"]);
   });
 
+  it("By item: tax and tip follow what each person had, saved as each person's part (S.8)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    renderApp(`/splits/${gid}/bills/new`);
+    await user.click(await screen.findByRole("radio", { name: "By item" }));
+    const add = screen.getByRole("button", { name: "+ Add an item" });
+    await user.click(add);
+    await user.click(add);
+    await user.click(add);
+    const items: Array<[string, string, string[]]> = [
+      ["Steak", "36", ["You"]],
+      ["Pasta", "18", ["Sam"]],
+      ["Appetizer", "12", ["You", "Sam", "Alex"]],
+      ["Salad", "9", ["Alex"]],
+    ];
+    for (const [i, [what, amount, who]] of items.entries()) {
+      await user.type(screen.getByLabelText(`Item ${i + 1}, what`), what);
+      await user.type(screen.getByLabelText(`Item ${i + 1}, amount`), amount);
+      const chips = screen.getByRole("group", { name: `Item ${i + 1}, who had it` });
+      for (const name of who) await user.click(within(chips).getByLabelText(name));
+    }
+    await user.type(screen.getByLabelText("Tax, tip and fees"), "15");
+    expect(await screen.findByText(/Total \$90\.00\./)).toBeInTheDocument();
+    expect(await screen.findByText("Only $48.00 counts as yours.")).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/What's it for/), "Dinner");
+    await user.click(screen.getByRole("button", { name: "Add bill" }));
+    expect(await screen.findByText("Sam pays you $26.40")).toBeInTheDocument();
+    expect(screen.getByText("Alex pays you $15.60")).toBeInTheDocument();
+    const mine = await readLedger(api, gid, ME);
+    expect(mine.bills.at(-1)).toMatchObject({
+      amount_cents: 9000,
+      method: "exact",
+      values: { [ME]: 4800, [SAM]: 2640, [ALEX]: 1560 },
+    });
+  });
+
   it("removes someone who owes only by forgiving it; someone owed is settled first", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });

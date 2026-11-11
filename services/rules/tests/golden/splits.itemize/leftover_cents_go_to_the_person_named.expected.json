@@ -1,0 +1,19 @@
+{
+  "parts": [
+    {
+      "person": "a",
+      "cents": 889
+    },
+    {
+      "person": "b",
+      "cents": 357
+    },
+    {
+      "person": "c",
+      "cents": 355
+    }
+  ],
+  "items_cents": 1500,
+  "extras_cents": 101,
+  "total_cents": 1601
+}

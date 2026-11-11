@@ -1,0 +1,20 @@
+{
+  "items": [
+    {
+      "cents": 10,
+      "people": [
+        "c",
+        "a",
+        "b"
+      ]
+    },
+    {
+      "cents": 5,
+      "people": [
+        "d"
+      ]
+    }
+  ],
+  "extras_cents": 0,
+  "leftover_to": "d"
+}

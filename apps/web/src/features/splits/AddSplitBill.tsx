@@ -4,7 +4,7 @@ import "../groups/groups.css";
 
 import { Button, Card } from "@stackd/ui";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
@@ -17,6 +17,7 @@ import {
   type SplitRepeat,
 } from "../../engine/bridge.ts";
 import { formatCents, todayIso } from "../../lib/format.ts";
+import { BillItems, type ItemsResult } from "./BillItems.tsx";
 import { ChipChoice } from "./ChipChoice.tsx";
 import { shareEntry } from "./entryShare.ts";
 import { type GroupMeta, guestSplit, MAX_WHAT, type ShownBill } from "./ledger.ts";
@@ -157,6 +158,13 @@ function BillForm({
         : "payer",
   );
   const [checked, setChecked] = useState(false);
+  // "By item" (S.8): the items work out each person's exact part.
+  const [byItem, setByItem] = useState(false);
+  const [itemResult, setItemResult] = useState<ItemsResult | { problem: string } | null>(null);
+  const onItems = useCallback(
+    (r: ItemsResult | { problem: string } | null) => setItemResult(r),
+    [],
+  );
   const [draft, setDraft] = useState<BillDraft | null>(null);
   const [parts, setParts] = useState<SplitPart[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -172,8 +180,34 @@ function BillForm({
     return all;
   }, [live, editing]);
 
+  // By item: the draft is each person's exact part from `splits.itemize`.
+  useEffect(() => {
+    if (!byItem) return;
+    if (!itemResult || "problem" in itemResult) {
+      setDraft(null);
+      setParts(null);
+      setProblem(itemResult ? itemResult.problem : null);
+      return;
+    }
+    const d: BillDraft = {
+      date,
+      what,
+      amount_cents: itemResult.amount_cents,
+      paid_by: paidBy,
+      people: itemResult.people,
+      method: "exact",
+      values: Object.fromEntries(itemResult.parts.map((p) => [p.person, p.cents])),
+      leftover_to: itemResult.people.includes(paidBy) ? paidBy : itemResult.leftover_to,
+      repeat,
+    };
+    setDraft(d);
+    setParts(itemResult.parts);
+    setProblem(null);
+  }, [byItem, itemResult, date, what, paidBy, repeat]);
+
   // Work the parts out as they type, through the engine, so the preview is the saved split.
   useEffect(() => {
+    if (byItem) return;
     let alive = true;
     void (async () => {
       let cents: number;
@@ -223,7 +257,7 @@ function BillForm({
     return () => {
       alive = false;
     };
-  }, [amountText, method, people, typed, date, what, paidBy, leftover, repeat]);
+  }, [amountText, method, people, typed, date, what, paidBy, leftover, repeat, byItem]);
 
   const mine = parts?.find((p) => p.person === group.my_member_id)?.cents ?? 0;
   const atLimit = runsIt && !editing && today.limit > 0 && today.added >= today.limit;
@@ -279,22 +313,28 @@ function BillForm({
           your share in your spending.
         </p>
       ) : null}
-      <label className="auth__field">
-        <span className="auth__label">1 · How much?</span>
-        <input
-          className="auth__input"
-          inputMode="decimal"
-          placeholder="186.00"
-          value={amountText}
-          onChange={(e) => setAmountText(e.target.value)}
-        />
-      </label>
+      {byItem ? null : (
+        <label className="auth__field">
+          <span className="auth__label">1 · How much?</span>
+          <input
+            className="auth__input"
+            inputMode="decimal"
+            placeholder="186.00"
+            value={amountText}
+            onChange={(e) => setAmountText(e.target.value)}
+          />
+        </label>
+      )}
       {runsIt ? (
         <ChipChoice
           legend="2 · How to split it?"
-          options={METHODS}
-          value={method}
-          onChange={(v) => setMethod(v)}
+          options={editing ? METHODS : [...METHODS, ["items" as SplitMethod, "By item"] as const]}
+          value={byItem ? ("items" as SplitMethod) : method}
+          onChange={(v) => {
+            if ((v as string) === "items") return setByItem(true);
+            setByItem(false);
+            setMethod(v);
+          }}
         />
       ) : (
         <p className="auth__hint">
@@ -308,7 +348,15 @@ function BillForm({
                 .join(" · ")}. ${organizerName} sets how this group splits and approves your bill.`}
         </p>
       )}
-      <fieldset className="split-people">
+      {byItem ? (
+        <BillItems
+          everyone={everyone}
+          nameOf={nameOf}
+          leftoverTo={leftover === "payer" ? paidBy : leftover}
+          onResult={onItems}
+        />
+      ) : null}
+      <fieldset className="split-people" hidden={byItem}>
         <legend className="auth__label">Who's in?</legend>
         {everyone.map((p) => (
           <div className="split-person" key={p}>
@@ -382,7 +430,7 @@ function BillForm({
           onChange={(e) => setDate(e.target.value)}
         />
       </label>
-      {runsIt && method !== "exact" ? (
+      {runsIt && method !== "exact" && !byItem ? (
         <label className="auth__field">
           <span className="auth__label">A leftover cent goes to</span>
           <select
