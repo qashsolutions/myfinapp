@@ -20,9 +20,9 @@ import { compareText } from "../../lib/order.ts";
 
 export const LEDGER_VERSION = 1;
 export const MAX_WHAT = 60;
-/** A note on a payment or a dispute (S.7; 120 characters, proposed November 10, 2026). */
+/** A note on a payment or a dispute (S.7; 120 characters, signed off by the owner November 10, 2026). */
 export const NOTE_MAX = 120;
-/** How long whoever recorded a payment may undo it (S.7; 7 days, proposed). */
+/** How long whoever recorded a payment may undo it (S.7; 7 days, signed off by the owner November 10, 2026). */
 export const UNDO_DAYS = 7;
 
 export interface SplitBill {
