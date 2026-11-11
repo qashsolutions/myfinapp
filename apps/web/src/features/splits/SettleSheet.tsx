@@ -1,5 +1,4 @@
-import { Button, Sheet, Toggle } from "@stackd/ui";
-import { useLiveQuery } from "dexie-react-hooks";
+import { Button, Sheet } from "@stackd/ui";
 import { useEffect, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
 import { parseAmount } from "../../engine/bridge.ts";
@@ -52,18 +51,6 @@ export function SettleSheet({
     setNote("");
     setError(null);
   }, [payment]);
-  useEffect(() => {
-    if (!iPay) return;
-    let alive = true;
-    void settleDefaults(db, group.id).then((d) => {
-      if (!alive) return;
-      setAddSpending(d.on);
-      setCategoryId(d.categoryId);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [db, group.id, iPay]);
   if (!payment) return null;
   const counts = payment.to === group.my_member_id || group.is_organizer;
   const from = nameOf(payment.from);
