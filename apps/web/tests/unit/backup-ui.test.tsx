@@ -11,6 +11,7 @@ import {
   installFakeApi,
   readySession,
 } from "../fakeApi.ts";
+import { readableIn } from "../leaks.ts";
 import { renderApp } from "../render.tsx";
 
 const T0 = "2026-10-01T10:00:00.000Z";
@@ -80,9 +81,10 @@ describe("Encrypted backup", () => {
     const outbound = api.calls.filter((c) => c.path.startsWith("/api/backup"));
     for (const c of outbound) {
       const text = JSON.stringify(c.body ?? {});
-      expect(text).not.toMatch(/Corner Market|1250|amount_cents|merchant/);
+      for (const w of ["Corner Market", "1250", "amount_cents", "merchant"])
+        expect(readableIn(text, w), w).toBe(false);
     }
-    expect(backup.blobs[0]?.ciphertext).not.toContain("Corner");
+    expect(readableIn(backup.blobs[0]?.ciphertext ?? "", "Corner")).toBe(false);
     await waitFor(() => expect(within(section).getByText(/On\./)).toBeInTheDocument());
     expect(within(section).getByText(/Last backup: today/)).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Devices that sync" })).toHaveTextContent(
