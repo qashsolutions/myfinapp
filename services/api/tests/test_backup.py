@@ -197,6 +197,16 @@ def test_assertion_options_carry_the_prf_salt() -> None:
     assert r.status_code == 422
 
 
+def test_registration_asks_for_prf_so_any_passkey_can_open_the_backup() -> None:
+    # A security key (and Chrome's own authenticator) turns PRF on only for a passkey created
+    # with it asked for; without it, "Unlock with" can never open a backup (November 10, 2026).
+    client = new_client(MAC_UA)
+    sign_in_with_code(client, f"prf-{uuid.uuid4().hex[:8]}@example.com")
+    r = client.post("/api/security/passkeys/register/options")
+    assert r.status_code == 200, r.text
+    assert r.json()["options"]["extensions"] == {"prf": {}}
+
+
 def _stale_step_up(session_id: str) -> None:
     with get_session_factory()() as db, db.begin():
         db.execute(

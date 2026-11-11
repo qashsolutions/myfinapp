@@ -15,4 +15,5 @@ export STACKD_RP_ID=localhost
 export PYTHONUNBUFFERED=1
 uv run stackd-api migrate >/dev/null
 if [ -n "$CI" ]; then uv run stackd-api init-storage >/dev/null; fi
-exec uv run uvicorn app.main:app --port "${E2E_API_PORT:-8100}"
+# tests/e2e_app.py: the same app with Plaid faked (made-up keys, no network to Plaid).
+exec uv run uvicorn tests.e2e_app:app --port "${E2E_API_PORT:-8100}"
