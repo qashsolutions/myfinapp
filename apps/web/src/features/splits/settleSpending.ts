@@ -6,6 +6,7 @@
  * would count it twice.
  */
 
+import { recordDeletion } from "../../data/backup/snapshot.ts";
 import { type Entry, newId, type StackdDb } from "../../data/db.ts";
 import { todayIso } from "../../lib/format.ts";
 
@@ -65,4 +66,18 @@ export async function addSettleSpending(
   };
   await db.entries.add(entry);
   return entry.id;
+}
+
+/** Undoing a payment (S.7) takes its spending entry with it; a sync can't bring it back. */
+export async function removeSettleSpending(
+  db: StackdDb,
+  groupId: string,
+  settlementId: string,
+): Promise<number> {
+  const ref = settleRef(groupId, settlementId);
+  const ids = (await db.entries.toArray()).filter((e) => e.split_settle === ref).map((e) => e.id);
+  if (ids.length === 0) return 0;
+  await db.entries.bulkDelete(ids);
+  await recordDeletion(db, "entries", ids);
+  return ids.length;
 }

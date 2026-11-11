@@ -352,11 +352,18 @@ describe("Split bills: guests and safety", () => {
     await screen.findByText("You pay Jordan K. $45.00");
     await user.click(screen.getByRole("button", { name: /Internet/ }));
     const sheet = await screen.findByRole("dialog", { name: "Internet" });
+    await user.type(within(sheet).getByLabelText("What's wrong? (optional)"), "Not my internet");
     await user.click(within(sheet).getByRole("button", { name: "This isn't right · Dispute" }));
     await waitFor(() =>
       expect(api.splits.groups[0]?.disputes).toEqual([{ bill_id: "b-net", member_id: ME }]),
     );
     expect(await screen.findByText(/1 disputed bill is on hold/)).toBeInTheDocument();
+    // The note is mine, encrypted in my ledger; History shows it (S.7).
+    await user.click(screen.getByRole("button", { name: "History" }));
+    const history = await screen.findByRole("dialog", { name: "History" });
+    expect(within(history).getByText("You disputed Internet: Not my internet")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    for (const c of api.calls) expect(`${c.url} ${c.raw}`).not.toContain("Not my internet");
     expect(screen.queryByText("You pay Jordan K. $45.00")).toBeNull();
     await user.click(screen.getByRole("button", { name: /Internet/ }));
     await user.click(

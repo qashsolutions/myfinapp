@@ -10,6 +10,7 @@ import { useDb } from "../../data/DbProvider.tsx";
 import { dayOf, formatCents, formatDay } from "../../lib/format.ts";
 import { BillSheet } from "./BillSheet.tsx";
 import { CheckFirstSheet } from "./CheckFirstSheet.tsx";
+import { GroupHistorySheet } from "./GroupHistorySheet.tsx";
 import { GroupSettingsSheet } from "./GroupSettingsSheet.tsx";
 import { InviteSheet } from "./InviteSheet.tsx";
 import { LeaveSheet } from "./LeaveSheet.tsx";
@@ -51,6 +52,7 @@ export function SplitGroupScreen() {
   const [openBill, setOpenBill] = useState<ShownBill | null>(null);
   const [leaving, setLeaving] = useState<"leave" | "report" | null>(null);
   const [settingUp, setSettingUp] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     if (params.get("invite") === "1" && group?.is_organizer) {
@@ -452,6 +454,9 @@ export function SplitGroupScreen() {
         </Card>
       ) : null}
 
+      <Button block variant="secondary" onClick={() => setShowHistory(true)}>
+        History
+      </Button>
       <p className="auth__fineprint">
         Qash never moves money. Pay each other your usual way, then mark it paid.
       </p>
@@ -460,6 +465,13 @@ export function SplitGroupScreen() {
           <span style={{ color: "var(--c-danger)" }}>Leave or report</span>
         </Button>
       )}
+      <GroupHistorySheet
+        group={group}
+        view={view}
+        open={showHistory}
+        onClose={() => setShowHistory(false)}
+        onChanged={refresh}
+      />
       <GroupSettingsSheet
         group={group}
         meta={view.merged.group}

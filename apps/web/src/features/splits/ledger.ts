@@ -20,6 +20,10 @@ import { compareText } from "../../lib/order.ts";
 
 export const LEDGER_VERSION = 1;
 export const MAX_WHAT = 60;
+/** A note on a payment or a dispute (S.7; 120 characters, proposed November 10, 2026). */
+export const NOTE_MAX = 120;
+/** How long whoever recorded a payment may undo it (S.7; 7 days, proposed). */
+export const UNDO_DAYS = 7;
 
 export interface SplitBill {
   /** The server-issued id (`POST /api/splits/{id}/bills`). */
@@ -55,6 +59,14 @@ export interface SplitSettlement {
   /** A receiver's (or organizer's) record that confirms the payer's claim with this id. */
   confirms: string | null;
   at: string;
+  /** S.7: an optional note, and when its recorder undid it (it then moves nobody). */
+  note?: string | null;
+  undone_at?: string | null;
+}
+
+/** A payment as merged: who recorded it, for Undo. */
+export interface CountedSettlement extends SplitSettlement {
+  by: string;
 }
 
 export interface GroupMeta {
@@ -80,6 +92,8 @@ export interface LedgerBlob {
   settlements: SplitSettlement[];
   /** Organizer only. */
   group: GroupMeta | null;
+  /** S.7: my note on a bill I disputed, by bill id. */
+  dispute_notes?: Record<string, string>;
 }
 
 export type HandleApp = Exclude<PayApp, "other">;
@@ -94,7 +108,15 @@ export interface ProfileBlob {
 }
 
 export function emptyLedger(): LedgerBlob {
-  return { v: LEDGER_VERSION, bills: [], edits: {}, approved: {}, settlements: [], group: null };
+  return {
+    v: LEDGER_VERSION,
+    bills: [],
+    edits: {},
+    approved: {},
+    settlements: [],
+    group: null,
+    dispute_notes: {},
+  };
 }
 
 /**
@@ -149,7 +171,9 @@ export function isValidSettlement(s: unknown): s is SplitSettlement {
     typeof x.date === "string" &&
     DATE.test(x.date) &&
     APPS.has(x.via as string) &&
-    (x.confirms === null || isText(x.confirms))
+    (x.confirms === null || isText(x.confirms)) &&
+    (x.note == null || (typeof x.note === "string" && x.note.length <= NOTE_MAX)) &&
+    (x.undone_at == null || typeof x.undone_at === "string")
   );
 }
 
@@ -214,8 +238,12 @@ export interface Claim extends SplitSettlement {
 export interface Merged {
   group: GroupMeta | null;
   bills: ShownBill[];
-  settlements: SplitSettlement[];
+  settlements: CountedSettlement[];
   claims: Claim[];
+  /** S.7: payments their recorder undid; they move nobody. */
+  undone: CountedSettlement[];
+  /** S.7: each disputer's note on a bill, from their own ledger. */
+  dispute_notes: Array<{ bill_id: string; member: string; note: string }>;
 }
 
 function byDateThenId(a: { date: string; id: string }, b: { date: string; id: string }): number {
@@ -267,20 +295,31 @@ export function merge(input: MergeInput): Merged {
   }
   bills.sort(byDateThenId);
 
-  const settlements: SplitSettlement[] = [];
+  const settlements: CountedSettlement[] = [];
+  const undone: CountedSettlement[] = [];
   const offered: Claim[] = [];
   const confirmed = new Set<string>();
   for (const [author, ledger] of ledgers) {
     for (const s of Array.isArray(ledger?.settlements) ? ledger.settlements : []) {
       if (!isValidSettlement(s)) continue;
+      if (s.undone_at) {
+        if (author === s.to || author === organizer || author === s.from)
+          undone.push({ ...s, by: author });
+        continue;
+      }
       if (author === s.to || author === organizer) {
-        settlements.push(s);
+        settlements.push({ ...s, by: author });
         if (s.confirms) confirmed.add(s.confirms);
       } else if (author === s.from) {
         offered.push({ ...s, claimed_by: author });
       }
     }
   }
+  const dispute_notes: Merged["dispute_notes"] = [];
+  for (const [author, ledger] of ledgers)
+    for (const [bill_id, note] of Object.entries(recordOf<string>(ledger?.dispute_notes)))
+      if (typeof note === "string" && note.length > 0 && note.length <= NOTE_MAX)
+        dispute_notes.push({ bill_id, member: author, note });
   settlements.sort(byDateThenId);
   // A claim that also counts (a new organizer copied it on taking over) is no longer a claim.
   const counted = new Set(settlements.map((s) => s.id));
@@ -293,6 +332,8 @@ export function merge(input: MergeInput): Merged {
     bills,
     settlements,
     claims,
+    undone: undone.sort(byDateThenId),
+    dispute_notes,
   };
 }
 
@@ -390,6 +431,65 @@ export function billHistory(
   return out;
 }
 
+/** Whoever recorded a payment may undo it within UNDO_DAYS of recording it (S.7). */
+export function canUndo(s: SplitSettlement, by: string, me: string, now: Date): boolean {
+  if (by !== me || s.undone_at) return false;
+  const at = Date.parse(s.at);
+  return Number.isFinite(at) && now.getTime() - at <= UNDO_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/**
+ * The group's History (S.7): bills added, approved and changed, payments recorded and undone,
+ * disputes with their notes, newest first. Built from the ledgers on the device. A dispute has
+ * no time on the device, so it is listed last.
+ */
+export function groupHistory(
+  merged: Merged,
+  organizer: string | null,
+  name: (id: string) => string,
+  disputes: Array<{ bill_id: string; member_id: string | null }>,
+): Array<{ at: string; text: string; settlement?: CountedSettlement }> {
+  const out: Array<{ at: string; text: string; settlement?: CountedSettlement }> = [];
+  const by = organizer ? name(organizer) : "the organizer";
+  const seen = new Set<string>();
+  for (const b of merged.bills) {
+    if (seen.has(b.base_id)) continue; // a repeat's copies are one bill
+    seen.add(b.base_id);
+    const what = b.what || "a bill";
+    const first = b.before_edit ?? b;
+    out.push({
+      at: b.added_at,
+      text: `Added ${what}, ${formatCents(first.amount_cents)}, by ${name(b.added_by)}`,
+    });
+    if (b.approved_at) out.push({ at: b.approved_at, text: `${by} approved ${what}` });
+    if (b.before_edit) {
+      const what2 = changes(b.before_edit, b, name);
+      if (what2.length)
+        out.push({ at: b.updated_at, text: `${by} changed ${what}: ${what2.join(" · ")}` });
+    }
+  }
+  const whom = (id: string) => (name(id) === "You" ? "you" : name(id));
+  const paid = (s: SplitSettlement) =>
+    `${name(s.from)} paid ${whom(s.to)} ${formatCents(s.cents)}${s.note ? ` · ${s.note}` : ""}`;
+  for (const s of merged.settlements) out.push({ at: s.at, text: paid(s), settlement: s });
+  for (const s of merged.undone) out.push({ at: s.undone_at ?? s.at, text: `${paid(s)} · undone` });
+  for (const c of merged.claims)
+    out.push({ at: c.at, text: `${paid(c)} · waiting for ${whom(c.to)} to confirm` });
+  out.sort((a, b) => compareText(b.at, a.at));
+  const billName = (id: string) => merged.bills.find((b) => b.base_id === id)?.what || "a bill";
+  for (const d of disputes) {
+    const who = d.member_id ? name(d.member_id) : "A former member";
+    const note = merged.dispute_notes.find(
+      (n) => n.bill_id === d.bill_id && n.member === d.member_id,
+    );
+    out.push({
+      at: "",
+      text: `${who} disputed ${billName(d.bill_id)}${note ? `: ${note.note}` : ""}`,
+    });
+  }
+  return out;
+}
+
 /** The facts `splits.balances` takes: approved bills only; a pending one moves nobody. */
 export function balanceFacts(merged: Merged): {
   bills: Array<{
@@ -446,6 +546,7 @@ export function parseLedger(value: unknown): LedgerBlob | null {
     approved: recordOf(v.approved),
     settlements: v.settlements,
     group: v.group ?? null,
+    dispute_notes: recordOf(v.dispute_notes),
   };
 }
 
@@ -478,6 +579,7 @@ export interface LedgerPage {
   edits: Record<string, SplitBill | null>;
   approved: Record<string, SplitBill>;
   settlements: SplitSettlement[];
+  dispute_notes?: Record<string, string>;
 }
 
 export interface HeadBlob {
@@ -517,6 +619,10 @@ export interface PageBlob {
   e: Array<[string, PackedBill | null]>;
   a: Array<[string, PackedBill]>;
   s: PackedSettlement[];
+  /** S.7, kept out of `s` so an older build still reads every settlement: [id, note, undone]. */
+  x?: Array<[string, string | null, string | null]>;
+  /** S.7: [bill id, my dispute note]. */
+  d?: Array<[string, string]>;
 }
 
 export function emptyPage(): LedgerPage {
@@ -577,6 +683,20 @@ export function encodePage(page: LedgerPage): PageBlob {
       x.confirms,
       x.at,
     ]),
+    ...(page.settlements.some((x) => x.note || x.undone_at)
+      ? {
+          x: page.settlements
+            .filter((x) => x.note || x.undone_at)
+            .map((x): [string, string | null, string | null] => [
+              x.id,
+              x.note ?? null,
+              x.undone_at ?? null,
+            ]),
+        }
+      : {}),
+    ...(page.dispute_notes && Object.keys(page.dispute_notes).length
+      ? { d: Object.entries(page.dispute_notes) }
+      : {}),
   };
 }
 
@@ -663,6 +783,14 @@ export function decodePage(value: unknown, author: string): LedgerPage | null {
     const b = bill(x);
     if (b) page.approved[id] = b;
   }
+  const extras = new Map<string, [unknown, unknown]>();
+  for (const e of Array.isArray(v.x) ? v.x : [])
+    if (Array.isArray(e) && typeof e[0] === "string") extras.set(e[0], [e[1], e[2]]);
+  for (const e of Array.isArray(v.d) ? v.d : [])
+    if (Array.isArray(e) && typeof e[0] === "string" && typeof e[1] === "string") {
+      page.dispute_notes ??= {};
+      page.dispute_notes[e[0]] = e[1];
+    }
   for (const x of Array.isArray(v.s) ? v.s : []) {
     if (!Array.isArray(x) || x.length !== 8) continue;
     const [id, from, to, cents, date, via, confirms, at] = x as unknown[];
@@ -676,6 +804,12 @@ export function decodePage(value: unknown, author: string): LedgerPage | null {
       confirms: (confirms ?? null) as string | null,
       at: typeof at === "string" ? at : "",
     });
+    const extra = extras.get(id as string);
+    const added = page.settlements[page.settlements.length - 1];
+    if (extra && added) {
+      if (typeof extra[0] === "string") added.note = extra[0];
+      if (typeof extra[1] === "string") added.undone_at = extra[1];
+    }
   }
   return page;
 }
@@ -701,6 +835,7 @@ export function combinePages(head: HeadBlob | null, pages: Map<string, LedgerPag
     for (const s of page.settlements) settlements.set(s.id, s);
     Object.assign(out.edits, page.edits);
     Object.assign(out.approved as Record<string, SplitBill>, page.approved);
+    Object.assign(out.dispute_notes as Record<string, string>, page.dispute_notes ?? {});
   }
   out.bills = [...bills.values()];
   out.settlements = [...settlements.values()];
@@ -739,7 +874,12 @@ export function placeOnPages(
   const was = combinePages(null, before);
   const out = new Map<string, LedgerPage>();
   for (const [m, page] of before)
-    out.set(m, { ...emptyPage(), edits: { ...page.edits }, approved: { ...page.approved } });
+    out.set(m, {
+      ...emptyPage(),
+      edits: { ...page.edits },
+      approved: { ...page.approved },
+      ...(page.dispute_notes ? { dispute_notes: { ...page.dispute_notes } } : {}),
+    });
   if (!out.has(month)) out.set(month, emptyPage());
   const pageOf = (m: string) => out.get(m) ?? (out.set(m, emptyPage()).get(m) as LedgerPage);
 
@@ -751,20 +891,24 @@ export function placeOnPages(
     pageOf(settledAt.get(s.id) ?? month).settlements.push(s);
 
   const place = <T>(
-    field: "edits" | "approved",
+    field: "edits" | "approved" | "dispute_notes",
     old: Record<string, T>,
     now: Record<string, T>,
   ) => {
     for (const [id, value] of Object.entries(now)) {
       if (Object.hasOwn(old, id) && canonical(old[id]) === canonical(value)) continue;
-      (pageOf(month)[field] as Record<string, T>)[id] = value;
+      const page = pageOf(month);
+      page[field] ??= {};
+      (page[field] as Record<string, T>)[id] = value;
     }
     for (const id of Object.keys(old)) {
       if (Object.hasOwn(now, id)) continue;
-      for (const page of out.values()) delete (page[field] as Record<string, T>)[id];
+      for (const page of out.values())
+        if (page[field]) delete (page[field] as Record<string, T>)[id];
     }
   };
   place("edits", was.edits, recordOf<SplitBill | null>(next.edits));
   place("approved", was.approved ?? {}, recordOf<SplitBill>(next.approved));
+  place("dispute_notes", was.dispute_notes ?? {}, recordOf<string>(next.dispute_notes));
   return out;
 }
