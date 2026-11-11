@@ -202,5 +202,5 @@ function connectionState(c: {
     return "Access was withdrawn at the bank. Disconnect, then link again";
   if (c.last_synced_at)
     return `Updated ${shortDate(c.last_synced_at)}, ${shortTime(c.last_synced_at)}`;
-  return `Linked ${formatDate(c.created_at.slice(0, 10))}`;
+  return `Linked ${formatDate(c.created_at)}`;
 }

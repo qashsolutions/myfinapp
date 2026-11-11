@@ -3,7 +3,7 @@ import { useState } from "react";
 import { api, failureOf } from "../../data/api.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { newId } from "../../data/db.ts";
-import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
+import { dayOf, formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { ChipChoice } from "./ChipChoice.tsx";
 import type { HandleApp, ProfileBlob } from "./ledger.ts";
 import {
@@ -122,7 +122,7 @@ export function CheckFirstSheet({
           ) : null}
           <p>
             {APP_NAME[app]} {showHandle(app, handle)}
-            {changedAt ? ` · saved ${formatDay(changedAt.slice(0, 10))}` : ""}
+            {changedAt ? ` · saved ${formatDay(dayOf(changedAt))}` : ""}
           </p>
           {recent ? (
             <p className="auth__error" role="alert">

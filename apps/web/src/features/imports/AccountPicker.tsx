@@ -3,7 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useId, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { Account, AccountType } from "../../data/db.ts";
-import { formatDay } from "../../lib/format.ts";
+import { dayOf, formatDay } from "../../lib/format.ts";
 import { useEntitlements } from "../billing/entitlements.ts";
 import { PlanLimit } from "../billing/PlanLimit.tsx";
 import { accountLabel } from "../entries/useEntries.ts";
@@ -124,7 +124,7 @@ export function AccountPicker({
                       ...a,
                       label: TYPES.find(([t]) => t === a.type)?.[1] ?? a.type,
                     })}{" "}
-                    · {last ? `last import ${formatDay(last.slice(0, 10))}` : "never imported"}
+                    · {last ? `last import ${formatDay(dayOf(last))}` : "never imported"}
                   </span>
                 </span>
               </label>

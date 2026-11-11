@@ -348,6 +348,35 @@ describe("receipt photos", () => {
     });
   }
 
+  it("a photo on an entry that was never saved leaves with the screen; the next open sweeps any left (November 10, 2026)", async () => {
+    // Found by e2e/receipts.spec.ts: the photo was kept with no entry until its keep time ran
+    // out, counted in Delete all and carried in the export.
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    renderApp("/add?with=receipt");
+    const card = await screen.findByRole("region", { name: "Receipt photo" });
+    await user.upload(within(card).getByLabelText("Add a receipt photo"), PHOTO);
+    await waitFor(() => expect(card).toHaveTextContent("Receipt photo attached"));
+    expect(await db.receipts.count()).toBe(1);
+    await user.click(screen.getByRole("link", { name: "Home" }));
+    await screen.findByRole("heading", { level: 1 });
+    await waitFor(async () => expect(await db.receipts.count()).toBe(0));
+    expect(await db.files.count()).toBe(0);
+
+    // A tab closed mid-entry: the next open drops a day-old photo no entry took, and keeps
+    // a saved entry's photo.
+    const { storeReceiptPhoto } = await import("../../src/data/receipts.ts");
+    const yesterday = new Date("2026-10-09T08:00:00");
+    const left = await storeReceiptPhoto(db, PHOTO, "90d", "2026-10-09", yesterday);
+    const kept = await storeReceiptPhoto(db, PHOTO, "90d", "2026-10-09", yesterday);
+    await db.receipts.update(kept.id, { entry_id: "e-kept", status: "confirmed" });
+    renderApp("/");
+    await screen.findByRole("navigation", { name: "Primary" });
+    await waitFor(async () => expect(await db.receipts.get(left.id)).toBeUndefined());
+    expect(await db.receipts.get(kept.id)).toMatchObject({ entry_id: "e-kept" });
+    expect(await db.files.count()).toBe(1);
+  });
+
   it("Delete all receipt photos asks in a sheet with the real count, then removes photos and their records", async () => {
     const user = userEvent.setup();
     const db = openDb("u1");

@@ -13,7 +13,7 @@ import { useDb } from "../../data/DbProvider.tsx";
 import { type Account, type AccountType, newId } from "../../data/db.ts";
 import { deleteReceiptsOf } from "../../data/receipts.ts";
 import { parseAmount } from "../../engine/bridge.ts";
-import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
+import { dayOf, formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
 import { parseWholeNumber } from "../../lib/ownValues.ts";
 import { ChipsOrOwn } from "../goals/CustomValueSheet.tsx";
@@ -227,7 +227,7 @@ export function AccountsManager() {
                 <dt className="group-row__meta">Last import</dt>
                 <dd>
                   {lastImport
-                    ? `${formatDay(lastImport.created_at.slice(0, 10))} · ${lastImport.rows_added} added${lastImport.rows_skipped ? `, ${lastImport.rows_skipped} skipped` : ""}`
+                    ? `${formatDay(dayOf(lastImport.created_at))} · ${lastImport.rows_added} added${lastImport.rows_skipped ? `, ${lastImport.rows_skipped} skipped` : ""}`
                     : (linked ?? "Never imported")}
                 </dd>
               </div>

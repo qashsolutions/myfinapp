@@ -9,6 +9,7 @@
  */
 
 import { addDays, addMonths } from "../engine/bridge.ts";
+import { dayOf } from "../lib/format.ts";
 import {
   newId,
   type Receipt,
@@ -298,7 +299,7 @@ export async function photosRemovedBy(
 ): Promise<number> {
   let n = 0;
   for (const r of await db.receipts.filter((r) => r.file_id !== null).toArray()) {
-    const due = await purgeDateFor(retention, r.created_at.slice(0, 10));
+    const due = await purgeDateFor(retention, dayOf(r.created_at));
     if (due !== null && due <= today) n += 1;
   }
   return n;
@@ -345,8 +346,39 @@ export async function deleteReceipts(db: StackdDb, receiptIds: string[]): Promis
   await db.receipts.bulkDelete(receipts.map((r) => r.id));
 }
 
-/** Removes photos past their date. The receipt row and the entry's amount stay. */
-export async function purgeExpiredReceipts(db: StackdDb, today: string): Promise<number> {
+/**
+ * Drops those of these receipts no entry took (a photo attached while adding an entry that was
+ * never saved, or replaced before saving), with their photos. A saved entry's receipt is kept.
+ */
+export async function dropUnsavedReceipts(db: StackdDb, receiptIds: string[]): Promise<void> {
+  if (receiptIds.length === 0) return;
+  await db.transaction("rw", [db.receipts, db.files], async () => {
+    const rows = await db.receipts.bulkGet(receiptIds);
+    const unsaved = rows.filter((r) => r && r.entry_id === null && r.status === "pending");
+    await deleteReceipts(
+      db,
+      unsaved.map((r) => (r as Receipt).id),
+    );
+  });
+}
+
+/** How long a photo may wait for its entry to be saved before an open sweeps it away. */
+const UNSAVED_GRACE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Removes photos past their date (the receipt row and the entry's amount stay), and photos no
+ * entry took within a day (the screen closed mid-entry, or the tab did; November 10, 2026).
+ */
+export async function purgeExpiredReceipts(
+  db: StackdDb,
+  today: string,
+  now: Date = new Date(),
+): Promise<number> {
+  const before = new Date(now.getTime() - UNSAVED_GRACE_MS).toISOString();
+  const unsaved = await db.receipts
+    .filter((r) => r.entry_id === null && r.status === "pending" && r.created_at < before)
+    .primaryKeys();
+  await dropUnsavedReceipts(db, unsaved);
   const due = await db.receipts
     .where("purge_after")
     .belowOrEqual(today)
@@ -382,7 +414,7 @@ export async function setRetention(
   const withPhoto = await db.receipts.filter((r) => r.file_id !== null).toArray();
   for (const r of withPhoto) {
     await db.receipts.update(r.id, {
-      purge_after: await purgeDateFor(retention, r.created_at.slice(0, 10)),
+      purge_after: await purgeDateFor(retention, dayOf(r.created_at)),
       updated_at: new Date().toISOString(),
     });
   }

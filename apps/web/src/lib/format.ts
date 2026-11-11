@@ -87,6 +87,14 @@ export function todayIso(now: Date = new Date()): string {
 }
 
 /**
+ * The day a stored moment (an ISO timestamp) fell on in this device's time, as YYYY-MM-DD.
+ * Never its first ten letters: that is the UTC day, tomorrow from the evening in the US.
+ */
+export function dayOf(timestamp: string): string {
+  return todayIso(new Date(timestamp));
+}
+
+/**
  * How long ago a moment was, for "synced …": "just now", "5 min ago", "3 hr ago", "yesterday",
  * else the day ("Oct 9"). A moment in the future (another device's clock) reads as just now.
  */

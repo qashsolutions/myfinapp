@@ -10,6 +10,7 @@ import { useDb } from "../../data/DbProvider.tsx";
 import type { Account, CsvMapping } from "../../data/db.ts";
 import { parseAmount } from "../../engine/bridge.ts";
 import { applyMapping } from "../../importers/csv.ts";
+import { todayIso } from "../../lib/format.ts";
 import { ColumnMapper } from "./ColumnMapper.tsx";
 import { ImportPreview } from "./ImportPreview.tsx";
 import {
@@ -20,6 +21,19 @@ import {
   prepareRows,
 } from "./importFlow.ts";
 import { type Chosen, UploadStatement } from "./UploadStatement.tsx";
+
+/**
+ * Where an import lands: the list of the month holding the newest row it added, when that is
+ * before this month (a statement from October imported in November opens October, not an empty
+ * November that looks as if nothing was imported; November 10, 2026).
+ */
+function landingFor(prepared: Prepared): string {
+  const newest = prepared.rows
+    .filter((r) => !r.duplicate)
+    .reduce((max, r) => (r.date > max ? r.date : max), "");
+  const month = newest.slice(0, 7);
+  return month && month < todayIso().slice(0, 7) ? `${ENTRIES_PATH}&month=${month}` : ENTRIES_PATH;
+}
 
 type Step = 1 | 2 | 3;
 const TITLES: Record<Step, string> = {
@@ -112,7 +126,7 @@ export function ImportFlow() {
         period: chosen.parsed.ofx?.period ?? chosen.parsed.pdf?.period,
         templateKey: chosen.parsed.pdf?.template_key ?? null,
       });
-      navigate(ENTRIES_PATH, { replace: true });
+      navigate(landingFor(prepared), { replace: true });
     } catch {
       setError("The import didn't finish. Nothing was saved; try again.");
     } finally {

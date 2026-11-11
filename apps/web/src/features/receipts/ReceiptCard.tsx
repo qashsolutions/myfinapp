@@ -9,7 +9,7 @@ import {
   retentionLabel,
   storeReceiptPhoto,
 } from "../../data/receipts.ts";
-import { formatDay, todayIso } from "../../lib/format.ts";
+import { dayOf, formatDay, todayIso } from "../../lib/format.ts";
 import { nativeCameraAvailable, takeReceiptPhoto } from "../../native/camera.ts";
 import { OcrError, readReceiptText } from "./ocr/engine.ts";
 import { parseReceiptText, type ReceiptSuggestion } from "./ocr/parse.ts";
@@ -173,7 +173,7 @@ export function ReceiptCard({
         </p>
         <p className="receipt-card__sub">
           {photoGone
-            ? `Removed after ${retention === "forever" ? "you asked" : retentionLabel(retention).toLowerCase()}${view.receipt.purged_at ? ` on ${formatDay(view.receipt.purged_at.slice(0, 10))}` : ""}. The entry stays.`
+            ? `Removed after ${retention === "forever" ? "you asked" : retentionLabel(retention).toLowerCase()}${view.receipt.purged_at ? ` on ${formatDay(dayOf(view.receipt.purged_at))}` : ""}. The entry stays.`
             : view.receipt.purge_after
               ? `${keptLine} · until ${formatDay(view.receipt.purge_after)}`
               : keptLine}
