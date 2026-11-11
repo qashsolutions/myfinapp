@@ -4226,6 +4226,18 @@
             "title": "People Max",
             "type": "integer"
           },
+          "previous_organizer_member_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Organizer Member Id"
+          },
           "reported": {
             "title": "Reported",
             "type": "boolean"

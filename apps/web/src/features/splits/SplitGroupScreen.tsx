@@ -10,6 +10,7 @@ import { useDb } from "../../data/DbProvider.tsx";
 import { dayOf, formatCents, formatDay } from "../../lib/format.ts";
 import { BillSheet } from "./BillSheet.tsx";
 import { CheckFirstSheet } from "./CheckFirstSheet.tsx";
+import { GroupSettingsSheet } from "./GroupSettingsSheet.tsx";
 import { InviteSheet } from "./InviteSheet.tsx";
 import { LeaveSheet } from "./LeaveSheet.tsx";
 import type { ShownBill } from "./ledger.ts";
@@ -17,6 +18,7 @@ import { RemoveSheet } from "./RemoveSheet.tsx";
 import { type Payment, SettleSheet } from "./SettleSheet.tsx";
 import { balanceText } from "./SplitsTab.tsx";
 import {
+  authorityOf,
   cancelInvite,
   decideBill,
   namesOf,
@@ -25,6 +27,7 @@ import {
   type SplitMemberOut,
   setGuestsCanAdd,
   splitErrorText,
+  takeOver,
   useSplitGroup,
 } from "./useSplits.ts";
 
@@ -47,6 +50,7 @@ export function SplitGroupScreen() {
   const [paying, setPaying] = useState<Payment | null>(null);
   const [openBill, setOpenBill] = useState<ShownBill | null>(null);
   const [leaving, setLeaving] = useState<"leave" | "report" | null>(null);
+  const [settingUp, setSettingUp] = useState(false);
 
   useEffect(() => {
     if (params.get("invite") === "1" && group?.is_organizer) {
@@ -144,7 +148,31 @@ export function SplitGroupScreen() {
       ) : null}
       {!group.writable ? (
         <Card role="status">
-          <p>View and settle only: {organizerName}'s plan has ended.</p>
+          <p>
+            {group.members.some((m) => m.is_organizer)
+              ? `View and settle only: ${organizerName}'s plan has ended.`
+              : "View and settle only: nobody runs this group now."}
+          </p>
+          {/* Run this group (S.6): anyone in it with a plan of their own. */}
+          {!group.is_organizer && splits.can_create && !splits.blocked ? (
+            <Button
+              block
+              onClick={() => {
+                const prev = authorityOf(group);
+                void act(
+                  () =>
+                    takeOver(
+                      db,
+                      group,
+                      prev && view.authority ? { memberId: prev, ledger: view.authority } : null,
+                    ),
+                  "You run this group now.",
+                );
+              }}
+            >
+              Run this group
+            </Button>
+          ) : null}
         </Card>
       ) : null}
       <Card tone="accent" as="section" aria-label="Your balance">
@@ -405,6 +433,11 @@ export function SplitGroupScreen() {
 
       {group.is_organizer ? (
         <Card as="section" aria-label="Group settings">
+          {group.writable ? (
+            <Button block variant="secondary" onClick={() => setSettingUp(true)}>
+              Name, usual split and more
+            </Button>
+          ) : null}
           <Toggle
             checked={group.guests_can_add}
             label="Guests can add bills"
@@ -427,6 +460,13 @@ export function SplitGroupScreen() {
           <span style={{ color: "var(--c-danger)" }}>Leave or report</span>
         </Button>
       )}
+      <GroupSettingsSheet
+        group={group}
+        meta={view.merged.group}
+        open={settingUp}
+        onClose={() => setSettingUp(false)}
+        onSaved={refresh}
+      />
       <BillSheet
         group={group}
         view={view}

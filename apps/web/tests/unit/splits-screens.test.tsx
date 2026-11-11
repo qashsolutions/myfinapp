@@ -216,6 +216,201 @@ describe("Split bills: the organizer", () => {
     noSecretsLeft(api, ["5000", "Groceries"]);
   });
 
+  it("paying Sam back is my spending once, in the category of my shared bill (S.6)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    api.splits.groups[0]?.bills.push({ id: "b-sam", created_by: "u-sam", status: "approved" });
+    await writeLedger(api, gid, SAM, {
+      ...emptyLedger(),
+      bills: [bill("b-sam", SAM, 9000, [3000, 3000, 3000], "Utilities")],
+    });
+    const db = openDb("u1");
+    const at = new Date().toISOString();
+    await db.entries.add({
+      id: "e-shared",
+      date: "2026-11-05",
+      amount_cents: 6200,
+      direction: "out",
+      merchant: "CITY POWER",
+      clean_description: "CITY POWER",
+      raw_description: null,
+      category_id: "cat-groceries",
+      account_id: "acct-cash",
+      source: "manual",
+      receipt_id: null,
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      split_parent_id: null,
+      is_recurring: false,
+      split_bill: `${gid}:b-x`,
+      created_at: at,
+      updated_at: at,
+    });
+    renderApp(`/splits/${gid}`);
+    const row = (await screen.findByText("You pay Sam $30.00")).closest(
+      ".split-pay",
+    ) as HTMLElement;
+    await user.click(within(row).getByRole("button", { name: "Mark paid" }));
+    const sheet = await screen.findByRole("dialog", { name: "Mark paid" });
+    const add = within(sheet).getByRole("switch", { name: "Add it to my spending" });
+    await waitFor(() => expect(add).toBeChecked());
+    expect(within(sheet).getByRole("radio", { name: "Groceries" })).toBeChecked();
+    await user.click(within(sheet).getByRole("button", { name: "Mark paid" }));
+    await waitFor(async () =>
+      expect((await db.entries.toArray()).filter((e) => e.split_settle)).toHaveLength(1),
+    );
+    const paid = (await db.entries.toArray()).find((e) => e.split_settle);
+    expect(paid).toMatchObject({
+      merchant: "Paid Sam",
+      amount_cents: 3000,
+      direction: "out",
+      category_id: "cat-groceries",
+    });
+    expect(paid?.split_settle).toMatch(new RegExp(`^${gid}:`));
+  });
+
+  it("with statements on this device, paying back adds nothing unless asked: the bank shows it (S.6)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    api.splits.groups[0]?.bills.push({ id: "b-sam", created_by: "u-sam", status: "approved" });
+    await writeLedger(api, gid, SAM, {
+      ...emptyLedger(),
+      bills: [bill("b-sam", SAM, 9000, [3000, 3000, 3000], "Utilities")],
+    });
+    const db = openDb("u1");
+    await db.statement_imports.add({
+      id: "imp-1",
+      account_id: "acct-cash",
+      format: "csv",
+      template_key: null,
+      file_name: "october.csv",
+      period_start: null,
+      period_end: null,
+      ending_balance_cents: null,
+      rows_found: 1,
+      rows_added: 1,
+      rows_skipped: 0,
+      file_key: null,
+      status: "done",
+      created_at: "2026-10-01T10:00:00Z",
+    });
+    renderApp(`/splits/${gid}`);
+    const row = (await screen.findByText("You pay Sam $30.00")).closest(
+      ".split-pay",
+    ) as HTMLElement;
+    await user.click(within(row).getByRole("button", { name: "Mark paid" }));
+    const sheet = await screen.findByRole("dialog", { name: "Mark paid" });
+    const add = within(sheet).getByRole("switch", { name: "Add it to my spending" });
+    await waitFor(() => expect(add).not.toBeChecked());
+    await user.click(within(sheet).getByRole("button", { name: "Mark paid" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Mark paid" })).toBeNull());
+    expect((await db.entries.toArray()).filter((e) => e.split_settle)).toHaveLength(0);
+  });
+
+  it("an organizer who left keeps every deletion; Run this group carries them over (S.6)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    const JORDAN = "m-u-jordan";
+    const g = api.splits.groups[0];
+    if (!g) throw new Error("no group");
+    // Jordan ran it, deleted Sam's b-dup, then left; I'm a member with a plan.
+    await writeLedger(api, gid, JORDAN, {
+      ...emptyLedger(),
+      edits: { "b-dup": null },
+      group: {
+        name: "Lake house",
+        kind: "trip",
+        usual_method: "equal",
+        leftover: "payer",
+        updated_at: "2026-11-01T00:00:00Z",
+      },
+    });
+    await writeLedger(api, gid, ME, emptyLedger());
+    await writeLedger(api, gid, SAM, {
+      ...emptyLedger(),
+      bills: [
+        bill("b-dup", SAM, 9000, [3000, 3000, 3000], "Twice"),
+        bill("b-ok", SAM, 3000, [1000, 1000, 1000], "Firewood"),
+      ],
+    });
+    g.bills.push(
+      { id: "b-dup", created_by: "u-sam", status: "approved" },
+      { id: "b-ok", created_by: "u-sam", status: "approved" },
+    );
+    g.organizer_user = null;
+    g.writable = false;
+    g.previous_organizer_member_id = JORDAN;
+    renderApp(`/splits/${gid}`);
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Lake house" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/nobody runs this group now/)).toBeInTheDocument();
+    expect(screen.queryByText(/Twice/)).toBeNull();
+    expect(screen.getByText(/Firewood/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Run this group" }));
+    expect(await screen.findByText("You run this group now.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Lake house" })).toBeInTheDocument();
+    expect(screen.queryByText(/Twice/)).toBeNull();
+    const mine = await readLedger(api, gid, ME);
+    expect(mine.edits).toMatchObject({ "b-dup": null });
+    expect(mine.group?.name).toBe("Lake house");
+    expect(screen.getByRole("button", { name: "Name, usual split and more" })).toBeInTheDocument();
+  });
+
+  it("the organizer changes the name and sets the usual split by shares (S.6)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    renderApp(`/splits/${gid}`);
+    await user.click(await screen.findByRole("button", { name: "Name, usual split and more" }));
+    const sheet = await screen.findByRole("dialog", { name: "Group settings" });
+    const name = within(sheet).getByLabelText("Group name");
+    await user.clear(name);
+    await user.type(name, "Apartment 5C");
+    await user.click(within(sheet).getByRole("radio", { name: "Shares" }));
+    await user.type(within(sheet).getByLabelText("You, shares"), "2");
+    await user.type(within(sheet).getByLabelText("Sam, shares"), "1");
+    await user.click(within(sheet).getByRole("button", { name: "Save" }));
+    expect(await within(sheet).findByRole("alert")).toHaveTextContent(/whole number/);
+    await user.type(within(sheet).getByLabelText("Alex, shares"), "1");
+    await user.click(within(sheet).getByRole("button", { name: "Save" }));
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Apartment 5C" }),
+    ).toBeInTheDocument();
+    const mine = await readLedger(api, gid, ME);
+    expect(mine.group).toMatchObject({
+      name: "Apartment 5C",
+      usual_method: "shares",
+      usual_values: { [ME]: 2, [SAM]: 1, [ALEX]: 1 },
+    });
+    noSecretsLeft(api, ["Apartment 5C"]);
+  });
+
+  it("a bill's history: added, approved and what the organizer changed (S.6)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    api.splits.groups[0]?.bills.push({ id: "b-clean", created_by: "u-sam", status: "pending" });
+    await writeLedger(api, gid, SAM, {
+      ...emptyLedger(),
+      bills: [bill("b-clean", SAM, 2400, [800, 800, 800], "Cleaning")],
+    });
+    renderApp(`/splits/${gid}`);
+    const waiting = await screen.findByRole("region", { name: "Waiting for your OK" });
+    await user.click(within(waiting).getByRole("button", { name: "Approve" }));
+    await screen.findByText("You pay Sam $8.00");
+    await user.click(screen.getByText(/Cleaning/));
+    const sheet = await screen.findByRole("dialog", { name: "Cleaning" });
+    const history = within(sheet).getByRole("region", { name: "History" });
+    expect(history).toHaveTextContent("Added by Sam");
+    expect(history).toHaveTextContent("Approved by You");
+  });
+
   it("removes someone who owes only by forgiving it; someone owed is settled first", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });

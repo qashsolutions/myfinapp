@@ -11,6 +11,7 @@
  *                      payment received +$500 (the other side of the transfer)
  *   Jars:              $300 into the Emergency fund, then $100 moved to Trip
  *   Split bills (S.3): the groceries shared three ways in a group; Sam sends back $50
+ *   Split bills (S.6): $30 I pay a friend back, added to my spending by hand
  *
  * By hand: Got $3,000 · Spent $1,200 + $22 + $150 + $60 = $1,432 · Kept $1,568.
  * Set aside $300 (a move is not new money). The Emergency fund holds $200, Trip $100.
@@ -30,6 +31,7 @@ import { setCounted } from "../../src/features/entries/entryActions.ts";
 import { addGoalEvent, moveMoney } from "../../src/features/goals/useGoals.ts";
 import { commitImport, parseFile, prepareRows } from "../../src/features/imports/importFlow.ts";
 import { applySync, type SyncOut, type SyncTxn } from "../../src/features/linking/sync.ts";
+import { addSettleSpending, settleDefaults } from "../../src/features/splits/settleSpending.ts";
 import { createSplitGroup } from "../../src/features/splits/useSplits.ts";
 import { applyMapping, guessMapping } from "../../src/importers/csv.ts";
 import { emptyLinking, installFakeApi, readySession } from "../fakeApi.ts";
@@ -595,5 +597,27 @@ describe("a month through every money path (docs/invariants.md)", () => {
       (e) => e.id === groceries.id || e.split_parent_id === groceries.id,
     );
     expect(rows.reduce((s, e) => s + e.amount_cents, 0)).toBe(15000);
+  });
+
+  it("paying a friend back is spending once (S.6, invariant 76)", async () => {
+    // This month has a linked account and a statement, so the bank shows the Venmo payment:
+    // Mark paid doesn't offer to add it again. Added by hand it counts once.
+    // By hand: Spent $1,432 + $30 = $1,462 · Kept $3,000 − $1,462 = $1,538.
+    const db = await theMonth();
+    await posted(db);
+    expect(await settleDefaults(db, "g-1")).toMatchObject({ on: false });
+    await addSettleSpending(db, {
+      groupId: "g-1",
+      settlementId: "s-1",
+      cents: 3000,
+      to: "Sam",
+      categoryId: "cat-dining",
+    });
+    server();
+    renderApp("/");
+    const hero = await screen.findByRole("link", { name: "Kept this month, open Money in & out" });
+    await waitFor(() =>
+      expect(hero).toHaveTextContent("Got $3,000.00 · Spent $1,462.00 · Kept $1,538.00"),
+    );
   });
 });

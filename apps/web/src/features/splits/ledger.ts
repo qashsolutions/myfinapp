@@ -15,6 +15,7 @@
  */
 
 import type { SplitMethod, SplitPart, SplitRepeat } from "../../engine/bridge.ts";
+import { formatCents, formatDay } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
 
 export const LEDGER_VERSION = 1;
@@ -60,6 +61,9 @@ export interface GroupMeta {
   name: string;
   kind: string;
   usual_method: SplitMethod;
+  /** For a usual split by percent (bps) or shares: each member's value (S.6). A guest's bill
+   * uses them when everyone in it has one. */
+  usual_values?: Record<string, number> | null;
   /** Who absorbs a leftover cent: whoever paid, or a member id. */
   leftover: "payer" | string;
   updated_at: string;
@@ -175,6 +179,31 @@ export interface ShownBill extends SplitBill {
   status: "approved" | "pending";
   disputed: boolean;
   edited: boolean;
+  /** For the bill's history (S.6): when its author added it, when the organizer approved
+   * someone else's, and the bill as it stood before the organizer's last change. */
+  added_at: string;
+  approved_at: string | null;
+  before_edit: SplitBill | null;
+}
+
+/** A shown bill back to the stored shape, without what merge adds for the screen. */
+export function asBill(shown: ShownBill): SplitBill {
+  return {
+    id: shown.base_id,
+    date: shown.date,
+    what: shown.what,
+    amount_cents: shown.amount_cents,
+    paid_by: shown.paid_by,
+    people: shown.people,
+    method: shown.method,
+    values: shown.values,
+    leftover_to: shown.leftover_to,
+    parts: shown.parts,
+    repeat: shown.repeat,
+    repeat_until: shown.repeat_until,
+    added_by: shown.added_by,
+    updated_at: shown.updated_at,
+  };
 }
 
 export interface Claim extends SplitSettlement {
@@ -215,12 +244,16 @@ export function merge(input: MergeInput): Merged {
       const base: SplitBill = pin ? { ...pin, id: raw.id, added_by: raw.added_by } : raw;
       const bill: SplitBill =
         edit && isValidBill(edit) ? { ...edit, id: raw.id, added_by: raw.added_by } : base;
+      const edited = Boolean(edit && isValidBill(edit));
       const shown: ShownBill = {
         ...bill,
         base_id: raw.id,
         status: approved ? "approved" : "pending",
         disputed: input.disputed.has(raw.id),
-        edited: Boolean(edit && isValidBill(edit)),
+        edited,
+        added_at: raw.updated_at,
+        approved_at: pin ? pin.updated_at : null,
+        before_edit: edited ? base : null,
       };
       bills.push(shown);
       if (approved && bill.repeat) {
@@ -249,7 +282,11 @@ export function merge(input: MergeInput): Merged {
     }
   }
   settlements.sort(byDateThenId);
-  const claims = offered.filter((c) => !confirmed.has(c.id)).sort(byDateThenId);
+  // A claim that also counts (a new organizer copied it on taking over) is no longer a claim.
+  const counted = new Set(settlements.map((s) => s.id));
+  const claims = offered
+    .filter((c) => !confirmed.has(c.id) && !counted.has(c.id))
+    .sort(byDateThenId);
   const group = own?.group;
   return {
     group: group && typeof group === "object" && typeof group.name === "string" ? group : null,
@@ -257,6 +294,100 @@ export function merge(input: MergeInput): Merged {
     settlements,
     claims,
   };
+}
+
+/**
+ * Run this group (S.6): a new organizer's ledger takes the previous organizer's settings,
+ * corrections, deletions and approvals, and the payments that counted only because they
+ * recorded them, so every device shows the same group after the takeover as before. What the
+ * new organizer had already decided wins.
+ */
+export function takeOverLedger(mine: LedgerBlob, theirs: LedgerBlob, theirId: string): LedgerBlob {
+  const have = new Set(mine.settlements.map((s) => s.id));
+  const carried = (Array.isArray(theirs.settlements) ? theirs.settlements : []).filter(
+    (s) => isValidSettlement(s) && s.to !== theirId && !have.has(s.id),
+  );
+  return {
+    ...mine,
+    group: mine.group ?? theirs.group ?? null,
+    edits: { ...recordOf<SplitBill | null>(theirs.edits), ...mine.edits },
+    approved: { ...recordOf<SplitBill>(theirs.approved), ...(mine.approved ?? {}) },
+    settlements: [...mine.settlements, ...carried],
+  };
+}
+
+/** A guest's bill (S.6): the group's usual split when it covers everyone, else equal. */
+export function guestSplit(
+  meta: GroupMeta | null,
+  people: string[],
+): { method: SplitMethod; values: Record<string, number> | null } {
+  const equal = { method: "equal" as SplitMethod, values: null };
+  if (!meta || meta.usual_method === "equal" || meta.usual_method === "exact") return equal;
+  const v = meta.usual_values ?? {};
+  const values: Record<string, number> = {};
+  for (const p of people) {
+    const n = v[p];
+    if (typeof n !== "number" || !Number.isInteger(n) || n <= 0) return equal;
+    values[p] = n;
+  }
+  if (meta.usual_method === "percent") {
+    const sum = people.reduce((t, p) => t + (values[p] ?? 0), 0);
+    if (sum !== 10000) return equal;
+  }
+  return { method: meta.usual_method, values };
+}
+
+const REPEAT_WORDS: Record<string, string> = {
+  weekly: "weekly",
+  monthly: "monthly",
+  yearly: "yearly",
+};
+const METHOD_WORDS: Record<string, string> = {
+  equal: "equally",
+  exact: "exact amounts",
+  percent: "percent",
+  shares: "shares",
+};
+
+/** What changed between two copies of a bill, in the words the bill sheet shows. */
+function changes(a: SplitBill, b: SplitBill, name: (id: string) => string): string[] {
+  const out: string[] = [];
+  if (a.amount_cents !== b.amount_cents)
+    out.push(`amount ${formatCents(a.amount_cents)} → ${formatCents(b.amount_cents)}`);
+  if (a.what !== b.what) out.push(`what ${a.what} → ${b.what}`);
+  if (a.date !== b.date) out.push(`date ${formatDay(a.date)} → ${formatDay(b.date)}`);
+  if (a.paid_by !== b.paid_by) out.push(`paid by ${name(a.paid_by)} → ${name(b.paid_by)}`);
+  const who = (x: SplitBill) => x.people.map(name).join(", ");
+  if (who(a) !== who(b)) out.push(`who's in ${who(a)} → ${who(b)}`);
+  const parts = (x: SplitBill) => canonical(x.parts);
+  if (a.method !== b.method)
+    out.push(`split ${METHOD_WORDS[a.method] ?? a.method} → ${METHOD_WORDS[b.method] ?? b.method}`);
+  else if (out.length === 0 && parts(a) !== parts(b)) out.push("each person's part");
+  const rep = (x: SplitBill) => (x.repeat ? (REPEAT_WORDS[x.repeat] ?? x.repeat) : "once");
+  if (rep(a) !== rep(b)) out.push(`repeats ${rep(a)} → ${rep(b)}`);
+  return out;
+}
+
+/** A bill's history (S.6): added, approved, the organizer's last change, a stopped repeat. */
+export function billHistory(
+  bill: ShownBill,
+  organizer: string | null,
+  name: (id: string) => string,
+): Array<{ at: string; text: string }> {
+  const out = [{ at: bill.added_at, text: `Added by ${name(bill.added_by)}` }];
+  const by = organizer ? name(organizer) : "the organizer";
+  if (bill.approved_at) out.push({ at: bill.approved_at, text: `Approved by ${by}` });
+  if (bill.before_edit) {
+    const what = changes(bill.before_edit, bill, name).filter((c) => !c.startsWith("repeats"));
+    if (what.length)
+      out.push({ at: bill.updated_at, text: `Changed by ${by}: ${what.join(" · ")}` });
+    if (bill.repeat_until && !bill.before_edit.repeat_until)
+      out.push({
+        at: bill.updated_at,
+        text: `Stopped repeating after ${formatDay(bill.repeat_until)}`,
+      });
+  }
+  return out;
 }
 
 /** The facts `splits.balances` takes: approved bills only; a pending one moves nobody. */

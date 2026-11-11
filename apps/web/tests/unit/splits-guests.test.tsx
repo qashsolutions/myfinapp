@@ -198,6 +198,33 @@ describe("Split bills: guests and safety", () => {
     for (const c of api.calls) expect(`${c.url} ${c.raw}`).not.toContain(KEY);
   });
 
+  it("a guest's bill follows the group's usual split, shown locked (S.6)", async () => {
+    const user = userEvent.setup();
+    const api = guestApi({ inGroup: true });
+    await rememberGroupKey(openDb("u1"), GID, KEY);
+    await blob(api, JORDAN, "ledger", {
+      ...emptyLedger(),
+      bills: [internet],
+      group: {
+        name: "Lake house",
+        kind: "trip",
+        usual_method: "shares",
+        usual_values: { [JORDAN]: 2, [ME]: 1 },
+        leftover: "payer",
+        updated_at: AT,
+      },
+    });
+    renderApp(`/splits/${GID}/bills/new`);
+    expect(
+      await screen.findByText(/^2 · Split by shares: Jordan K\. 2 · You 1\. Jordan K\. sets/),
+    ).toBeInTheDocument();
+    await user.type(screen.getByLabelText("1 · How much?"), "30");
+    await user.type(screen.getByLabelText(/What's it for/), "Firewood");
+    await waitFor(() => expect(screen.getByText("$20.00")).toBeInTheDocument());
+    expect(screen.getByText("$10.00")).toBeInTheDocument();
+    expect(screen.getByLabelText("Jordan K., shares")).toHaveAttribute("readonly");
+  });
+
   it("I don't know them: nobody is added and they can't ask this inbox again", async () => {
     const user = userEvent.setup();
     const api = guestApi({ inGroup: false });

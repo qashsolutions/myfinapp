@@ -57,6 +57,11 @@ written against both.
    Money a friend sends back is "Paid back", never income; a payment sent to settle is spending
    once, in the category the person picks. Tests: `apps/web/tests/invariants/money-month.test.tsx`
    "a split bill counts the share once" (chunk S.3).
+   Addendum (S.6, November 10, 2026): a payment I send to settle is spending once, added by
+   Mark paid only when asked (on by default only with no statements and no linked accounts,
+   whose bank row already counts it), `entries.split_settle` = `<group>:<settlement>`;
+   money-month "paying a friend back is spending once" · `splits-screens.test.tsx` "paying Sam
+   back…", "with statements on this device…".
 
 ## What the person did survives
 
@@ -342,6 +347,15 @@ written against both.
     each open sweeps any no entry took within a day (`purgeExpiredReceipts`), so it is never
     kept, exported or counted in Delete all. `receipts.test.tsx` "a photo on an entry that was
     never saved…" · `e2e/receipts.spec.ts`.
+87. **An organizer leaving never changes a split group** (November 10, 2026; S.6). Corrections,
+    deletions, approvals and the group's settings live in the organizer's ledger, so every
+    device reads the organizer's, or while nobody runs the group the previous organizer's
+    (`split_groups.previous_organizer_member_id`, `useSplits.authorityOf`). Run this group copies
+    them into the new organizer's ledger before the server switches (`ledger.takeOverLedger`),
+    and a payment the new organizer copied is no longer a claim. `splits-round2.test.ts` "leaves
+    every device showing the same group…" · `splits-screens.test.tsx` "an organizer who left…" ·
+    `test_splits.py::test_devices_are_told_whose_corrections_stood…` ·
+    `e2e/splits-round2.spec.ts`.
 
 ## Accounts and money on the server
 

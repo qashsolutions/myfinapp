@@ -16,7 +16,15 @@ import {
   splitShare,
 } from "../../engine/bridge.ts";
 import { todayIso } from "../../lib/format.ts";
-import type { GroupMeta, LedgerBlob, PayApp, ShownBill, SplitBill } from "./ledger.ts";
+import {
+  asBill,
+  type GroupMeta,
+  type LedgerBlob,
+  type PayApp,
+  type ShownBill,
+  type SplitBill,
+  takeOverLedger,
+} from "./ledger.ts";
 import {
   forgetGroupBlobs,
   newGroupKey,
@@ -100,6 +108,15 @@ export function organizerOf(group: SplitGroupOut): string | null {
   return group.members.find((m) => m.is_organizer)?.member_id ?? null;
 }
 
+/**
+ * Whose ledger's settings, corrections and approvals count: the organizer's, or while nobody
+ * runs the group the previous organizer's, so their leaving never brings back a deleted bill
+ * (S.6, November 10, 2026).
+ */
+export function authorityOf(group: SplitGroupOut): string | null {
+  return organizerOf(group) ?? group.previous_organizer_member_id ?? null;
+}
+
 /** Member id → the name this device shows; anyone a bill names who has left is a former member. */
 export function namesOf(group: SplitGroupOut): (memberId: string) => string {
   const byId = new Map(group.members.map((m) => [m.member_id, m]));
@@ -120,7 +137,7 @@ export async function viewOf(
     group.id,
     {
       memberId: group.my_member_id,
-      organizer: organizerOf(group),
+      organizer: authorityOf(group),
       live: group.members.map((m) => m.member_id),
     },
     todayIso(),
@@ -363,8 +380,8 @@ export async function stopRepeating(
   group: SplitGroupOut,
   bill: ShownBill,
 ): Promise<Result> {
-  const { base_id, status: _s, disputed: _d, edited: _e, ...rest } = bill;
-  const first: SplitBill = { ...rest, id: base_id };
+  const base_id = bill.base_id;
+  const first: SplitBill = asBill(bill);
   const saved = await updateMyLedger(db, group.id, group.my_member_id, (l) => {
     const current = l.edits[base_id] ?? first;
     return {
@@ -394,8 +411,9 @@ export async function decideBill(
   decision: "approve" | "decline",
 ): Promise<Result> {
   if (decision === "approve") {
-    const { base_id, status: _s, disputed: _d, edited: _e, ...rest } = bill;
-    const pinned: SplitBill = { ...rest, id: base_id };
+    const base_id = bill.base_id;
+    // Stamped with when it was approved: the bill's history shows it (S.6).
+    const pinned: SplitBill = { ...asBill(bill), updated_at: new Date().toISOString() };
     const saved = await updateMyLedger(db, group.id, group.my_member_id, (l) => ({
       ...l,
       approved: { ...(l.approved ?? {}), [base_id]: pinned },
@@ -417,8 +435,8 @@ export async function recordPayment(
   db: StackdDb,
   group: SplitGroupOut,
   p: { from: string; to: string; cents: number; via: PayApp; confirms?: string | null },
-): Promise<Result> {
-  if (p.cents <= 0 || p.from === p.to) return fail("invalid_amount");
+): Promise<{ ok: true; id: string } | { ok: false; code: string }> {
+  if (p.cents <= 0 || p.from === p.to) return { ok: false, code: "invalid_amount" };
   const settlement = {
     id: crypto.randomUUID(),
     from: p.from,
@@ -433,7 +451,29 @@ export async function recordPayment(
     ...l,
     settlements: [...l.settlements, settlement],
   }));
-  return saved ? OK : fail("not_saved");
+  return saved ? { ok: true, id: settlement.id } : { ok: false, code: "not_saved" };
+}
+
+/**
+ * Run this group (S.6): copy what the previous organizer decided into my own ledger first, so
+ * every device shows the same group once I run it, then ask the server.
+ */
+export async function takeOver(
+  db: StackdDb,
+  group: SplitGroupOut,
+  previous: { memberId: string; ledger: LedgerBlob } | null,
+): Promise<Result> {
+  if (previous) {
+    const saved = await updateMyLedger(db, group.id, group.my_member_id, (l) =>
+      takeOverLedger(l, previous.ledger, previous.memberId),
+    );
+    if (!saved) return fail("not_saved");
+  }
+  const r = await api.POST("/api/splits/{group_id}/takeover", {
+    params: { path: { group_id: group.id } },
+  });
+  const failure = failureOf(r);
+  return failure ? fail(codeOf(failure)) : OK;
 }
 
 export async function remind(groupId: string, memberId: string): Promise<Result> {
@@ -548,6 +588,7 @@ export function splitErrorText(code: string): string {
     invalid_share: "Each share needs a whole number above 0.",
     values_must_match_people: "Fill in everyone who's in.",
     not_saved: "Couldn't save. Try again when you're online.",
+    organizer_active: "Someone already runs this group.",
     too_many_groups: "That's 20 groups at once. Leave one to start or join another.",
     too_many_dates: "That first date is too far back for a repeating bill. Pick a later one.",
     warning_changed: "The warning changed. Close this and open it again.",

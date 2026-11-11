@@ -1,10 +1,12 @@
 import { Button, Sheet } from "@stackd/ui";
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { shortDate, shortTime } from "../../lib/dates.ts";
 import { formatCents, formatDay } from "../../lib/format.ts";
-import type { ShownBill } from "./ledger.ts";
+import { billHistory, type ShownBill } from "./ledger.ts";
 import type { SplitView } from "./splitSync.ts";
 import {
+  authorityOf,
   closeDispute,
   disputeBill,
   namesOf,
@@ -67,6 +69,28 @@ export function BillSheet({
       {bill.disputed ? (
         <p role="status">On hold: someone disputed this bill. It moves nobody until it's fixed.</p>
       ) : null}
+      <section aria-labelledby="bill-history-h">
+        <h3 className="auth__label" id="bill-history-h">
+          History
+        </h3>
+        <ul className="sk-list bill-history">
+          {billHistory(bill, authorityOf(group), nameOf).map((h) => (
+            <li key={`${h.at}-${h.text}`}>
+              <span>{h.text}</span>{" "}
+              <span className="auth__fineprint">
+                {shortDate(h.at)}, {shortTime(h.at)}
+              </span>
+            </li>
+          ))}
+          {view.disputes
+            .filter((d) => d.bill_id === bill.base_id)
+            .map((d) => (
+              <li key={`dispute-${d.member_id ?? "x"}`}>
+                Disputed by {d.member_id ? nameOf(d.member_id) : "a former member"} · open
+              </li>
+            ))}
+        </ul>
+      </section>
       {error ? (
         <p className="auth__error" role="alert">
           {error}

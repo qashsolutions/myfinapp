@@ -17,10 +17,10 @@ import {
   type SplitRepeat,
 } from "../../engine/bridge.ts";
 import { formatCents, todayIso } from "../../lib/format.ts";
-import { parseWholeNumber } from "../../lib/ownValues.ts";
 import { ChipChoice } from "./ChipChoice.tsx";
 import { shareEntry } from "./entryShare.ts";
-import { MAX_WHAT, type ShownBill } from "./ledger.ts";
+import { type GroupMeta, guestSplit, MAX_WHAT, type ShownBill } from "./ledger.ts";
+import { valuesOf } from "./splitValues.ts";
 import {
   addBill,
   type BillDraft,
@@ -36,32 +36,6 @@ import {
   stopRepeating,
   useSplitGroup,
 } from "./useSplits.ts";
-
-/** Typed per-person values → the rule's units: exact cents, percent bps, whole shares. */
-async function valuesOf(
-  method: SplitMethod,
-  people: string[],
-  typed: Record<string, string>,
-): Promise<Record<string, number> | null | "bad"> {
-  if (method === "equal") return null;
-  const out: Record<string, number> = {};
-  for (const p of people) {
-    const text = typed[p] ?? "";
-    if (method === "shares") {
-      const n = parseWholeNumber(text, 1, 1000);
-      if (n === null) return "bad";
-      out[p] = n;
-    } else {
-      // "$12.50" → 1250 cents; "33.33" percent → 3333 basis points (both two places).
-      try {
-        out[p] = await parseAmount(text.replace("%", ""));
-      } catch {
-        return "bad";
-      }
-    }
-  }
-  return out;
-}
 
 function typedFrom(bill: ShownBill): Record<string, string> {
   const out: Record<string, string> = {};
@@ -116,8 +90,7 @@ export function AddSplitBill() {
   return (
     <BillForm
       group={group}
-      usual={view.merged.group?.usual_method ?? "equal"}
-      leftoverRule={view.merged.group?.leftover ?? "payer"}
+      meta={view.merged.group}
       editing={editing}
       entry={entry && entry.direction === "out" && !entry.split_bill ? entry : null}
       doubleCheck={splits.double_check}
@@ -129,8 +102,7 @@ export function AddSplitBill() {
 
 function BillForm({
   group,
-  usual,
-  leftoverRule,
+  meta,
   editing,
   entry,
   doubleCheck,
@@ -138,8 +110,7 @@ function BillForm({
   onSaved,
 }: {
   group: SplitGroupOut;
-  usual: SplitMethod;
-  leftoverRule: string;
+  meta: GroupMeta | null;
   editing: ShownBill | null;
   /** Split on an entry: the bill starts from it, and saving splits it (invariant 76). */
   entry: Entry | null;
@@ -155,12 +126,25 @@ function BillForm({
   const live = group.members.map((m) => m.member_id);
   const back = `/splits/${group.id}`;
   const organizerName = group.members.find((m) => m.is_organizer)?.display_name ?? "The organizer";
+  const leftoverRule = meta?.leftover ?? "payer";
+  // A guest's bill follows the group's usual split, locked (S.6); the organizer starts from it.
+  const usual = runsIt
+    ? { method: meta?.usual_method ?? "equal", values: meta?.usual_values ?? null }
+    : guestSplit(meta, live);
+  const typedUsual = Object.fromEntries(
+    Object.entries(usual.values ?? {}).map(([p, n]) => [
+      p,
+      usual.method === "shares" ? String(n) : (n / 100).toFixed(2),
+    ]),
+  );
 
   const start = editing?.amount_cents ?? entry?.amount_cents ?? null;
   const [amountText, setAmountText] = useState(start === null ? "" : (start / 100).toFixed(2));
-  const [method, setMethod] = useState<SplitMethod>(editing?.method ?? (runsIt ? usual : "equal"));
+  const [method, setMethod] = useState<SplitMethod>(editing?.method ?? usual.method);
   const [people, setPeople] = useState<string[]>(editing?.people ?? live);
-  const [typed, setTyped] = useState<Record<string, string>>(editing ? typedFrom(editing) : {});
+  const [typed, setTyped] = useState<Record<string, string>>(
+    editing ? typedFrom(editing) : typedUsual,
+  );
   const [repeat, setRepeat] = useState<SplitRepeat | null>(editing?.repeat ?? null);
   const [what, setWhat] = useState(editing?.what ?? entry?.merchant.slice(0, MAX_WHAT) ?? "");
   const [paidBy, setPaidBy] = useState(editing?.paid_by ?? group.my_member_id);
@@ -314,7 +298,14 @@ function BillForm({
         />
       ) : (
         <p className="auth__hint">
-          2 · Split equally. {organizerName} sets how this group splits and approves your bill.
+          {usual.method === "equal"
+            ? `2 · Split equally. ${organizerName} sets how this group splits and approves your bill.`
+            : `2 · Split by ${usual.method === "shares" ? "shares" : "percent"}: ${live
+                .map(
+                  (p) =>
+                    `${nameOf(p)} ${usual.method === "shares" ? (usual.values?.[p] ?? 0) : `${(usual.values?.[p] ?? 0) / 100}%`}`,
+                )
+                .join(" · ")}. ${organizerName} sets how this group splits and approves your bill.`}
         </p>
       )}
       <fieldset className="split-people">
@@ -341,6 +332,7 @@ function BillForm({
                 className="auth__input"
                 inputMode={method === "shares" ? "numeric" : "decimal"}
                 aria-label={`${nameOf(p)}, ${unit}`}
+                readOnly={!runsIt}
                 value={typed[p] ?? ""}
                 onChange={(e) => setTyped((t) => ({ ...t, [p]: e.target.value }))}
               />

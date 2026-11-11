@@ -47,6 +47,10 @@ class SplitGroup(Base, StackdRow):
     # The organizer's switch (owner decision, November 8, 2026): guests may add bills, each
     # waiting for the organizer's OK; off, only the organizer adds.
     guests_can_add: Mapped[bool] = mapped_column(server_default=text("true"))
+    # The member who ran the group before (S.6, November 10, 2026): set when the organizer
+    # leaves or someone takes over. Devices read that member's ledger for the group's settings,
+    # corrections and approvals while nobody runs it, and a new organizer copies them from it.
+    previous_organizer_member_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
 
 
 class SplitMember(Base, StackdRow):

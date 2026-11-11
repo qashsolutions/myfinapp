@@ -3792,6 +3792,8 @@ export interface components {
             my_member_id: string;
             /** People Max */
             people_max: number;
+            /** Previous Organizer Member Id */
+            previous_organizer_member_id?: string | null;
             /** Reported */
             reported: boolean;
             /** Writable */

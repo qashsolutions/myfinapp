@@ -83,6 +83,9 @@ export interface SplitView {
   /** Open disputes: which bill, and the member who raised it. */
   disputes: Array<{ bill_id: string; member_id: string | null }>;
   writable: boolean;
+  /** The ledger whose settings and corrections count (the organizer's, else the previous
+   * organizer's): Run this group copies it (S.6). */
+  authority: LedgerBlob | null;
 }
 
 async function setting<T>(db: StackdDb, key: string): Promise<T | undefined> {
@@ -476,6 +479,7 @@ export async function computeView(
     payments,
     disputes: state.disputes,
     writable: state.writable,
+    authority: (organizer && ledgers.get(organizer)) || null,
   };
 }
 
@@ -502,6 +506,7 @@ export async function pullGroup(
       payments: [],
       disputes: [],
       writable: state.writable,
+      authority: null,
     };
   }
   const { ledgers, profiles } = await readBlobs(key, groupId, state);
