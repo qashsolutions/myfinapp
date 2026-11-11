@@ -541,6 +541,63 @@ describe("Split bills: the organizer", () => {
     );
   });
 
+  it("Spotted: a linked Venmo deposit for what Sam owes is suggested; Mark settled settles it as Paid back", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroceries(api, await seedGroup(api)).then(
+      () => api.splits.groups[0]?.id ?? "",
+    );
+    const db = openDb("u1");
+    const linked = (id: string, merchant: string, cents: number) => ({
+      id,
+      date: "2026-11-07",
+      amount_cents: cents,
+      direction: "in" as const,
+      merchant,
+      clean_description: merchant,
+      raw_description: merchant,
+      category_id: null,
+      account_id: "acct-cash",
+      source: "linked" as const,
+      receipt_id: null,
+      import_id: null,
+      is_transfer: false,
+      transfer_pair_id: null,
+      split_parent_id: null,
+      is_recurring: false,
+      provider_txn_id: `p-${id}`,
+      created_at: "2026-11-07T10:00:00Z",
+      updated_at: "2026-11-07T10:00:00Z",
+    });
+    await db.entries.bulkAdd([
+      linked("e-venmo", "VENMO CASHOUT SAM L", 6200),
+      linked("e-zelle", "ZELLE FROM ALEX", 6200),
+    ]);
+    renderApp(`/splits/${gid}`);
+    const spotted = await screen.findByRole("region", { name: "Spotted" });
+    // Each row goes to the person it names.
+    const sam = (await within(spotted).findByText(/Is it Sam paying you\?/)).closest(
+      ".split-pay",
+    ) as HTMLElement;
+    const alex = within(spotted)
+      .getByText(/Is it Alex paying you\?/)
+      .closest(".split-pay") as HTMLElement;
+    expect(sam).toHaveTextContent(/came in by VENMO on Nov 7/);
+    expect(alex).toHaveTextContent(/came in by Zelle on Nov 7/);
+    // Not this on Alex's; Mark settled on Sam's
+    await user.click(within(alex).getByRole("button", { name: "Not this" }));
+    await waitFor(() => expect(within(spotted).queryByText(/Is it Alex/)).toBeNull());
+    await user.click(within(sam).getByRole("button", { name: "Mark settled" }));
+    await waitFor(async () => expect((await db.entries.get("e-venmo"))?.paid_back).toBe(true));
+    expect((await db.entries.get("e-venmo"))?.not_counted).toBe(true);
+    expect((await db.entries.get("e-zelle"))?.paid_back).toBeFalsy();
+    expect(await screen.findByText(/Alex pays you \$62\.00/)).toBeInTheDocument();
+    expect(screen.queryByText(/Sam pays you/)).toBeNull();
+    await waitFor(() =>
+      expect(api.splits.notified).toEqual([{ kind: "confirmed", member_id: SAM }]),
+    );
+  });
+
   it("removes someone who owes only by forgiving it; someone owed is settled first", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });

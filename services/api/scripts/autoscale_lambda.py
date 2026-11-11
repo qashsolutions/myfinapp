@@ -1,5 +1,5 @@
-"""The API's auto-scaler: an AWS Lambda run by EventBridge Scheduler, every 4 hours on the hour
-until launch, then every 5 minutes (owner decision, November 10, 2026; docs/ops/aws-hosting.md,
+"""The API's auto-scaler: an AWS Lambda run by EventBridge Scheduler every 5 minutes (since
+November 11, 2026; every 4 hours from November 10 until then; docs/ops/aws-hosting.md,
 "Scaling").
 
 Lightsail changes a container service's node count without downtime but never on its own. This
