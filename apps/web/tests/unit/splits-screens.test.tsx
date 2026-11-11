@@ -11,6 +11,7 @@ import { groupKey, openLedger, sealLedger } from "../../src/features/splits/spli
 import { createSplitGroup } from "../../src/features/splits/useSplits.ts";
 import { todayIso } from "../../src/lib/format.ts";
 import { type FakeApi, installFakeApi, readySession } from "../fakeApi.ts";
+import { readableIn } from "../leaks.ts";
 import { renderApp } from "../render.tsx";
 
 const TODAY = new Date("2026-11-08T12:00:00");
@@ -20,8 +21,9 @@ const ALEX = "m-u-alex";
 
 function noSecretsLeft(api: FakeApi, words: string[]) {
   for (const call of api.calls) {
-    const text = `${call.url} ${call.raw}`;
-    for (const w of words) expect(text, `${call.method} ${call.path}`).not.toContain(w);
+    const text = `${decodeURIComponent(call.url)} ${call.raw}`;
+    for (const w of words)
+      expect(readableIn(text, w), `${w} in ${call.method} ${call.path}`).toBe(false);
   }
 }
 
@@ -135,7 +137,7 @@ describe("Split bills: the organizer", () => {
     ).toBeInTheDocument();
 
     expect(api.splits.groups[0]?.invites).toHaveLength(1);
-    noSecretsLeft(api, ["Apartment", "4B"]);
+    noSecretsLeft(api, ["Apartment 4B", "Apartment", "4B"]);
   });
 
   it("adds a bill split equally through the engine; balances simplify to who pays whom", async () => {

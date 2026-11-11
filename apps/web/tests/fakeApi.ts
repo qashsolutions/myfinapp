@@ -755,7 +755,15 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     }
     if (method === "POST" && path === "/api/security/passkeys/assert/options") {
       if (!state.session.has_passkeys) return json({ detail: "no_passkeys" }, 409);
-      return json({ options: { challenge: "c2", allowCredentials: [] } });
+      // As the server does: the PRF salt rides on the options as base64url text.
+      const prfSalt = (body as { prf_salt?: string } | undefined)?.prf_salt;
+      return json({
+        options: {
+          challenge: "c2",
+          allowCredentials: [],
+          ...(prfSalt ? { extensions: { prf: { eval: { first: prfSalt } } } } : {}),
+        },
+      });
     }
     if (method === "POST" && path === "/api/security/passkeys/assert/verify") {
       state.session = { ...state.session, locked: false, passkey_verified_at: now };

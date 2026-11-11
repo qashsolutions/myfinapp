@@ -126,7 +126,12 @@ def registration_options(
         challenge=options.challenge,
         now=now,
     )
-    return options_to_json(options)
+    # PRF asked for at creation: a security key turns it on only then, so without it that
+    # passkey could never open the encrypted backup (the device's own key derivation; nothing
+    # about it reaches the server, which never sees an output).
+    payload = json.loads(options_to_json(options))
+    payload["extensions"] = {"prf": {}}
+    return json.dumps(payload)
 
 
 def verify_registration(

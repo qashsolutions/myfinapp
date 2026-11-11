@@ -323,6 +323,14 @@ written against both.
     (`useSplits` keeps a mounted ref; `useSplitGroup` treats leaving as a newer refresh; effects
     use an `alive` flag). `apps/web/tests/unit/splits-unmount.test.tsx` holds the answer,
     unmounts, removes `window` as teardown does, then answers.
+84. **The passkey opens the backup, in a real browser** (November 10, 2026; found by the backup
+    journey). The PRF salt reaches `navigator.credentials.get` as bytes (`withPrfBytes` in
+    `features/security/webauthn.ts`; the server's JSON carries it as text, which every browser
+    refuses, so turning backup on had fallen back to the recovery key alone), and registration
+    asks for PRF (`extensions.prf` on the options), which a security key turns on only at
+    creation. The unit tests fake the passkey library, so the browser's own rules are checked
+    in Chrome: `passkey-prf.test.ts` · `test_backup.py::test_registration_asks_for_prf…` ·
+    `e2e/backup.spec.ts`.
 
 ## Accounts and money on the server
 
@@ -817,3 +825,5 @@ Dexie-only, and runs a linked sync page with the engine answering a task later.
   kind of defect appears.
 - A new money path (a new import kind, a new sync step, a new screen total) joins
   `money-month.test.tsx`.
+- Where unit tests fake a browser API (passkeys, storage, the camera), a Playwright journey
+  walks the real one (invariant 84).

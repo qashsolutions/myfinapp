@@ -11,6 +11,7 @@ import {
   installFakeApi,
   readySession,
 } from "../fakeApi.ts";
+import { readableIn } from "../leaks.ts";
 import { renderApp } from "../render.tsx";
 
 const connected = () => ({ ...freeBilling(), plan: "connected" as const });
@@ -99,7 +100,8 @@ describe("Couples & household", () => {
     await syncHousehold(devDb, "u2", "2026-10-10");
     const blob = households.rows[0]?.blobs.find((b) => b.kind === "jars");
     expect(blob?.author_id).toBe("u2");
-    expect(blob?.ciphertext).not.toMatch(/Trip|20000|deposit/);
+    for (const w of ["Trip", "20000", "deposit"])
+      expect(readableIn(blob?.ciphertext ?? "", w), w).toBe(false);
     view.unmount();
 
     // Back on Maya's device: the jar arrives with Dev's deposit; Maya adds her own

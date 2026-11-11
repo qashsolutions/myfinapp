@@ -123,6 +123,17 @@ export interface PasskeyAssertion {
   credentialId: string | null;
 }
 
+/**
+ * The browser takes the PRF salt only as bytes; the server's JSON carries it as base64url text,
+ * which the passkey library passes through untouched and the browser refuses (November 10,
+ * 2026). The salt is this device's own, so the bytes asked for are put back.
+ */
+function withPrfBytes(options: unknown, prfSalt: Uint8Array | null): unknown {
+  const o = options as { extensions?: { prf?: unknown } };
+  if (!prfSalt || !o.extensions?.prf) return options;
+  return { ...o, extensions: { ...o.extensions, prf: { eval: { first: prfSalt } } } };
+}
+
 function base64urlToBytes(text: string): Uint8Array {
   const padded =
     text.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (text.length % 4)) % 4);
@@ -156,12 +167,13 @@ export async function assertPasskeyWithPrf(
       throw new PasskeyError("no_passkeys", "No passkey on this account yet.");
     throw serverFailed(opts);
   }
+  const browserOptions = withPrfBytes(withHints(opts.data.options), prfSalt);
   let credential: Awaited<ReturnType<typeof startAuthentication>>;
   try {
     credential = nativePasskeysAvailable()
       ? ((await nativeGetCredential(opts.data.options)) as typeof credential)
       : // biome-ignore lint/suspicious/noExplicitAny: same as above
-        await startAuthentication({ optionsJSON: withHints(opts.data.options) as any });
+        await startAuthentication({ optionsJSON: browserOptions as any });
   } catch (err) {
     throw classify(err);
   }
