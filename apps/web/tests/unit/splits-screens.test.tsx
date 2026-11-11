@@ -605,8 +605,130 @@ describe("Split bills: the organizer", () => {
     expect(screen.getByLabelText("1 · How much?")).toHaveValue("60");
     expect(screen.getByLabelText("What's it for?")).toHaveValue("Dinner");
     expect(
-      await screen.findByText(/1 invite waiting: they show here once they join\./),
+      await screen.findByText(/Waiting for jo@example\.com: they show here once they join\./),
     ).toBeInTheDocument();
+  });
+
+  it("Invites: who each went to, how many are left, never the same inbox twice (November 11, 2026)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    renderApp(`/splits/${gid}`);
+    await user.click(await screen.findByRole("button", { name: "Invite" }));
+    let sheet = await screen.findByRole("dialog", { name: "Invite by email" });
+    expect(
+      within(sheet).getByText("3 of 6 people on your plan · 6 invites left today"),
+    ).toBeInTheDocument();
+    await user.type(within(sheet).getByLabelText("Their email"), "Jo@Example.com");
+    await user.click(within(sheet).getByRole("button", { name: "Send invite" }));
+    await within(sheet).findByText(/Invite sent to Jo@Example.com/);
+    await user.keyboard("{Escape}");
+
+    // The list names who it went to (this device remembers; the server keeps only a hash).
+    const waiting = await screen.findByRole("region", { name: "Invites waiting" });
+    expect(within(waiting).getByText("Jo@Example.com")).toBeInTheDocument();
+    expect(within(waiting).getByText("Remind tomorrow")).toBeInTheDocument();
+    expect(await openDb("u1").settings.get("split.invited.i2")).toMatchObject({
+      value: "Jo@Example.com",
+    });
+
+    // The same inbox again: no second invite, and it says when they can be reminded.
+    await user.click(screen.getByRole("button", { name: "Invite" }));
+    sheet = await screen.findByRole("dialog", { name: "Invite by email" });
+    expect(
+      await within(sheet).findByText("4 of 6 people on your plan · 5 invites left today"),
+    ).toBeInTheDocument();
+    await user.type(within(sheet).getByLabelText("Their email"), " jo@example.com ");
+    expect(
+      within(sheet).getByText(/Already invited .+\. You can remind them again tomorrow\./),
+    ).toBeInTheDocument();
+    expect(within(sheet).queryByRole("button", { name: "Send invite" })).toBeNull();
+    expect(api.splits.groups[0]?.invites).toHaveLength(1);
+  });
+
+  it("Remind: once a day, to the address invited, with a new link", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    const twoDaysAgo = new Date(Date.now() - 2 * 86_400_000).toISOString();
+    const g = api.splits.groups[0];
+    g?.invites.push(
+      {
+        id: "inv-known",
+        email: "pat@example.com",
+        token: "tok_a",
+        created_at: twoDaysAgo,
+        reminded_at: null,
+        expires_at: new Date(Date.now() + 5 * 86_400_000).toISOString(),
+      },
+      {
+        id: "inv-other",
+        email: "lee@example.com",
+        token: "tok_b",
+        created_at: twoDaysAgo,
+        reminded_at: null,
+        expires_at: new Date(Date.now() + 5 * 86_400_000).toISOString(),
+      },
+    );
+    // Only one was sent from this device; the other from a device whose record isn't here.
+    await openDb("u1").settings.put({
+      key: "split.invited.inv-known",
+      value: "pat@example.com",
+      updated_at: twoDaysAgo,
+    });
+    renderApp(`/splits/${gid}`);
+    const waiting = await screen.findByRole("region", { name: "Invites waiting" });
+    await user.click(
+      await within(waiting).findByRole("button", { name: "Remind pat@example.com" }),
+    );
+    expect(
+      await within(waiting).findByText(
+        "Reminder sent to pat@example.com. The new link works for the same 7 days.",
+      ),
+    ).toBeInTheDocument();
+    expect(api.splits.invite_reminders).toEqual(["pat@example.com"]);
+    expect(await within(waiting).findAllByText("Remind tomorrow")).toHaveLength(1);
+
+    // No address on this device: it asks, refuses another address, then sends and remembers it.
+    await user.click(within(waiting).getByRole("button", { name: /^Remind the invite sent/ }));
+    const ask = await screen.findByRole("dialog", { name: "Remind them" });
+    await user.type(within(ask).getByLabelText("Their email"), "someone@example.com");
+    await user.click(within(ask).getByRole("button", { name: "Send reminder" }));
+    expect(await within(ask).findByRole("alert")).toHaveTextContent(
+      "That isn't the email this invite went to.",
+    );
+    await user.clear(within(ask).getByLabelText("Their email"));
+    await user.type(within(ask).getByLabelText("Their email"), "lee@example.com");
+    await user.click(within(ask).getByRole("button", { name: "Send reminder" }));
+    await waitFor(() =>
+      expect(api.splits.invite_reminders).toEqual(["pat@example.com", "lee@example.com"]),
+    );
+    expect(await within(waiting).findByText("lee@example.com")).toBeInTheDocument();
+    noSecretsLeft(api, ["Apartment 4B"]);
+  });
+
+  it("Already invited from another device: the server says so and nothing is sent", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    api.splits.groups[0]?.invites.push({
+      id: "inv-x",
+      email: "kim@example.com",
+      token: "tok_x",
+      created_at: new Date().toISOString(),
+      reminded_at: null,
+      expires_at: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+    });
+    renderApp(`/splits/${gid}`);
+    await user.click(await screen.findByRole("button", { name: "Invite" }));
+    const sheet = await screen.findByRole("dialog", { name: "Invite by email" });
+    await user.type(within(sheet).getByLabelText("Their email"), "kim@example.com");
+    await user.click(within(sheet).getByRole("button", { name: "Send invite" }));
+    expect(await within(sheet).findByRole("alert")).toHaveTextContent(
+      "They already have an invite waiting. Remind them from Invites waiting.",
+    );
+    expect(api.splits.groups[0]?.invites).toHaveLength(1);
+    expect(api.splits.invites_today).toBe(0);
   });
 
   it("By item: tax and tip follow what each person had, saved as each person's part (S.8)", async () => {

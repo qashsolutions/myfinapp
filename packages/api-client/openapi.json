@@ -2447,6 +2447,25 @@
         "title": "InviteOut",
         "type": "object"
       },
+      "InviteReminded": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "expires_at"
+        ],
+        "title": "InviteReminded",
+        "type": "object"
+      },
       "KeyIn": {
         "properties": {
           "key_version": {
@@ -3856,6 +3875,20 @@
         "title": "RemindIn",
         "type": "object"
       },
+      "RemindInviteIn": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "RemindInviteIn",
+        "type": "object"
+      },
       "ScheduleIn": {
         "properties": {
           "items": {
@@ -4286,6 +4319,11 @@
       },
       "SplitInviteOut": {
         "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
           "expires_at": {
             "format": "date-time",
             "title": "Expires At",
@@ -4295,10 +4333,23 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "reminded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reminded At"
           }
         },
         "required": [
           "id",
+          "created_at",
           "expires_at"
         ],
         "title": "SplitInviteOut",
@@ -4472,6 +4523,9 @@
             "title": "Guest",
             "type": "boolean"
           },
+          "invites_today": {
+            "$ref": "#/components/schemas/TodayOut"
+          },
           "today": {
             "$ref": "#/components/schemas/TodayOut"
           }
@@ -4481,6 +4535,7 @@
           "can_create",
           "guest",
           "today",
+          "invites_today",
           "double_check",
           "blocked"
         ],
@@ -8954,6 +9009,70 @@
           }
         },
         "summary": "Cancel Invite",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
+    "/api/splits/{group_id}/invites/{invite_id}/remind": {
+      "post": {
+        "description": "The same invite again (November 11, 2026): a new link (the old one stops), the same 7\ndays, once a day per invite counting the day it was sent, never against today's invites.\nThe address comes from the organizer's device and must be the one invited: the server keeps\nonly its hash, so a reminder can never go anywhere else.",
+        "operationId": "remind_invite_api_splits__group_id__invites__invite_id__remind_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invite Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemindInviteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteReminded"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remind Invite",
         "tags": [
           "splits"
         ]

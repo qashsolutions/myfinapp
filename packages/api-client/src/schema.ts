@@ -1936,6 +1936,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/splits/{group_id}/invites/{invite_id}/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remind Invite
+         * @description The same invite again (November 11, 2026): a new link (the old one stops), the same 7
+         *     days, once a day per invite counting the day it was sent, never against today's invites.
+         *     The address comes from the organizer's device and must be the one invited: the server keeps
+         *     only its hash, so a reminder can never go anywhere else.
+         */
+        post: operations["remind_invite_api_splits__group_id__invites__invite_id__remind_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/splits/{group_id}/keys/request": {
         parameters: {
             query?: never;
@@ -3189,6 +3212,16 @@ export interface components {
              */
             expires_at: string;
         };
+        /** InviteReminded */
+        InviteReminded: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Token */
+            token: string;
+        };
         /** KeyIn */
         KeyIn: {
             /** Key Version */
@@ -3678,6 +3711,14 @@ export interface components {
              */
             member_id: string;
         };
+        /** RemindInviteIn */
+        RemindInviteIn: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
         /** ScheduleIn */
         ScheduleIn: {
             /** Items */
@@ -3838,6 +3879,11 @@ export interface components {
         /** SplitInviteOut */
         SplitInviteOut: {
             /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
              * Expires At
              * Format: date-time
              */
@@ -3847,6 +3893,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Reminded At */
+            reminded_at?: string | null;
         };
         /** SplitKeyOut */
         SplitKeyOut: {
@@ -3914,6 +3962,7 @@ export interface components {
             groups: components["schemas"]["SplitGroupOut"][];
             /** Guest */
             guest: boolean;
+            invites_today: components["schemas"]["TodayOut"];
             today: components["schemas"]["TodayOut"];
         };
         /** StateIn */
@@ -7200,6 +7249,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remind_invite_api_splits__group_id__invites__invite_id__remind_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+                invite_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RemindInviteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteReminded"];
+                };
             };
             /** @description Validation Error */
             422: {

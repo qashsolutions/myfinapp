@@ -94,6 +94,8 @@ class SplitInvite(Base, StackdRow):
     used_by: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     declined_at: Mapped[datetime | None]  # "I don't know <name>": that sender can't ask again
     cancelled_at: Mapped[datetime | None]
+    # The organizer's last reminder (November 11, 2026): once a day, a new link, same 7 days.
+    reminded_at: Mapped[datetime | None]
 
 
 class SplitBill(Base, StackdRow):

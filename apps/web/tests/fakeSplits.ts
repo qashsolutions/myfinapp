@@ -16,7 +16,14 @@ export interface FakeSplitGroup {
   id: string;
   organizer_user: string | null;
   members: FakeSplitMember[];
-  invites: Array<{ id: string; email: string; expires_at: string; token: string }>;
+  invites: Array<{
+    id: string;
+    email: string;
+    expires_at: string;
+    token: string;
+    created_at?: string;
+    reminded_at?: string | null;
+  }>;
   bills: Array<{ id: string; created_by: string; status: "approved" | "pending" | "declined" }>;
   blobs: Array<{
     member_id: string;
@@ -61,6 +68,8 @@ export interface FakeSplits {
   left: Array<{ group_id: string; report: string | null }>;
   added_today: number;
   invites_today: number;
+  /** Invite reminders, in order: the address each email would go to (November 11, 2026). */
+  invite_reminders: string[];
   double_check: boolean;
   blocked: boolean;
   reminded: string[];
@@ -82,6 +91,7 @@ export function emptySplits(): FakeSplits {
     left: [],
     added_today: 0,
     invites_today: 0,
+    invite_reminders: [],
     double_check: false,
     blocked: false,
     reminded: [],
@@ -129,7 +139,12 @@ export function handleSplits(
       })),
       invites:
         g.organizer_user === me
-          ? g.invites.map((i) => ({ id: i.id, expires_at: i.expires_at }))
+          ? g.invites.map((i) => ({
+              id: i.id,
+              created_at: i.created_at ?? now,
+              expires_at: i.expires_at,
+              reminded_at: i.reminded_at ?? null,
+            }))
           : [],
       people_max: peopleMax || 6,
       writable: g.writable,
@@ -145,6 +160,7 @@ export function handleSplits(
       can_create: peopleMax > 0 && !s.blocked,
       guest: peopleMax === 0,
       today,
+      invites_today: { added: s.invites_today, limit: invitesPerDay },
       double_check: s.double_check,
       blocked: s.blocked,
     });
@@ -317,6 +333,8 @@ export function handleSplits(
     const email = String(b.email ?? "").toLowerCase();
     if (s.double_check && String(b.email_again ?? "").toLowerCase() !== email)
       return json({ detail: "emails_differ" }, 422);
+    // Never the same inbox twice while an invite waits (November 11, 2026).
+    if (g.invites.some((x) => x.email === email)) return json({ detail: "already_invited" }, 409);
     if (g.members.length + g.invites.length >= (peopleMax || 6))
       return json({ detail: "plan_limit" }, 403);
     if (s.invites_today >= invitesPerDay) return json({ detail: "invite_limit" }, 429);
@@ -327,9 +345,27 @@ export function handleSplits(
       email,
       expires_at: new Date(Date.now() + 7 * 86_400_000).toISOString(),
       token: `tok_${s.seq}_abcdefghijklmnop`,
+      created_at: now,
+      reminded_at: null as string | null,
     };
-    g.invites = [...g.invites.filter((x) => x.email !== email), invite];
+    g.invites = [...g.invites, invite];
     return json({ id: invite.id, expires_at: invite.expires_at, token: invite.token }, 201);
+  }
+  // A reminder: the address invited, once a day counting the day it was sent, a new link.
+  const remind = rest.match(/^invites\/([^/]+)\/remind$/);
+  if (method === "POST" && remind) {
+    if (!organizer) return json({ detail: "organizer_only" }, 403);
+    const inv = g.invites.find((x) => x.id === remind[1]);
+    if (!inv) return json({ detail: "not_found" }, 404);
+    if (String(b.email ?? "").toLowerCase() !== inv.email)
+      return json({ detail: "not_this_invite" }, 422);
+    const last = Date.parse(inv.reminded_at ?? inv.created_at ?? now);
+    if (Date.now() - last < 86_400_000) return json({ detail: "remind_tomorrow" }, 429);
+    s.seq += 1;
+    inv.token = `tok_${s.seq}_abcdefghijklmnop`;
+    inv.reminded_at = now;
+    s.invite_reminders.push(inv.email);
+    return json({ token: inv.token, expires_at: inv.expires_at });
   }
   const cancel = rest.match(/^invites\/([^/]+)$/);
   if (method === "DELETE" && cancel) {

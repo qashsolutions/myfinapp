@@ -85,12 +85,15 @@ def deletion_code_message(to: str, code: str, ttl_minutes: int, link: str) -> Me
     )
 
 
-def split_invite_message(to: str, name: str, masked: str, link: str) -> Message:
+def split_invite_message(
+    to: str, name: str, masked: str, link: str, reminder: bool = False
+) -> Message:
     """A split-bill invite (November 8, 2026): who asks, never a group's name or an amount. The
-    link works only after signing in with the code sent to this inbox."""
+    link works only after signing in with the code sent to this inbox. A reminder (November 11,
+    2026) is the same message with a new link."""
     return Message(
         to=to,
-        subject=f"{name} invited you to split bills on Qash",
+        subject=f"{'Reminder: ' if reminder else ''}{name} invited you to split bills on Qash",
         text=(
             f"{name} ({masked}) invited you to split bills on Qash. It's free for you: no plan, "
             f"no card, no bank.\n\nOpen the invite: {link}\n\n"
