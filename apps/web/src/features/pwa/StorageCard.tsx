@@ -81,17 +81,21 @@ export function StorageCard() {
         Keep your data safe
       </h2>
       <p className="storage-card__sub">{line(risk)}</p>
+      {/* One width for every action, as Download a copy has (owner, November 11, 2026). */}
       <div className="storage-card__actions">
         {risk === "iphone_tab" ? (
-          <Button onClick={() => setGuide(true)}>Add to Home Screen</Button>
+          <Button block onClick={() => setGuide(true)}>
+            Add to Home Screen
+          </Button>
         ) : null}
         {entitlements.backup ? (
-          <Button variant="secondary" onClick={() => navigate("/me/security")}>
+          <Button block variant="secondary" onClick={() => navigate("/me/security")}>
             Turn on backup
           </Button>
         ) : null}
         <ExportData label="Download a copy" onSaved={() => setRisk(null)} />
         <Button
+          block
           variant="ghost"
           onClick={() => {
             snoozeStorageCard();
