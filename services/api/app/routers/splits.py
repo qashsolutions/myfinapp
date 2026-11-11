@@ -790,7 +790,8 @@ def remind_invite(
     db: Annotated[DbSession, Depends(get_db)],
 ) -> InviteReminded:
     """The same invite again (November 11, 2026): a new link (the old one stops), the same 7
-    days, once a day per invite counting the day it was sent, never against today's invites.
+    days, once a day per invite counting the day it was sent (signed off by the owner the same
+    day), never against today's invites.
     The address comes from the organizer's device and must be the one invited: the server keeps
     only its hash, so a reminder can never go anywhere else."""
     group = _group(db, group_id)
