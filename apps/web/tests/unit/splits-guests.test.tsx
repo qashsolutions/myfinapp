@@ -220,8 +220,8 @@ describe("Split bills: guests and safety", () => {
     ).toBeInTheDocument();
     await user.type(screen.getByLabelText("1 · How much?"), "30");
     await user.type(screen.getByLabelText(/What's it for/), "Firewood");
-    await waitFor(() => expect(screen.getByText("$20.00")).toBeInTheDocument());
-    expect(screen.getByText("$10.00")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("= $20.00")).toBeInTheDocument());
+    expect(screen.getByText("= $10.00")).toBeInTheDocument();
     expect(screen.getByLabelText("Jordan K., shares")).toHaveAttribute("readonly");
   });
 

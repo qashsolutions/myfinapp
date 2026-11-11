@@ -159,6 +159,34 @@ describe("Split bills: the organizer", () => {
     noSecretsLeft(api, ["Groceries", "18600", "6200", "Apartment"]);
   });
 
+  it("Exact starts even, follows the amount until someone types, then shows what's left", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    renderApp(`/splits/${gid}/bills/new`);
+    await user.click(await screen.findByRole("radio", { name: "Exact" }));
+    expect(
+      screen.getByText("Type each person's dollars. They add up to the total."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("You, $")).toHaveValue("");
+    await user.type(screen.getByLabelText("1 · How much?"), "90");
+    await waitFor(() => expect(screen.getByLabelText("Sam, $")).toHaveValue("30.00"));
+    expect(await screen.findByText("Adds up to $90.00 of $90.00")).toHaveClass("split-total--ok");
+    // The unit is on screen beside each box.
+    expect(screen.getAllByText("$", { selector: ".split-value__unit" })).toHaveLength(3);
+    await user.clear(screen.getByLabelText("You, $"));
+    await user.type(screen.getByLabelText("You, $"), "20");
+    expect(await screen.findByText("Adds up to $80.00 of $90.00 · $10.00 left")).toHaveClass(
+      "split-total--off",
+    );
+    // Typed values stay put when the amount changes.
+    await user.type(screen.getByLabelText("1 · How much?"), "0");
+    expect(
+      await screen.findByText("Adds up to $80.00 of $900.00 · $820.00 left"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Sam, $")).toHaveValue("30.00");
+  });
+
   it("splits by shares with the leftover cent to the person the organizer picks", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });
@@ -166,13 +194,17 @@ describe("Split bills: the organizer", () => {
     renderApp(`/splits/${gid}/bills/new`);
     await user.type(await screen.findByLabelText("1 · How much?"), "100");
     await user.click(screen.getByRole("radio", { name: "Shares" }));
-    await user.type(screen.getByLabelText("You, shares"), "1");
-    await user.type(screen.getByLabelText("Sam, shares"), "1");
-    await user.type(screen.getByLabelText("Alex, shares"), "1");
+    // The choice says what it means, and the boxes start at 1 share each (owner, November 11, 2026).
+    expect(
+      screen.getByText("Type a whole number each. 2 pays twice what 1 does."),
+    ).toBeInTheDocument();
+    for (const who of ["You", "Sam", "Alex"])
+      expect(screen.getByLabelText(`${who}, shares`)).toHaveValue("1");
+    expect(await screen.findByText("3 shares in all")).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("A leftover cent goes to"), "Sam");
     // $100 ÷ 3 = $33.33 each, the leftover cent to Sam
     expect(await screen.findByText("Only $33.33 counts as yours.")).toBeInTheDocument();
-    expect(screen.getByText("$33.34")).toBeInTheDocument();
+    expect(screen.getByText("= $33.34")).toBeInTheDocument();
   });
 
   it("a guest's bill waits for the organizer's OK and counts once approved", async () => {
@@ -377,11 +409,17 @@ describe("Split bills: the organizer", () => {
     await user.clear(name);
     await user.type(name, "Apartment 5C");
     await user.click(within(sheet).getByRole("radio", { name: "Shares" }));
+    expect(await within(sheet).findByText("3 shares in all")).toBeInTheDocument();
+    await user.clear(within(sheet).getByLabelText("You, shares"));
     await user.type(within(sheet).getByLabelText("You, shares"), "2");
-    await user.type(within(sheet).getByLabelText("Sam, shares"), "1");
+    await user.clear(within(sheet).getByLabelText("Alex, shares"));
+    expect(
+      await within(sheet).findByText("3 shares in all · fill in everyone"),
+    ).toBeInTheDocument();
     await user.click(within(sheet).getByRole("button", { name: "Save" }));
     expect(await within(sheet).findByRole("alert")).toHaveTextContent(/whole number/);
     await user.type(within(sheet).getByLabelText("Alex, shares"), "1");
+    expect(await within(sheet).findByText("4 shares in all")).toBeInTheDocument();
     await user.click(within(sheet).getByRole("button", { name: "Save" }));
     expect(
       await screen.findByRole("heading", { level: 1, name: "Apartment 5C" }),
@@ -410,13 +448,22 @@ describe("Split bills: the organizer", () => {
 
     await user.type(screen.getByLabelText("1 · How much?"), "90");
     await user.click(screen.getByRole("radio", { name: "Percent" }));
+    // An even start: 33.34 / 33.33 / 33.33 adds up, so nothing is missing yet.
+    expect(await screen.findByText("Adds up to 100% of 100%")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("You, %"));
+    expect(await screen.findByText("Adds up to 66.66% of 100% · 33.34% left")).toHaveClass(
+      "split-total--off",
+    );
     await user.click(add);
     expect(screen.getByRole("alert")).toHaveTextContent("Fill in everyone who's in.");
     expect(screen.getByLabelText("You, %")).toHaveFocus();
 
     await user.type(screen.getByLabelText("You, %"), "50");
-    await user.type(screen.getByLabelText("Sam, %"), "25");
-    await user.type(screen.getByLabelText("Alex, %"), "25");
+    for (const who of ["Sam", "Alex"]) {
+      await user.clear(screen.getByLabelText(`${who}, %`));
+      await user.type(screen.getByLabelText(`${who}, %`), "25");
+    }
+    expect(await screen.findByText("Adds up to 100% of 100%")).toHaveClass("split-total--ok");
     await user.click(add);
     expect(screen.getByRole("alert")).toHaveTextContent("Say what it's for.");
     expect(screen.getByLabelText("What's it for?")).toHaveFocus();

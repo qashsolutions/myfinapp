@@ -21,7 +21,8 @@ import { BillItems, type ItemsResult } from "./BillItems.tsx";
 import { ChipChoice } from "./ChipChoice.tsx";
 import { shareEntry } from "./entryShare.ts";
 import { type GroupMeta, guestSplit, MAX_WHAT, type ShownBill } from "./ledger.ts";
-import { valuesOf } from "./splitValues.ts";
+import { TotalLine, ValueBox } from "./SplitValueFields.tsx";
+import { evenValues, METHOD_HELP, totalOf, valuesOf } from "./splitValues.ts";
 import {
   addBill,
   type BillDraft,
@@ -146,6 +147,10 @@ function BillForm({
   const [typed, setTyped] = useState<Record<string, string>>(
     editing ? typedFrom(editing) : typedUsual,
   );
+  // The boxes start from an even split and follow the amount and who's in until the person
+  // types in one (owner, November 11, 2026); a saved split (an edit, the usual one) starts as is.
+  const [autoFill, setAutoFill] = useState(!editing && Object.keys(typedUsual).length === 0);
+  const [total, setTotal] = useState<{ text: string; ok: boolean } | null>(null);
   const [repeat, setRepeat] = useState<SplitRepeat | null>(editing?.repeat ?? null);
   const [what, setWhat] = useState(editing?.what ?? entry?.merchant.slice(0, MAX_WHAT) ?? "");
   const [paidBy, setPaidBy] = useState(editing?.paid_by ?? group.my_member_id);
@@ -258,6 +263,48 @@ function BillForm({
       alive = false;
     };
   }, [amountText, method, people, typed, date, what, paidBy, leftover, repeat, byItem]);
+
+  // The even start, while nobody has typed in a box.
+  useEffect(() => {
+    if (!autoFill || byItem || method === "equal") return;
+    let alive = true;
+    void (async () => {
+      let cents: number | null = null;
+      try {
+        cents = await parseAmount(amountText);
+      } catch {
+        cents = null;
+      }
+      const even = await evenValues(
+        method,
+        people,
+        cents,
+        leftover === "payer" ? paidBy : leftover,
+      );
+      if (alive) setTyped(even);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [autoFill, byItem, method, people, amountText, leftover, paidBy]);
+
+  // The running total under the people.
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      let cents: number | null = null;
+      try {
+        cents = await parseAmount(amountText);
+      } catch {
+        cents = null;
+      }
+      const t = byItem ? null : await totalOf(method, people, typed, cents);
+      if (alive) setTotal(t);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [byItem, method, people, typed, amountText]);
 
   const mine = parts?.find((p) => p.person === group.my_member_id)?.cents ?? 0;
   const atLimit = runsIt && !editing && today.limit > 0 && today.added >= today.limit;
@@ -382,6 +429,10 @@ function BillForm({
             if ((v as string) === "items") return setByItem(true);
             setByItem(false);
             setMethod(v);
+            // Another unit: start again from the usual split for it, else an even one.
+            const usualHere = v === usual.method && Object.keys(typedUsual).length > 0;
+            if (usualHere) setTyped(typedUsual);
+            setAutoFill(!usualHere);
           }}
         />
       ) : (
@@ -396,6 +447,7 @@ function BillForm({
                 .join(" · ")}. ${organizerName} sets how this group splits and approves your bill.`}
         </p>
       )}
+      {runsIt && !byItem ? <p className="auth__hint">{METHOD_HELP[method]}</p> : null}
       {byItem ? (
         <BillItems
           everyone={everyone}
@@ -425,24 +477,27 @@ function BillForm({
               {nameOf(p)}
             </label>
             {method !== "equal" && people.includes(p) ? (
-              <input
+              <ValueBox
                 id={`${ids}-value-${p}`}
-                className="auth__input"
-                inputMode={method === "shares" ? "numeric" : "decimal"}
-                aria-label={`${nameOf(p)}, ${unit}`}
+                method={method}
+                label={`${nameOf(p)}, ${unit}`}
                 readOnly={!runsIt}
                 value={typed[p] ?? ""}
-                onChange={(e) => setTyped((t) => ({ ...t, [p]: e.target.value }))}
+                onChange={(text) => {
+                  setAutoFill(false);
+                  setTyped((t) => ({ ...t, [p]: text }));
+                }}
               />
             ) : null}
-            {parts ? (
+            {parts && people.includes(p) ? (
               <span className="split-preview">
-                {formatCents(parts.find((x) => x.person === p)?.cents ?? 0)}
+                {`${method === "equal" ? "" : "= "}${formatCents(parts.find((x) => x.person === p)?.cents ?? 0)}`}
               </span>
             ) : null}
           </div>
         ))}
       </fieldset>
+      {byItem ? null : <TotalLine total={total} />}
       {runsIt ? (
         <ChipChoice
           legend="3 · Repeats?"
@@ -501,7 +556,7 @@ function BillForm({
       {parts && people.includes(group.my_member_id) ? (
         <p role="status">Only {formatCents(mine)} counts as yours.</p>
       ) : null}
-      {problem ? (
+      {problem && (!total || problem === "invalid_amount") ? (
         <p className="auth__hint" role="status">
           {splitErrorText(problem)}
         </p>

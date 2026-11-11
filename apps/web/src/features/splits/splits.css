@@ -45,6 +45,32 @@
 }
 .split-preview {
   font-size: var(--fs-small);
+  min-width: 4.5rem;
+  text-align: right;
+}
+/* A person's value with its unit beside it: "$ 30.00", "33.33 %", "2 shares". */
+.split-value {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+.split-value .auth__input {
+  max-width: 6.5rem;
+}
+.split-value__unit {
+  color: var(--c-sub);
+  font-size: var(--fs-small);
+}
+.split-total {
+  font-size: var(--fs-small);
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+.split-total--ok {
+  color: var(--c-success);
+}
+.split-total--off {
+  color: var(--c-danger);
 }
 .split-qr {
   display: block;
