@@ -1788,6 +1788,19 @@ export async function splitShare(
   });
 }
 
+/** A bill split by item (chunk S.8): tax, tip and fees follow each person's items. */
+export async function splitItemize(
+  items: Array<{ cents: number; people: string[] }>,
+  extrasCents: number,
+  leftoverTo: string,
+): Promise<{ parts: SplitPart[]; items_cents: number; extras_cents: number; total_cents: number }> {
+  return engine.call("splits.itemize", {
+    items,
+    extras_cents: extrasCents,
+    leftover_to: leftoverTo,
+  });
+}
+
 export interface SplitBillFacts {
   id: string;
   amount_cents: number;

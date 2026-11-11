@@ -309,6 +309,14 @@ const BARE: Record<string, Rule> = {
     );
     return { ...splits.share(amount_cents, method, people, leftover_to, values ?? null) };
   },
+  "splits.itemize": (input) => {
+    const { items, extras_cents, leftover_to } = args(input, [
+      "items",
+      "extras_cents",
+      "leftover_to",
+    ]);
+    return { ...splits.itemize(items, extras_cents, leftover_to) };
+  },
   "splits.balances": (input) => {
     const { people, bills, settlements } = args(input, ["people", "bills", "settlements"]);
     return { ...splits.balances(people, bills, settlements) };

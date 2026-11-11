@@ -81,6 +81,57 @@ export function share(
   };
 }
 
+/** A bill split by item (chunk S.8): see services/rules/stackd_rules/splits.py `itemize`. */
+export function itemize(
+  itemsIn: unknown,
+  extrasCents: unknown,
+  leftoverTo: unknown,
+): { parts: Part[]; items_cents: number; extras_cents: number; total_cents: number } {
+  if (!Array.isArray(itemsIn) || itemsIn.length === 0) throw new RuleError("no_items");
+  const extras = assertInt(extrasCents, "invalid_extras");
+  if (extras < 0) throw new RuleError("invalid_extras");
+  const order: string[] = [];
+  const subtotal = new Map<string, number>();
+  for (const item of itemsIn) {
+    if (!item || typeof item !== "object" || Array.isArray(item))
+      throw new RuleError("invalid_amount");
+    const x = item as { cents?: unknown; people?: unknown };
+    const cents = assertInt(x.cents, "invalid_amount");
+    if (cents <= 0) throw new RuleError("invalid_amount");
+    const ids = people(x.people);
+    for (const p of ids)
+      if (!subtotal.has(p)) {
+        order.push(p);
+        subtotal.set(p, 0);
+      }
+    const each = Math.floor(cents / ids.length);
+    for (const p of ids) subtotal.set(p, (subtotal.get(p) ?? 0) + each);
+    const takes = typeof leftoverTo === "string" && ids.includes(leftoverTo) ? leftoverTo : ids[0];
+    if (takes !== undefined)
+      subtotal.set(takes, (subtotal.get(takes) ?? 0) + cents - each * ids.length);
+  }
+  if (typeof leftoverTo !== "string" || !subtotal.has(leftoverTo))
+    throw new RuleError("leftover_to_not_in_split");
+  let itemsTotal = 0;
+  for (const c of subtotal.values()) itemsTotal += c;
+  const total = BigInt(itemsTotal);
+  const parts = new Map(
+    order.map((p) => {
+      const mine = subtotal.get(p) ?? 0;
+      return [p, mine + safeNumber(mul(extras, mine) / total)];
+    }),
+  );
+  let given = 0;
+  for (const c of parts.values()) given += c;
+  parts.set(leftoverTo, (parts.get(leftoverTo) ?? 0) + itemsTotal + extras - given);
+  return {
+    parts: order.map((p) => ({ person: p, cents: parts.get(p) ?? 0 })),
+    items_cents: itemsTotal,
+    extras_cents: extras,
+    total_cents: assertInt(itemsTotal + extras, "too_large"),
+  };
+}
+
 export function balances(
   peopleIn: unknown,
   bills: unknown,
