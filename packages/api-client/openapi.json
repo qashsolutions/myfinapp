@@ -9016,7 +9016,7 @@
     },
     "/api/splits/{group_id}/invites/{invite_id}/remind": {
       "post": {
-        "description": "The same invite again (November 11, 2026): a new link (the old one stops), the same 7\ndays, once a day per invite counting the day it was sent, never against today's invites.\nThe address comes from the organizer's device and must be the one invited: the server keeps\nonly its hash, so a reminder can never go anywhere else.",
+        "description": "The same invite again (November 11, 2026): a new link (the old one stops), the same 7\ndays, once a day per invite counting the day it was sent (signed off by the owner the same\nday), never against today's invites.\nThe address comes from the organizer's device and must be the one invited: the server keeps\nonly its hash, so a reminder can never go anywhere else.",
         "operationId": "remind_invite_api_splits__group_id__invites__invite_id__remind_post",
         "parameters": [
           {
