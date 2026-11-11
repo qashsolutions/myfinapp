@@ -147,6 +147,26 @@ describe("statement import, read on the device", () => {
     expect(onlySessionReads(fake.calls)).toEqual([]);
   });
 
+  it("a statement from an earlier month opens on that month, not an empty one (November 10, 2026)", async () => {
+    // Found by e2e/imports.spec.ts: importing October's statement in November landed on
+    // "No entries this month", as if nothing had been imported.
+    vi.setSystemTime(new Date("2026-11-12T12:00:00"));
+    const user = userEvent.setup();
+    await start();
+    await user.upload(
+      screen.getByLabelText(/Choose a statement file/),
+      fileOf("checking.qfx", "application/x-qfx"),
+    );
+    await user.click(await screen.findByRole("button", { name: /^\+ New account: .*4821/ }));
+    await user.click(screen.getByRole("button", { name: "Read file" }));
+    await user.click(await screen.findByRole("button", { name: "Import 2 transactions" }));
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Money in & out" }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("October 2026")).toBeInTheDocument();
+    expect(await screen.findByText(/CORNER MKT/)).toBeInTheDocument();
+  });
+
   it("re-uploading the same statement creates no duplicates", async () => {
     const user = userEvent.setup();
     const db = openDb("u1");

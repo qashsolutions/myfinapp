@@ -3,6 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 // Ports and database can move (E2E_API_PORT, E2E_WEB_PORT, E2E_DB) so two checkouts can run at once.
 const API_PORT = process.env.E2E_API_PORT ?? "8100";
 const WEB_PORT = process.env.E2E_WEB_PORT ?? "5174";
+const SITE_PORT = process.env.E2E_SITE_PORT ?? "4322";
 
 /**
  * End-to-end tests (first run October 22, 2026): the real PWA in the installed Chrome against a
@@ -44,8 +45,16 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: `STACKD_API_PROXY=http://127.0.0.1:${API_PORT} pnpm exec vite --port ${WEB_PORT} --strictPort`,
+      // The receipt reader's files (public/ocr, gitignored) are copied first, as `pnpm dev` does.
+      command: `pnpm ocr:assets && STACKD_API_PROXY=http://127.0.0.1:${API_PORT} pnpm exec vite --port ${WEB_PORT} --strictPort`,
       url: `http://localhost:${WEB_PORT}`,
+      timeout: 120_000,
+      reuseExistingServer: false,
+    },
+    {
+      // The public website, for its account-deletion page (e2e/site-delete.spec.ts).
+      command: `PUBLIC_API_URL=http://127.0.0.1:${API_PORT} PUBLIC_APP_URL=http://localhost:${WEB_PORT} ASTRO_TELEMETRY_DISABLED=1 pnpm -C ../site exec astro dev --port ${SITE_PORT} --host localhost --ignore-lock`,
+      url: `http://localhost:${SITE_PORT}/delete-account`,
       timeout: 120_000,
       reuseExistingServer: false,
     },

@@ -331,6 +331,17 @@ written against both.
     creation. The unit tests fake the passkey library, so the browser's own rules are checked
     in Chrome: `passkey-prf.test.ts` · `test_backup.py::test_registration_asks_for_prf…` ·
     `e2e/backup.spec.ts`.
+85. **A stored moment is shown as this device's day** (November 10, 2026; found by the insights
+    journey: "last import Nov 11" on the evening of Nov 10 in Chicago). A timestamp becomes a
+    calendar day through `lib/format.ts` `dayOf` (the device's own calendar), never its first
+    ten letters, which are the UTC day. `text-and-dates.test.ts` fails on `…_at.slice(0, 10)`
+    anywhere in the app.
+86. **A receipt photo belongs to a saved entry** (November 10, 2026; found by the receipts
+    journey). A photo attached while adding an entry that is never saved, or replaced before
+    saving, is deleted when the screen closes (`AddEntrySheet` → `dropUnsavedReceipts`), and
+    each open sweeps any no entry took within a day (`purgeExpiredReceipts`), so it is never
+    kept, exported or counted in Delete all. `receipts.test.tsx` "a photo on an entry that was
+    never saved…" · `e2e/receipts.spec.ts`.
 
 ## Accounts and money on the server
 

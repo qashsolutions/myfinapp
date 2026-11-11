@@ -54,6 +54,19 @@ export function MoneyScreen() {
     params.get("view") === "transactions" ? "transactions" : "categories";
   const setTab = (next: "categories" | "transactions") =>
     setParams(next === "transactions" ? { view: "transactions" } : {}, { replace: true });
+  // `month=YYYY-MM` opens an earlier month (an import of an older statement lands there).
+  const openMonth = params.get("month");
+  useEffect(() => {
+    if (!openMonth || !/^\d{4}-(0[1-9]|1[0-2])$/.test(openMonth)) return;
+    if (openMonth >= todayIso().slice(0, 7)) return;
+    let alive = true;
+    void monthViewAsOf(`${openMonth}-01`, todayIso()).then((d) => {
+      if (alive) setAsOf(d);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [openMonth]);
   const view = useMonthTotals(asOf);
   // "Don't count" entries stay listed (faded); this shows just them, to find and undo one.
   const notCounted = (view.entries ?? []).filter((e) => e.not_counted);

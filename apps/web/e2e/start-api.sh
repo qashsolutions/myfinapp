@@ -12,6 +12,9 @@ fi
 export STACKD_EMAIL_BACKEND=console
 export STACKD_ORIGINS="[\"http://localhost:${E2E_WEB_PORT:-5174}\"]"
 export STACKD_RP_ID=localhost
+# The website's public deletion page (apps/site, started by playwright.config.ts) calls the API
+# cross-origin; this is the one origin it admits there.
+export STACKD_SITE_ORIGIN="http://localhost:${E2E_SITE_PORT:-4322}"
 export PYTHONUNBUFFERED=1
 uv run stackd-api migrate >/dev/null
 if [ -n "$CI" ]; then uv run stackd-api init-storage >/dev/null; fi

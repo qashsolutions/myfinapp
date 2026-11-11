@@ -9,7 +9,7 @@ import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type NetWorthPoint, parseAmount } from "../../engine/bridge.ts";
-import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
+import { dayOf, formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { ChoiceChips } from "../goals/CustomValueSheet.tsx";
 import { RangePicker, RangeStepper } from "../ranges/RangePicker.tsx";
 import { type Range, useRange } from "../ranges/ranges.ts";
@@ -236,7 +236,7 @@ export function NetWorthScreen() {
         : r.source === "debt"
           ? "From Debt payoff"
           : r.updatedAt
-            ? `Updated ${formatDay(r.updatedAt.slice(0, 10))}`
+            ? `Updated ${formatDay(dayOf(r.updatedAt))}`
             : "";
     if (r.source === "manual")
       return (

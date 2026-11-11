@@ -2,13 +2,13 @@ import "./entries.css";
 
 import { Button, buttonClass, Toggle } from "@stackd/ui";
 import { useLiveQuery } from "dexie-react-hooks";
-import { type FormEvent, useEffect, useId, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { recordDeletion } from "../../data/backup/snapshot.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { bankText, type Direction, type Entry, newId } from "../../data/db.ts";
-import { deleteReceipts, deleteReceiptsOf } from "../../data/receipts.ts";
+import { deleteReceipts, deleteReceiptsOf, dropUnsavedReceipts } from "../../data/receipts.ts";
 import { cleanDescription, EngineError, matchesRule, parseAmount } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
 import { emitMoment } from "../../moments/bus.ts";
@@ -62,6 +62,13 @@ export function AddEntrySheet() {
   const [splitCategoryId, setSplitCategoryId] = useState<string | null>(null);
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
+  // Photos attached on this screen: any no saved entry took go when it closes (November 10,
+  // 2026), and one replaced before saving goes at once.
+  const attachedHere = useRef(new Set<string>());
+  useEffect(() => {
+    const here = attachedHere.current;
+    return () => void dropUnsavedReceipts(db, [...here]);
+  }, [db]);
   const [alwaysRule, setAlwaysRule] = useState(false); // fast-follow 7: correction -> rule
   const [note, setNote] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -617,7 +624,13 @@ export function AddEntrySheet() {
         ) : null}
         <ReceiptCard
           receiptId={receiptId}
-          onChange={setReceiptId}
+          onChange={(id) => {
+            const before = receiptId;
+            setReceiptId(id);
+            if (id) attachedHere.current.add(id);
+            if (before && before !== id && attachedHere.current.has(before))
+              void dropUnsavedReceipts(db, [before]);
+          }}
           onSuggest={(s) => {
             // Read off the photo on this device; the user checks each field before saving.
             if (s.total) setAmount(s.total);

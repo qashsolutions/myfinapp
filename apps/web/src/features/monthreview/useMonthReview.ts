@@ -15,6 +15,7 @@ import {
   type PayoffPlan,
   whatIfDebt,
 } from "../../engine/bridge.ts";
+import { dayOf } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
 import { debtInputs, useDebtFreePlan, useDebtSettings } from "../bills/debtPlan.ts";
 import { type BudgetView, useBudget } from "../budget/useBudget.ts";
@@ -87,7 +88,7 @@ export function useJarsMonth(span: MonthSpan | null): JarsMonth | undefined {
     void (async () => {
       const dayBefore = (await monthBounds(await addMonths(span.start, -1))).end;
       const jars = goals.filter(
-        (g) => g.kind === "save" && compareText(g.created_at.slice(0, 10), span.end) <= 0,
+        (g) => g.kind === "save" && compareText(dayOf(g.created_at), span.end) <= 0,
       );
       const inMonth = newMoneyIn(events).filter(
         (e) => compareText(e.date, span.start) >= 0 && compareText(e.date, span.end) <= 0,

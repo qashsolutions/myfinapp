@@ -7,7 +7,7 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
-import { formatCents, formatDay } from "../../lib/format.ts";
+import { dayOf, formatCents, formatDay } from "../../lib/format.ts";
 import { BillSheet } from "./BillSheet.tsx";
 import { CheckFirstSheet } from "./CheckFirstSheet.tsx";
 import { InviteSheet } from "./InviteSheet.tsx";
@@ -390,9 +390,7 @@ export function SplitGroupScreen() {
           </h2>
           {group.invites.map((i) => (
             <div className="split-pay" key={i.id}>
-              <span className="split-pay__text">
-                Expires {formatDay(i.expires_at.slice(0, 10))}
-              </span>
+              <span className="split-pay__text">Expires {formatDay(dayOf(i.expires_at))}</span>
               <Button
                 size="sm"
                 variant="ghost"
