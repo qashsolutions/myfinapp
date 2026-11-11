@@ -60,7 +60,7 @@ export function NewSplitGroup() {
 
   return (
     <>
-      <ScreenHeader title="New group" actions={null} back="/goals?tab=splits" />
+      <ScreenHeader title="New group" actions={null} back="/splits" />
       <label className="auth__field">
         <span className="auth__label">Group name</span>
         <input

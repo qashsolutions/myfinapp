@@ -24,9 +24,48 @@ describe("App shell on a phone", () => {
     const nav = screen.getByRole("navigation", { name: "Primary" });
     expect(nav.className).toContain("tabbar");
     const links = within(nav).getAllByRole("link");
-    expect(links.map((l) => l.textContent)).toEqual(["Home", "Budget", "Goals", "Insights", "Me"]);
+    expect(links.map((l) => l.textContent)).toEqual([
+      "Home",
+      "Budget",
+      "Goals",
+      "Insights",
+      "Splits",
+    ]);
     expect(within(nav).getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
     expect(within(nav).getByRole("link", { name: "Budget" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("opens Me from the avatar at the top right of each tab's screen, never deeper", async () => {
+    // Splits took Me's place in the tab bar (owner decision, November 11, 2026).
+    const user = userEvent.setup();
+    for (const path of ["/", "/budget", "/goals", "/insights", "/splits"]) {
+      const { unmount } = await renderAt(path);
+      const header = document.querySelector(".screen-header") as HTMLElement;
+      expect(await within(header).findByRole("link", { name: "Me" })).toHaveAttribute(
+        "href",
+        "/me",
+      );
+      unmount();
+    }
+    await renderAt("/goals/new");
+    expect(await screen.findByRole("heading", { level: 1, name: "New goal" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Me" })).toBeNull();
+    await user.click(screen.getByRole("link", { name: "Back" }));
+    await user.click(await screen.findByRole("link", { name: "Me" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Me" })).toBeInTheDocument();
+    expect(activeTab("/me")).toBeNull();
+    expect(activeTab("/splits/g1")).toBe("/splits");
+  });
+
+  it("sends an old Goals → Splits link to the Splits tab", async () => {
+    await renderAt("/goals?tab=splits");
+    expect(await screen.findByRole("heading", { level: 1, name: "Splits" })).toBeInTheDocument();
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    expect(within(nav).getByRole("link", { name: "Splits" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.queryByRole("link", { name: "Back" })).toBeNull();
   });
 
   it("lights the tab a screen is reached from: Insights for What if and its siblings", async () => {
@@ -124,6 +163,12 @@ describe("App shell at 900px and up", () => {
     await userEvent.click(who);
     expect(who).toHaveAttribute("aria-expanded", "true");
     expect(within(rail).getByRole("link", { name: "Your account" })).toHaveAttribute("href", "/me");
+    // From 900px the rail's footer is the way to Me: no avatar in the header.
+    expect(
+      within(document.querySelector(".screen-header") as HTMLElement).queryByRole("link", {
+        name: "Me",
+      }),
+    ).toBeNull();
     await userEvent.keyboard("{Escape}");
     expect(within(rail).queryByRole("button", { name: "Log out" })).toBeNull();
     await userEvent.click(who);

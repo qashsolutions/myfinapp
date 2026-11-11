@@ -269,7 +269,9 @@ describe("receipt photos", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
     await screen.findByRole("heading", { level: 1, name: "Money in & out" });
 
-    await user.click(screen.getByRole("link", { name: "Me" }));
+    // Me is the avatar on a tab's own screen (November 11, 2026): Home first, as a person would.
+    await user.click(screen.getByRole("link", { name: "Home" }));
+    await user.click(await screen.findByRole("link", { name: "Me" }));
     await user.click(await screen.findByRole("link", { name: /Money & data/ }));
     const section = await screen.findByRole("region", { name: "Receipt photos" });
     await user.click(within(section).getByRole("radio", { name: "1 year" }));

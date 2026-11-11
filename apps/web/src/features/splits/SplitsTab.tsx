@@ -15,8 +15,8 @@ export function balanceText(cents: number): string {
 }
 
 /**
- * Goals → Splits (chunk S.3b, canvas "Splits tab"): every group I'm in with my balance, the
- * total first. Group names come from the organizer's encrypted ledger; a group whose key hasn't
+ * The Splits tab (chunk S.3b, canvas "Splits tab"; a main tab since November 11, 2026): every
+ * group I'm in with my balance, the total first. Group names come from the organizer's encrypted ledger; a group whose key hasn't
  * reached this device yet reads "Waiting for the key".
  */
 export function SplitsTab() {

@@ -54,8 +54,15 @@
 }
 .screen-header__actions {
   display: flex;
+  align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+/* Me on a phone: the round initial after the screen's own action. */
+.me-btn {
+  flex-shrink: 0;
+  text-decoration: none;
+  box-shadow: var(--shadow-card);
 }
 
 .add-btn {

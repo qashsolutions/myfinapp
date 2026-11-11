@@ -1,4 +1,8 @@
-/** The five tabs, in order (docs/spec.md "Navigation & screens"). Paths only: no components here. */
+/**
+ * The five tabs, in order (docs/spec.md "Navigation & screens"). Paths only: no components here.
+ * Splits took Me's place on November 11, 2026 (owner decision); Me is the avatar at the top right
+ * of each tab's screen on a phone (`MeButton`) and the rail's "signed in" footer on a computer.
+ */
 export interface Tab {
   path: string;
   label: string;
@@ -9,8 +13,10 @@ export const TABS: readonly Tab[] = [
   { path: "/budget", label: "Budget" },
   { path: "/goals", label: "Goals" },
   { path: "/insights", label: "Insights" },
-  { path: "/me", label: "Me" },
+  { path: "/splits", label: "Splits" },
 ];
+
+export const ME_PATH = "/me";
 
 /** A split-bill guest's two tabs (spec "Guests"). */
 export const GUEST_TABS: readonly Tab[] = [

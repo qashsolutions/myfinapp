@@ -224,7 +224,7 @@ Looks change appearance only. Breaking any rule below is a bug.
 
 ## Navigation & screens
 
-A five-tab bottom bar: **Home · Budget · Goals · Insights · Me**. "Insights" replaces "Learn" (owner decision, October 18, 2026), which replaced the earlier "Grow" tab.
+A five-tab bottom bar: **Home · Budget · Goals · Insights · Splits**. "Insights" replaces "Learn" (owner decision, October 18, 2026), which replaced the earlier "Grow" tab. Splits took Me's place (owner decision, November 11, 2026: never more than five tabs; Me is opened rarely, split bills often): on a phone **Me** is the round initial at the top right of each tab's own screen (not on deeper screens, which have Back); from 900px it is the side rail's "signed in" footer (Your account · Log out), shown as current on Me's screens. A split-bill guest keeps two tabs, **Splits · Me**. Old links to Goals → Splits open the Splits tab.
 
 | Screen | Tab | Purpose | Mockup |
 |---|---|---|---|
@@ -602,8 +602,8 @@ Rules:
 
 Shared bills with housemates, trips, friends and family, without Splitwise's daily caps and ads. Design: the "Qash Split Bills" canvas (owner's claude.ai artifact). Owner: "we are trying to leapfrog across established apps by reducing friction and building as many features as possible to create our moat."
 
-- **Who.** A split group has one **organizer**, who must be on Private or Connected (a trial counts while it lasts; a household's covered partner counts). Everyone else joins as a **guest**, free, with no plan, card or bank. A Private or Connected person who is invited joins as a full member, and the group shows in their own Goals → Splits; only the organizer runs it. A guest cannot create a group: "Want your own groups? Try Qash free for 3 days."
-- **Where.** No new tab: Home's `owed` card ("Owed +$68" / "Owe $18", hidden when every group is settled), the + button's fourth choice "A split", Goals → Jars · Challenges · **Splits**, and Split on an entry (swipe, or the entry editor) with the amount filled in.
+- **Who.** A split group has one **organizer**, who must be on Private or Connected (a trial counts while it lasts; a household's covered partner counts). Everyone else joins as a **guest**, free, with no plan, card or bank. A Private or Connected person who is invited joins as a full member, and the group shows in their own Splits tab; only the organizer runs it. A guest cannot create a group: "Want your own groups? Try Qash free for 3 days."
+- **Where.** Its own tab, **Splits** (owner decision, November 11, 2026; it was Goals → Jars · Challenges · Splits before), plus Home's `owed` card ("Owed +$68" / "Owe $18", hidden when every group is settled), the + button's fourth choice "A split", and Split on an entry (swipe, or the entry editor) with the amount filled in.
 - **Limits (plans.yaml, owner decision November 8, 2026).** Bills added per day across the organizer's groups: Private 6, Connected 12 (`split_bills_per_day`); people per group, the organizer included: Private 6, Connected 12 (`split_people_max`). A guest's bill counts toward its group's organizer once approved. Edits, deletes, settling up and the repeats of a repeating bill never count. Email invites a day: Private 6, Connected 12 (`split_invites_per_day`, owner decision November 8, 2026; "Done for today" past it). The day is the organizer's own (their notification time zone, else UTC). At the limit: "Done for today · 12 of 12 bills added. More tomorrow at midnight."
 - **A bill.** 1 · How much? 2 · How to split it? (Equally, Exact, Percent, Shares; tick who's in) 3 · Repeats? (Once, Weekly, Monthly, Yearly; a monthly or yearly bill returns to its day like `forecast.upcoming`). Plus what it's for, who paid, and the date. A linked or imported entry can be the bill ("From your linked card · Internet · Nov 3").
 - **Who may change what.** Only the organizer chooses or changes a split, edits or deletes any bill, adds or removes people, sets the group's usual split and who gets a leftover cent. A guest adds a bill (amount, what, who paid, date) with the group's usual split shown locked ("Jordan sets how this group splits"); **it waits for the organizer's OK** ("Waiting for Jordan": Approve, Edit or Decline; owner decision November 8, 2026), changes no balance until approved, counts toward the daily limit only then, and a declined one is a mistake for whoever added it. The organizer's switch "Guests can add bills" (on by default) stops guests adding at all. A guest also disputes a bill, settles up, leaves or reports. Every change is listed in the bill's history and everyone in the group sees it.
@@ -1151,7 +1151,7 @@ apps/web/
 │   │   ├── EntitlementsProvider.tsx  # plan limits from the server
 │   │   ├── SessionLock.tsx     # 5-minute inactivity lock + passkey unlock
 │   │   └── layout/
-│   │       ├── TabBar.tsx      # phone: Home · Budget · Goals · Insights · Me
+│   │       ├── TabBar.tsx      # phone: Home · Budget · Goals · Insights · Splits (Me: MeButton, top right)
 │   │       └── SideRail.tsx    # ≥ 900px
 │   ├── pwa/
 │   │   ├── sw.ts               # caching, offline, update detection, push events

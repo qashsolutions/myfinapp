@@ -45,7 +45,7 @@ test("split bills: the organizer starts a group, a friend joins, bills wait for 
   const org = await (await browser.newContext()).newPage();
   const orgSent = sent(org);
   await readyAccount(org, "split-org");
-  await org.goto("/goals?tab=splits");
+  await org.goto("/splits");
   await org.getByRole("link", { name: "+ New group" }).click();
   await org.getByLabel("Group name").fill("Lake house 7Q");
   await org.getByLabel("Your name, as the group sees it").fill("Jordan");
@@ -143,7 +143,7 @@ test("@phone split bills: a free guest joins from the email link, disputes, pays
   const org = await (await browser.newContext()).newPage();
   await readyAccount(org, "split-host");
   // The organizer saves how friends pay them (a passkey check first)
-  await org.goto("/goals?tab=splits");
+  await org.goto("/splits");
   await org.getByRole("link", { name: "+ New group" }).click();
   await org.getByLabel("Group name").fill("Cabin 3W");
   await org.getByLabel("Your name, as the group sees it").fill("Jordan");

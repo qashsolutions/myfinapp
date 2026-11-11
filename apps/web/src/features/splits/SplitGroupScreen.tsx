@@ -66,7 +66,7 @@ export function SplitGroupScreen() {
   if (error?.status === 404) {
     return (
       <>
-        <ScreenHeader title="Group" actions={null} back="/goals?tab=splits" />
+        <ScreenHeader title="Group" actions={null} back="/splits" />
         <Card>
           <p>You're not in this group any more.</p>
         </Card>
@@ -76,7 +76,7 @@ export function SplitGroupScreen() {
   if (!group || !view || !splits) {
     return (
       <>
-        <ScreenHeader title="Group" actions={null} back="/goals?tab=splits" />
+        <ScreenHeader title="Group" actions={null} back="/splits" />
         {error ? (
           <Card>
             <p>Couldn't reach the server. Try again when you're online.</p>
@@ -115,7 +115,7 @@ export function SplitGroupScreen() {
   const header = (
     <ScreenHeader
       title={title}
-      back="/goals?tab=splits"
+      back="/splits"
       actions={
         group.is_organizer && group.writable && !splits.blocked ? (
           <Button size="sm" variant="secondary" onClick={() => setInviting(true)}>

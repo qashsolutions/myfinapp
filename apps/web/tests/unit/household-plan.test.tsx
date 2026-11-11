@@ -104,7 +104,7 @@ describe("A household is one plan (invariant 54)", () => {
     const asked = api.calls.filter((c) => c.path === "/api/billing/entitlements").length;
     expect(asked).toBeGreaterThanOrEqual(2);
 
-    await user.click(await screen.findByRole("link", { name: "Me" }));
+    await user.click(await screen.findByRole("link", { name: "Back" }));
     renderApp("/me/plan");
     const current = await screen.findAllByRole("region", { name: "Current plan" });
     await waitFor(() =>

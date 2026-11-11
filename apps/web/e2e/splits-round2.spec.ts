@@ -19,7 +19,7 @@ test("split bills round two: usual split by shares, a bill's history, paying bac
   const org = await (await browser.newContext()).newPage();
   await readyAccount(org, "s6-org");
   await setName(org, "Jordan");
-  await org.goto("/goals?tab=splits");
+  await org.goto("/splits");
   await org.getByRole("link", { name: "+ New group" }).click();
   await org.getByLabel("Group name").fill("Cabin 9X");
   await org.getByRole("button", { name: "Create and invite" }).click();

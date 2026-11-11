@@ -118,7 +118,7 @@ describe("Split bills: the organizer", () => {
   it("starts a group from Goals → Splits and invites by email; the name never leaves readable", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });
-    renderApp("/goals?tab=splits");
+    renderApp("/splits");
     await user.click(await screen.findByRole("link", { name: "+ New group" }));
     await user.type(await screen.findByLabelText("Group name"), "Apartment 4B");
     await user.type(screen.getByLabelText("Your name, as the group sees it"), "Nia");
@@ -495,7 +495,7 @@ describe("Split bills: the organizer", () => {
   it("Split with one person: a group of two behind the scenes, an invite, then Add a bill (S.9)", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });
-    renderApp("/goals?tab=splits");
+    renderApp("/splits");
     await user.click(await screen.findByRole("link", { name: "Split with one person" }));
     await user.type(await screen.findByLabelText("Their name"), "Sam");
     await user.type(screen.getByLabelText("Their email"), "sam@example.com");
@@ -507,7 +507,7 @@ describe("Split bills: the organizer", () => {
     const mine = await readLedger(api, g?.id ?? "", ME);
     expect(mine.group).toMatchObject({ name: "Sam", kind: "one" });
     cleanup();
-    renderApp("/goals?tab=splits");
+    renderApp("/splits");
     expect(await screen.findByText("You and Sam")).toBeInTheDocument();
     noSecretsLeft(api, ["You and Sam"]);
   });
@@ -660,7 +660,7 @@ describe("Split bills: the organizer", () => {
     expect(screen.queryByRole("button", { name: "Remind" })).toBeNull();
     cleanup();
     installFakeApi({ session: readySession(), splits: api.splits });
-    renderApp("/goals?tab=splits");
+    renderApp("/splits");
     expect(
       await screen.findByText("Reports have paused your groups. Support can look at it."),
     ).toBeInTheDocument();

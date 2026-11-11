@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, type Page, test } from "@playwright/test";
-import { readyAccount } from "./helpers.ts";
+import { openMe, readyAccount } from "./helpers.ts";
 
 /**
  * Receipt photos end to end (chunk 1.9 and fast-follow 6): a photo attached while adding an
@@ -86,7 +86,7 @@ test("@phone receipts: a photo's location stripped, its text read on the device,
 
   // The export carries the two saved photos only, with no location (a stored ZIP: the bytes
   // are as kept). Reached inside the app, as a person would, not by reloading.
-  await page.getByRole("link", { name: "Me", exact: true }).click();
+  await openMe(page);
   await page.getByRole("link", { name: "Money & data" }).click();
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download all my data" }).click();

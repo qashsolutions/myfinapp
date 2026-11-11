@@ -32,7 +32,7 @@ export function OwedHomeCard() {
   }
   if (total === 0 && !top) return null;
   return (
-    <Link to="/goals?tab=splits" className="card-link" aria-label="Split bills, open Splits">
+    <Link to="/splits" className="card-link" aria-label="Split bills, open Splits">
       <Card as="section" aria-labelledby="home-owed">
         <h2 className="sk-card__title" id="home-owed">
           Split bills
