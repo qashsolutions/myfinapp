@@ -78,3 +78,39 @@
   max-width: 240px;
   width: 100%;
 }
+
+/* By item: each item is its own block with its title, Remove and "Who had it?" chips. */
+.split-item {
+  border-top: 1px solid var(--c-line);
+  padding: 12px 0;
+}
+.split-item:first-of-type {
+  border-top: 0;
+}
+.split-item__head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  min-height: 32px;
+}
+.split-item__title {
+  font-weight: 600;
+}
+.split-item__who {
+  border: 0;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.split-item__who-label {
+  color: var(--c-sub);
+  font-size: var(--fs-small);
+  margin-bottom: 6px;
+  padding: 0;
+}
+.split-missing {
+  font-size: var(--fs-small);
+  margin: 0 0 12px;
+}
+.split-item__add {
+  margin: 4px 0 16px;
+}

@@ -223,6 +223,13 @@ describe("Split bills: guests and safety", () => {
     await waitFor(() => expect(screen.getByText("= $20.00")).toBeInTheDocument());
     expect(screen.getByText("= $10.00")).toBeInTheDocument();
     expect(screen.getByLabelText("Jordan K., shares")).toHaveAttribute("readonly");
+    // A guest can't invite: the bill says who can.
+    expect(
+      screen.getByText(
+        /Only people in the group can be on a bill\. Ask Jordan K\. to invite them\./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Invite someone" })).toBeNull();
   });
 
   it("I don't know them: nobody is added and they can't ask this inbox again", async () => {

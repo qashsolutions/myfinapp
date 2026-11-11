@@ -102,6 +102,19 @@ export function BillItems({
       <legend className="auth__label">Items</legend>
       {rows.map((r, i) => (
         <div className="split-item" key={r.key}>
+          <div className="split-item__head">
+            <span className="split-item__title">Item {i + 1}</span>
+            {rows.length > 1 ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={`Remove item ${i + 1}`}
+                onClick={() => setRows((list) => list.filter((x) => x.key !== r.key))}
+              >
+                Remove
+              </Button>
+            ) : null}
+          </div>
           <div className="split-person">
             <input
               className="auth__input"
@@ -111,20 +124,26 @@ export function BillItems({
               maxLength={40}
               onChange={(e) => set(r.key, { what: e.target.value })}
             />
-            <input
-              className="auth__input"
-              inputMode="decimal"
-              aria-label={`Item ${i + 1}, amount`}
-              placeholder="18.00"
-              value={r.amount}
-              onChange={(e) => set(r.key, { amount: e.target.value })}
-            />
+            <span className="split-value">
+              <span className="split-value__unit" aria-hidden="true">
+                $
+              </span>
+              <input
+                className="auth__input"
+                inputMode="decimal"
+                aria-label={`Item ${i + 1}, amount`}
+                placeholder="18.00"
+                value={r.amount}
+                onChange={(e) => set(r.key, { amount: e.target.value })}
+              />
+            </span>
           </div>
-          <fieldset className="kind-chips split-item__who">
-            <legend className="sr-only">{`Item ${i + 1}, who had it`}</legend>
+          <fieldset className="kind-chips split-item__who" aria-label={`Item ${i + 1}, who had it`}>
+            <legend className="split-item__who-label">Who had it?</legend>
             {everyone.map((p) => (
               <label className="chip-option" key={p}>
                 <input
+                  className="segmented__input"
                   type="checkbox"
                   checked={r.people.includes(p)}
                   onChange={(e) =>
@@ -132,7 +151,7 @@ export function BillItems({
                       people: e.target.checked ? [...r.people, p] : r.people.filter((x) => x !== p),
                     })
                   }
-                />{" "}
+                />
                 {nameOf(p)}
               </label>
             ))}
@@ -140,8 +159,9 @@ export function BillItems({
         </div>
       ))}
       <Button
-        variant="ghost"
-        size="sm"
+        variant="secondary"
+        block
+        className="split-item__add"
         onClick={() =>
           setRows((list) => [
             ...list,
@@ -149,7 +169,7 @@ export function BillItems({
           ])
         }
       >
-        + Add an item
+        + Add another item
       </Button>
       <label className="auth__field">
         <span className="auth__label">Tax, tip and fees</span>

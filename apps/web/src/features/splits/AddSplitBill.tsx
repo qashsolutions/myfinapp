@@ -20,6 +20,7 @@ import { formatCents, todayIso } from "../../lib/format.ts";
 import { BillItems, type ItemsResult } from "./BillItems.tsx";
 import { ChipChoice } from "./ChipChoice.tsx";
 import { shareEntry } from "./entryShare.ts";
+import { InviteSheet } from "./InviteSheet.tsx";
 import { type GroupMeta, guestSplit, MAX_WHAT, type ShownBill } from "./ledger.ts";
 import { TotalLine, ValueBox } from "./SplitValueFields.tsx";
 import { evenValues, METHOD_HELP, totalOf, valuesOf } from "./splitValues.ts";
@@ -151,6 +152,7 @@ function BillForm({
   // types in one (owner, November 11, 2026); a saved split (an edit, the usual one) starts as is.
   const [autoFill, setAutoFill] = useState(!editing && Object.keys(typedUsual).length === 0);
   const [total, setTotal] = useState<{ text: string; ok: boolean } | null>(null);
+  const [inviting, setInviting] = useState(false);
   const [repeat, setRepeat] = useState<SplitRepeat | null>(editing?.repeat ?? null);
   const [what, setWhat] = useState(editing?.what ?? entry?.merchant.slice(0, MAX_WHAT) ?? "");
   const [paidBy, setPaidBy] = useState(editing?.paid_by ?? group.my_member_id);
@@ -498,6 +500,33 @@ function BillForm({
         ))}
       </fieldset>
       {byItem ? null : <TotalLine total={total} />}
+      {/* Someone missing (owner, November 11, 2026): a bill only has people in the group, so
+          say so and let the organizer invite without losing this bill. */}
+      {editing ? null : runsIt ? (
+        <p className="split-missing">
+          Someone missing? Only people in the group can be on a bill.{" "}
+          <button type="button" className="auth__link" onClick={() => setInviting(true)}>
+            Invite someone
+          </button>
+          {group.invites.length > 0
+            ? ` · ${group.invites.length} ${group.invites.length === 1 ? "invite" : "invites"} waiting: they show here once they join.`
+            : ""}
+        </p>
+      ) : (
+        <p className="split-missing">
+          Someone missing? Only people in the group can be on a bill. Ask {organizerName} to invite
+          them.
+        </p>
+      )}
+      {runsIt && !editing ? (
+        <InviteSheet
+          group={group}
+          doubleCheck={doubleCheck}
+          open={inviting}
+          onClose={() => setInviting(false)}
+          onSent={() => void onSaved()}
+        />
+      ) : null}
       {runsIt ? (
         <ChipChoice
           legend="3 · Repeats?"
