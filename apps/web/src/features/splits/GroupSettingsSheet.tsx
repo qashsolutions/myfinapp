@@ -3,6 +3,7 @@ import { Button, Sheet } from "@stackd/ui";
 import { useEffect, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { SplitMethod } from "../../engine/bridge.ts";
+import { ChipsOrOwn } from "../goals/CustomValueSheet.tsx";
 import { ChipChoice } from "./ChipChoice.tsx";
 import type { GroupMeta } from "./ledger.ts";
 import { valuesOf } from "./splitValues.ts";
@@ -11,6 +12,8 @@ import {
   MAX_NAME,
   METHODS,
   namesOf,
+  ownKindText,
+  parseOwnKind,
   type SplitGroupOut,
   saveGroupMeta,
 } from "./useSplits.ts";
@@ -115,11 +118,20 @@ export function GroupSettingsSheet({
           onChange={(e) => setName(e.target.value)}
         />
       </label>
-      <ChipChoice
+      <ChipsOrOwn
+        key={kind}
+        name="group-kind"
         legend="What's it for?"
         options={GROUP_KINDS}
         value={kind}
-        onChange={(v) => setKind(v)}
+        onPick={setKind}
+        display={ownKindText}
+        own={{
+          label: "Or name your own",
+          placeholder: "Or name your own",
+          inputMode: "text",
+          parse: parseOwnKind,
+        }}
       />
       <ChipChoice
         legend="Usually split"

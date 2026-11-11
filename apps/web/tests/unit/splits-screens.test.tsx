@@ -395,6 +395,59 @@ describe("Split bills: the organizer", () => {
     noSecretsLeft(api, ["Apartment 5C"]);
   });
 
+  it("what a group is for: suggestions or the person's own words, kept encrypted (November 11, 2026)", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    renderApp("/splits/new");
+    expect(await screen.findByText("What's it for?")).toBeInTheDocument();
+    for (const label of ["Home & rent", "Trip", "Restaurant"]) {
+      expect(screen.getByRole("radio", { name: label })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole("radio", { name: "Friends" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Family" })).toBeNull();
+    await user.type(screen.getByLabelText("Group name"), "Book club");
+    await user.type(screen.getByLabelText("Your name, as the group sees it"), "Nia");
+    const own = screen.getByLabelText("Or name your own");
+    await user.type(own, "x".repeat(25));
+    await user.click(screen.getByRole("button", { name: "Use" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Keep it to 24 characters.");
+    await user.clear(own);
+    await user.type(own, "  Book   club snacks ");
+    await user.click(screen.getByRole("button", { name: "Use" }));
+    await user.click(screen.getByRole("button", { name: "Create and invite" }));
+    await screen.findByRole("dialog", { name: "Invite by email" });
+    const gid = api.splits.groups[0]?.id as string;
+    expect(
+      (await readLedger(api, gid, api.splits.groups[0]?.members[0]?.member_id as string)).group
+        ?.kind,
+    ).toBe("own:Book club snacks");
+    noSecretsLeft(api, ["Book club snacks"]);
+  });
+
+  it("an own kind shows again in Group settings; typing a suggestion's name picks it", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    renderApp(`/splits/${gid}`);
+    await user.click(await screen.findByRole("button", { name: "Name, usual split and more" }));
+    let sheet = await screen.findByRole("dialog", { name: "Group settings" });
+    const own = within(sheet).getByLabelText("Or name your own");
+    await user.type(own, "Ski weekend");
+    await user.click(within(sheet).getByRole("button", { name: "Use" }));
+    await user.click(within(sheet).getByRole("button", { name: "Save" }));
+    await waitFor(async () =>
+      expect((await readLedger(api, gid, ME)).group?.kind).toBe("own:Ski weekend"),
+    );
+    await user.click(await screen.findByRole("button", { name: "Name, usual split and more" }));
+    sheet = await screen.findByRole("dialog", { name: "Group settings" });
+    expect(within(sheet).getByLabelText("Or name your own")).toHaveValue("Ski weekend");
+    await user.clear(within(sheet).getByLabelText("Or name your own"));
+    await user.type(within(sheet).getByLabelText("Or name your own"), "trip");
+    await user.click(within(sheet).getByRole("button", { name: "Use" }));
+    expect(within(sheet).getByRole("radio", { name: "Trip" })).toBeChecked();
+    expect(within(sheet).getByLabelText("Or name your own")).toHaveValue("");
+  });
+
   it("a bill's history: added, approved and what the organizer changed (S.6)", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });
@@ -592,7 +645,8 @@ describe("Split bills: the organizer", () => {
     expect((await db.entries.get("e-venmo"))?.not_counted).toBe(true);
     expect((await db.entries.get("e-zelle"))?.paid_back).toBeFalsy();
     expect(await screen.findByText(/Alex pays you \$62\.00/)).toBeInTheDocument();
-    expect(screen.queryByText(/Sam pays you/)).toBeNull();
+    // Alex's row was there before; Sam's leaves once the group is pulled again after the payment.
+    await waitFor(() => expect(screen.queryByText(/Sam pays you/)).toBeNull());
     await waitFor(() =>
       expect(api.splits.notified).toEqual([{ kind: "confirmed", member_id: SAM }]),
     );

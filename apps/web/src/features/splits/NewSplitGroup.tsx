@@ -10,8 +10,17 @@ import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { SplitMethod } from "../../engine/bridge.ts";
 import { useSession } from "../auth/useSession.tsx";
+import { ChipsOrOwn } from "../goals/CustomValueSheet.tsx";
 import { ChipChoice } from "./ChipChoice.tsx";
-import { createSplitGroup, GROUP_KINDS, MAX_NAME, METHODS, splitErrorText } from "./useSplits.ts";
+import {
+  createSplitGroup,
+  GROUP_KINDS,
+  MAX_NAME,
+  METHODS,
+  ownKindText,
+  parseOwnKind,
+  splitErrorText,
+} from "./useSplits.ts";
 import { NAME_MAX, saveYourName } from "./yourName.ts";
 
 /** New group (canvas "New group"): a name, what it's for and how it usually splits. The key is
@@ -83,11 +92,20 @@ export function NewSplitGroup() {
           />
         </label>
       ) : null}
-      <ChipChoice
+      <ChipsOrOwn
+        key={kind}
+        name="group-kind"
         legend="What's it for?"
         options={GROUP_KINDS}
         value={kind}
-        onChange={(v) => setKind(v)}
+        onPick={setKind}
+        display={ownKindText}
+        own={{
+          label: "Or name your own",
+          placeholder: "Or name your own",
+          inputMode: "text",
+          parse: parseOwnKind,
+        }}
       />
       <ChipChoice
         legend="Usually split"
