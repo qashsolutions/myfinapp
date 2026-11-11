@@ -18,6 +18,7 @@ import { groupTitle, type ShownBill } from "./ledger.ts";
 import { RemoveSheet } from "./RemoveSheet.tsx";
 import { type Payment, SettleSheet } from "./SettleSheet.tsx";
 import { balanceText } from "./SplitsTab.tsx";
+import { SpottedCard } from "./SpottedCard.tsx";
 import {
   authorityOf,
   cancelInvite,
@@ -207,6 +208,7 @@ export function SplitGroupScreen() {
         </p>
       ) : null}
 
+      <SpottedCard group={group} view={view} onChanged={refresh} />
       {view.payments.length > 0 ? (
         <Card as="section" aria-labelledby="split-settle-h">
           <h2 className="sk-card__title" id="split-settle-h">
