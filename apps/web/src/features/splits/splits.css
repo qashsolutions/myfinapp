@@ -114,3 +114,12 @@
 .split-item__add {
   margin: 4px 0 16px;
 }
+
+.split-invite__when {
+  color: var(--c-sub);
+  font-size: var(--fs-small);
+}
+.split-invite__limits {
+  color: var(--c-sub);
+  font-size: var(--fs-small);
+}

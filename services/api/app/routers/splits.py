@@ -10,6 +10,7 @@ reports and the 3-reporter block.
 - GET  /api/splits: my groups, today's count, double-check and block state, guest or not
 - POST /api/splits: start a group (a plan with split_people_max > 0; not blocked)
 - POST /api/splits/{id}/invites, DELETE …/invites/{invite_id}: email invites (organizer)
+- POST …/invites/{invite_id}/remind: the same invite again with a new link, once a day
 - POST /api/splits/invites/lookup | accept | decline: the invite card, by its token
 - POST /api/splits/{id}/bills: issue a bill id against the organizer's daily limit
 - GET  /api/splits/{id}/state: blobs, issued bill ids, open disputes, key handovers
@@ -265,6 +266,29 @@ def _organizer_only(group: SplitGroup, caller: Caller) -> None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="organizer_only")
 
 
+def _invites_today(
+    db: DbSession, user_id: uuid.UUID, now: datetime, limit: int | None = None
+) -> TodayOut:
+    """Email invites this person sent today, on their own day, against their plan's day
+    (`limit` when the caller already read the plan)."""
+    zone = db.scalar(
+        select(NotificationSettings.timezone).where(NotificationSettings.user_id == user_id)
+    )
+    try:
+        tz = ZoneInfo(zone or "UTC")
+    except (KeyError, ValueError):
+        tz = ZoneInfo("UTC")
+    day_start = datetime.combine(now.astimezone(tz).date(), datetime.min.time(), tz)
+    sent = db.scalar(
+        select(func.count(SplitInvite.id)).where(
+            SplitInvite.invited_by == user_id, SplitInvite.created_at >= day_start
+        )
+    )
+    if limit is None:
+        limit = int(_limits(db, user_id).get("split_invites_per_day") or 0)
+    return TodayOut(added=int(sent or 0), limit=limit)
+
+
 def _pending_invites(db: DbSession, group_id: uuid.UUID, now: datetime) -> int:
     return int(
         db.scalar(
@@ -308,7 +332,9 @@ class SplitMemberOut(BaseModel):
 
 class SplitInviteOut(BaseModel):
     id: uuid.UUID
+    created_at: datetime
     expires_at: datetime
+    reminded_at: datetime | None = None
 
 
 class SplitGroupOut(BaseModel):
@@ -335,6 +361,8 @@ class SplitsOut(BaseModel):
     can_create: bool
     guest: bool  # no plan that runs groups: the two-tab guest app
     today: TodayOut
+    # Email invites sent today against the plan's day (November 11, 2026): "4 invites left today".
+    invites_today: TodayOut
     double_check: bool
     blocked: bool
 
@@ -529,7 +557,14 @@ def _groups_out(
             )
             .order_by(SplitInvite.created_at)
         ):
-            invites_of[i.group_id].append(SplitInviteOut(id=i.id, expires_at=i.expires_at))
+            invites_of[i.group_id].append(
+                SplitInviteOut(
+                    id=i.id,
+                    created_at=i.created_at,
+                    expires_at=i.expires_at,
+                    reminded_at=i.reminded_at,
+                )
+            )
     out: list[SplitGroupOut] = []
     for group in groups:
         members = members_of[group.id]
@@ -610,6 +645,9 @@ def list_splits(
             added=_added_today(db, caller.user.id, _local_day(db, caller.user.id, now)),
             limit=int(mine.get("split_bills_per_day") or 0),
         ),
+        invites_today=_invites_today(
+            db, caller.user.id, now, int(mine.get("split_invites_per_day") or 0)
+        ),
         double_check=double_check(db, caller.user, now),
         blocked=caller.user.split_blocked_at is not None,
     )
@@ -688,35 +726,25 @@ def invite(
         person = db.get(User, m.user_id) if m.user_id else None
         if person is not None and _inbox(person.email) == inbox:
             raise HTTPException(status.HTTP_409_CONFLICT, detail="already_member")
-    if len(members) + _pending_invites(db, group.id, now) >= _people_max(db, group):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="plan_limit")
-    # Email invites a day by plan, 6 / 12 (owner decision, November 8, 2026), on their own day.
-    zone = db.scalar(
-        select(NotificationSettings.timezone).where(NotificationSettings.user_id == caller.user.id)
-    )
-    try:
-        tz = ZoneInfo(zone or "UTC")
-    except (KeyError, ValueError):
-        tz = ZoneInfo("UTC")
-    day_start = datetime.combine(now.astimezone(tz).date(), datetime.min.time(), tz)
-    sent_today = db.scalar(
-        select(func.count(SplitInvite.id)).where(
-            SplitInvite.invited_by == caller.user.id, SplitInvite.created_at >= day_start
-        )
-    )
-    if int(sent_today or 0) >= int(_limits(db, caller.user.id).get("split_invites_per_day") or 0):
-        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="invite_limit")
-    # A new invite to the same inbox replaces the earlier one.
-    db.execute(
-        update(SplitInvite)
-        .where(
+    # Never the same inbox twice while an invite waits: the organizer reminds instead
+    # (November 11, 2026). Checked before the limits, so it costs none of today's invites.
+    if db.scalar(
+        select(SplitInvite.id).where(
             SplitInvite.group_id == group.id,
             SplitInvite.email_hash == inbox,
             SplitInvite.used_at.is_(None),
+            SplitInvite.declined_at.is_(None),
             SplitInvite.cancelled_at.is_(None),
+            SplitInvite.expires_at > now,
         )
-        .values(cancelled_at=now)
-    )
+    ):
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="already_invited")
+    if len(members) + _pending_invites(db, group.id, now) >= _people_max(db, group):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="plan_limit")
+    # Email invites a day by plan, 6 / 12 (owner decision, November 8, 2026), on their own day.
+    today = _invites_today(db, caller.user.id, now)
+    if today.added >= today.limit:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="invite_limit")
     token = secrets.token_urlsafe(32)
     row = SplitInvite(
         group_id=group.id,
@@ -741,6 +769,71 @@ def invite(
     )
     db.commit()
     return InviteCreated(id=row.id, expires_at=row.expires_at, token=token)
+
+
+class RemindInviteIn(BaseModel):
+    email: EmailStr
+
+
+class InviteReminded(BaseModel):
+    token: str
+    expires_at: datetime
+
+
+@router.post("/{group_id}/invites/{invite_id}/remind")
+def remind_invite(
+    group_id: uuid.UUID,
+    invite_id: uuid.UUID,
+    body: RemindInviteIn,
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    request: Request,
+    db: Annotated[DbSession, Depends(get_db)],
+) -> InviteReminded:
+    """The same invite again (November 11, 2026): a new link (the old one stops), the same 7
+    days, once a day per invite counting the day it was sent (signed off by the owner the same
+    day), never against today's invites.
+    The address comes from the organizer's device and must be the one invited: the server keeps
+    only its hash, so a reminder can never go anywhere else."""
+    group = _group(db, group_id)
+    _membership(db, group, caller.user.id)
+    _organizer_only(group, caller)
+    if caller.user.split_blocked_at is not None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="split_blocked")
+    now = _now()
+    row = db.scalar(select(SplitInvite).where(SplitInvite.id == invite_id).with_for_update())
+    if (
+        row is None
+        or row.group_id != group.id
+        or row.used_at is not None
+        or row.declined_at is not None
+        or row.cancelled_at is not None
+        or row.expires_at <= now
+    ):
+        raise not_found()
+    if _inbox(body.email) != row.email_hash:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="not_this_invite")
+    last = row.reminded_at or row.created_at
+    if now - last < timedelta(days=1):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="remind_tomorrow")
+    token = secrets.token_urlsafe(32)
+    row.token_hash = _token_hash(token)
+    row.reminded_at = now
+    name = _shown_name(caller.user)[0]
+    link = f"{get_settings().origins[0]}/splits/join#t={token}"
+    email_svc.get_sender().send(
+        email_svc.split_invite_message(
+            str(body.email), name, masked_email(caller.user.email), link, reminder=True
+        )
+    )
+    record(
+        db,
+        actor_id=caller.user.id,
+        action=AuditAction.SPLIT_INVITED,
+        target=f"split:{group.id}",
+        ip=client_ip(request),
+    )
+    db.commit()
+    return InviteReminded(token=token, expires_at=row.expires_at)
 
 
 @router.delete("/{group_id}/invites/{invite_id}", status_code=status.HTTP_204_NO_CONTENT)

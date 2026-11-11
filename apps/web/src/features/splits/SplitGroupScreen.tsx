@@ -13,6 +13,7 @@ import { CheckFirstSheet } from "./CheckFirstSheet.tsx";
 import { GroupHistorySheet } from "./GroupHistorySheet.tsx";
 import { GroupSettingsSheet } from "./GroupSettingsSheet.tsx";
 import { InviteSheet } from "./InviteSheet.tsx";
+import { InvitesWaiting } from "./InvitesWaiting.tsx";
 import { LeaveSheet } from "./LeaveSheet.tsx";
 import { groupTitle, type ShownBill } from "./ledger.ts";
 import { RemoveSheet } from "./RemoveSheet.tsx";
@@ -21,7 +22,6 @@ import { balanceText } from "./SplitsTab.tsx";
 import { SpottedCard } from "./SpottedCard.tsx";
 import {
   authorityOf,
-  cancelInvite,
   decideBill,
   namesOf,
   notifyMember,
@@ -416,25 +416,7 @@ export function SplitGroupScreen() {
         <p className="auth__fineprint">Tap someone to remove them.</p>
       ) : null}
 
-      {group.is_organizer && group.invites.length > 0 ? (
-        <Card as="section" aria-labelledby="split-invites-h">
-          <h2 className="sk-card__title" id="split-invites-h">
-            Invites waiting
-          </h2>
-          {group.invites.map((i) => (
-            <div className="split-pay" key={i.id}>
-              <span className="split-pay__text">Expires {formatDay(dayOf(i.expires_at))}</span>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => act(() => cancelInvite(group.id, i.id), "Invite cancelled.")}
-              >
-                Cancel
-              </Button>
-            </div>
-          ))}
-        </Card>
-      ) : null}
+      <InvitesWaiting group={group} onChanged={refresh} />
 
       {group.is_organizer ? (
         <Card as="section" aria-label="Group settings">
@@ -520,6 +502,7 @@ export function SplitGroupScreen() {
       <InviteSheet
         group={group}
         doubleCheck={splits.double_check}
+        invitesToday={splits.invites_today}
         open={inviting}
         onClose={() => setInviting(false)}
         onSent={() => void refresh()}

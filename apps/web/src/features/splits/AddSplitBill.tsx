@@ -21,6 +21,7 @@ import { BillItems, type ItemsResult } from "./BillItems.tsx";
 import { ChipChoice } from "./ChipChoice.tsx";
 import { shareEntry } from "./entryShare.ts";
 import { InviteSheet } from "./InviteSheet.tsx";
+import { useInvitedEmails } from "./invited.ts";
 import { type GroupMeta, guestSplit, MAX_WHAT, type ShownBill } from "./ledger.ts";
 import { TotalLine, ValueBox } from "./SplitValueFields.tsx";
 import { evenValues, METHOD_HELP, totalOf, valuesOf } from "./splitValues.ts";
@@ -39,6 +40,14 @@ import {
   stopRepeating,
   useSplitGroup,
 } from "./useSplits.ts";
+
+/** "jo@example.com and 1 more": who the waiting invites went to, as far as this device knows. */
+function waitingNames(invites: Array<{ id: string }>, emails: Map<string, string>): string {
+  const known = invites.map((i) => emails.get(i.id)).filter((e): e is string => !!e);
+  const other = invites.length - known.length;
+  if (known.length === 0) return `${other} ${other === 1 ? "invite" : "invites"}`;
+  return other > 0 ? `${known.join(", ")} and ${other} more` : known.join(", ");
+}
 
 function typedFrom(bill: ShownBill): Record<string, string> {
   const out: Record<string, string> = {};
@@ -98,6 +107,7 @@ export function AddSplitBill() {
       entry={entry && entry.direction === "out" && !entry.split_bill ? entry : null}
       doubleCheck={splits.double_check}
       today={splits.today}
+      invitesToday={splits.invites_today}
       onSaved={refresh}
     />
   );
@@ -110,6 +120,7 @@ function BillForm({
   entry,
   doubleCheck,
   today,
+  invitesToday,
   onSaved,
 }: {
   group: SplitGroupOut;
@@ -119,6 +130,7 @@ function BillForm({
   entry: Entry | null;
   doubleCheck: boolean;
   today: { added: number; limit: number };
+  invitesToday: { added: number; limit: number };
   onSaved: () => Promise<void>;
 }) {
   const { db } = useDb();
@@ -153,6 +165,7 @@ function BillForm({
   const [autoFill, setAutoFill] = useState(!editing && Object.keys(typedUsual).length === 0);
   const [total, setTotal] = useState<{ text: string; ok: boolean } | null>(null);
   const [inviting, setInviting] = useState(false);
+  const invitedEmails = useInvitedEmails();
   const [repeat, setRepeat] = useState<SplitRepeat | null>(editing?.repeat ?? null);
   const [what, setWhat] = useState(editing?.what ?? entry?.merchant.slice(0, MAX_WHAT) ?? "");
   const [paidBy, setPaidBy] = useState(editing?.paid_by ?? group.my_member_id);
@@ -509,7 +522,7 @@ function BillForm({
             Invite someone
           </button>
           {group.invites.length > 0
-            ? ` · ${group.invites.length} ${group.invites.length === 1 ? "invite" : "invites"} waiting: they show here once they join.`
+            ? ` · Waiting for ${waitingNames(group.invites, invitedEmails)}: they show here once they join.`
             : ""}
         </p>
       ) : (
@@ -522,6 +535,7 @@ function BillForm({
         <InviteSheet
           group={group}
           doubleCheck={doubleCheck}
+          invitesToday={invitesToday}
           open={inviting}
           onClose={() => setInviting(false)}
           onSent={() => void onSaved()}

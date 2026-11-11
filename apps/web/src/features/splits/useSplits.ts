@@ -600,14 +600,31 @@ export async function sendInvite(
   groupId: string,
   email: string,
   emailAgain: string | null,
-): Promise<{ ok: true; token: string } | { ok: false; code: string }> {
+): Promise<{ ok: true; id: string; token: string } | { ok: false; code: string }> {
   const r = await api.POST("/api/splits/{group_id}/invites", {
     params: { path: { group_id: groupId } },
     body: { email, ...(emailAgain === null ? {} : { email_again: emailAgain }) },
   });
   const failure = failureOf(r);
   if (failure || !r.data) return { ok: false, code: codeOf(failure) };
-  return { ok: true, token: r.data.token };
+  return { ok: true, id: r.data.id, token: r.data.token };
+}
+
+/**
+ * The same invite again (November 11, 2026): a new link, the same 7 days, once a day. The
+ * address goes with it because the server keeps only its hash and checks it matches.
+ */
+export async function remindInvite(
+  groupId: string,
+  inviteId: string,
+  email: string,
+): Promise<Result> {
+  const r = await api.POST("/api/splits/{group_id}/invites/{invite_id}/remind", {
+    params: { path: { group_id: groupId, invite_id: inviteId } },
+    body: { email },
+  });
+  const failure = failureOf(r);
+  return failure ? fail(codeOf(failure)) : OK;
 }
 
 export async function cancelInvite(groupId: string, inviteId: string): Promise<Result> {
@@ -682,6 +699,9 @@ export function splitErrorText(code: string): string {
     no_items: "Add an item.",
     invalid_extras: "Tax, tip and fees can't be below $0.",
     invalid_amount: "Enter an amount above $0.",
+    already_invited: "They already have an invite waiting. Remind them from Invites waiting.",
+    remind_tomorrow: "Already sent today. You can remind them again tomorrow.",
+    not_this_invite: "That isn't the email this invite went to.",
     invalid_share: "Each share needs a whole number above 0.",
     values_must_match_people: "Fill in everyone who's in.",
     not_saved: "Couldn't save. Try again when you're online.",
