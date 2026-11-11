@@ -587,16 +587,44 @@ describe("Split bills: the organizer", () => {
     noSecretsLeft(api, ["cash at dinner"]);
   });
 
+  it("Someone missing? The organizer invites from Add a bill and the bill typed so far stays", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    renderApp(`/splits/${gid}/bills/new`);
+    await user.type(await screen.findByLabelText("1 · How much?"), "60");
+    await user.type(screen.getByLabelText("What's it for?"), "Dinner");
+    expect(screen.getByText(/Only people in the group can be on a bill\./)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Invite someone" }));
+    const sheet = await screen.findByRole("dialog", { name: "Invite by email" });
+    await user.type(within(sheet).getByLabelText("Their email"), "jo@example.com");
+    await user.click(within(sheet).getByRole("button", { name: "Send invite" }));
+    expect(await within(sheet).findByText(/Invite sent to jo@example.com/)).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("heading", { level: 1, name: "Add a bill" })).toBeInTheDocument();
+    expect(screen.getByLabelText("1 · How much?")).toHaveValue("60");
+    expect(screen.getByLabelText("What's it for?")).toHaveValue("Dinner");
+    expect(
+      await screen.findByText(/1 invite waiting: they show here once they join\./),
+    ).toBeInTheDocument();
+  });
+
   it("By item: tax and tip follow what each person had, saved as each person's part (S.8)", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });
     const gid = await seedGroup(api);
     renderApp(`/splits/${gid}/bills/new`);
     await user.click(await screen.findByRole("radio", { name: "By item" }));
-    const add = screen.getByRole("button", { name: "+ Add an item" });
-    await user.click(add);
-    await user.click(add);
-    await user.click(add);
+    // One item to start; "+ Add another item" adds more and Remove takes one away.
+    expect(screen.queryByRole("button", { name: "Remove item 1" })).toBeNull();
+    const add = screen.getByRole("button", { name: "+ Add another item" });
+    for (let n = 0; n < 4; n++) await user.click(add);
+    await user.click(screen.getByRole("button", { name: "Remove item 5" }));
+    expect(screen.queryByLabelText("Item 5, what")).toBeNull();
+    // Each person is a chip that fills when picked: the checkbox itself is not drawn.
+    expect(
+      within(screen.getByRole("group", { name: "Item 1, who had it" })).getByLabelText("You"),
+    ).toHaveClass("segmented__input");
     const items: Array<[string, string, string[]]> = [
       ["Steak", "36", ["You"]],
       ["Pasta", "18", ["Sam"]],
