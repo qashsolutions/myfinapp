@@ -606,7 +606,7 @@ describe("Split bills: the organizer", () => {
     expect(screen.getByLabelText("What's it for?")).toHaveValue("Dinner");
     // The list is right here on Add a bill, not only at the bottom of the group screen.
     const waiting = await screen.findByRole("region", { name: "Invites waiting" });
-    expect(within(waiting).getByText("jo@example.com")).toBeInTheDocument();
+    expect(await within(waiting).findByText("jo@example.com")).toBeInTheDocument();
     expect(screen.getByText(/They show up here once they join\./)).toBeInTheDocument();
   });
 
@@ -789,7 +789,7 @@ describe("Split bills: the organizer", () => {
     expect(g?.invites.map((i) => i.email)).toEqual(["sam@example.com"]);
     // This device remembers who it went to, as every other invite path does.
     const waiting = await screen.findByRole("region", { name: "Invites waiting" });
-    expect(within(waiting).getByText("sam@example.com")).toBeInTheDocument();
+    expect(await within(waiting).findByText("sam@example.com")).toBeInTheDocument();
     const mine = await readLedger(api, g?.id ?? "", ME);
     expect(mine.group).toMatchObject({ name: "Sam", kind: "one" });
     cleanup();
