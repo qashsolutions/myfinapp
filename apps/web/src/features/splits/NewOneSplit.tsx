@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import { useSession } from "../auth/useSession.tsx";
+import { rememberInvite } from "./invited.ts";
 import { createSplitGroup, MAX_NAME, sendInvite, splitErrorText, useSplits } from "./useSplits.ts";
 import { NAME_MAX, saveYourName } from "./yourName.ts";
 
@@ -62,6 +63,8 @@ export function NewOneSplit() {
       navigate(`/splits/${made.group.id}?invite=1`, { replace: true });
       return;
     }
+    // Remember who it went to on this device, as the invite sheet does (the server keeps a hash).
+    await rememberInvite(db, sent.id, email.trim());
     const suffix = entry ? `?entry=${encodeURIComponent(entry)}` : "";
     navigate(`/splits/${made.group.id}/bills/new${suffix}`, { replace: true });
   }
