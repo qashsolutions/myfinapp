@@ -604,9 +604,10 @@ describe("Split bills: the organizer", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Add a bill" })).toBeInTheDocument();
     expect(screen.getByLabelText("1 · How much?")).toHaveValue("60");
     expect(screen.getByLabelText("What's it for?")).toHaveValue("Dinner");
-    expect(
-      await screen.findByText(/Waiting for jo@example\.com: they show here once they join\./),
-    ).toBeInTheDocument();
+    // The list is right here on Add a bill, not only at the bottom of the group screen.
+    const waiting = await screen.findByRole("region", { name: "Invites waiting" });
+    expect(within(waiting).getByText("jo@example.com")).toBeInTheDocument();
+    expect(screen.getByText(/They show up here once they join\./)).toBeInTheDocument();
   });
 
   it("Invites: who each went to, how many are left, never the same inbox twice (November 11, 2026)", async () => {
@@ -786,6 +787,9 @@ describe("Split bills: the organizer", () => {
     expect(await screen.findByLabelText("1 · How much?")).toBeInTheDocument();
     const g = api.splits.groups[0];
     expect(g?.invites.map((i) => i.email)).toEqual(["sam@example.com"]);
+    // This device remembers who it went to, as every other invite path does.
+    const waiting = await screen.findByRole("region", { name: "Invites waiting" });
+    expect(within(waiting).getByText("sam@example.com")).toBeInTheDocument();
     const mine = await readLedger(api, g?.id ?? "", ME);
     expect(mine.group).toMatchObject({ name: "Sam", kind: "one" });
     cleanup();

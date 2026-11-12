@@ -21,7 +21,7 @@ import { BillItems, type ItemsResult } from "./BillItems.tsx";
 import { ChipChoice } from "./ChipChoice.tsx";
 import { shareEntry } from "./entryShare.ts";
 import { InviteSheet } from "./InviteSheet.tsx";
-import { useInvitedEmails } from "./invited.ts";
+import { InvitesWaiting } from "./InvitesWaiting.tsx";
 import { type GroupMeta, guestSplit, MAX_WHAT, type ShownBill } from "./ledger.ts";
 import { TotalLine, ValueBox } from "./SplitValueFields.tsx";
 import { evenValues, METHOD_HELP, totalOf, valuesOf } from "./splitValues.ts";
@@ -40,14 +40,6 @@ import {
   stopRepeating,
   useSplitGroup,
 } from "./useSplits.ts";
-
-/** "jo@example.com and 1 more": who the waiting invites went to, as far as this device knows. */
-function waitingNames(invites: Array<{ id: string }>, emails: Map<string, string>): string {
-  const known = invites.map((i) => emails.get(i.id)).filter((e): e is string => !!e);
-  const other = invites.length - known.length;
-  if (known.length === 0) return `${other} ${other === 1 ? "invite" : "invites"}`;
-  return other > 0 ? `${known.join(", ")} and ${other} more` : known.join(", ");
-}
 
 function typedFrom(bill: ShownBill): Record<string, string> {
   const out: Record<string, string> = {};
@@ -165,7 +157,6 @@ function BillForm({
   const [autoFill, setAutoFill] = useState(!editing && Object.keys(typedUsual).length === 0);
   const [total, setTotal] = useState<{ text: string; ok: boolean } | null>(null);
   const [inviting, setInviting] = useState(false);
-  const invitedEmails = useInvitedEmails();
   const [repeat, setRepeat] = useState<SplitRepeat | null>(editing?.repeat ?? null);
   const [what, setWhat] = useState(editing?.what ?? entry?.merchant.slice(0, MAX_WHAT) ?? "");
   const [paidBy, setPaidBy] = useState(editing?.paid_by ?? group.my_member_id);
@@ -521,9 +512,7 @@ function BillForm({
           <button type="button" className="auth__link" onClick={() => setInviting(true)}>
             Invite someone
           </button>
-          {group.invites.length > 0
-            ? ` · Waiting for ${waitingNames(group.invites, invitedEmails)}: they show here once they join.`
-            : ""}
+          {group.invites.length > 0 ? " · They show up here once they join." : ""}
         </p>
       ) : (
         <p className="split-missing">
@@ -531,6 +520,9 @@ function BillForm({
           them.
         </p>
       )}
+      {/* Who's been invited, right here (owner, November 11, 2026): the same list as the group
+          screen, with Remind and Cancel. */}
+      {runsIt && !editing ? <InvitesWaiting group={group} onChanged={onSaved} /> : null}
       {runsIt && !editing ? (
         <InviteSheet
           group={group}
