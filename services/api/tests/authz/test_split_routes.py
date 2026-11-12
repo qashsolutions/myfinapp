@@ -43,6 +43,8 @@ def test_non_member_gets_404_everywhere() -> None:
     invite = alice.post(f"/api/splits/{gid}/invites", json={"email": "y@example.com"}).json()["id"]
     remind = bob.post(f"/api/splits/{gid}/invites/{invite}/remind", json={"email": "y@example.com"})
     assert remind.status_code == 404
+    check = bob.post(f"/api/splits/{gid}/invites/{invite}/check", json={"email": "y@example.com"})
+    assert check.status_code == 404
     assert bob.post(f"/api/splits/{gid}/disputes", json={"bill_id": bill}).status_code == 404
     assert bob.post(f"/api/splits/{gid}/disputes/{bill}/close").status_code == 404
     assert bob.post(f"/api/splits/{gid}/leave", json={"report": "pushy"}).status_code == 404

@@ -836,6 +836,31 @@ def remind_invite(
     return InviteReminded(token=token, expires_at=row.expires_at)
 
 
+@router.post(
+    "/{group_id}/invites/{invite_id}/check",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(rate_limited("invite_join"))],
+)
+def check_invite(
+    group_id: uuid.UUID,
+    invite_id: uuid.UUID,
+    body: RemindInviteIn,
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    db: Annotated[DbSession, Depends(get_db)],
+) -> None:
+    """Who's this? (owner, November 11, 2026): the organizer's device has no address for a
+    waiting invite (sent from another device, or before devices remembered it) and asks whether
+    the one typed is the inbox invited. Sends nothing, changes nothing; 422 `not_this_invite`."""
+    group = _group(db, group_id)
+    _membership(db, group, caller.user.id)
+    _organizer_only(group, caller)
+    row = db.get(SplitInvite, invite_id)
+    if row is None or row.group_id != group.id:
+        raise not_found()
+    if _inbox(body.email) != row.email_hash:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="not_this_invite")
+
+
 @router.delete("/{group_id}/invites/{invite_id}", status_code=status.HTTP_204_NO_CONTENT)
 def cancel_invite(
     group_id: uuid.UUID,

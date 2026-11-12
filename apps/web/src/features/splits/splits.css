@@ -119,6 +119,15 @@
   color: var(--c-sub);
   font-size: var(--fs-small);
 }
+/* Remind and Cancel: always on one line, two buttons of one width. */
+.split-invite__actions {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.split-invite__actions > * {
+  white-space: nowrap;
+}
 .split-invite__limits {
   color: var(--c-sub);
   font-size: var(--fs-small);

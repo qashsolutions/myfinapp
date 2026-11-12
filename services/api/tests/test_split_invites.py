@@ -129,3 +129,33 @@ def test_only_the_organizer_reminds() -> None:
     _age_invites(1)
     r = sam[0].post(f"/api/splits/{gid}/invites/{iid}/remind", json={"email": target})
     assert r.status_code == 403 and r.json()["detail"] == "organizer_only"
+
+
+def test_the_organizer_can_say_who_an_invite_went_to_and_the_server_checks_it() -> None:
+    """Who's this? (owner, November 11, 2026): a device without the address (another device, or
+    an invite sent before devices remembered it) asks for it; the server answers only whether it
+    is the inbox invited, sends nothing and changes nothing."""
+    jordan, _, _ = person("Jordan K.", "private")
+    gid = jordan.post("/api/splits").json()["id"]
+    target = f"sam+{uuid.uuid4().hex[:6]}@example.com"
+    iid = jordan.post(f"/api/splits/{gid}/invites", json={"email": target}).json()["id"]
+    outbox().clear()
+    url = f"/api/splits/{gid}/invites/{iid}/check"
+    wrong = jordan.post(url, json={"email": "someone.else@example.com"})
+    assert wrong.status_code == 422 and wrong.json()["detail"] == "not_this_invite"
+    assert jordan.post(url, json={"email": f"  {target.upper()} "}).status_code == 204
+    assert outbox() == []
+    invite = jordan.get("/api/splits").json()["groups"][0]["invites"][0]
+    assert invite["reminded_at"] is None
+
+
+def test_only_the_organizer_checks_an_invite() -> None:
+    jordan, _, _ = person("Jordan K.", "private")
+    sam = person("Sam L.")
+    gid = jordan.post("/api/splits").json()["id"]
+    sent = jordan.post(f"/api/splits/{gid}/invites", json={"email": sam[2]}).json()
+    sam[0].post("/api/splits/invites/accept", json={"token": sent["token"]})
+    other = jordan.post(f"/api/splits/{gid}/invites", json={"email": "x@example.com"}).json()
+    url = f"/api/splits/{gid}/invites/{other['id']}/check"
+    r = sam[0].post(url, json={"email": "x@example.com"})
+    assert r.status_code == 403
