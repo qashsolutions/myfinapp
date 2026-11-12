@@ -93,10 +93,11 @@ export function InvitesWaiting({
               <span className="split-invite__when">
                 {email ? `Sent ${sent} · ` : ""}Expires {formatDay(dayOf(i.expires_at))}
                 {i.reminded_at ? ` · Reminded ${formatDay(dayOf(i.reminded_at))}` : ""}
+                {canRemindNow(i) ? "" : " · Remind again tomorrow"}
               </span>
             </span>
             {/* Remind and Cancel side by side, one width (owner, November 11, 2026); the day's
-                wait is the button's own words. */}
+                wait is said on the line above (Remind again tomorrow). */}
             <span className="split-invite__actions">
               {canRemindNow(i) ? (
                 <Button
@@ -113,8 +114,8 @@ export function InvitesWaiting({
                   Remind
                 </Button>
               ) : (
-                <Button size="sm" variant="secondary" disabled>
-                  Remind tomorrow
+                <Button size="sm" variant="secondary" disabled aria-label="Remind tomorrow">
+                  Remind
                 </Button>
               )}
               <Button
