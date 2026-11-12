@@ -367,6 +367,20 @@ export function handleSplits(
     s.invite_reminders.push(inv.email);
     return json({ token: inv.token, expires_at: inv.expires_at });
   }
+  // Who's this?: whether the address typed is the inbox invited; sends nothing.
+  const check = rest.match(/^invites\/([^/]+)\/check$/);
+  if (method === "POST" && check) {
+    if (!organizer) return json({ detail: "organizer_only" }, 403);
+    const inv = g.invites.find((x) => x.id === check[1]);
+    if (!inv) return json({ detail: "not_found" }, 404);
+    if (
+      String(b.email ?? "")
+        .trim()
+        .toLowerCase() !== inv.email
+    )
+      return json({ detail: "not_this_invite" }, 422);
+    return empty();
+  }
   const cancel = rest.match(/^invites\/([^/]+)$/);
   if (method === "DELETE" && cancel) {
     g.invites = g.invites.filter((x) => x.id !== cancel[1]);

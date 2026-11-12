@@ -627,6 +627,20 @@ export async function remindInvite(
   return failure ? fail(codeOf(failure)) : OK;
 }
 
+/** Who's this?: whether `email` is the inbox this invite went to. Sends nothing. */
+export async function checkInvite(
+  groupId: string,
+  inviteId: string,
+  email: string,
+): Promise<Result> {
+  const r = await api.POST("/api/splits/{group_id}/invites/{invite_id}/check", {
+    params: { path: { group_id: groupId, invite_id: inviteId } },
+    body: { email },
+  });
+  const failure = failureOf(r);
+  return failure ? fail(codeOf(failure)) : OK;
+}
+
 export async function cancelInvite(groupId: string, inviteId: string): Promise<Result> {
   const r = await api.DELETE("/api/splits/{group_id}/invites/{invite_id}", {
     params: { path: { group_id: groupId, invite_id: inviteId } },

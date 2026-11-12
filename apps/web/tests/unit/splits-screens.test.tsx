@@ -628,7 +628,7 @@ describe("Split bills: the organizer", () => {
     // The list names who it went to (this device remembers; the server keeps only a hash).
     const waiting = await screen.findByRole("region", { name: "Invites waiting" });
     expect(within(waiting).getByText("Jo@Example.com")).toBeInTheDocument();
-    expect(within(waiting).getByText("Remind tomorrow")).toBeInTheDocument();
+    expect(within(waiting).getByRole("button", { name: "Remind tomorrow" })).toBeDisabled();
     expect(await openDb("u1").settings.get("split.invited.i2")).toMatchObject({
       value: "Jo@Example.com",
     });
@@ -645,6 +645,42 @@ describe("Split bills: the organizer", () => {
     ).toBeInTheDocument();
     expect(within(sheet).queryByRole("button", { name: "Send invite" })).toBeNull();
     expect(api.splits.groups[0]?.invites).toHaveLength(1);
+  });
+
+  it("Who's this? Any day, the organizer names an invite with no address here; Remind and Cancel sit together", async () => {
+    const user = userEvent.setup();
+    const api = installFakeApi({ session: readySession() });
+    const gid = await seedGroup(api);
+    // Sent today from another device (or before devices remembered addresses).
+    api.splits.groups[0]?.invites.push({
+      id: "inv-today",
+      email: "lee@example.com",
+      token: "tok_c",
+      created_at: new Date().toISOString(),
+      reminded_at: null,
+      expires_at: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+    });
+    renderApp(`/splits/${gid}`);
+    const waiting = await screen.findByRole("region", { name: "Invites waiting" });
+    // Both actions are buttons of the same size: Remind (waiting for tomorrow) and Cancel.
+    expect(within(waiting).getByRole("button", { name: /^Remind tomorrow/ })).toBeDisabled();
+    expect(within(waiting).getByRole("button", { name: /^Cancel the invite sent/ })).toBeEnabled();
+    await user.click(within(waiting).getByRole("button", { name: "Who's this?" }));
+    const ask = await screen.findByRole("dialog", { name: "Who did you invite?" });
+    await user.type(within(ask).getByLabelText("Their email"), "someone@example.com");
+    await user.click(within(ask).getByRole("button", { name: "Save" }));
+    expect(await within(ask).findByRole("alert")).toHaveTextContent(
+      "That isn't the email this invite went to.",
+    );
+    await user.clear(within(ask).getByLabelText("Their email"));
+    await user.type(within(ask).getByLabelText("Their email"), "Lee@example.com");
+    await user.click(within(ask).getByRole("button", { name: "Save" }));
+    expect(await within(waiting).findByText("Lee@example.com")).toBeInTheDocument();
+    expect(within(waiting).queryByRole("button", { name: "Who's this?" })).toBeNull();
+    expect(api.splits.invite_reminders).toEqual([]); // nothing was sent
+    expect(await openDb("u1").settings.get("split.invited.inv-today")).toMatchObject({
+      value: "Lee@example.com",
+    });
   });
 
   it("Remind: once a day, to the address invited, with a new link", async () => {
@@ -688,7 +724,9 @@ describe("Split bills: the organizer", () => {
       ),
     ).toBeInTheDocument();
     expect(api.splits.invite_reminders).toEqual(["pat@example.com"]);
-    expect(await within(waiting).findAllByText("Remind tomorrow")).toHaveLength(1);
+    expect(
+      await within(waiting).findAllByRole("button", { name: /^Remind tomorrow/ }),
+    ).toHaveLength(1);
 
     // No address on this device: it asks, refuses another address, then sends and remembers it.
     await user.click(within(waiting).getByRole("button", { name: /^Remind the invite sent/ }));

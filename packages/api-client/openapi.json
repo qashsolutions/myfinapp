@@ -9014,6 +9014,63 @@
         ]
       }
     },
+    "/api/splits/{group_id}/invites/{invite_id}/check": {
+      "post": {
+        "description": "Who's this? (owner, November 11, 2026): the organizer's device has no address for a\nwaiting invite (sent from another device, or before devices remembered it) and asks whether\nthe one typed is the inbox invited. Sends nothing, changes nothing; 422 `not_this_invite`.",
+        "operationId": "check_invite_api_splits__group_id__invites__invite_id__check_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invite Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemindInviteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check Invite",
+        "tags": [
+          "splits"
+        ]
+      }
+    },
     "/api/splits/{group_id}/invites/{invite_id}/remind": {
       "post": {
         "description": "The same invite again (November 11, 2026): a new link (the old one stops), the same 7\ndays, once a day per invite counting the day it was sent (signed off by the owner the same\nday), never against today's invites.\nThe address comes from the organizer's device and must be the one invited: the server keeps\nonly its hash, so a reminder can never go anywhere else.",

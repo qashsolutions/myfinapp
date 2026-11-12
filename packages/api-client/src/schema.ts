@@ -1936,6 +1936,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/splits/{group_id}/invites/{invite_id}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Invite
+         * @description Who's this? (owner, November 11, 2026): the organizer's device has no address for a
+         *     waiting invite (sent from another device, or before devices remembered it) and asks whether
+         *     the one typed is the inbox invited. Sends nothing, changes nothing; 422 `not_this_invite`.
+         */
+        post: operations["check_invite_api_splits__group_id__invites__invite_id__check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/splits/{group_id}/invites/{invite_id}/remind": {
         parameters: {
             query?: never;
@@ -7243,6 +7265,40 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_invite_api_splits__group_id__invites__invite_id__check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+                invite_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RemindInviteIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
