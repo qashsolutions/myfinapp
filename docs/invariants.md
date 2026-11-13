@@ -362,6 +362,14 @@ written against both.
     still written. An undone payment moves nobody, is listed as undone, and its spending entry
     is deleted with a tombstone. `splits-s7.test.ts` · `splits-screens.test.tsx` "a payment's
     note shows in History…" · `splits-guests.test.tsx` "disputes a bill…".
+89. **A link is read every time it opens, not only the first** (November 13, 2026). A screen that
+    takes what it needs from a link's `#` part (the split invite's `#t=…&k=…`) reads it again
+    when a second link opens in the same window and only the part after `#` changes (an
+    installed app on Android can do that), and starts over from the new link; the old link's
+    answer is never shown for the new one. Found by the negative split journey. A screen that
+    reads its link on every render (the household join) holds already.
+    `splits-guests.test.tsx` "a second invite link opened in the same window…" ·
+    `e2e/splits-negative.spec.ts`.
 
 ## Accounts and money on the server
 

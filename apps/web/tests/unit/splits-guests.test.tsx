@@ -3,9 +3,12 @@
 // leave. Handles and amounts never leave readable (invariant 78); the server gets the Check
 // first warning's version only.
 
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
+import { MemoryRouter, type NavigateFunction, useNavigate } from "react-router";
+import { AppRoutes } from "../../src/app/routes.tsx";
+import { ThemeProvider } from "../../src/app/ThemeProvider.tsx";
 import {
   encryptJson,
   fromBase64url,
@@ -13,6 +16,7 @@ import {
   toBase64url,
 } from "../../src/data/backup/crypto.ts";
 import { openDb } from "../../src/data/db.ts";
+import { SessionProvider } from "../../src/features/auth/useSession.tsx";
 import { emptyLedger, type LedgerBlob, type SplitBill } from "../../src/features/splits/ledger.ts";
 import { blobAad, rememberGroupKey, sealLedger } from "../../src/features/splits/splitSync.ts";
 import { type FakeApi, freeBilling, installFakeApi, readySession } from "../fakeApi.ts";
@@ -266,6 +270,46 @@ describe("Split bills: guests and safety", () => {
     });
     renderApp(`/splits/join#t=${TOKEN}`);
     expect(await screen.findByText(/This invite is for a different email/)).toBeInTheDocument();
+  });
+
+  it("a second invite link opened in the same window is read, not the first one's answer", async () => {
+    // An installed app on Android can open a link in the window that's already on the join
+    // screen: only the part after # changes, so the screen must read the new link.
+    const api = guestApi({ inGroup: false });
+    const card = {
+      group_id: GID,
+      organizer_name: "Jordan K.",
+      organizer_email: "j•••@gmail.com",
+      member_since: "2026-10",
+      pays_with_card: false,
+      member: meMember,
+    };
+    api.splits.inbox.push({ ...card, token: TOKEN, email: "someone.else@example.com" });
+    const MINE = "tok_mine_abcdefghijklmnop";
+    api.splits.inbox.push({ ...card, token: MINE, email: "maya.r@example.com" });
+    let go: NavigateFunction | null = null;
+    function Steer() {
+      go = useNavigate();
+      return null;
+    }
+    render(
+      <ThemeProvider>
+        <SessionProvider>
+          <MemoryRouter initialEntries={[`/splits/join#t=${TOKEN}`]}>
+            <Steer />
+            <AppRoutes />
+          </MemoryRouter>
+        </SessionProvider>
+      </ThemeProvider>,
+    );
+    expect(await screen.findByText(/This invite is for a different email/)).toBeInTheDocument();
+    await act(async () => {
+      await (go as unknown as NavigateFunction)(`/splits/join#t=${MINE}`);
+    });
+    expect(
+      await screen.findByRole("button", { name: "I know Jordan K. · Join" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/This invite is for a different email/)).not.toBeInTheDocument();
   });
 
   it("a guest lands on Splits: Home and Budget aren't theirs", async () => {
