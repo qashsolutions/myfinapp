@@ -191,7 +191,9 @@ test("split bills, negative: wrong input, wrong person, used links and organizer
     "organizer_only",
   );
 
-  // The organizer's open app hands the friend the key; the friend's bill waits and is declined.
+  // The friend's device has asked for the key; the organizer's app hands it over when it opens.
+  await openGroup(friend, gid);
+  await expect(friend.getByText(/needs the group's key/)).toBeVisible();
   await openGroup(org, gid);
   await expect(org.getByRole("list", { name: "People" }).getByRole("listitem")).toHaveCount(2);
   await expect(async () => {
