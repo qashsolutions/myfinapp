@@ -23,23 +23,35 @@ type InviteCard = components["schemas"]["InviteCardOut"];
  * added without a yes. "I don't know <name>" is a mistake for them and stops them asking again.
  * The token goes to the server; the group's key in `#k=` (an in-person QR code) stays here.
  */
+/** The invite token and group key from a link's fragment, `#t=…&k=…`. */
+function linkOf(hash: string): { token: string; key: string } {
+  const params = new URLSearchParams(hash.replace(/^#/, ""));
+  return { token: params.get("t") ?? "", key: params.get("k") ?? "" };
+}
+
 export function JoinSplit() {
   const { db } = useDb();
   const navigate = useNavigate();
   const { refresh } = useEntitlements();
   const { hash, pathname } = useLocation();
-  // The invite link's fragment, read once, then taken out of the address bar and history.
-  const [{ token, key }] = useState(() => {
-    const params = new URLSearchParams(hash.replace(/^#/, ""));
-    return { token: params.get("t") ?? "", key: params.get("k") ?? "" };
-  });
-  useEffect(() => {
-    if (hash) navigate(pathname, { replace: true });
-  }, [hash, pathname, navigate]);
+  // The invite link's fragment, read, then taken out of the address bar and history. A second
+  // link opened in the same window (only the part after # changes) is read too and starts over.
+  const [{ token, key }, setLink] = useState(() => linkOf(hash));
   const [card, setCard] = useState<InviteCard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [declined, setDeclined] = useState(false);
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!hash) return;
+    const next = linkOf(hash);
+    if (next.token !== token) {
+      setLink(next);
+      setCard(null);
+      setError(null);
+      setDeclined(false);
+    }
+    navigate(pathname, { replace: true });
+  }, [hash, pathname, navigate, token]);
   const session = useSession();
   const needsName = !session.info?.user?.display_name;
   const [yourName, setYourName] = useState("");
