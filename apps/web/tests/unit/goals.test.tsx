@@ -67,6 +67,14 @@ describe("Goals", () => {
     await waitFor(() => expect(screen.getByRole("img", { name: "0 percent" })).toBeInTheDocument());
     await user.click(await screen.findByRole("button", { name: "+$192.31" }));
     await waitFor(() => expect(screen.getByRole("img", { name: "4 percent" })).toBeInTheDocument());
+    // Nothing set aside is not a deposit: $0 is refused and logs nothing.
+    await user.type(screen.getByLabelText("Other amount"), "0");
+    await user.click(screen.getByRole("button", { name: "Log" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Enter an amount above $0.");
+    expect(
+      within(screen.getByRole("region", { name: "Recent" })).getAllByText(/^\+\$/),
+    ).toHaveLength(1);
+    await user.clear(screen.getByLabelText("Other amount"));
     await user.type(screen.getByLabelText("Other amount"), "4,807.69");
     await user.click(screen.getByRole("button", { name: "Log" }));
     await waitFor(() =>

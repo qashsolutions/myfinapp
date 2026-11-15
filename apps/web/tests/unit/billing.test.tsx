@@ -702,6 +702,9 @@ describe("Plans & billing", () => {
       screen.queryByRole("region", { name: "Log money you set aside" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Remove/ })).toBeInTheDocument();
+    // Read-only means nothing changes it: no pausing and no moving money out (invariant 90).
+    expect(screen.queryByRole("button", { name: "Pause jar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Move money" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: "Back" }));
     await user.click(await screen.findByRole("link", { name: /Jar 1/ }));

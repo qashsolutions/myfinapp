@@ -118,6 +118,11 @@ export function GoalDetail() {
     try {
       const cents = await parseAmount(custom);
       if (cents < 0) throw new EngineError("invalid_amount");
+      // A balance can reach $0; a deposit of nothing is not one.
+      if (cents === 0 && goal?.kind === "save") {
+        setError("Enter an amount above $0.");
+        return;
+      }
       await log(cents);
     } catch {
       setError("Enter an amount like 76.00.");
@@ -222,7 +227,7 @@ export function GoalDetail() {
             g.status !== "archived" &&
             challengeOpen(g, today),
         )}
-        closed={!challengeOpen(goal, today)}
+        closed={overCap || !challengeOpen(goal, today)}
       />
 
       {ended ? (
