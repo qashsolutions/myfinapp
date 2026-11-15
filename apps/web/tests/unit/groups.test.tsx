@@ -1,12 +1,15 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { openDb } from "../../src/data/db.ts";
+import { resetEntitlements } from "../../src/features/billing/entitlements.ts";
+import { createGoal } from "../../src/features/goals/useGoals.ts";
 import {
   type FakeApi,
   fakeMember,
   installFakeApi,
   ME,
   mayasGroup,
+  privateBilling,
   readySession,
 } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
@@ -337,5 +340,85 @@ describe("More challenge types (fast-follow 4)", () => {
       code: "STK-D1ET",
     });
     assertOnlyPercentagesLeft(api);
+  });
+});
+
+describe("A challenge takes a place on the plan (invariant 90)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(TODAY);
+    resetEntitlements();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Private has room for 4: fill every place with a jar of my own. */
+  async function fillThePlan() {
+    const db = openDb("u1");
+    for (let i = 0; i < 4; i++) {
+      await createGoal(db, {
+        kind: "save",
+        title: `Jar ${i + 1}`,
+        target_cents: 50000,
+        target_days: null,
+        label: null,
+        category_id: null,
+        start_date: "2026-10-01",
+        end_date: "2027-03-01",
+        baseline_cents: null,
+        group_id: null,
+      });
+    }
+  }
+
+  it("starting one with every place taken says so and starts nothing", async () => {
+    const user = userEvent.setup();
+    await fillThePlan();
+    const api = installFakeApi({ session: readySession(), billing: privateBilling() });
+    renderApp("/groups/new");
+    await screen.findByRole("heading", { level: 1, name: "Start a challenge" });
+    await user.type(screen.getByLabelText("Your name, as members will see it"), "Nia");
+    await user.click(screen.getByRole("button", { name: "Start challenge" }));
+
+    expect(await screen.findByText(/Your plan has room for 4 jars and goals/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /See plans/ })).toBeInTheDocument();
+    expect(api.calls.some((c) => c.method === "POST" && c.path === "/api/groups")).toBe(false);
+    expect(await openDb("u1").goals.count()).toBe(4);
+  });
+
+  it("joining one with every place taken says so and joins nothing", async () => {
+    const user = userEvent.setup();
+    await fillThePlan();
+    const api = installFakeApi({
+      session: readySession(),
+      billing: privateBilling(),
+      groups: [mayasGroup()],
+    });
+    renderApp("/groups/join?code=stk-4f9q");
+    await screen.findByRole("region", { name: "Group" });
+    await user.type(screen.getByLabelText("Your name, as members will see it"), "Nia");
+    await user.click(screen.getByRole("button", { name: 'Join as "Nia"' }));
+
+    expect(await screen.findByText(/Your plan has room for 4 jars and goals/)).toBeInTheDocument();
+    expect(api.calls.some((c) => c.path === "/api/groups/join")).toBe(false);
+    expect(api.calls.some((c) => c.method === "PATCH" && c.path === "/api/account")).toBe(false);
+    expect(await openDb("u1").goals.count()).toBe(4);
+  });
+
+  it("with a place free it starts as before", async () => {
+    const user = userEvent.setup();
+    await fillThePlan();
+    const db = openDb("u1");
+    const [first] = await db.goals.toArray();
+    await db.goals.update(first?.id ?? "", { status: "archived" });
+    installFakeApi({ session: readySession(), billing: privateBilling() });
+    renderApp("/groups/new");
+    await screen.findByRole("heading", { level: 1, name: "Start a challenge" });
+    await user.type(screen.getByLabelText("Your name, as members will see it"), "Nia");
+    await user.click(screen.getByRole("button", { name: "Start challenge" }));
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "October savings challenge" }),
+    ).toBeInTheDocument();
   });
 });

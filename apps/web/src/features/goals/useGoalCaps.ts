@@ -22,6 +22,15 @@ export async function activeGoalCount(db: StackdDb, today = todayIso()): Promise
   return (await db.goals.toArray()).filter((g) => holdsPlace(g, today)).length;
 }
 
+/**
+ * Whether one more goal fits the plan, checked from the table at the moment of making it.
+ * Every path that makes a goal asks this first: the builder, starting a challenge and joining
+ * one (invariant 90), so a new one is never made only to land read-only past the cap.
+ */
+export async function hasRoomForGoal(db: StackdDb, max: number | null): Promise<boolean> {
+  return max === null || (await activeGoalCount(db)) < max;
+}
+
 export interface GoalCaps {
   /** Jars and goals the plan allows, finished ones included; null = unlimited. */
   max: number | null;

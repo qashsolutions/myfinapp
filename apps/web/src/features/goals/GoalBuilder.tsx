@@ -61,7 +61,7 @@ import {
   SPEND_LESS_AMOUNTS,
   WHAT_FOR,
 } from "./presets.ts";
-import { activeGoalCount, useGoalCaps } from "./useGoalCaps.ts";
+import { hasRoomForGoal, useGoalCaps } from "./useGoalCaps.ts";
 import { createGoal, ensureMilestones, useTemplates } from "./useGoals.ts";
 
 type Blank = "what" | "amount" | "when" | "days" | "category" | "baseline" | "cadence" | null;
@@ -402,7 +402,7 @@ export function GoalBuilder() {
 
   async function create() {
     setError(null);
-    if (caps.max !== null && (await activeGoalCount(db)) >= caps.max) {
+    if (!(await hasRoomForGoal(db, caps.max))) {
       setCapHit(true);
       return;
     }

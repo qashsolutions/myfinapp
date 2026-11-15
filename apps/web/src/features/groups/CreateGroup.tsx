@@ -13,6 +13,7 @@ import { formatMonth, todayIso } from "../../lib/format.ts";
 import { useSession } from "../auth/useSession.tsx";
 import { useEntitlements } from "../billing/entitlements.ts";
 import { PlanLimit } from "../billing/PlanLimit.tsx";
+import { hasRoomForGoal, useGoalCaps } from "../goals/useGoalCaps.ts";
 import { TARGET_PRESETS, TargetField } from "./TargetField.tsx";
 import { nextSaturday, TEMPLATES, type TemplateKey, templateOf } from "./templates.ts";
 import { createGroup, isFailure, setDisplayName } from "./useGroups.ts";
@@ -50,13 +51,21 @@ export function CreateGroup() {
   const needsName = !session.info?.user?.display_name;
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const caps = useGoalCaps();
+  const [capHit, setCapHit] = useState(false);
   const { entitlements } = useEntitlements();
   const canCreate = entitlements.groups_create;
 
   async function start() {
     setError(null);
+    setCapHit(false);
     setBusy(true);
     try {
+      // The challenge's jar takes a place on the plan like any other (invariant 90).
+      if (!(await hasRoomForGoal(db, caps.max))) {
+        setCapHit(true);
+        return;
+      }
       const money = template.kind !== "habit";
       const cents = money ? (custom.trim() ? await parseAmount(custom) : target) : null;
       const bounds = await monthBounds(today);
@@ -207,6 +216,13 @@ export function CreateGroup() {
             onChange={(e) => setDisplayNameText(e.target.value)}
           />
         </label>
+      ) : null}
+      {capHit ? (
+        <PlanLimit>
+          Your plan has room for {caps.max} jars and goals, and you have {caps.active}. A challenge
+          takes one place too. Finish or remove one first, or choose a bigger plan. Nothing is ever
+          deleted.
+        </PlanLimit>
       ) : null}
       {error ? (
         <p className="auth__error" role="alert">

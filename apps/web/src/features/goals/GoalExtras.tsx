@@ -61,7 +61,7 @@ export function GoalExtras({
   onRemove: () => Promise<unknown>;
   /** The jar has reached its target: removing it after saving is the default. */
   reached: boolean;
-  /** A challenge's jar outside its own period (invariant 71): no pausing or moving money. */
+  /** A challenge's jar outside its own period (invariant 71), or a jar past the plan's cap (invariant 90): no pausing or moving money. */
   closed?: boolean;
   memberId?: string | null;
 }) {

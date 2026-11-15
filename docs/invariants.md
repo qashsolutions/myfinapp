@@ -370,6 +370,15 @@ written against both.
     reads its link on every render (the household join) holds already.
     `splits-guests.test.tsx` "a second invite link opened in the same window…" ·
     `e2e/splits-negative.spec.ts`.
+90. **Every way of making a goal checks the plan's places first** (November 14, 2026). The jar
+    builder, starting a challenge and joining one all ask `hasRoomForGoal` before anything is
+    made or sent, and with every place taken show the same "Plan limit" card; a challenge's
+    jar takes a place like any other. Before this, a challenge started or joined on a full plan
+    went through and its own jar landed past the cap, read-only, so nothing could be logged in
+    it. A jar past the cap is read-only throughout: no deposit, no pausing, no moving money
+    out. Found by the goals journey. A deposit of $0 is refused too (a payoff balance may be 0).
+    `groups.test.tsx` "A challenge takes a place on the plan" · `billing.test.tsx` "Free caps
+    jars at 2…" · `goals.test.tsx` "builds a jar…" · `e2e/goals.spec.ts`.
 
 ## Accounts and money on the server
 
