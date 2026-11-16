@@ -479,6 +479,23 @@ export interface NetWorthItem {
   updated_at: string;
 }
 
+/**
+ * A document whose total went to Net worth (November 16, 2026): the file's name, masked; the
+ * date the document gives; what it became. One row per document added, so "Your documents"
+ * lists them all; the Net worth item keeps the latest value. Synced and exported.
+ */
+export interface DocumentImport {
+  id: string;
+  file_name: string;
+  kind: "asset" | "debt";
+  group: string;
+  label: string;
+  cents: number;
+  as_of: string | null;
+  net_worth_item_id: string;
+  created_at: string;
+}
+
 /** One per month (YYYY-MM): the latest total seen that month, for the trend and "since last month". */
 export interface NetWorthSnapshot {
   month: string;
@@ -570,6 +587,7 @@ export class StackdDb extends Dexie {
   own_subscription_words!: EntityTable<OwnSubscriptionWord, "id">;
   split_payments!: EntityTable<SplitPayment, "id">;
   split_blobs!: EntityTable<SplitBlobCache, "id">;
+  document_imports!: EntityTable<DocumentImport, "id">;
   files!: EntityTable<StoredFile, "id">;
   computed_results!: EntityTable<ComputedResult, "id">;
   budgets!: EntityTable<Budget, "id">;
@@ -681,6 +699,8 @@ export class StackdDb extends Dexie {
     this.version(19).stores({ split_payments: "id, group_id, at" });
     // Split bills at scale (S.5): the group blobs this device already holds.
     this.version(20).stores({ split_blobs: "id, group_id" });
+    // Documents into Net worth (November 16, 2026): each one added, for Your documents.
+    this.version(21).stores({ document_imports: "id, created_at" });
   }
 }
 

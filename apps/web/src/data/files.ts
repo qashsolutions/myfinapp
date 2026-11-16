@@ -3,6 +3,7 @@
  * import": the file is parsed on the device and never uploaded; the user can keep a copy).
  */
 
+import { maskFileName } from "../importers/masking.ts";
 import { newId, type StackdDb, type StoredFile } from "./db.ts";
 
 export async function storeFile(
@@ -16,7 +17,8 @@ export async function storeFile(
     id: newId(),
     kind,
     import_id: importId,
-    name: file.name,
+    // Never an account number, even in a kept file's name (November 16, 2026).
+    name: maskFileName(file.name),
     type: file.type || "application/octet-stream",
     size: file.size,
     blob: file,

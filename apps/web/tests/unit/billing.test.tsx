@@ -130,6 +130,9 @@ describe("Plans & billing", () => {
     expect(value("bank_links_max")).toBe(String(FREE_ENTITLEMENTS.bank_links_max));
     expect(value("backup")).toBe(String(FREE_ENTITLEMENTS.backup));
     expect(value("household")).toBe(String(FREE_ENTITLEMENTS.household));
+    expect(value("import_files_max")).toBe(String(FREE_ENTITLEMENTS.import_files_max));
+    expect(value("import_file_mb")).toBe(String(FREE_ENTITLEMENTS.import_file_mb));
+    expect(value("import_batch_mb")).toBe(String(FREE_ENTITLEMENTS.import_batch_mb));
   });
 
   it("Free: prices, the period picker and Checkout for Private after a passkey check", async () => {

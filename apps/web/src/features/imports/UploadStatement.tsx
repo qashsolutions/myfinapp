@@ -3,6 +3,7 @@ import { useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Account } from "../../data/db.ts";
 import { readFileText } from "../../data/files.ts";
+import { maskFileName } from "../../importers/masking.ts";
 import { PdfError } from "../../importers/pdf/index.ts";
 import type { DocumentTotal } from "../../importers/totals.ts";
 import { AccountPicker, type AccountSuggestion } from "./AccountPicker.tsx";
@@ -121,7 +122,13 @@ export function UploadStatement({
           </svg>
         </span>
         <span className="dropzone__title">
-          {chosen ? chosen.file.name : (found?.name ?? refused ?? "Choose a statement file")}
+          {chosen
+            ? maskFileName(chosen.file.name)
+            : found
+              ? maskFileName(found.name)
+              : refused
+                ? maskFileName(refused)
+                : "Choose a statement file"}
         </span>
         <span className="dropzone__sub">
           {chosen
@@ -171,6 +178,7 @@ export function UploadStatement({
         <DocumentTotalCard
           key={found.name}
           total={found.total}
+          fileName={found.name}
           onSaved={(id) => navigate("/net-worth", { state: { highlight: `worth-manual:${id}` } })}
         />
       ) : null}

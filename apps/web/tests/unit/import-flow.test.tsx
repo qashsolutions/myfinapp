@@ -106,6 +106,11 @@ describe("statement import, read on the device", () => {
     expect(summary).toHaveTextContent("Need a category0");
     expect(summary).toHaveTextContent("Ending balance (Oct 8)$2,100.00");
     expect(screen.getByText(/Account number masked to ••4821/)).toBeInTheDocument();
+    // The original file is kept only when the person turns it on (November 16, 2026).
+    const keep = screen.getByRole("switch", { name: "Keep a copy of the file on this device" });
+    expect(keep).not.toBeChecked();
+    await user.click(keep);
+    expect(keep).toBeChecked();
     await user.click(screen.getByRole("button", { name: "Import 4 transactions" }));
 
     expect(
@@ -904,6 +909,8 @@ describe("PDF statement (fast-follow 2)", () => {
       ["2026-09-14", "CORNER MKT #••4821", "out", 5410],
       ["2026-10-02", "CHECK 1041", "out", 30000],
     ]);
+    // Not turned on: no copy of the file is kept.
+    expect(await db.files.count()).toBe(0);
     expect(await db.statement_imports.toArray()).toMatchObject([
       {
         format: "pdf",

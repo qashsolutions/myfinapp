@@ -19,6 +19,7 @@ import {
   ratioBps,
   startBalance,
 } from "../../engine/bridge.ts";
+import { maskFileName } from "../../importers/masking.ts";
 import { compareText } from "../../lib/order.ts";
 import { netWorthDates, type Range, type RangeBounds, rangeBounds } from "../ranges/ranges.ts";
 
@@ -329,26 +330,41 @@ export async function saveFromDocument(
     label: string;
     value_cents: number;
     as_of: string | null;
+    /** The file it came from, for Your documents; masked before it is kept. */
+    file_name: string;
   },
 ): Promise<string> {
   const now = new Date().toISOString();
-  const existing = item.id ? await db.net_worth_items.get(item.id) : undefined;
-  const id = existing?.id ?? newId();
-  await db.net_worth_items.put({
-    id,
-    kind: item.kind,
-    group: item.group,
-    label: item.label,
-    value_cents: item.value_cents,
-    source: "manual",
-    ref_id: null,
-    included: true,
-    as_of: item.as_of,
-    origin: "document",
-    created_at: existing?.created_at ?? now,
-    updated_at: now,
+  return db.transaction("rw", db.net_worth_items, db.document_imports, async () => {
+    const existing = item.id ? await db.net_worth_items.get(item.id) : undefined;
+    const id = existing?.id ?? newId();
+    await db.net_worth_items.put({
+      id,
+      kind: item.kind,
+      group: item.group,
+      label: item.label,
+      value_cents: item.value_cents,
+      source: "manual",
+      ref_id: null,
+      included: true,
+      as_of: item.as_of,
+      origin: "document",
+      created_at: existing?.created_at ?? now,
+      updated_at: now,
+    });
+    await db.document_imports.add({
+      id: newId(),
+      file_name: maskFileName(item.file_name),
+      kind: item.kind,
+      group: item.group,
+      label: item.label,
+      cents: item.value_cents,
+      as_of: item.as_of,
+      net_worth_item_id: id,
+      created_at: now,
+    });
+    return id;
   });
-  return id;
 }
 
 /** Hand-added items a document's total could be updating: same kind of thing, same name. */

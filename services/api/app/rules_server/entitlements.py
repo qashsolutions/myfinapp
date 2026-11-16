@@ -39,6 +39,9 @@ LIMIT_KEYS = (
     "split_bills_per_day",
     "split_people_max",
     "split_invites_per_day",
+    "import_files_max",
+    "import_file_mb",
+    "import_batch_mb",
 )
 
 
