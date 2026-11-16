@@ -475,6 +475,8 @@ export interface NetWorthItem {
    */
   as_of?: string | null;
   origin?: "document" | null;
+  /** The person's own word for an "Other" kind ("Pension"); unindexed, synced and exported. */
+  own_kind?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -492,6 +494,8 @@ export interface DocumentImport {
   label: string;
   cents: number;
   as_of: string | null;
+  /** The person's own word when the kind is Other (unindexed). */
+  own_kind?: string | null;
   net_worth_item_id: string;
   created_at: string;
 }

@@ -269,3 +269,13 @@
   flex-direction: column;
   gap: 10px;
 }
+
+/* The account the document is for (November 16, 2026): the last four only, in green. */
+.doc-total__account {
+  margin: 0;
+  color: var(--c-success);
+  font-weight: 600;
+}
+.doc-total__why {
+  margin: -6px 0 0;
+}

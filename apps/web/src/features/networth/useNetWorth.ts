@@ -45,6 +45,19 @@ export const GROUP_LABEL: Record<string, string> = Object.fromEntries([
   ...DEBT_GROUPS,
 ]);
 
+/** The person's own word for an "Other" kind (November 16, 2026). */
+export const OWN_KIND_MAX = 24;
+
+/** The two kinds whose name the person may write themselves. */
+export function isOtherGroup(group: string): boolean {
+  return group === "other_asset" || group === "other_debt";
+}
+
+/** How a row's kind reads: the person's own word for an "Other", else the group's name. */
+export function kindLabel(group: string, ownKind?: string | null): string {
+  return ownKind?.trim() || GROUP_LABEL[group] || group;
+}
+
 /** A hand-added value older than this asks to be updated. */
 export const STALE_DAYS = 30;
 
@@ -64,6 +77,8 @@ export interface WorthRow {
   /** A value from a document: the date it says, else null. */
   asOf: string | null;
   fromDocument: boolean;
+  /** The person's own word for an "Other" kind, else null. */
+  ownKind: string | null;
 }
 
 export interface NetWorthView {
@@ -168,6 +183,7 @@ export function useNetWorth(asOf: string): NetWorthView {
         updatedAt: null,
         asOf: null,
         fromDocument: false,
+        ownKind: null,
       });
     }
     for (const d of debts) {
@@ -187,6 +203,7 @@ export function useNetWorth(asOf: string): NetWorthView {
         updatedAt: d.updated_at,
         asOf: null,
         fromDocument: false,
+        ownKind: null,
       });
     }
     for (const i of items.filter((x) => x.source === "manual"))
@@ -203,6 +220,7 @@ export function useNetWorth(asOf: string): NetWorthView {
         updatedAt: i.updated_at,
         asOf: i.as_of ?? null,
         fromDocument: i.origin === "document",
+        ownKind: i.own_kind ?? null,
       });
     return out;
   }, [accounts, debts, items, balances]);
@@ -299,7 +317,14 @@ export async function chooseFor(
 /** Add or update something owned or owed by hand. */
 export async function saveManual(
   db: StackdDb,
-  item: { id?: string; kind: "asset" | "debt"; group: string; label: string; value_cents: number },
+  item: {
+    id?: string;
+    kind: "asset" | "debt";
+    group: string;
+    label: string;
+    value_cents: number;
+    own_kind?: string | null;
+  },
 ): Promise<void> {
   const now = new Date().toISOString();
   const existing = item.id ? await db.net_worth_items.get(item.id) : undefined;
@@ -312,6 +337,7 @@ export async function saveManual(
     source: "manual",
     ref_id: null,
     included: true,
+    own_kind: isOtherGroup(item.group) ? item.own_kind?.trim() || null : null,
     created_at: existing?.created_at ?? now,
     updated_at: now,
   });
@@ -330,6 +356,8 @@ export async function saveFromDocument(
     label: string;
     value_cents: number;
     as_of: string | null;
+    /** The person's own word when the kind is Other; null otherwise. */
+    own_kind?: string | null;
     /** The file it came from, for Your documents; masked before it is kept. */
     file_name: string;
   },
@@ -349,6 +377,7 @@ export async function saveFromDocument(
       included: true,
       as_of: item.as_of,
       origin: "document",
+      own_kind: item.own_kind ?? null,
       created_at: existing?.created_at ?? now,
       updated_at: now,
     });
@@ -360,6 +389,7 @@ export async function saveFromDocument(
       label: item.label,
       cents: item.value_cents,
       as_of: item.as_of,
+      own_kind: item.own_kind ?? null,
       net_worth_item_id: id,
       created_at: now,
     });

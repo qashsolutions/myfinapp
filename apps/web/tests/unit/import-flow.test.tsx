@@ -766,6 +766,40 @@ describe("PDF statement (fast-follow 2)", () => {
     expect(await openDb("u1").entries.count()).toBe(0);
   });
 
+  it("Other takes the person's own word, asks for it when missing, and Net worth shows it", async () => {
+    vi.mocked(extractLines).mockResolvedValueOnce([
+      "Positions",
+      "Symbol Quantity Market value % of account",
+      "ABCD 5 $40.00",
+      "Account total $900.00",
+    ]);
+    const user = userEvent.setup();
+    await start();
+    await user.upload(
+      screen.getByLabelText(/Choose a statement file/),
+      new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])], "Pension.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    const card = await screen.findByRole("region", { name: "Found in this document" });
+    expect(within(card).getByRole("radio", { name: "Investments" })).toBeChecked();
+    expect(card).toHaveTextContent("Picked Investments: the document doesn't say which kind.");
+    expect(within(card).queryByText(/^Account ••/)).toBeNull();
+    expect(within(card).queryByLabelText("Your word for it")).toBeNull();
+    await user.click(within(card).getByRole("radio", { name: "Other" }));
+    await user.click(within(card).getByRole("button", { name: "Add to Net worth" }));
+    expect(within(card).getByRole("alert")).toHaveTextContent("Say what it is");
+    expect(within(card).getByLabelText("Your word for it")).toHaveFocus();
+    await user.type(within(card).getByLabelText("Your word for it"), "Pension");
+    expect(card).toHaveTextContent("and kind (Pension) are kept");
+    await user.click(within(card).getByRole("button", { name: "Add to Net worth" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Net worth" })).toBeInTheDocument();
+    expect(await openDb("u1").net_worth_items.toArray()).toMatchObject([
+      { group: "other_asset", own_kind: "Pension", value_cents: 90000 },
+    ]);
+    expect(await screen.findByText(/^Pension · As of/)).toBeInTheDocument();
+  });
+
   it("an IRA positions page: its total, checked, goes to Net worth; the next one updates it", async () => {
     const positions = (total: string, day: string) => [
       "Portfolio Positions",
@@ -794,6 +828,9 @@ describe("PDF statement (fast-follow 2)", () => {
     expect(within(card).getByLabelText("Name")).toHaveValue("Rollover IRA");
     expect(within(card).getByLabelText("What it's worth")).toHaveValue("1250.40");
     expect(within(card).getByRole("radio", { name: "Retirement" })).toBeChecked();
+    // Which account, by its last four only, and why the kind was picked.
+    expect(within(card).getByText("Account ••6789")).toHaveClass("doc-total__account");
+    expect(card).toHaveTextContent("Picked Retirement because it says “Rollover IRA”.");
     // No account to pick and no Read file: this isn't a statement of transactions.
     expect(screen.queryByRole("button", { name: "Read file" })).toBeNull();
     // Never a dead button
@@ -819,7 +856,7 @@ describe("PDF statement (fast-follow 2)", () => {
       },
     ]);
     // Only these fields: never the account number or the holdings.
-    expect(JSON.stringify(items)).not.toMatch(/123456789|ABCD/);
+    expect(JSON.stringify(items)).not.toMatch(/123456789|6789|ABCD/);
     expect(await screen.findByText(/As of Sep 3, 2026 · from a document/)).toBeInTheDocument();
     expect(onlySessionReads(fake.calls).filter((c) => c.path !== "/api/billing")).toEqual([]);
     expect(JSON.stringify(fake.calls.map((c) => c.body ?? null))).not.toMatch(

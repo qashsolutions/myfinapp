@@ -11,7 +11,7 @@ import { daysUntil } from "../../engine/bridge.ts";
 import { maskFileName } from "../../importers/masking.ts";
 import { dayOf, formatCents, formatDate, formatDay, todayIso } from "../../lib/format.ts";
 import { compareText } from "../../lib/order.ts";
-import { GROUP_LABEL, STALE_DAYS } from "../networth/useNetWorth.ts";
+import { kindLabel, STALE_DAYS } from "../networth/useNetWorth.ts";
 
 /** One file in the list: a statement imported, or a document whose total went to Net worth. */
 interface DocRow {
@@ -68,7 +68,7 @@ export function YourDocuments() {
         name: maskFileName(d.file_name),
         when: d.as_of ? formatDate(d.as_of) : "Date not given",
         added: formatDay(dayOf(d.created_at)),
-        became: `Net worth · ${d.label} · ${formatCents(d.cents)}${d.kind === "debt" ? " owed" : ""} · ${GROUP_LABEL[d.group] ?? d.group}`,
+        became: `Net worth · ${d.label} · ${formatCents(d.cents)}${d.kind === "debt" ? " owed" : ""} · ${kindLabel(d.group, d.own_kind)}`,
         oldDays: age !== null && age > STALE_DAYS ? age : null,
       });
     }
