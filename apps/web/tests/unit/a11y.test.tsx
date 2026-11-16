@@ -517,5 +517,10 @@ describe("accessibility of the Adjust sheets (axe-core)", () => {
     await user.clear(within(sheet).getByRole("combobox"));
     await user.type(within(sheet).getByRole("combobox"), "zzzzqq");
     await checkBody("Search, nothing found");
+    await seed();
+    await user.clear(within(sheet).getByRole("combobox"));
+    await user.type(within(sheet).getByRole("combobox"), "corner");
+    await within(sheet).findByRole("group", { name: "Merchants" });
+    await checkBody("Search, your own data");
   });
 });

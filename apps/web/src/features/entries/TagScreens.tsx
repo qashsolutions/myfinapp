@@ -18,7 +18,7 @@ import { EntryRow } from "./EntryList.tsx";
 import { useLookups } from "./useEntries.ts";
 
 /** The totals for a set of entries, from their first to their last date (cashflow.period_totals). */
-function useTotals(entries: Entry[] | undefined): MonthTotals | null {
+export function useTotals(entries: Entry[] | undefined): MonthTotals | null {
   const lookups = useLookups();
   const [totals, setTotals] = useState<MonthTotals | null>(null);
   useEffect(() => {

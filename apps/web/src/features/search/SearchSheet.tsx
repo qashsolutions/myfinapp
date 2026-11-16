@@ -3,9 +3,13 @@ import "./search.css";
 import { Sheet } from "@stackd/ui";
 import { useEffect, useId, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { accessRoutes, mayOpen } from "../../app/AccessGate.tsx";
+import { useOptionalDb } from "../../data/DbProvider.tsx";
+import { formatCents, formatDay } from "../../lib/format.ts";
 import { isNativePlatform, isStandalone } from "../../lib/platform.ts";
 import { useSession } from "../auth/useSession.tsx";
 import { useEntitlements } from "../billing/entitlements.ts";
+import { type DataHit, type DataResults, searchData } from "./dataSearch.ts";
 import { clearSearchRecents, rememberSearchPick, searchRecents } from "./recents.ts";
 import {
   closest,
@@ -19,6 +23,8 @@ import { closeSearch, openSearch, useSearchOpen } from "./searchOpen.ts";
 
 /** Results shown at most; the first ones are the best by the engine's order. */
 const SHOWN = 8;
+/** Places shown when the person's own data matches too. */
+const SHOWN_WITH_DATA = 3;
 export const SUPPORT_EMAIL = "support@qash.solutions";
 
 /** What this person may see in search: their plan's access and the platform. */
@@ -69,10 +75,47 @@ export function SearchHost() {
   return open ? <SearchSheet /> : null;
 }
 
+/** One row in the list: a place in the app, or something of the person's own. */
+type Option =
+  | { key: string; kind: "place"; result: SearchResult }
+  | { key: string; kind: "data"; hit: DataHit };
+
+/** How long typing pauses before the person's own data is searched. */
+const DATA_DELAY_MS = 120;
+
+/** The person's own data for what was typed, searched on this device after a short pause. */
+function useDataResults(query: string): DataResults | null {
+  const device = useOptionalDb();
+  const [results, setResults] = useState<DataResults | null>(null);
+  useEffect(() => {
+    const q = query.trim();
+    if (!device || q === "") {
+      setResults(null);
+      return;
+    }
+    let alive = true;
+    const timer = setTimeout(() => {
+      void searchData(device.db, q, { money: formatCents, day: (d) => formatDay(d) })
+        .then((r) => {
+          if (alive) setResults(r);
+        })
+        .catch(() => {
+          if (alive) setResults(null);
+        });
+    }, DATA_DELAY_MS);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [device, query]);
+  return results;
+}
+
 function SearchSheet() {
   const id = useId();
   const ctx = useSearchContext();
   const openResult = useOpenResult();
+  const navigate = useNavigate();
   const userId = useSession().info?.user?.id;
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -80,6 +123,18 @@ function SearchSheet() {
 
   const typed = query.trim() !== "";
   const found = useMemo(() => (typed ? search(query, ctx) : []), [typed, query, ctx]);
+  const data = useDataResults(query);
+  // The person's own things follow the same access table: a guest or an ended plan never gets
+  // a result that leads somewhere they can't open.
+  const routes = accessRoutes(ctx.entitlements.access);
+  const dataSections = (data?.sections ?? [])
+    .map((sec) => ({
+      ...sec,
+      hits: sec.hits.filter((h) => !routes || mayOpen(routes, h.path)),
+      all: sec.all && (!routes || mayOpen(routes, sec.all.path)) ? sec.all : undefined,
+    }))
+    .filter((sec) => sec.hits.length);
+  const dataCount = dataSections.reduce((n, sec) => n + sec.hits.length, 0);
   const near = useMemo(
     () => (typed && found.length === 0 ? closest(query, ctx) : []),
     [typed, found, query, ctx],
@@ -87,29 +142,52 @@ function SearchSheet() {
   const all = useMemo(() => reachable(ctx), [ctx]);
   const byId = (ids: readonly string[]) =>
     ids.map((i) => all.find((r) => r.entry.id === i)).filter((r): r is SearchResult => !!r);
-  const groups: { label: string; items: SearchResult[] }[] = typed
-    ? found.length
-      ? [{ label: "Results", items: found.slice(0, SHOWN) }]
-      : near.length
-        ? [{ label: "Did you mean", items: near }]
-        : []
+  const place = (r: SearchResult): Option => ({ key: r.entry.id, kind: "place", result: r });
+  const own = (h: DataHit): Option => ({ key: h.key, kind: "data", hit: h });
+
+  const groups: { label: string; items: Option[]; more?: number }[] = typed
+    ? [
+        ...(found.length
+          ? [
+              {
+                label: "In Qash",
+                // With the person's own matches below, the best few places, so theirs show too.
+                items: found.slice(0, dataCount ? SHOWN_WITH_DATA : SHOWN).map(place),
+                more: found.length - Math.min(found.length, dataCount ? SHOWN_WITH_DATA : SHOWN),
+              },
+            ]
+          : near.length && dataCount === 0
+            ? [{ label: "Did you mean", items: near.map(place) }]
+            : []),
+        ...dataSections.map((sec) => ({
+          label: sec.title,
+          items: [...sec.hits.map(own), ...(sec.all ? [own(sec.all)] : [])],
+          more: sec.all ? 0 : sec.more,
+        })),
+      ]
     : [
-        { label: "Recent", items: byId(recents) },
-        { label: "Shortcuts", items: byId(SHORTCUT_IDS.filter((s) => !recents.includes(s))) },
+        { label: "Recent", items: byId(recents).map(place) },
+        {
+          label: "Shortcuts",
+          items: byId(SHORTCUT_IDS.filter((s) => !recents.includes(s))).map(place),
+        },
       ].filter((g) => g.items.length);
   const items = groups.flatMap((g) => g.items);
   const current = Math.min(active, Math.max(items.length - 1, 0));
   const optionId = (i: number) => `${id}-opt-${i}`;
 
-  function pick(r: SearchResult) {
+  function pick(o: Option) {
     closeSearch();
-    openResult(r);
+    // A place is remembered for Recent; the person's own things never are.
+    if (o.kind === "place") openResult(o.result);
+    else navigate(o.hit.path, { state: o.hit.state ?? null });
   }
 
+  const total = found.length + dataCount;
   const status = !typed
     ? ""
-    : found.length
-      ? `${found.length} ${found.length === 1 ? "result" : "results"}`
+    : total
+      ? `${total} ${total === 1 ? "result" : "results"}`
       : near.length
         ? `Nothing matches. ${near.length} close ${near.length === 1 ? "match" : "matches"}`
         : "Nothing matches";
@@ -134,7 +212,7 @@ function SearchSheet() {
           aria-controls={`${id}-list`}
           aria-activedescendant={items.length ? optionId(current) : undefined}
           className="settings-search__input"
-          placeholder="Search for a screen, setting or action"
+          placeholder="A screen, setting, merchant or amount"
           autoComplete="off"
           autoCapitalize="off"
           spellCheck={false}
@@ -145,15 +223,16 @@ function SearchSheet() {
             setActive(0);
           }}
           onKeyDown={(e) => {
+            const at = items[current];
             if (e.key === "ArrowDown" && items.length) {
               e.preventDefault();
               setActive((current + 1) % items.length);
             } else if (e.key === "ArrowUp" && items.length) {
               e.preventDefault();
               setActive((current - 1 + items.length) % items.length);
-            } else if (e.key === "Enter" && items[current]) {
+            } else if (e.key === "Enter" && at) {
               e.preventDefault();
-              pick(items[current]);
+              pick(at);
             }
           }}
         />
@@ -161,7 +240,7 @@ function SearchSheet() {
       <p className="sr-only" role="status" aria-live="polite">
         {status}
       </p>
-      {typed && !found.length ? (
+      {typed && !found.length && !dataCount ? (
         <p className="search-sheet__none">
           Nothing matches “{query.trim()}”.{near.length ? "" : " Try fewer or other words."}
         </p>
@@ -189,13 +268,14 @@ function SearchSheet() {
           <div key={g.label} role="group" aria-label={g.label} className="search-sheet__group">
             <div className="search-sheet__group-head" aria-hidden="true">
               {g.label}
+              {g.more ? <span> · {g.more} more</span> : null}
             </div>
-            {g.items.map((r) => {
+            {g.items.map((o) => {
               n += 1;
               const i = n;
               return (
                 <div
-                  key={r.entry.id}
+                  key={o.key}
                   id={optionId(i)}
                   role="option"
                   tabIndex={-1}
@@ -203,19 +283,28 @@ function SearchSheet() {
                   className="search-sheet__option"
                   onMouseDown={(e) => e.preventDefault()}
                   onMouseMove={() => setActive(i)}
-                  onClick={() => pick(r)}
+                  onClick={() => pick(o)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") pick(r);
+                    if (e.key === "Enter") pick(o);
                   }}
                 >
-                  <span className="search-sheet__label">{r.entry.label}</span>
-                  <span className="search-sheet__where">
-                    {r.entry.section}
-                    {r.entry.line ? ` · ${r.entry.line}` : ""}
-                  </span>
-                  {r.locked ? (
-                    <span className="search-sheet__tag">Not on your plan · See plans</span>
-                  ) : null}
+                  {o.kind === "place" ? (
+                    <>
+                      <span className="search-sheet__label">{o.result.entry.label}</span>
+                      <span className="search-sheet__where">
+                        {o.result.entry.section}
+                        {o.result.entry.line ? ` · ${o.result.entry.line}` : ""}
+                      </span>
+                      {o.result.locked ? (
+                        <span className="search-sheet__tag">Not on your plan · See plans</span>
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      <span className="search-sheet__label">{o.hit.label}</span>
+                      <span className="search-sheet__where">{o.hit.detail}</span>
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -224,9 +313,9 @@ function SearchSheet() {
       </div>
       <footer className="search-sheet__privacy">
         <p>
-          <strong>Private by design.</strong> Search runs only on this device. What you type is
-          never sent to Qash or saved. Recent keeps only the places you opened, here, until you
-          clear it or sign out.
+          <strong>Private by design.</strong> Search runs only on this device, over the app and your
+          own entries, jars and bills here. What you type is never sent to Qash or saved. Recent
+          keeps only the screens you opened, here, until you clear it or sign out.
         </p>
         <p>
           Because we never see your searches, we can't tell when something is hard to find. If you

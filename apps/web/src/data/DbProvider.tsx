@@ -61,3 +61,8 @@ export function useDb(): DeviceData {
   if (!ctx) throw new Error("useDb must be used inside <DbProvider>");
   return ctx;
 }
+
+/** The device's data when there is a signed-in database here, else null (search uses it). */
+export function useOptionalDb(): DeviceData | null {
+  return useContext(DbContext);
+}
