@@ -1,6 +1,6 @@
 import { Button, List } from "@stackd/ui";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { Account, AccountType } from "../../data/db.ts";
 import { dayOf, formatDay } from "../../lib/format.ts";
@@ -38,10 +38,13 @@ export function AccountPicker({
   value,
   onChange,
   suggest = null,
+  onStartNew,
 }: {
   value: string | null;
   onChange: (a: Account) => void;
   suggest?: AccountSuggestion | null;
+  /** The person started a new account: anything asking them to pick one no longer applies. */
+  onStartNew?: () => void;
 }) {
   const { db } = useDb();
   const ids = useId();
@@ -58,6 +61,9 @@ export function AccountPicker({
   const capped = accountsMax !== null && importedCount >= accountsMax;
   const [adding, setAdding] = useState(false);
   const [label, setLabel] = useState("");
+  // Never a dead button: Add account with no name says so and goes to the name.
+  const [nameMissing, setNameMissing] = useState(false);
+  const nameBox = useRef<HTMLInputElement>(null);
   const [type, setType] = useState<AccountType>("checking");
   const [last4, setLast4] = useState("");
 
@@ -152,12 +158,21 @@ export function AccountPicker({
                 Account name
               </label>
               <input
+                ref={nameBox}
                 id={`${ids}-label`}
                 className="auth__input"
                 placeholder="e.g. Everyday checking"
                 value={label}
-                onChange={(e) => setLabel(e.target.value)}
+                onChange={(e) => {
+                  setLabel(e.target.value);
+                  setNameMissing(false);
+                }}
               />
+              {nameMissing ? (
+                <p className="auth__error" role="alert">
+                  Name the account first.
+                </p>
+              ) : null}
               <label className="auth__label" htmlFor={`${ids}-type`}>
                 Type
               </label>
@@ -189,13 +204,28 @@ export function AccountPicker({
                 <Button variant="secondary" onClick={() => setAdding(false)}>
                   Cancel
                 </Button>
-                <Button onClick={add} disabled={!label.trim()}>
+                <Button
+                  onClick={() => {
+                    if (!label.trim()) {
+                      setNameMissing(true);
+                      nameBox.current?.focus();
+                      return;
+                    }
+                    void add();
+                  }}
+                >
                   Add account
                 </Button>
               </div>
             </div>
           ) : (
-            <Button variant="ghost" onClick={() => setAdding(true)}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                onStartNew?.();
+                setAdding(true);
+              }}
+            >
               + New account
             </Button>
           )}

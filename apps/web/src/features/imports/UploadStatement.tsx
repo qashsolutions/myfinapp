@@ -1,5 +1,5 @@
 import { Button } from "@stackd/ui";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { Account } from "../../data/db.ts";
 import { readFileText } from "../../data/files.ts";
 import { PdfError } from "../../importers/pdf/index.ts";
@@ -39,10 +39,29 @@ export function UploadStatement({
 }) {
   const id = useId();
   const [error, setError] = useState<string | null>(null);
+  // Never a dead button: Read file stays tappable and says what's missing first.
+  const [missing, setMissing] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const accounts = useRef<HTMLDivElement>(null);
+
+  function next() {
+    if (!chosen) {
+      setMissing("Choose a statement file first.");
+      fileInput.current?.focus();
+      return;
+    }
+    if (!account) {
+      setMissing("Pick which account this is.");
+      accounts.current?.querySelector<HTMLElement>("input:not(:disabled), button")?.focus();
+      return;
+    }
+    onNext();
+  }
 
   async function pick(file: File | undefined) {
     if (!file) return;
     setError(null);
+    setMissing(null);
     try {
       if (file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf") {
         const bytes = new Uint8Array(await file.arrayBuffer());
@@ -87,6 +106,7 @@ export function UploadStatement({
           CSV, OFX, QFX or a PDF statement from your bank or card
         </span>
         <input
+          ref={fileInput}
           id={id}
           type="file"
           accept=".csv,.ofx,.qfx,.pdf"
@@ -110,13 +130,24 @@ export function UploadStatement({
           {error}
         </p>
       ) : null}
-      <AccountPicker
-        value={account?.id ?? null}
-        onChange={onAccount}
-        suggest={suggestionFor(chosen)}
-      />
+      <div ref={accounts}>
+        <AccountPicker
+          value={account?.id ?? null}
+          onChange={(a) => {
+            setMissing(null);
+            onAccount(a);
+          }}
+          suggest={suggestionFor(chosen)}
+          onStartNew={() => setMissing(null)}
+        />
+      </div>
       <div className="auth__spacer" />
-      <Button block onClick={onNext} disabled={!chosen || !account}>
+      {missing ? (
+        <p className="auth__error" role="alert">
+          {missing}
+        </p>
+      ) : null}
+      <Button block onClick={next}>
         Read file
       </Button>
       <p className="auth__fineprint">
