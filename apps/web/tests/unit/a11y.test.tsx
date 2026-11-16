@@ -525,4 +525,23 @@ describe("accessibility of the Adjust sheets (axe-core)", () => {
     await within(sheet).findByRole("group", { name: "Merchants" });
     await checkBody("Search, your own data");
   });
+
+  it("Import with several files picked", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const db = openDb("u1");
+    await seedDefaults(db);
+    installFakeApi({ session: readySession() });
+    renderApp("/import");
+    const csv = (name: string) =>
+      new File(["Date,Description,Amount\n2026-10-01,Corner Market,-12.50\n"], name, {
+        type: "text/csv",
+      });
+    await user.upload(await screen.findByLabelText(/Choose a statement file/), [
+      csv("a.csv"),
+      csv("b.csv"),
+    ]);
+    const list = await screen.findByRole("list", { name: "Files picked" });
+    await within(list).findAllByText(/check to pick the account/);
+    await checkBody("Import with several files");
+  });
 });

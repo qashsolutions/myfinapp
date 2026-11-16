@@ -6,7 +6,9 @@ import { readFileText } from "../../data/files.ts";
 import { maskFileName } from "../../importers/masking.ts";
 import { PdfError } from "../../importers/pdf/index.ts";
 import type { DocumentTotal } from "../../importers/totals.ts";
+import { useEntitlements } from "../billing/entitlements.ts";
 import { AccountPicker, type AccountSuggestion } from "./AccountPicker.tsx";
+import { MB, sizeOf } from "./batch.ts";
 import { DocumentTotalCard } from "./DocumentTotalCard.tsx";
 import { fileSummary } from "./fileSummary.ts";
 import { type ParsedFile, readPdfForImport, readTextForImport } from "./importFlow.ts";
@@ -35,13 +37,17 @@ export function UploadStatement({
   onFile,
   onAccount,
   onNext,
+  onBatch,
 }: {
   chosen: Chosen | null;
   account: Account | null;
   onFile: (c: Chosen | null) => void;
   onAccount: (a: Account) => void;
   onNext: () => void;
+  /** Two or more files picked together (November 16, 2026): they go to the batch list. */
+  onBatch?: (files: File[]) => void;
 }) {
+  const { entitlements } = useEntitlements();
   const id = useId();
   const [error, setError] = useState<string | null>(null);
   // A brokerage's positions page: nothing to import, but its total belongs in Net worth.
@@ -70,8 +76,28 @@ export function UploadStatement({
     onNext();
   }
 
+  async function pickAll(list: FileList | null) {
+    const files = [...(list ?? [])];
+    if (files.length > 1 && onBatch) {
+      onBatch(files);
+      return;
+    }
+    await pick(files[0]);
+  }
+
   async function pick(file: File | undefined) {
     if (!file) return;
+    // The plan's per-file size (plans.yaml import_file_mb).
+    if (file.size > entitlements.import_file_mb * MB) {
+      onFile(null);
+      setFound(null);
+      setHoldings(false);
+      setRefused(file.name);
+      setError(
+        `This file is ${sizeOf(file.size)}; files can be up to ${entitlements.import_file_mb} MB. Download one month or a CSV instead.`,
+      );
+      return;
+    }
     setError(null);
     setHoldings(false);
     setRefused(null);
@@ -141,16 +167,25 @@ export function UploadStatement({
                 ? holdings
                   ? "Investment holdings, not transactions · not imported"
                   : "Not imported · choose another file"
-                : "CSV, OFX, QFX or a PDF statement from your bank or card"}
+                : "Pick one or several: statements, and investment or loan documents"}
         </span>
         <input
           ref={fileInput}
           id={id}
           type="file"
           accept=".csv,.ofx,.qfx,.pdf"
-          onChange={(e) => pick(e.target.files?.[0])}
+          multiple
+          onChange={(e) => void pickAll(e.target.files)}
         />
       </label>
+      {!chosen && !found ? (
+        <p className="import-limits">
+          Up to {entitlements.import_files_max}{" "}
+          {entitlements.import_files_max === 1 ? "file" : "files"} at a time,{" "}
+          {entitlements.import_file_mb} MB each, {entitlements.import_batch_mb} MB in all · CSV,
+          OFX, QFX or PDF
+        </p>
+      ) : null}
       <p className="import-note">
         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
           <path
@@ -161,7 +196,7 @@ export function UploadStatement({
             strokeLinecap="round"
           />
         </svg>
-        Read on this device. The file is never uploaded.
+        Read on this device, one file at a time. Never uploaded.
       </p>
       {error ? (
         <p className="auth__error" role="alert">
