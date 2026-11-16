@@ -20,7 +20,7 @@ test("@phone settings: search finds it, a look and dark mode and Simple layout a
 
   // Everyday words find the setting and open its screen.
   await page.goto("/me");
-  await page.getByRole("searchbox", { name: "Search settings" }).fill("plain larger");
+  await page.getByRole("searchbox", { name: "Search Qash" }).fill("plain larger");
   const results = page.getByRole("list", { name: "Search results" });
   await results.getByText("Simple layout").click();
   await expect(page.getByRole("heading", { level: 1, name: "Look & feel" })).toBeVisible();

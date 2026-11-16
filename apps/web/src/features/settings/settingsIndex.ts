@@ -39,7 +39,7 @@ export const GROUPS: SettingsGroup[] = [
 ];
 
 /**
- * One searchable setting: where it lives, the element to highlight there (`target`, an id),
+ * One setting search can open (features/search folds these into its one index): where it lives, the element to highlight there (`target`, an id),
  * and everyday words people type for it ("logout", "password", "theme").
  */
 export interface SettingEntry {
@@ -350,33 +350,4 @@ export const ENTRIES: SettingEntry[] = [
 
 export function groupTitle(key: string): string {
   return GROUPS.find((g) => g.key === key)?.title ?? "";
-}
-
-const norm = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/&/g, " ")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-
-/**
- * Every word of the query must start a word of the entry (its label, group or everyday
- * words); labels that start with the query come first. Runs on the device only.
- */
-export function searchSettings(query: string): SettingEntry[] {
-  const q = norm(query);
-  if (!q) return [];
-  const terms = q.split(" ");
-  const joined = q.replace(/ /g, "");
-  const scored: [number, number, SettingEntry][] = [];
-  ENTRIES.forEach((e, i) => {
-    const label = norm(e.label);
-    const words = `${label} ${norm(groupTitle(e.group))} ${norm(e.words)}`.split(" ");
-    const hit = terms.every((t) => words.some((w) => w.startsWith(t)));
-    const squashed = words.some((w) => w.length > 2 && joined.length > 3 && w.startsWith(joined));
-    if (!hit && !squashed) return;
-    const score = label.startsWith(q) ? 0 : label.includes(q) ? 1 : 2;
-    scored.push([score, i, e]);
-  });
-  return scored.sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(([, , e]) => e);
 }

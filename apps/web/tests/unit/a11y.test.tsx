@@ -502,4 +502,20 @@ describe("accessibility of the Adjust sheets (axe-core)", () => {
     await within(sheet).findByRole("switch", { name: "Budget alert" });
     await checkBody("Adjust budget alerts");
   });
+
+  it("Search, empty, with results and with nothing found", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    localStorage.setItem("stackd.search.recent.u1", '["budget"]');
+    installFakeApi({ session: readySession() });
+    renderApp("/");
+    await user.click(await screen.findByRole("button", { name: "Search" }));
+    const sheet = await screen.findByRole("dialog", { name: "Search" });
+    await within(sheet).findByRole("group", { name: "Recent" });
+    await checkBody("Search, empty");
+    await user.type(within(sheet).getByRole("combobox"), "bills");
+    await checkBody("Search, results");
+    await user.clear(within(sheet).getByRole("combobox"));
+    await user.type(within(sheet).getByRole("combobox"), "zzzzqq");
+    await checkBody("Search, nothing found");
+  });
 });

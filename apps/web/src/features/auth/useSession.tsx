@@ -43,6 +43,7 @@ import {
   signOutPending,
 } from "../../lib/offlineSession.ts";
 import { forgetReturn } from "../../lib/returnTo.ts";
+import { forgetSearchRecents } from "../search/recents.ts";
 
 /** Erase this device's copy of a deleted account: its database and every `stackd.` key. */
 async function wipeDevice(userId: string): Promise<void> {
@@ -216,6 +217,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     markSignOutPending(r.response.status === 0 || r.response.status >= 500);
     forgetSession();
     forgetReturn();
+    forgetSearchRecents();
     answered.current = undefined;
     setClientLocked(false);
     setInfo((i) => (i ? { ...i, authenticated: false } : i));

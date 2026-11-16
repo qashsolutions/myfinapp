@@ -1,6 +1,8 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router";
+import { SearchButton } from "../../features/search/SearchSheet.tsx";
 import { useSplitGuest } from "../../features/splits/guest.ts";
+import { useMediaQuery, WIDE_QUERY } from "../../lib/useMediaQuery.ts";
 import { AddChooser } from "./AddChooser.tsx";
 import { MeButton } from "./MeButton.tsx";
 
@@ -44,6 +46,8 @@ export interface ScreenHeaderProps {
 }
 
 export function ScreenHeader({ title, eyebrow, back, actions }: ScreenHeaderProps) {
+  // Search sits beside Me on phones; from 900px it is in the side rail.
+  const wide = useMediaQuery(WIDE_QUERY);
   useEffect(() => {
     document.title = `${title} · ${APP_NAME}`;
   }, [title]);
@@ -69,6 +73,7 @@ export function ScreenHeader({ title, eyebrow, back, actions }: ScreenHeaderProp
       </div>
       <div className="screen-header__actions">
         {actions === undefined ? <AddButton /> : actions}
+        {wide ? null : <SearchButton />}
         <MeButton />
       </div>
     </header>
