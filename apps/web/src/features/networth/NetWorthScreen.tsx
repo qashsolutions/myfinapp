@@ -13,6 +13,7 @@ import { dayOf, formatCents, formatDate, formatDay, todayIso } from "../../lib/f
 import { ChoiceChips } from "../goals/CustomValueSheet.tsx";
 import { RangePicker, RangeStepper } from "../ranges/RangePicker.tsx";
 import { type Range, useRange } from "../ranges/ranges.ts";
+import { AheadCard, ReachCard } from "./ReachAhead.tsx";
 import {
   ASSET_GROUPS,
   chooseFor,
@@ -338,6 +339,9 @@ export function NetWorthScreen() {
             </p>
           ) : null}
         </Card>
+
+        {s ? <ReachCard summary={s} /> : null}
+        {s ? <AheadCard summary={s} /> : null}
 
         <section aria-labelledby={`${ids}-own`}>
           <h2 className="worth__h" id={`${ids}-own`}>

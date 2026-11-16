@@ -146,3 +146,132 @@
   align-self: stretch;
   margin-top: 4px;
 }
+
+/* Reach and Ahead (November 16, 2026). */
+.worth-reach,
+.worth-ahead {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.worth-reach__line,
+.worth-ahead__line {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--c-ink);
+}
+.worth-reach__bar {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--c-line);
+}
+.worth-reach__seg {
+  display: block;
+  min-width: 4px;
+}
+.worth-reach__seg--cash {
+  background: var(--c-success);
+}
+.worth-reach__seg--investments {
+  background: var(--c-a1);
+}
+.worth-reach__seg--retirement {
+  background: var(--c-a3);
+}
+.worth-reach__seg--other {
+  background: var(--c-sub);
+}
+.worth-reach__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.worth-reach__list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.worth-reach__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: none;
+}
+.worth-reach__name {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+.worth-reach__note {
+  font-weight: 400;
+  font-size: var(--fs-small);
+  color: var(--c-sub);
+}
+.worth-reach__value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.worth-ahead__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.worth-ahead__rows li {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+.worth-ahead__when {
+  font-size: var(--fs-small);
+  color: var(--c-sub);
+}
+.worth-ahead__track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--c-line);
+}
+.worth-ahead__band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c-a1) 35%, transparent);
+}
+.worth-ahead__mid {
+  position: absolute;
+  top: -3px;
+  width: 4px;
+  height: 16px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: var(--c-a1);
+}
+.worth-ahead__value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.worth-ahead__range,
+.worth-ahead__note {
+  font-weight: 400;
+  font-size: var(--fs-small);
+  color: var(--c-sub);
+}
+.worth-ahead__note {
+  margin: 0;
+}
