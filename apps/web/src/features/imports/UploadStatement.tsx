@@ -1,12 +1,14 @@
 import { Button } from "@stackd/ui";
 import { useId, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import type { Account } from "../../data/db.ts";
 import { readFileText } from "../../data/files.ts";
 import { PdfError } from "../../importers/pdf/index.ts";
+import type { DocumentTotal } from "../../importers/totals.ts";
 import { AccountPicker, type AccountSuggestion } from "./AccountPicker.tsx";
+import { DocumentTotalCard } from "./DocumentTotalCard.tsx";
 import { fileSummary } from "./fileSummary.ts";
-import { type ParsedFile, parseFile, parsePdfFile } from "./importFlow.ts";
+import { type ParsedFile, readPdfForImport, readTextForImport } from "./importFlow.ts";
 
 /** What the statement says about its account, for a one-tap "New account" (OFX and PDF). */
 function suggestionFor(chosen: Chosen | null): AccountSuggestion | null {
@@ -45,6 +47,9 @@ export function UploadStatement({
   const [holdings, setHoldings] = useState(false);
   // The file picked last, kept on screen even when it couldn't be read, so it's clear which one.
   const [refused, setRefused] = useState<string | null>(null);
+  // A document with a total for Net worth (an investment account, a loan), and its file's name.
+  const [found, setFound] = useState<{ name: string; total: DocumentTotal } | null>(null);
+  const navigate = useNavigate();
   // Never a dead button: Read file stays tappable and says what's missing first.
   const [missing, setMissing] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -69,15 +74,20 @@ export function UploadStatement({
     setError(null);
     setHoldings(false);
     setRefused(null);
+    setFound(null);
     setMissing(null);
     try {
-      if (file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf") {
-        const bytes = new Uint8Array(await file.arrayBuffer());
-        onFile({ file, text: "", parsed: await parsePdfFile(bytes) });
+      const pdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
+      const text = pdf ? "" : await readFileText(file);
+      const read = pdf
+        ? await readPdfForImport(new Uint8Array(await file.arrayBuffer()))
+        : await readTextForImport(file.name, text);
+      if ("total" in read) {
+        onFile(null);
+        setFound({ name: file.name, total: read.total });
         return;
       }
-      const text = await readFileText(file);
-      onFile({ file, text, parsed: await parseFile(file.name, text) });
+      onFile({ file, text, parsed: read.parsed });
     } catch (err) {
       onFile(null);
       setRefused(file.name);
@@ -111,16 +121,20 @@ export function UploadStatement({
           </svg>
         </span>
         <span className="dropzone__title">
-          {chosen ? chosen.file.name : (refused ?? "Choose a statement file")}
+          {chosen ? chosen.file.name : (found?.name ?? refused ?? "Choose a statement file")}
         </span>
         <span className="dropzone__sub">
           {chosen
             ? fileSummary(chosen.parsed)
-            : refused
-              ? holdings
-                ? "Investment holdings, not transactions · not imported"
-                : "Not imported · choose another file"
-              : "CSV, OFX, QFX or a PDF statement from your bank or card"}
+            : found
+              ? found.total.kind === "debt"
+                ? "Loan statement · balance owed found · for Net worth"
+                : "Investment account · total found · for Net worth"
+              : refused
+                ? holdings
+                  ? "Investment holdings, not transactions · not imported"
+                  : "Not imported · choose another file"
+                : "CSV, OFX, QFX or a PDF statement from your bank or card"}
         </span>
         <input
           ref={fileInput}
@@ -153,7 +167,14 @@ export function UploadStatement({
           ) : null}
         </p>
       ) : null}
-      <div ref={accounts}>
+      {found ? (
+        <DocumentTotalCard
+          key={found.name}
+          total={found.total}
+          onSaved={(id) => navigate("/net-worth", { state: { highlight: `worth-manual:${id}` } })}
+        />
+      ) : null}
+      <div ref={accounts} hidden={found !== null}>
         <AccountPicker
           value={account?.id ?? null}
           onChange={(a) => {
@@ -170,9 +191,11 @@ export function UploadStatement({
           {missing}
         </p>
       ) : null}
-      <Button block onClick={next}>
-        Read file
-      </Button>
+      {found ? null : (
+        <Button block onClick={next}>
+          Read file
+        </Button>
+      )}
       <p className="auth__fineprint">
         PDFs: text statements work, scans don't. If yours won't read, use CSV or OFX.
       </p>

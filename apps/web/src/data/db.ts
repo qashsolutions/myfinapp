@@ -468,6 +468,13 @@ export interface NetWorthItem {
   source: "manual" | "account" | "debt";
   ref_id: string | null;
   included: boolean;
+  /**
+   * A value read from a document the person uploaded (November 16, 2026): the date the
+   * document says it is from, and that it came from one. Unset on values typed by hand. No
+   * index, so no new Dexie version; synced and exported with the row.
+   */
+  as_of?: string | null;
+  origin?: "document" | null;
   created_at: string;
   updated_at: string;
 }

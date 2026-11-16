@@ -60,6 +60,9 @@ export interface WorthRow {
   valueCents: number | null;
   included: boolean;
   updatedAt: string | null;
+  /** A value from a document: the date it says, else null. */
+  asOf: string | null;
+  fromDocument: boolean;
 }
 
 export interface NetWorthView {
@@ -162,6 +165,8 @@ export function useNetWorth(asOf: string): NetWorthView {
         valueCents: cents === null ? null : Math.abs(cents),
         included: picked?.included ?? true,
         updatedAt: null,
+        asOf: null,
+        fromDocument: false,
       });
     }
     for (const d of debts) {
@@ -179,6 +184,8 @@ export function useNetWorth(asOf: string): NetWorthView {
         valueCents: d.balance_cents,
         included: picked?.included ?? true,
         updatedAt: d.updated_at,
+        asOf: null,
+        fromDocument: false,
       });
     }
     for (const i of items.filter((x) => x.source === "manual"))
@@ -193,6 +200,8 @@ export function useNetWorth(asOf: string): NetWorthView {
         valueCents: i.value_cents ?? 0,
         included: true,
         updatedAt: i.updated_at,
+        asOf: i.as_of ?? null,
+        fromDocument: i.origin === "document",
       });
     return out;
   }, [accounts, debts, items, balances]);
@@ -253,8 +262,13 @@ export function useNetWorth(asOf: string): NetWorthView {
     rows: rows ?? [],
     summary,
     history: sorted.slice(-12),
+    // A value from a document is as old as the document says, not when it was uploaded.
     stale: (rows ?? []).filter(
-      (r) => r.source === "manual" && r.updatedAt !== null && r.updatedAt < staleBefore,
+      (r) =>
+        r.source === "manual" &&
+        (r.asOf
+          ? r.asOf < staleBefore.slice(0, 10)
+          : r.updatedAt !== null && r.updatedAt < staleBefore),
     ).length,
   };
 }
@@ -300,6 +314,52 @@ export async function saveManual(
     created_at: existing?.created_at ?? now,
     updated_at: now,
   });
+}
+
+/**
+ * A total read from a document the person uploaded (November 16, 2026): a new item, or an update
+ * of the one they picked. Keeps the date the document gives; nothing else of the document.
+ */
+export async function saveFromDocument(
+  db: StackdDb,
+  item: {
+    id?: string;
+    kind: "asset" | "debt";
+    group: string;
+    label: string;
+    value_cents: number;
+    as_of: string | null;
+  },
+): Promise<string> {
+  const now = new Date().toISOString();
+  const existing = item.id ? await db.net_worth_items.get(item.id) : undefined;
+  const id = existing?.id ?? newId();
+  await db.net_worth_items.put({
+    id,
+    kind: item.kind,
+    group: item.group,
+    label: item.label,
+    value_cents: item.value_cents,
+    source: "manual",
+    ref_id: null,
+    included: true,
+    as_of: item.as_of,
+    origin: "document",
+    created_at: existing?.created_at ?? now,
+    updated_at: now,
+  });
+  return id;
+}
+
+/** Hand-added items a document's total could be updating: same kind of thing, same name. */
+export function sameItems(
+  items: NetWorthItem[],
+  found: { kind: "asset" | "debt"; label: string },
+): NetWorthItem[] {
+  const name = found.label.trim().toLowerCase();
+  return items.filter(
+    (i) => i.source === "manual" && i.kind === found.kind && i.label.trim().toLowerCase() === name,
+  );
 }
 
 export async function removeManual(db: StackdDb, id: string): Promise<void> {

@@ -93,3 +93,19 @@ export function sampleCardStatementPdf(): Uint8Array {
   lines.push({ x: 50, y: 270, text: "New balance 55.00" });
   return buildPdf(lines);
 }
+
+/**
+ * A made-up brokerage positions page (November 16, 2026): what someone owns, with an account
+ * total, read into Net worth rather than imported as transactions.
+ */
+export function samplePositionsPdf(): Uint8Array {
+  return buildPdf([
+    { x: 50, y: 60, text: "Portfolio Positions" },
+    { x: 50, y: 80, text: "Rollover IRA" },
+    { x: 50, y: 100, text: "Brokerage: 123456789" },
+    { x: 50, y: 120, text: "Overview As of Sep-03-2026 12:22 p.m. ET" },
+    { x: 50, y: 150, text: "Symbol   Last price   Quantity   Cost basis   % of account" },
+    { x: 50, y: 170, text: "ABCD   $10.00   5   $40.00   100.00%" },
+    { x: 50, y: 200, text: "Account total $1,250.40" },
+  ]);
+}

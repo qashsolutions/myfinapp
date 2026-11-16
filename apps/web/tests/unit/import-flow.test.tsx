@@ -725,7 +725,7 @@ vi.mock("../../src/importers/pdf/extract.ts", async (importOriginal) => {
 });
 
 describe("PDF statement (fast-follow 2)", () => {
-  it("a brokerage's positions page says it's holdings, keeps the file's name, and points to Net worth", async () => {
+  it("a positions page with no total it can read says it's holdings, keeps the name, points to Net worth", async () => {
     vi.mocked(extractLines).mockResolvedValueOnce([
       "Portfolio Positions",
       "Positions",
@@ -734,7 +734,6 @@ describe("PDF statement (fast-follow 2)", () => {
       "Today's gain/loss Total gain/loss Current value % of account",
       "ABCD $10.00 5 $40.00",
       "EXAMPLE CORP +$1.00 +2.00%",
-      "Account total $50.00",
     ]);
     const user = userEvent.setup();
     const fake = await start();
@@ -760,6 +759,113 @@ describe("PDF statement (fast-follow 2)", () => {
     expect(onlySessionReads(fake.calls)).toEqual([]);
     // Nothing was imported.
     expect(await openDb("u1").entries.count()).toBe(0);
+  });
+
+  it("an IRA positions page: its total, checked, goes to Net worth; the next one updates it", async () => {
+    const positions = (total: string, day: string) => [
+      "Portfolio Positions",
+      "Positions",
+      "Rollover IRA",
+      "Brokerage: 123456789 · Routing number",
+      `Overview As of ${day} 12:22 p.m. ET`,
+      "Symbol Last price Quantity Cost basis",
+      "Today's gain/loss Total gain/loss Current value % of account",
+      "ABCD $10.00 5 $40.00",
+      `Account total ${total}`,
+    ];
+    vi.mocked(extractLines).mockResolvedValueOnce(positions("$1,250.40", "Sep-03-2026"));
+    const user = userEvent.setup();
+    const fake = await start();
+    const pdf = (name: string) =>
+      new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])], name, {
+        type: "application/pdf",
+      });
+    await user.upload(screen.getByLabelText(/Choose a statement file/), pdf("Positions.pdf"));
+    const card = await screen.findByRole("region", { name: "Found in this document" });
+    expect(
+      screen.getByText("Investment account · total found · for Net worth"),
+    ).toBeInTheDocument();
+    expect(card).toHaveTextContent("An account's total of $1,250.40 as of Sep 3, 2026.");
+    expect(within(card).getByLabelText("Name")).toHaveValue("Rollover IRA");
+    expect(within(card).getByLabelText("What it's worth")).toHaveValue("1250.40");
+    expect(within(card).getByRole("radio", { name: "Retirement" })).toBeChecked();
+    // No account to pick and no Read file: this isn't a statement of transactions.
+    expect(screen.queryByRole("button", { name: "Read file" })).toBeNull();
+    // Never a dead button
+    await user.clear(within(card).getByLabelText("Name"));
+    await user.click(within(card).getByRole("button", { name: "Add to Net worth" }));
+    expect(within(card).getByRole("alert")).toHaveTextContent("Give it a name");
+    expect(within(card).getByLabelText("Name")).toHaveFocus();
+    await user.type(within(card).getByLabelText("Name"), "Rollover IRA");
+    await user.click(within(card).getByRole("button", { name: "Add to Net worth" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Net worth" })).toBeInTheDocument();
+    const db = openDb("u1");
+    const items = await db.net_worth_items.toArray();
+    expect(items).toMatchObject([
+      {
+        kind: "asset",
+        group: "retirement",
+        label: "Rollover IRA",
+        value_cents: 125040,
+        as_of: "2026-09-03",
+        origin: "document",
+        source: "manual",
+      },
+    ]);
+    // Only these fields: never the account number or the holdings.
+    expect(JSON.stringify(items)).not.toMatch(/123456789|ABCD/);
+    expect(await screen.findByText(/As of Sep 3, 2026 · from a document/)).toBeInTheDocument();
+    expect(onlySessionReads(fake.calls).filter((c) => c.path !== "/api/billing")).toEqual([]);
+    expect(JSON.stringify(fake.calls.map((c) => c.body ?? null))).not.toMatch(
+      /1250|125040|Rollover/,
+    );
+
+    // A newer page updates the same account.
+    vi.mocked(extractLines).mockResolvedValueOnce(positions("$1,300.00", "Oct-01-2026"));
+    renderApp("/import");
+    await user.upload(
+      (await screen.findAllByLabelText(/Choose a statement file/)).at(-1) as HTMLElement,
+      pdf("Positions-oct.pdf"),
+    );
+    const next = (await screen.findAllByRole("region", { name: "Found in this document" })).at(
+      -1,
+    ) as HTMLElement;
+    await user.click(within(next).getByRole("button", { name: "Update “Rollover IRA”" }));
+    await waitFor(async () =>
+      expect(await db.net_worth_items.toArray()).toMatchObject([
+        { label: "Rollover IRA", value_cents: 130000, as_of: "2026-10-01" },
+      ]),
+    );
+  });
+
+  it("a mortgage statement: the principal owed, as a debt", async () => {
+    vi.mocked(extractLines).mockResolvedValueOnce([
+      "Example Home Lending",
+      "Mortgage Statement",
+      "Statement date 10/15/2026",
+      "Loan number 0099887766",
+      "Unpaid principal balance $312,450.77",
+      "Amount due $2,104.10",
+    ]);
+    const user = userEvent.setup();
+    await start();
+    await user.upload(
+      screen.getByLabelText(/Choose a statement file/),
+      new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])], "mortgage.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    const card = await screen.findByRole("region", { name: "Found in this document" });
+    expect(card).toHaveTextContent("A balance owed of $312,450.77 as of Oct 15, 2026.");
+    expect(within(card).getByRole("radio", { name: "Mortgage" })).toBeChecked();
+    await user.click(within(card).getByRole("button", { name: "Add to Net worth" }));
+    await screen.findByRole("heading", { level: 1, name: "Net worth" });
+    const items = await openDb("u1").net_worth_items.toArray();
+    expect(items).toMatchObject([
+      { kind: "debt", group: "mortgage", label: "Mortgage", value_cents: 31245077 },
+    ]);
+    expect(JSON.stringify(items)).not.toMatch(/0099887766/);
   });
 
   it("reads a PDF on the device, skips column matching, imports with the template recorded; nothing is uploaded", async () => {
