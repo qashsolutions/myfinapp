@@ -25,6 +25,12 @@ export function DataSettings() {
           onClick={go("/me/accounts")}
         />
         <ListRow
+          label="Your documents"
+          sublabel="Every statement and document added"
+          href="/me/documents"
+          onClick={go("/me/documents")}
+        />
+        <ListRow
           label="Categories"
           sublabel="Your own, rules and names"
           href="/me/categories"

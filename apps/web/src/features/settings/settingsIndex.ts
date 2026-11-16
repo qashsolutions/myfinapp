@@ -128,6 +128,13 @@ export const ENTRIES: SettingEntry[] = [
     words: "accounts balances statements import upload csv ofx pdf",
   },
   {
+    label: "Your documents",
+    group: "data",
+    path: "/me/documents",
+    words:
+      "documents files uploads uploaded statements imported history list pdf csv positions mortgage loan ira 401k",
+  },
+  {
     label: "Card payment due day",
     group: "data",
     path: "/me/accounts",

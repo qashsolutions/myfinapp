@@ -123,6 +123,7 @@ const signedIn: Array<[string, string | RegExp]> = [
   ["/me/look", "Look & feel"],
   ["/me/help", "Help & legal"],
   ["/me/accounts", "Accounts & imports"],
+  ["/me/documents", "Your documents"],
   ["/me/categories", "Categories"],
   ["/me/subscription-words", "Subscription words"],
   ["/me/linking", "Linked banks & cards"],

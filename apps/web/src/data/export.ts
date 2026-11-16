@@ -104,6 +104,7 @@ export async function collectExport(
     ownSubscriptionKinds,
     ownSubscriptionWords,
     splitPayments,
+    documentImports,
   ] = await Promise.all([
     db.accounts.toArray(),
     db.categories.toArray(),
@@ -132,6 +133,7 @@ export async function collectExport(
     db.own_subscription_kinds.toArray(),
     db.own_subscription_words.toArray(),
     db.split_payments.toArray(),
+    db.document_imports.toArray(),
   ]);
   const settings = allSettings.filter((s) => exportsSetting(s.key));
   const statementPath = (f: { id: string; name: string }) =>
@@ -237,6 +239,7 @@ export async function collectExport(
         emergency_fund: fund ?? null,
         balance_anchors: anchors,
         statement_imports: imports,
+        document_imports: documentImports,
         card_details: cards,
         card_due_dates: cardDueDates,
         csv_mappings: csvMappings,

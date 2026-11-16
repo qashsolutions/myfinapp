@@ -42,6 +42,25 @@ def test_limits_follow_the_owner_decision() -> None:
     assert set(limits_for("free")) == set(LIMIT_KEYS)
 
 
+def test_import_limits_follow_the_owner_decision() -> None:
+    """Files read in one go on Import (owner decision, November 16, 2026): 5 on Private and 10 on
+    Connected, 2 MB a file, 10 MB and 20 MB a batch; Founding is Connected."""
+    got = {
+        p: (
+            limits_for(p)["import_files_max"],
+            limits_for(p)["import_file_mb"],
+            limits_for(p)["import_batch_mb"],
+        )
+        for p in ("free", "private", "connected", "founding")
+    }
+    assert got == {
+        "free": (1, 2, 2),
+        "private": (5, 2, 10),
+        "connected": (10, 2, 20),
+        "founding": (10, 2, 20),
+    }
+
+
 def test_the_refund_fee_on_screen_comes_from_plans_yaml_only() -> None:
     """No second copy of the fee rule (October 28, 2026): CreditOut had literal defaults that
     would have gone stale silently if plans.yaml changed."""

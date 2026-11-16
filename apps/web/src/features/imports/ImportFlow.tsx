@@ -10,6 +10,7 @@ import { useDb } from "../../data/DbProvider.tsx";
 import type { Account, CsvMapping } from "../../data/db.ts";
 import { parseAmount } from "../../engine/bridge.ts";
 import { applyMapping } from "../../importers/csv.ts";
+import { maskFileName } from "../../importers/masking.ts";
 import { todayIso } from "../../lib/format.ts";
 import { ColumnMapper } from "./ColumnMapper.tsx";
 import { ImportPreview } from "./ImportPreview.tsx";
@@ -53,7 +54,8 @@ export function ImportFlow() {
   const [remember, setRemember] = useState(true);
   const [prepared, setPrepared] = useState<Prepared | null>(null);
   const [transfers, setTransfers] = useState<Set<string>>(new Set());
-  const [keepFile, setKeepFile] = useState(true);
+  // The original file stays only when the person chooses (owner decision, November 16, 2026).
+  const [keepFile, setKeepFile] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,7 +118,7 @@ export function ImportFlow() {
       await commitImport(db, {
         account,
         format: chosen.parsed.format,
-        fileName: chosen.file.name,
+        fileName: maskFileName(chosen.file.name),
         prepared,
         transfers,
         mapping: mapping ?? undefined,
@@ -167,7 +169,7 @@ export function ImportFlow() {
       ) : null}
       {step === 2 && chosen?.parsed.csv && mapping && account ? (
         <ColumnMapper
-          fileName={chosen.file.name}
+          fileName={maskFileName(chosen.file.name)}
           account={account}
           table={chosen.parsed.csv}
           mapping={mapping}

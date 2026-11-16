@@ -29,6 +29,9 @@ export const FAKE_LIMITS: Record<string, Record<string, unknown>> = {
     split_bills_per_day: 0,
     split_people_max: 0,
     split_invites_per_day: 0,
+    import_files_max: 1,
+    import_file_mb: 2,
+    import_batch_mb: 2,
   },
   private: {
     goals_active_max: 4,
@@ -41,6 +44,9 @@ export const FAKE_LIMITS: Record<string, Record<string, unknown>> = {
     split_bills_per_day: 6,
     split_people_max: 6,
     split_invites_per_day: 6,
+    import_files_max: 5,
+    import_file_mb: 2,
+    import_batch_mb: 10,
   },
   connected: {
     goals_active_max: 10,
@@ -53,6 +59,9 @@ export const FAKE_LIMITS: Record<string, Record<string, unknown>> = {
     split_bills_per_day: 12,
     split_people_max: 12,
     split_invites_per_day: 12,
+    import_files_max: 10,
+    import_file_mb: 2,
+    import_batch_mb: 20,
   },
 };
 

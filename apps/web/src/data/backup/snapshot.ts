@@ -58,6 +58,8 @@ export const SYNCED_TABLES: Array<{
   { name: "own_subscription_words", key: "id", updatedAt: "updated_at" },
   // Split bills (S.4): the Check first confirmations, Payments I confirmed.
   { name: "split_payments", key: "id", updatedAt: "updated_at" },
+  // Documents whose total went to Net worth (November 16, 2026): written once, never edited.
+  { name: "document_imports", key: "id", updatedAt: null },
 ];
 
 export type SyncedTable =
@@ -84,7 +86,8 @@ export type SyncedTable =
   | "card_due_dates"
   | "own_subscription_kinds"
   | "own_subscription_words"
-  | "split_payments";
+  | "split_payments"
+  | "document_imports";
 
 /** How long a removal is remembered before it may be pruned (docs/spec.md chunk 1.16). */
 export const TOMBSTONE_HORIZON_DAYS = 180;

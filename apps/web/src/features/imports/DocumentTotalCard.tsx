@@ -22,9 +22,12 @@ import {
  */
 export function DocumentTotalCard({
   total,
+  fileName,
   onSaved,
 }: {
   total: DocumentTotal;
+  /** The file it was read from, for Your documents (masked when kept). */
+  fileName: string;
   onSaved: (itemId: string) => void;
 }) {
   const ids = useId();
@@ -69,6 +72,7 @@ export function DocumentTotalCard({
       label: name.slice(0, 30),
       value_cents: cents,
       as_of: asOf || null,
+      file_name: fileName,
     });
     onSaved(id);
   }

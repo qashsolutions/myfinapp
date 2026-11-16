@@ -53,6 +53,7 @@ import { KeptOnPhone } from "../features/settings/KeptOnPhone.tsx";
 import { LookSettings } from "../features/settings/LookSettings.tsx";
 import { MeLayout } from "../features/settings/MeLayout.tsx";
 import { SettingsScreen } from "../features/settings/SettingsScreen.tsx";
+import { YourDocuments } from "../features/settings/YourDocuments.tsx";
 import { AddSplitBill } from "../features/splits/AddSplitBill.tsx";
 import { HowFriendsPayMe } from "../features/splits/HowFriendsPayMe.tsx";
 import { JoinSplit } from "../features/splits/JoinSplit.tsx";
@@ -136,6 +137,7 @@ export function AppRoutes() {
             <Route path="help" element={<HelpSettings />} />
             <Route path="security" element={<SecurityScreen />} />
             <Route path="accounts" element={<AccountsManager />} />
+            <Route path="documents" element={<YourDocuments />} />
             <Route path="categories" element={<CategoriesScreen />} />
             <Route path="subscription-words" element={<SubscriptionWordsScreen />} />
             <Route path="email" element={<ChangeEmail />} />

@@ -54,6 +54,10 @@ export interface Entitlements {
   split_bills_per_day: number;
   split_people_max: number;
   split_invites_per_day: number;
+  /** Import (November 16, 2026): files read in one go, each file's size and all of them together, in MB. */
+  import_files_max: number;
+  import_file_mb: number;
+  import_batch_mb: number;
 }
 
 /** Free's limits, the fallback before the first server answer. A test checks them against plans.yaml. */
@@ -70,6 +74,9 @@ export const FREE_ENTITLEMENTS: Entitlements = {
   split_bills_per_day: 0,
   split_people_max: 0,
   split_invites_per_day: 0,
+  import_files_max: 1,
+  import_file_mb: 2,
+  import_batch_mb: 2,
 };
 
 const PLANS = new Set<string>(["free", "private", "connected", "founding"]);
@@ -125,6 +132,10 @@ export function parseEntitlements(raw: unknown): Entitlements | null {
   const splitBills = limit(r.split_bills_per_day) ?? 0;
   const splitPeople = limit(r.split_people_max) ?? 0;
   const splitInvites = limit(r.split_invites_per_day) ?? 0;
+  // A cached answer from before the import limits has none: Free's, until the server says.
+  const importFiles = limit(r.import_files_max) ?? FREE_ENTITLEMENTS.import_files_max;
+  const importFileMb = limit(r.import_file_mb) ?? FREE_ENTITLEMENTS.import_file_mb;
+  const importBatchMb = limit(r.import_batch_mb) ?? FREE_ENTITLEMENTS.import_batch_mb;
   if (
     plan === null ||
     goals === undefined ||
@@ -149,6 +160,9 @@ export function parseEntitlements(raw: unknown): Entitlements | null {
     split_bills_per_day: splitBills,
     split_people_max: splitPeople,
     split_invites_per_day: splitInvites,
+    import_files_max: importFiles,
+    import_file_mb: importFileMb,
+    import_batch_mb: importBatchMb,
   };
 }
 
