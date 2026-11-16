@@ -49,6 +49,54 @@ def debt(
     }
 
 
+def lump_sum(
+    debts: object, extra_cents: object, lump_cents: object, as_of: str, order: object = None
+) -> dict:
+    """One payment of `lump_cents` today down the payoff plan's order, then the plan run with the
+    new balances (docs/spec.md, `whatif.lump_sum`, November 16, 2026). A debt the payment clears
+    keeps its minimum in the monthly budget, so what the person pays each month rolls on."""
+    lump = _int(lump_cents, "invalid_amount")
+    if lump < 0:
+        raise RuleError("invalid_amount")
+    kind = "avalanche" if order is None else order
+    if kind not in bills.ORDERS:
+        raise RuleError("invalid_order")
+    if kind == "avalanche":
+        ordered = bills.avalanche_order(debts)["order"]
+    else:
+        ordered = bills.snowball_order(debts)
+    left = lump
+    applied = []
+    new_balance: dict[str, int] = {}
+    for d in ordered:
+        pay = min(d["balance_cents"], left)
+        new_balance[d["id"]] = d["balance_cents"] - pay
+        left -= pay
+        if pay > 0:
+            applied.append({"id": d["id"], "cents": pay})
+    reduced = [{**d, "balance_cents": new_balance[d["id"]]} for d in debts]
+    before = bills.payoff_plan(debts, extra_cents, as_of, order)
+    after = bills.payoff_plan(reduced, extra_cents, as_of, order)
+    both = not before["stalled"] and not after["stalled"]
+    if after["stalled"]:
+        status = "stalled"
+    elif before["stalled"] or after["months"] < before["months"]:
+        status = "sooner"
+    else:
+        status = "same"
+    return {
+        "applied": applied,
+        "unused_cents": left,
+        "before": _side(before),
+        "after": _side(after),
+        "months_sooner": before["months"] - after["months"] if both else None,
+        "interest_saved_cents": (
+            before["total_interest_cents"] - after["total_interest_cents"] if both else None
+        ),
+        "status": status,
+    }
+
+
 def _months_to(remaining: int, per_month: int) -> int | None:
     if remaining == 0:
         return 0

@@ -378,7 +378,7 @@ describe("the visual pass: grows chart and slider, What if timelines (October 29
       within(levers)
         .getAllByRole("radio")
         .map((r) => r.closest("label")?.textContent),
-    ).toEqual(["One loan", "All debts", "Spend less", "Payday"]);
+    ).toEqual(["One loan", "All debts", "Savings", "Spend less", "Payday"]);
     const result = await screen.findByRole("region", { name: "What changes for Card" });
     // 4 months at the minimum (paid off February 2027, $6.14), 2 with $100 more (December).
     const picture = await within(result).findByRole("img");

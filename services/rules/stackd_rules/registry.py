@@ -437,6 +437,12 @@ def _whatif_debt(
     return whatif.debt(debts, extra_cents, add_cents, as_of, order)
 
 
+def _whatif_lump_sum(
+    debts: list, extra_cents: int, lump_cents: int, as_of: str, order: str | None = None
+) -> dict:
+    return whatif.lump_sum(debts, extra_cents, lump_cents, as_of, order)
+
+
 def _whatif_goal(remaining_cents: int, per_month_cents: int, add_cents: int, as_of: str) -> dict:
     return whatif.goal(remaining_cents, per_month_cents, add_cents, as_of)
 
@@ -563,6 +569,7 @@ _BARE: dict[str, Rule] = {
     "growth.goal_pace": _growth_goal_pace,
     "whatif.debt": _whatif_debt,
     "whatif.goal": _whatif_goal,
+    "whatif.lump_sum": _whatif_lump_sum,
     "notify.decide": _notify_decide,
     "alerts.schedule": _alerts_schedule,
     "alerts.tag": _alerts_tag,

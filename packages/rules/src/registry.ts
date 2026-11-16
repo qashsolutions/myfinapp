@@ -502,6 +502,10 @@ const BARE: Record<string, Rule> = {
     const a = args(input, ["debts", "extra_cents", "add_cents", "as_of"], ["order"]);
     return { ...whatif.debt(a.debts, a.extra_cents, a.add_cents, a.as_of, a.order) };
   },
+  "whatif.lump_sum": (input) => {
+    const a = args(input, ["debts", "extra_cents", "lump_cents", "as_of"], ["order"]);
+    return { ...whatif.lumpSum(a.debts, a.extra_cents, a.lump_cents, a.as_of, a.order) };
+  },
   "whatif.goal": (input) => {
     const a = args(input, ["remaining_cents", "per_month_cents", "add_cents", "as_of"]);
     return { ...whatif.goal(a.remaining_cents, a.per_month_cents, a.add_cents, a.as_of) };

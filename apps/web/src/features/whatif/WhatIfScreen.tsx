@@ -28,6 +28,7 @@ import { compareText } from "../../lib/order.ts";
 import { ORDER_SETTING, orderLabel, usePlanDebts } from "../bills/debtPlan.ts";
 import { EXTRA_SETTING } from "../bills/PayoffPlan.tsx";
 import { newMoneyIn, useGoals } from "../goals/useGoals.ts";
+import { SavingsOnDebt } from "./SavingsOnDebt.tsx";
 import { WhatIfTimeline } from "./WhatIfTimeline.tsx";
 
 /**
@@ -37,6 +38,7 @@ import { WhatIfTimeline } from "./WhatIfTimeline.tsx";
 export const LEVERS = [
   ["loan", "One loan", "Extra on a loan"],
   ["debts", "All debts", "Extra on all debts"],
+  ["savings", "Savings", "Use savings on debt"],
   ["spend", "Spend less", "Spend less"],
   ["payday", "Payday", "Set aside each payday"],
 ] as const;
@@ -57,6 +59,8 @@ export interface WhatIfLast {
   loan: number;
   debts: number;
   spend: number;
+  /** Use savings on debt: the one-time amount (November 16, 2026). */
+  savings?: number;
   debt_id: string | null;
   category_id: string | null;
 }
@@ -67,7 +71,7 @@ export function readLast(value: unknown): Partial<WhatIfLast> {
   const v = value as Record<string, unknown>;
   const out: Partial<WhatIfLast> = {};
   if (LEVERS.some(([k]) => k === v.lever)) out.lever = v.lever as Lever;
-  for (const k of ["loan", "debts", "spend"] as const) {
+  for (const k of ["loan", "debts", "spend", "savings"] as const) {
     const cents = typeof v[k] === "number" ? prefillAmount(String(v[k])) : null;
     if (cents !== null) out[k] = cents;
   }
@@ -104,6 +108,14 @@ function LeverIcon({ lever }: { lever: Lever }) {
           <rect x="3" y="4" width="18" height="4" rx="2" {...common} />
           <rect x="3" y="10" width="14" height="4" rx="2" {...common} />
           <rect x="3" y="16" width="9" height="4" rx="2" {...common} />
+        </>
+      ) : lever === "savings" ? (
+        <>
+          <ellipse cx="12" cy="7" rx="7" ry="3" {...common} />
+          <path
+            d="M5 7v5c0 1.7 3.1 3 7 3s7-1.3 7-3V7M5 12v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"
+            {...common}
+          />
         </>
       ) : lever === "spend" ? (
         <>
@@ -154,7 +166,7 @@ function toInput(d: Debt): DebtInput {
 }
 
 /** Suggested amounts as chips plus the person's own, read by the engine's parseAmount. */
-function AmountChoice({
+export function AmountChoice({
   legend,
   presets,
   value,
@@ -223,11 +235,12 @@ function AmountChoice({
 }
 
 /** The result of a debt lever: one word, then what it means. */
-function DebtResult({
+export function DebtResult({
   r,
   label,
   planExtra,
   add,
+  afterLabel,
 }: {
   r: WhatIfDebt;
   label: string | null;
@@ -235,6 +248,8 @@ function DebtResult({
   add: number;
   /** The extra already in the plan the lever adds to: 0 means the minimums alone. */
   planExtra: number;
+  /** The second bar's label when it isn't "With $X more a month" (a one-time payment). */
+  afterLabel?: string;
 }) {
   const word = r.status === "sooner" ? "Sooner" : r.status === "stalled" ? "Stalled" : "Same";
   const who = label ? `${label} paid off` : "Debt-free";
@@ -269,7 +284,7 @@ function DebtResult({
           note: interest(r.before.interest_cents),
         }}
         after={{
-          label: `With ${formatCents(add)} more a month`,
+          label: afterLabel ?? `With ${formatCents(add)} more a month`,
           months: r.after.months,
           end: r.after.debt_free_month,
           note: interest(r.after.interest_cents),
@@ -414,6 +429,7 @@ export function WhatIfScreen() {
   const [allAdd, setAllAdd] = useState(lever === "debts" ? (prefill ?? 10000) : 10000);
   const [categoryId, setCategoryId] = useState<string>(params.get("category") ?? "");
   const [spendAdd, setSpendAdd] = useState(lever === "spend" ? (prefill ?? 5000) : 5000);
+  const [savingsUse, setSavingsUse] = useState(lever === "savings" ? (prefill ?? 100000) : 100000);
   const [loanResult, setLoanResult] = useState<WhatIfDebt | null>(null);
   const [allResult, setAllResult] = useState<WhatIfDebt | null>(null);
   const [spendDebts, setSpendDebts] = useState<WhatIfDebt | null>(null);
@@ -434,6 +450,7 @@ export function WhatIfScreen() {
     if (last.loan && linked !== "loan") setLoanAdd(last.loan);
     if (last.debts && linked !== "debts") setAllAdd(last.debts);
     if (last.spend && linked !== "spend") setSpendAdd(last.spend);
+    if (last.savings && linked !== "savings") setSavingsUse(last.savings);
     if (last.debt_id && !params.get("debt")) setDebtId(last.debt_id);
     if (last.category_id && !params.get("category")) setCategoryId(last.category_id);
     setApplied(true);
@@ -445,13 +462,14 @@ export function WhatIfScreen() {
       loan: loanAdd,
       debts: allAdd,
       spend: spendAdd,
+      savings: savingsUse,
       debt_id: debtId,
       category_id: categoryId || null,
     };
     // Written at once (one small row on this device): a delay would lose the last try when the
     // page is left or reloaded before it ran, and no unmount runs on a page unload.
     void saveLast(db, value);
-  }, [applied, db, lever, loanAdd, allAdd, spendAdd, debtId, categoryId]);
+  }, [applied, db, lever, loanAdd, allAdd, spendAdd, savingsUse, debtId, categoryId]);
 
   const debt = debts?.find((d) => d.id === debtId) ?? debts?.[0] ?? null;
   const category =
@@ -620,6 +638,23 @@ export function WhatIfScreen() {
             </>
           )}
         </Card>
+      ) : null}
+
+      {lever === "savings" ? (
+        noDebts ? (
+          <Card as="section" aria-label="Use savings on debt">
+            {addDebt}
+          </Card>
+        ) : debts && extra !== undefined && order ? (
+          <SavingsOnDebt
+            debts={debts.map(toInput)}
+            extra={extra}
+            order={order}
+            today={today}
+            amount={savingsUse}
+            onAmount={setSavingsUse}
+          />
+        ) : null
       ) : null}
 
       {lever === "spend" && spendJar && jar ? (
