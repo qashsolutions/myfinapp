@@ -1,3 +1,4 @@
+import { looksLikeHoldings } from "../totals.ts";
 /**
  * PDF statement templates (docs/spec.md "Statement import": fixed per-institution templates for
  * a launch list of banks; everyone else gets "download a CSV instead"). A template says how to
@@ -265,26 +266,4 @@ export async function parsePdfLines(
   if (statement.rows.length === 0)
     throw new PdfError(looksLikeHoldings(lines) ? "holdings" : "unsupported_layout");
   return statement;
-}
-
-/**
- * Words a brokerage's positions or holdings page prints and a bank or card statement doesn't
- * (November 16, 2026): what someone owns, not money in and out. Three or more, with no
- * transactions found, and the screen says so instead of blaming the layout.
- */
-const HOLDINGS_WORDS = [
-  "positions",
-  "holdings",
-  "cost basis",
-  "quantity",
-  "symbol",
-  "market value",
-  "unrealized",
-  "% of account",
-  "gain/loss",
-];
-
-export function looksLikeHoldings(lines: string[]): boolean {
-  const text = lines.slice(0, 120).join(" ").toLowerCase();
-  return HOLDINGS_WORDS.filter((w) => text.includes(w)).length >= 3;
 }

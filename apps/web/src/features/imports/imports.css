@@ -140,3 +140,22 @@
 .summary-row--warn strong {
   color: var(--c-warning);
 }
+
+/* A document with a total for Net worth (November 16, 2026). */
+.doc-total {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.doc-total__line {
+  margin: 0;
+  color: var(--c-sub);
+}
+.doc-total__line strong {
+  color: var(--c-ink);
+}
+.doc-total__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

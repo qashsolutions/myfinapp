@@ -21,6 +21,7 @@ import { engine, matchTransfers, parseAmount, type RuleEntry } from "../../engin
 import { type CsvTable, guessMapping, type MappedRow, parseCsv } from "../../importers/csv.ts";
 import { looksLikeOfx, type OfxStatement, parseOfx } from "../../importers/ofx.ts";
 import { extractLines, type PdfStatement, parsePdfLines } from "../../importers/pdf/index.ts";
+import { type DocumentTotal, readCsvTotal, readDocumentTotal } from "../../importers/totals.ts";
 import { addDaysIso } from "../../lib/dates.ts";
 import { compareText } from "../../lib/order.ts";
 import { savedNames } from "../entries/entryActions.ts";
@@ -49,6 +50,31 @@ export async function parsePdfFile(bytes: Uint8Array): Promise<ParsedFile> {
   const pdfLines = await extractLines(bytes);
   const pdf = await parsePdfLines(pdfLines, parseAmount);
   return { format: "pdf", pdf, pdfLines, rowCount: pdf.rows.length };
+}
+
+/**
+ * What a picked file is (November 16, 2026): a statement of transactions to import, or a
+ * document with a total for Net worth (an investment account, a loan or mortgage). A document
+ * with a total is read as one even when it also lists activity, so a brokerage statement's
+ * dividends never become spending.
+ */
+export type ReadFile = { parsed: ParsedFile } | { total: DocumentTotal };
+
+export async function readPdfForImport(bytes: Uint8Array): Promise<ReadFile> {
+  const pdfLines = await extractLines(bytes);
+  const total = await readDocumentTotal(pdfLines, parseAmount);
+  if (total) return { total };
+  const pdf = await parsePdfLines(pdfLines, parseAmount);
+  return { parsed: { format: "pdf", pdf, pdfLines, rowCount: pdf.rows.length } };
+}
+
+export async function readTextForImport(name: string, text: string): Promise<ReadFile> {
+  const parsed = await parseFile(name, text);
+  if (parsed.csv) {
+    const total = await readCsvTotal(parsed.csv.headers, parsed.csv.rows, parseAmount);
+    if (total) return { total };
+  }
+  return { parsed };
 }
 
 /**

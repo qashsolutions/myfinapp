@@ -871,6 +871,15 @@ written against both.
     searched in navigation state, never the address (a reload sends only the address).
     `search.test.tsx` · `search-data.test.tsx` · `a11y.test.tsx` · `e2e/search.spec.ts`
 
+92. **A document's total is the person's to confirm, and only it is kept** (November 16, 2026;
+    owner decision the same day). An investment or loan document becomes one Net worth item
+    only after the person sees the name, amount, date and kind and taps Add or Update; until
+    then nothing is written. What is kept is those four and that it came from a document,
+    never the file, an account number or a holding, and nothing of it is sent. A document with
+    a total is never imported as transactions, so an investment's activity never counts as
+    spending; a bank or card statement never reads as a total.
+    `document-totals.test.ts` · `import-flow.test.tsx` · `e2e/net-worth-documents.spec.ts`
+
 59 (again, October 29, 2026). The sweep was repeated on main after #51: every
 `db.transaction(...)` body in `apps/web/src` (47) was read for awaits of anything but Dexie,
 including the linking sync write, the import commit, the backup merge, the household pull and

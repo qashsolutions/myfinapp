@@ -9,7 +9,7 @@ import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import { type NetWorthPoint, parseAmount } from "../../engine/bridge.ts";
-import { dayOf, formatCents, formatDay, todayIso } from "../../lib/format.ts";
+import { dayOf, formatCents, formatDate, formatDay, todayIso } from "../../lib/format.ts";
 import { ChoiceChips } from "../goals/CustomValueSheet.tsx";
 import { RangePicker, RangeStepper } from "../ranges/RangePicker.tsx";
 import { type Range, useRange } from "../ranges/ranges.ts";
@@ -235,13 +235,16 @@ export function NetWorthScreen() {
         ? "Account"
         : r.source === "debt"
           ? "From Debt payoff"
-          : r.updatedAt
-            ? `Updated ${formatDay(dayOf(r.updatedAt))}`
-            : "";
+          : r.fromDocument && r.asOf
+            ? `As of ${formatDate(r.asOf)} · from a document`
+            : r.updatedAt
+              ? `Updated ${formatDay(dayOf(r.updatedAt))}`
+              : "";
     if (r.source === "manual")
       return (
         <ListRow
           key={r.key}
+          id={`worth-${r.key}`}
           label={r.label}
           sublabel={`${GROUP_LABEL[r.group] ?? r.group} · ${where}`}
           value={value}
