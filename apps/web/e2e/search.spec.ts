@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { readyAccount } from "./helpers.ts";
+import { readyAccount, statementThisMonth } from "./helpers.ts";
 
 /**
  * Search across the app (November 16, 2026): from any screen, everyday words and a typo find the
@@ -63,4 +63,52 @@ test("search: ⌘K from the side rail's computer layout", async ({ page }) => {
   await expect(
     page.locator(".rail").getByRole("button", { name: "Search", exact: true }),
   ).toBeVisible();
+});
+
+test("@phone search your own data: a merchant and an amount from a statement, nothing sent", async ({
+  page,
+}) => {
+  await readyAccount(page, "search-data");
+  await page.goto("/import");
+  await page.getByLabel(/Choose a statement file/).setInputFiles(statementThisMonth());
+  await page.getByRole("button", { name: "+ New account" }).click();
+  await page.getByLabel("Account name").fill("Everyday checking");
+  await page.getByRole("button", { name: "Add account" }).click();
+  await page.getByRole("button", { name: "Read file" }).click();
+  await page.getByRole("button", { name: "Looks right" }).click();
+  await page.getByRole("button", { name: "Import 4 transactions" }).click();
+  await expect(page.getByText("ACME PAYROLL")).toBeVisible();
+
+  const sent: string[] = [];
+  page.on("request", (r) => sent.push(`${r.url()} ${r.postData() ?? ""}`));
+  const sheet = page.getByRole("dialog", { name: "Search" });
+  const box = sheet.getByRole("combobox", { name: "Search Qash" });
+
+  // A merchant: all its entries and what they add up to.
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await box.fill("corner");
+  const merchants = sheet.getByRole("group", { name: "Merchants" });
+  await merchants.getByRole("option", { name: /CORNER MKT/ }).click();
+  await expect(page.getByRole("heading", { level: 1, name: /CORNER MKT/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "What they add up to" })).toContainText("$42.17");
+  // The search is never in the address, so a reload sends nothing of it to the server; the
+  // tab keeps the list itself. Opened fresh (a pasted link), there's nothing to show.
+  expect(page.url()).toMatch(/\/search\/entries$/);
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1, name: /CORNER MKT/ })).toBeVisible();
+  const fresh = await page.context().newPage();
+  await fresh.goto("/search/entries");
+  await expect(fresh.getByText("Searches aren't kept, so search again.")).toBeVisible();
+  await fresh.close();
+
+  // An amount opens its entry.
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await box.fill("2.75");
+  await sheet.getByRole("group", { name: "Entries" }).getByRole("option").first().click();
+  await expect(page.getByRole("textbox", { name: "Merchant" })).toHaveValue("METRO TRANSIT");
+  await expect(page.getByRole("textbox", { name: "Amount" })).toHaveValue("2.75");
+
+  expect(sent.join("\n")).not.toMatch(/corner|metro|2\.75/i);
+  const stored = await page.evaluate(() => JSON.stringify(localStorage));
+  expect(stored).not.toMatch(/corner|metro/i);
 });

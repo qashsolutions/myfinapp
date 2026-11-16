@@ -37,6 +37,7 @@ import { SetupHub } from "../features/onboarding/SetupHub.tsx";
 import { InstallScreen } from "../features/pwa/InstallScreen.tsx";
 import { WeeklyRecap } from "../features/recap/WeeklyRecap.tsx";
 import { ReviewScreen } from "../features/review/ReviewScreen.tsx";
+import { MatchingEntries } from "../features/search/MatchingEntries.tsx";
 import { LinkDevice, LinkGate } from "../features/security/LinkDevice.tsx";
 import { PasskeySetup } from "../features/security/PasskeySetup.tsx";
 import { SecurityScreen } from "../features/security/SecurityScreen.tsx";
@@ -122,6 +123,7 @@ export function AppRoutes() {
           <Route path="setup" element={<SetupHub />} />
           <Route path="tags" element={<TagsScreen />} />
           <Route path="tags/:tag" element={<TagDetail />} />
+          <Route path="search/entries" element={<MatchingEntries />} />
           {/* Learn became Insights (October 18, 2026); old links land there. */}
           <Route path="learn" element={<Navigate to="/insights" replace />} />
           <Route path="learn/:slug" element={<Navigate to="/insights" replace />} />

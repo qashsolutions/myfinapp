@@ -3,8 +3,8 @@ import { GROUPS, groupTitle, ENTRIES as SETTINGS } from "../settings/settingsInd
 /**
  * Everything search can open (owner decision, November 16, 2026): every screen and the main
  * actions, written by hand with the everyday words people type for them, plus every setting from
- * Me's index. One list, one way of matching (`searchEngine.ts`). Nothing here is the person's own
- * data: that stays out of search for now.
+ * Me's index. One list, one way of matching (`searchEngine.ts`). The person's own data (entries,
+ * jars, bills, tags, accounts) is searched separately on the device (`dataSearch.ts`).
  *
  * A new screen gets an entry here, or a reason in `NOT_SEARCHABLE`; `tests/unit/search.test.tsx`
  * fails otherwise, and opens every entry to check it lands where it says.
@@ -416,18 +416,20 @@ export const NOT_SEARCHABLE: Readonly<Record<string, string>> = {
   "/kept": "shown only when a plan has ended",
   "/install": "the website's link; Install Qash in Me is the way from inside",
   "/start": "picking a trial, once",
-  "/goals/:id": "one jar: the person's own data stays out of search",
-  "/groups/:id": "one challenge: the person's own data stays out of search",
-  "/splits/:id": "one split group: the person's own data stays out of search",
+  "/goals/:id": "one jar: found by searching the person's own data (dataSearch.ts)",
+  "/groups/:id":
+    "one challenge, from Challenges; its jar is found by searching the person's own data",
+  "/splits/:id": "one split group, from Split bills; group names aren't searched yet",
   "/splits/:id/bills/new": "inside a split group",
-  "/splits/:id/bills/:billId": "one bill: the person's own data stays out of search",
+  "/splits/:id/bills/:billId": "one bill inside a split group",
   "/splits/join": "opened from an invite link",
   "/household/join": "opened from an invite link",
-  "/tags/:tag": "one tag: the person's own data stays out of search",
-  "/entries/:id": "one entry: the person's own data stays out of search",
+  "/tags/:tag": "one tag: found by searching the person's own data",
+  "/entries/:id": "one entry: found by searching the person's own data",
   "/entries": "old link; Your entries is the way",
   "/learn": "old link; Insights is the way",
   "/learn/:slug": "old link; Insights is the way",
+  "/search/entries": "the full list behind a search's See all, and a merchant's entries",
   "/me/linking/done": "where the bank returns after linking",
   "*": "not a page",
 };

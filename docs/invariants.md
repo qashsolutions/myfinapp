@@ -865,8 +865,11 @@ written against both.
     rules, typos forgiven only from four letters). Search runs on this device only: nothing
     typed is sent or stored; Recent keeps the ids of places opened, per account, and goes on
     sign-out and deletion. The sheet's footer says so, and that this is why we can't tell what
-    is hard to find.
-    `search.test.tsx` · `a11y.test.tsx` · `e2e/search.spec.ts`
+    is hard to find. The person's own data (merchants, entries, amounts, jars, bills, tags,
+    accounts; `dataSearch.ts`) is read from this device's database only, follows the same
+    access table, is never kept in Recent, and the full list behind See all takes what was
+    searched in navigation state, never the address (a reload sends only the address).
+    `search.test.tsx` · `search-data.test.tsx` · `a11y.test.tsx` · `e2e/search.spec.ts`
 
 59 (again, October 29, 2026). The sweep was repeated on main after #51: every
 `db.transaction(...)` body in `apps/web/src` (47) was read for awaits of anything but Dexie,
