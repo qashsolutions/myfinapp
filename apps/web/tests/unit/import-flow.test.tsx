@@ -865,8 +865,17 @@ describe("PDF statement (fast-follow 2)", () => {
 
     // A newer page updates the same account (a fresh screen, as when the person comes back).
     cleanup();
-    vi.mocked(extractLines).mockResolvedValueOnce(positions("$1,300.00", "Oct-01-2026"));
     renderApp("/import");
+    // Coming back, the import screen lists what was added before.
+    const added = await screen.findByRole("region", { name: "Added before" });
+    expect(within(added).getByRole("list", { name: "Files added before" })).toHaveTextContent(
+      /1Positions\.pdfSep 3, 2026 · added .*Net worth · Rollover IRA · \$1,250\.40 · Retirement/,
+    );
+    expect(within(added).getByRole("link", { name: "See them in Your documents" })).toHaveAttribute(
+      "href",
+      "/me/documents",
+    );
+    vi.mocked(extractLines).mockResolvedValueOnce(positions("$1,300.00", "Oct-01-2026"));
     await user.upload(
       (await screen.findAllByLabelText(/Choose a statement file/)).at(-1) as HTMLElement,
       pdf("Positions-oct.pdf"),
@@ -880,6 +889,19 @@ describe("PDF statement (fast-follow 2)", () => {
         { label: "Rollover IRA", value_cents: 130000, as_of: "2026-10-01" },
       ]),
     );
+
+    // The same file again says so, and that adding it updates the same line.
+    cleanup();
+    renderApp("/import");
+    vi.mocked(extractLines).mockResolvedValueOnce(positions("$1,250.40", "Sep-03-2026"));
+    await user.upload(
+      (await screen.findAllByLabelText(/Choose a statement file/)).at(-1) as HTMLElement,
+      pdf("Positions.pdf"),
+    );
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /Added before, on .*: Net worth · Rollover IRA · \$1,250\.40 · Retirement\. Adding it again updates that line/,
+    );
+    expect(screen.queryByRole("region", { name: "Added before" })).toBeNull();
   });
 
   it("several files: read one at a time, Do all adds what needs no question, Check does the rest", async () => {
