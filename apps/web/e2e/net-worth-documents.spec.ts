@@ -25,5 +25,12 @@ test("@phone an IRA positions page goes to Net worth with its total and date", a
   await expect(page.getByRole("heading", { level: 1, name: "Net worth" })).toBeVisible();
   await expect(page.getByText(/As of Sep 3, 2026 · from a document/)).toBeVisible();
   await expect(page.getByText("$1,250.40").first()).toBeVisible();
+  // Reach and Ahead (PR 2): the IRA is retirement money, and it could grow.
+  const reach = page.getByRole("region", { name: "What you could reach" });
+  await expect(reach).toContainText("Retirement");
+  await expect(reach).toContainText("Usually tax and a penalty if taken early");
+  await expect(page.getByRole("region", { name: "Net worth ahead" })).toContainText(
+    "in 10 years at 5%",
+  );
   expect(sent.join("\n")).not.toMatch(/1250|125040|Rollover|123456789/);
 });
