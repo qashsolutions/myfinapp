@@ -147,6 +147,44 @@ describe("statement import, read on the device", () => {
     expect(onlySessionReads(fake.calls)).toEqual([]);
   });
 
+  it("never a dead button: Read file and Add account say what's missing and go to it", async () => {
+    const user = userEvent.setup();
+    await start();
+    // Nothing chosen: the button still works and says what's first.
+    const read = screen.getByRole("button", { name: "Read file" });
+    expect(read).toBeEnabled();
+    await user.click(read);
+    expect(screen.getByRole("alert")).toHaveTextContent("Choose a statement file first.");
+    expect(screen.getByLabelText(/Choose a statement file/)).toHaveFocus();
+
+    await user.upload(
+      screen.getByLabelText(/Choose a statement file/),
+      fileOf("statement_oct.csv", "text/csv"),
+    );
+    await screen.findByText("statement_oct.csv · 4 rows");
+    // The message goes once something changes.
+    expect(screen.queryByRole("alert")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Read file" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Pick which account this is.");
+    expect(screen.getByRole("radio", { name: /Cash/ })).toHaveFocus();
+
+    // Add account with no name: tappable, says so, focuses the name.
+    await user.click(screen.getByRole("button", { name: "+ New account" }));
+    const add = screen.getByRole("button", { name: "Add account" });
+    expect(add).toBeEnabled();
+    await user.click(add);
+    expect(screen.getByRole("alert")).toHaveTextContent("Name the account first.");
+    expect(screen.getByLabelText("Account name")).toHaveFocus();
+    await user.type(screen.getByLabelText("Account name"), "Everyday checking");
+    expect(screen.queryByRole("alert")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Add account" }));
+    expect(await screen.findByRole("radio", { name: /Everyday checking/ })).toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Read file" }));
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Match columns" }),
+    ).toBeInTheDocument();
+  });
+
   it("a statement from an earlier month opens on that month, not an empty one (November 10, 2026)", async () => {
     // Found by e2e/imports.spec.ts: importing October's statement in November landed on
     // "No entries this month", as if nothing had been imported.
