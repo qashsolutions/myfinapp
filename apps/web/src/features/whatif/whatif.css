@@ -1,12 +1,24 @@
-/* What if (October 29, 2026): the four levers as one segmented choice, and the before / after bars. */
+/* What if (October 29, 2026): the levers as one segmented choice, and the before / after bars. */
+/* Five choices (Savings joined November 16, 2026): three over two on a phone, filling the
+   width, one row from 600px. */
 .whatif-levers {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   border: 0;
   margin: 0 0 12px;
 }
+.whatif-levers .segmented__option {
+  grid-column: span 2;
+}
+.whatif-levers .segmented__option:nth-last-child(-n + 2) {
+  grid-column: span 3;
+}
 @media (min-width: 600px) {
   .whatif-levers {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .whatif-levers .segmented__option,
+  .whatif-levers .segmented__option:nth-last-child(-n + 2) {
+    grid-column: auto;
   }
 }
 .whatif-levers .segmented__option {

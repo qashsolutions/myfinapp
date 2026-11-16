@@ -101,6 +101,7 @@ const signedIn: Array<[string, string | RegExp]> = [
   ["/credit-habits", "Credit habits"],
   ["/insights/later", "Later"],
   ["/what-if", "What if"],
+  ["/what-if?lever=savings", "What if"],
   ["/month-review", "Your month"],
   ["/review", "Sort your spending"],
   ["/recap", "Your week"],

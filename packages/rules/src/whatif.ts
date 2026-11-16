@@ -3,7 +3,7 @@
  * An illustration from the person's own numbers, never advice.
  */
 
-import { type PayoffPlan, payoffPlan } from "./bills.ts";
+import { avalancheOrder, type PayoffPlan, payoffPlan, snowballOrder } from "./bills.ts";
 import { addMonths, parseDate } from "./dates.ts";
 import { RuleError } from "./errors.ts";
 import { assertInt } from "./money.ts";
@@ -50,6 +50,61 @@ export function debt(
   else if (before.stalled || (after.months as number) < (before.months as number))
     status = "sooner";
   return {
+    before: side(before),
+    after: side(after),
+    months_sooner: both ? (before.months as number) - (after.months as number) : null,
+    interest_saved_cents: both
+      ? (before.total_interest_cents as number) - (after.total_interest_cents as number)
+      : null,
+    status,
+  };
+}
+
+export interface WhatIfLumpSum extends WhatIfDebt {
+  applied: Array<{ id: string; cents: number }>;
+  unused_cents: number;
+}
+
+/**
+ * One payment of `lumpCents` today down the payoff plan's order, then the plan run with the new
+ * balances (whatif.lump_sum, November 16, 2026). A debt the payment clears keeps its minimum in
+ * the monthly budget, so what the person pays each month rolls on.
+ */
+export function lumpSum(
+  debts: unknown,
+  extraCents: unknown,
+  lumpCents: unknown,
+  asOf: unknown,
+  order: unknown = null,
+): WhatIfLumpSum {
+  const lump = assertInt(lumpCents, "invalid_amount");
+  if (lump < 0) throw new RuleError("invalid_amount");
+  const kind = order === null || order === undefined ? "avalanche" : order;
+  if (kind !== "avalanche" && kind !== "snowball") throw new RuleError("invalid_order");
+  const ordered = kind === "avalanche" ? avalancheOrder(debts).order : snowballOrder(debts);
+  let left = lump;
+  const applied: Array<{ id: string; cents: number }> = [];
+  const newBalance = new Map<string, number>();
+  for (const d of ordered) {
+    const pay = Math.min(d.balance_cents, left);
+    newBalance.set(d.id, d.balance_cents - pay);
+    left -= pay;
+    if (pay > 0) applied.push({ id: d.id, cents: pay });
+  }
+  const reduced = (debts as Array<Record<string, unknown>>).map((d) => ({
+    ...d,
+    balance_cents: newBalance.get(d.id as string),
+  }));
+  const before = payoffPlan(debts, extraCents, asOf, order);
+  const after = payoffPlan(reduced, extraCents, asOf, order);
+  const both = !before.stalled && !after.stalled;
+  let status: WhatIfDebt["status"] = "same";
+  if (after.stalled) status = "stalled";
+  else if (before.stalled || (after.months as number) < (before.months as number))
+    status = "sooner";
+  return {
+    applied,
+    unused_cents: left,
     before: side(before),
     after: side(after),
     months_sooner: both ? (before.months as number) - (after.months as number) : null,

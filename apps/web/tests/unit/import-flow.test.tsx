@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, vi } from "vitest";
 import { openDb, seedDefaults } from "../../src/data/db.ts";
@@ -821,7 +821,8 @@ describe("PDF statement (fast-follow 2)", () => {
       /1250|125040|Rollover/,
     );
 
-    // A newer page updates the same account.
+    // A newer page updates the same account (a fresh screen, as when the person comes back).
+    cleanup();
     vi.mocked(extractLines).mockResolvedValueOnce(positions("$1,300.00", "Oct-01-2026"));
     renderApp("/import");
     await user.upload(

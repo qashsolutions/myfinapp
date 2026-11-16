@@ -1381,6 +1381,28 @@ export interface WhatIfDebt {
   status: "sooner" | "same" | "stalled";
 }
 
+export interface WhatIfLumpSum extends WhatIfDebt {
+  applied: Array<{ id: string; cents: number }>;
+  unused_cents: number;
+}
+
+/** whatif.lump_sum: one payment today down the payoff plan's order (November 16, 2026). */
+export async function whatIfLumpSum(
+  debts: DebtInput[],
+  extraCents: number,
+  lumpCents: number,
+  asOf: string,
+  order: PayoffOrder | null = null,
+): Promise<WhatIfLumpSum> {
+  return engine.call<WhatIfLumpSum>("whatif.lump_sum", {
+    debts,
+    extra_cents: extraCents,
+    lump_cents: lumpCents,
+    as_of: asOf,
+    ...(order ? { order } : {}),
+  });
+}
+
 /** whatif.debt: the payoff plan with today's extra, then with `addCents` more a month. */
 export async function whatIfDebt(
   debts: DebtInput[],
