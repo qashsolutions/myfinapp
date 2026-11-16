@@ -29,3 +29,8 @@ export function onMoment(listener: Listener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
+
+/** How many listen right now (tests wait for the app's host before emitting). */
+export function momentListeners(): number {
+  return listeners.size;
+}
