@@ -95,7 +95,8 @@ test("@phone the subscription check asks, shows the price rise and two video ser
 
   await page.goto("/import");
   await page.getByLabel(/Choose a statement file/).setInputFiles(statementWithSubscriptions());
-  await expect(page.getByText("subs.csv · 15 rows")).toBeVisible();
+  await expect(page.getByText("subs.csv", { exact: true })).toBeVisible();
+  await expect(page.getByText("CSV · 15 rows")).toBeVisible();
   await page.getByRole("button", { name: "+ New account" }).click();
   await page.getByLabel("Account name").fill("Everyday checking");
   await page.getByRole("button", { name: "Add account" }).click();

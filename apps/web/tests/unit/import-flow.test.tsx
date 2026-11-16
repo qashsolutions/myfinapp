@@ -7,6 +7,7 @@ import { parseAmount } from "../../src/engine/bridge.ts";
 import { findTransferPartner } from "../../src/features/entries/transfers.ts";
 import { commitImport, parseFile, prepareRows } from "../../src/features/imports/importFlow.ts";
 import { applyMapping, guessMapping } from "../../src/importers/csv.ts";
+import { extractLines } from "../../src/importers/pdf/extract.ts";
 import { installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 
@@ -57,7 +58,9 @@ describe("statement import, read on the device", () => {
       screen.getByLabelText(/Choose a statement file/),
       fileOf("statement_oct.csv", "text/csv"),
     );
-    expect(await screen.findByText("statement_oct.csv · 4 rows")).toBeInTheDocument();
+    // The file's name and one line of what it holds (November 16, 2026).
+    expect(await screen.findByText("statement_oct.csv")).toBeInTheDocument();
+    expect(screen.getByText("CSV · 4 rows")).toBeInTheDocument();
     expect(
       screen.getByText("Read on this device. The file is never uploaded."),
     ).toBeInTheDocument();
@@ -161,7 +164,7 @@ describe("statement import, read on the device", () => {
       screen.getByLabelText(/Choose a statement file/),
       fileOf("statement_oct.csv", "text/csv"),
     );
-    await screen.findByText("statement_oct.csv · 4 rows");
+    await screen.findByText("statement_oct.csv");
     // The message goes once something changes.
     expect(screen.queryByRole("alert")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Read file" }));
@@ -283,7 +286,10 @@ describe("statement import, read on the device", () => {
       screen.getByLabelText(/Choose a statement file/),
       fileOf("card_oct.ofx", "application/x-ofx"),
     );
-    expect(await screen.findByText("card_oct.ofx · 2 rows")).toBeInTheDocument();
+    expect(await screen.findByText("card_oct.ofx")).toBeInTheDocument();
+    expect(
+      screen.getByText(/^OFX statement · 2 transactions · .* · .*••1173$/),
+    ).toBeInTheDocument();
     // The statement names its account: one tap makes it (October 19, 2026)
     await user.click(
       await screen.findByRole("button", { name: "+ New account: Rewards Bank ••1173 · Card" }),
@@ -719,6 +725,43 @@ vi.mock("../../src/importers/pdf/extract.ts", async (importOriginal) => {
 });
 
 describe("PDF statement (fast-follow 2)", () => {
+  it("a brokerage's positions page says it's holdings, keeps the file's name, and points to Net worth", async () => {
+    vi.mocked(extractLines).mockResolvedValueOnce([
+      "Portfolio Positions",
+      "Positions",
+      "Example Brokerage Individual",
+      "Symbol Last price Quantity Cost basis",
+      "Today's gain/loss Total gain/loss Current value % of account",
+      "ABCD $10.00 5 $40.00",
+      "EXAMPLE CORP +$1.00 +2.00%",
+      "Account total $50.00",
+    ]);
+    const user = userEvent.setup();
+    const fake = await start();
+    await user.upload(
+      screen.getByLabelText(/Choose a statement file/),
+      new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])], "Positions.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "This lists investments you own (positions), not money in and out, so there's nothing to import.",
+    );
+    expect(within(alert).getByRole("link", { name: "Open Net worth" })).toHaveAttribute(
+      "href",
+      "/net-worth",
+    );
+    // Which file was refused stays on screen.
+    expect(screen.getByText("Positions.pdf")).toBeInTheDocument();
+    expect(
+      screen.getByText("Investment holdings, not transactions · not imported"),
+    ).toBeInTheDocument();
+    expect(onlySessionReads(fake.calls)).toEqual([]);
+    // Nothing was imported.
+    expect(await openDb("u1").entries.count()).toBe(0);
+  });
+
   it("reads a PDF on the device, skips column matching, imports with the template recorded; nothing is uploaded", async () => {
     const user = userEvent.setup();
     const fake = await start();
@@ -728,7 +771,12 @@ describe("PDF statement (fast-follow 2)", () => {
         type: "application/pdf",
       }),
     );
-    expect(await screen.findByText("october.pdf · 3 rows")).toBeInTheDocument();
+    expect(await screen.findByText("october.pdf")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /^PDF statement · 3 transactions · Sep 10, 2026 – Oct 9, 2026 · (.+ )?••4821$/,
+      ),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: /Cash/ }));
     await user.click(screen.getByRole("button", { name: "Read file" }));
     expect(

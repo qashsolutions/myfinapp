@@ -110,6 +110,17 @@ describe("PDF statement import", () => {
     await expect(parsePdfLines(["Hello", "World"], parseAmount)).rejects.toMatchObject({
       code: "unsupported_layout",
     });
+    // A positions page: no transactions, the words of holdings (November 16, 2026).
+    await expect(
+      parsePdfLines(
+        ["Positions", "Symbol Last price Quantity Cost basis", "ABCD $10.00 5 $40.00"],
+        parseAmount,
+      ),
+    ).rejects.toMatchObject({ code: "holdings" });
+    // One such word alone isn't enough to call it holdings.
+    await expect(
+      parsePdfLines(["Account summary", "Quantity discount applied"], parseAmount),
+    ).rejects.toMatchObject({ code: "unsupported_layout" });
     const statement = await parsePdfLines(
       [
         "Card",
