@@ -1,6 +1,6 @@
-"""The API's auto-scaler: an AWS Lambda run by EventBridge Scheduler every 4 hours on the hour
-while the app is in testing, and every 5 minutes only from launch, when the owner says so
-(owner, November 10 and 11, 2026; docs/ops/aws-hosting.md, "Scaling").
+"""The API's auto-scaler: an AWS Lambda run by EventBridge Scheduler once a week (Mondays
+14:00 UTC) while the app is in testing, and more often only after launch, when the owner says so
+(owner, November 10, 11 and 16, 2026; docs/ops/aws-hosting.md, "Scaling").
 
 Lightsail changes a container service's node count without downtime but never on its own. This
 reads qash-api's CPU (5-minute averages) and:

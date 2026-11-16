@@ -44,9 +44,11 @@ The API grows and shrinks with load; nothing is paid for until it is needed.
 
 - **Auto-scaler:** the Lambda `qash-autoscale` (`services/api/scripts/autoscale_lambda.py`,
   Python 3.12 on arm64, 128 MB, 30 s), run by the EventBridge Scheduler schedule `qash-autoscale`
-  (no retries): every 4 hours on the hour UTC (`cron(0 */4 * * ? *)`) while the app is in testing
-  and not live (owner, November 10 and again November 11, 2026: a Micro holds the testing load
-  with room to spare); every 5 minutes (`rate(5 minutes)`) only from launch, when the owner says
+  (no retries): once a week, Mondays 14:00 UTC (`cron(0 14 ? * MON *)`), while the app is in
+  testing and not live (owner, November 16, 2026, to keep costs and emails down until there is
+  usage; it was every 4 hours from November 10: a Micro holds the testing load with room to spare).
+  A node added on a Monday is removed the next Monday at the earliest, and nothing adds one
+  between runs. More often (up to `rate(5 minutes)`) only after launch, when the owner says
   so; the email when busy at the cap goes
   out from a run in an hour's first 5 minutes, so the schedule stays on the hour. It reads `qash-api`'s 5-minute CPU averages
   from Lightsail and adds a node after 10 minutes above `UP_PCT` (60), removes one after an hour
