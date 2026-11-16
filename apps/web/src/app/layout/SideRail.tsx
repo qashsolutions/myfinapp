@@ -2,6 +2,7 @@ import { cx } from "@stackd/ui";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useSession } from "../../features/auth/useSession.tsx";
+import { SearchButton } from "../../features/search/SearchSheet.tsx";
 import { useSplitGuest } from "../../features/splits/guest.ts";
 import { activeTab, GUEST_TABS, ME_PATH, TABS } from "../tabs.ts";
 import { Logo } from "./Logo.tsx";
@@ -16,6 +17,7 @@ export function SideRail() {
         <Logo />
         <span>Qash</span>
       </div>
+      <SearchButton variant="rail" />
       <nav className="rail__nav" aria-label="Primary">
         {tabs.map((t) => (
           <Link

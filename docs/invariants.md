@@ -854,6 +854,20 @@ written against both.
     Radar rule the spec named needs a paid Radar plan.
     `test_us_cards.py` · `billing.test.tsx` · `e2e-payments/checkout.spec.ts`
 
+91. **Search never strands anyone, and keeps nothing typed** (November 16, 2026; owner decision
+    the same day). Every screen in the app is in search (`features/search/searchIndex.ts`) or
+    named in `NOT_SEARCHABLE` with its reason, and every result opens a real screen with the row
+    it names on it; a screen added without either fails the test. Results follow the same access
+    table the app uses (`AccessGate.accessRoutes` / `mayOpen`): a split-bill guest sees Splits and
+    Me only, a lapsed plan the plans, export and deletion only; a feature the plan doesn't
+    include says "Not on your plan" and opens the plans, never a locked screen; installing is
+    offered only in a browser tab. Matching is the same every time (fixed order, no language
+    rules, typos forgiven only from four letters). Search runs on this device only: nothing
+    typed is sent or stored; Recent keeps the ids of places opened, per account, and goes on
+    sign-out and deletion. The sheet's footer says so, and that this is why we can't tell what
+    is hard to find.
+    `search.test.tsx` · `a11y.test.tsx` · `e2e/search.spec.ts`
+
 59 (again, October 29, 2026). The sweep was repeated on main after #51: every
 `db.transaction(...)` body in `apps/web/src` (47) was read for awaits of anything but Dexie,
 including the linking sync write, the import commit, the backup merge, the household pull and

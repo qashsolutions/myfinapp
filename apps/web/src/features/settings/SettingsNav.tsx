@@ -1,25 +1,24 @@
 import { cx, List, ListRow } from "@stackd/ui";
 import { type ReactNode, useId, useState } from "react";
 import { NavLink, useNavigate } from "react-router";
-import { GROUPS, groupTitle, type SettingEntry, searchSettings } from "./settingsIndex.ts";
+import { useOpenResult, useSearchContext } from "../search/SearchSheet.tsx";
+import { search } from "../search/searchEngine.ts";
+import { GROUPS } from "./settingsIndex.ts";
 
-/** Opens a setting: its screen, then the row is scrolled to and briefly highlighted. */
-export function useOpenSetting() {
-  const navigate = useNavigate();
-  return (e: SettingEntry) => navigate(e.path, { state: { highlight: e.target ?? null } });
-}
-
-/** "Search settings": while there is a query the results replace whatever `children` shows. */
+/**
+ * Me's search box: the same search as everywhere (features/search), shown inline; while there is
+ * a query the results replace whatever `children` shows.
+ */
 export function SettingsSearch({ children }: { children: ReactNode }) {
   const id = useId();
   const [query, setQuery] = useState("");
-  const open = useOpenSetting();
-  const results = searchSettings(query);
+  const open = useOpenResult();
+  const results = search(query, useSearchContext());
   return (
     <>
       <search className="settings-search">
         <label htmlFor={`${id}-q`} className="sr-only">
-          Search settings
+          Search Qash
         </label>
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -29,7 +28,7 @@ export function SettingsSearch({ children }: { children: ReactNode }) {
           id={`${id}-q`}
           type="search"
           className="settings-search__input"
-          placeholder="Search settings"
+          placeholder="Search Qash"
           autoComplete="off"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -40,13 +39,20 @@ export function SettingsSearch({ children }: { children: ReactNode }) {
         />
       </search>
       {query.trim() ? (
+        <p className="auth__fineprint">
+          Search runs only on this device. What you type is never sent to Qash or saved.
+        </p>
+      ) : null}
+      {query.trim() ? (
         results.length ? (
           <List card aria-label="Search results">
             {results.map((r) => (
               <ListRow
-                key={`${r.label}-${r.path}`}
-                label={r.label}
-                sublabel={groupTitle(r.group)}
+                key={r.entry.id}
+                label={r.entry.label}
+                sublabel={
+                  r.locked ? `${r.entry.section} · Not on your plan · See plans` : r.entry.section
+                }
                 href={r.path}
                 onClick={(ev) => {
                   ev.preventDefault();

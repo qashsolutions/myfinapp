@@ -10,6 +10,8 @@ import { InstallOffer } from "../../features/pwa/InstallOffer.tsx";
 import { OfflineBanner } from "../../features/pwa/OfflineBanner.tsx";
 import { PullToRefresh } from "../../features/pwa/PullToRefresh.tsx";
 import { UpdateToast } from "../../features/pwa/UpdateToast.tsx";
+import { useHighlightTarget } from "../../features/search/highlight.ts";
+import { SearchHost } from "../../features/search/SearchSheet.tsx";
 import { BackupSync } from "../../features/security/BackupSync.tsx";
 import { PasskeyHereOffer } from "../../features/security/PasskeyHereOffer.tsx";
 import { BringBackOffer } from "../../features/settings/KeptOnPhone.tsx";
@@ -31,6 +33,7 @@ export function AppShell() {
   const { pathname } = useLocation();
   const main = useRef<HTMLElement>(null);
   const firstRender = useRef(true);
+  useHighlightTarget();
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the trigger, not an input
   useEffect(() => {
@@ -67,6 +70,7 @@ export function AppShell() {
       <LinkedSync />
       <MomentsHost />
       <UndoToast />
+      <SearchHost />
       <SpendingWatch />
     </div>
   );

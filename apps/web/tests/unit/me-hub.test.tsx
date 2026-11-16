@@ -1,6 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { searchSettings } from "../../src/features/settings/settingsIndex.ts";
 import { installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 import { setWideViewport } from "../setup.ts";
@@ -30,24 +29,13 @@ describe("Me: the hub, its groups and search", () => {
     expect(within(account).getByRole("button", { name: "Delete account" })).toBeInTheDocument();
   });
 
-  it("finds settings by everyday words", () => {
-    expect(searchSettings("logout")[0]?.label).toBe("Log out");
-    expect(searchSettings("sign out")[0]?.label).toBe("Log out");
-    expect(searchSettings("password")[0]?.label).toBe("Passkeys");
-    expect(searchSettings("theme").map((e) => e.label)).toEqual(
-      expect.arrayContaining(["App look", "Dark mode"]),
-    );
-    expect(searchSettings("refund")[0]?.label).toBe("Your plan");
-    expect(searchSettings("how often")[0]?.label).toBe("How often");
-    expect(searchSettings("   ")).toEqual([]);
-  });
-
   it("search replaces the groups, opens the setting and highlights it", async () => {
     const user = userEvent.setup();
     renderApp("/me");
-    const box = await screen.findByRole("searchbox", { name: "Search settings" });
+    const box = await screen.findByRole("searchbox", { name: "Search Qash" });
     await user.type(box, "zzzz");
     expect(screen.getByRole("status")).toHaveTextContent("Nothing matches “zzzz”");
+    expect(screen.getByText(/Search runs only on this device/)).toBeInTheDocument();
     await user.clear(box);
     await user.type(box, "dark");
     const results = screen.getByRole("list", { name: "Search results" });
@@ -87,7 +75,7 @@ describe("Me at 900px and up", () => {
       "aria-current",
       "page",
     );
-    expect(within(nav).getByRole("searchbox", { name: "Search settings" })).toBeInTheDocument();
+    expect(within(nav).getByRole("searchbox", { name: "Search Qash" })).toBeInTheDocument();
   });
 
   it("the hub itself stays one column", async () => {
