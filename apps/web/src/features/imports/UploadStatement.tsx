@@ -1,9 +1,11 @@
 import { Button } from "@stackd/ui";
 import { useId, useRef, useState } from "react";
+import { Link } from "react-router";
 import type { Account } from "../../data/db.ts";
 import { readFileText } from "../../data/files.ts";
 import { PdfError } from "../../importers/pdf/index.ts";
 import { AccountPicker, type AccountSuggestion } from "./AccountPicker.tsx";
+import { fileSummary } from "./fileSummary.ts";
 import { type ParsedFile, parseFile, parsePdfFile } from "./importFlow.ts";
 
 /** What the statement says about its account, for a one-tap "New account" (OFX and PDF). */
@@ -39,6 +41,10 @@ export function UploadStatement({
 }) {
   const id = useId();
   const [error, setError] = useState<string | null>(null);
+  // A brokerage's positions page: nothing to import, but its total belongs in Net worth.
+  const [holdings, setHoldings] = useState(false);
+  // The file picked last, kept on screen even when it couldn't be read, so it's clear which one.
+  const [refused, setRefused] = useState<string | null>(null);
   // Never a dead button: Read file stays tappable and says what's missing first.
   const [missing, setMissing] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -61,6 +67,8 @@ export function UploadStatement({
   async function pick(file: File | undefined) {
     if (!file) return;
     setError(null);
+    setHoldings(false);
+    setRefused(null);
     setMissing(null);
     try {
       if (file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf") {
@@ -72,11 +80,16 @@ export function UploadStatement({
       onFile({ file, text, parsed: await parseFile(file.name, text) });
     } catch (err) {
       onFile(null);
+      setRefused(file.name);
+      const isHoldings = err instanceof PdfError && err.code === "holdings";
+      setHoldings(isHoldings);
       setError(
         err instanceof PdfError
           ? err.code === "no_text"
             ? "This PDF has no text we can read (a scanned image, perhaps). Download a CSV, OFX or QFX from your bank instead."
-            : "We couldn't find transactions in this PDF's layout. Download a CSV, OFX or QFX from your bank instead."
+            : isHoldings
+              ? "This lists investments you own (positions), not money in and out, so there's nothing to import. Qash reads bank and card statements. To count this account, add its total in Net worth."
+              : "We couldn't find transactions in this PDF's layout. Download a CSV, OFX or QFX from your bank instead."
           : "We couldn't read that file. Export a CSV, OFX or QFX from your bank and try again.",
       );
     }
@@ -98,12 +111,16 @@ export function UploadStatement({
           </svg>
         </span>
         <span className="dropzone__title">
-          {chosen
-            ? `${chosen.file.name} · ${chosen.parsed.rowCount} rows`
-            : "Choose a statement file"}
+          {chosen ? chosen.file.name : (refused ?? "Choose a statement file")}
         </span>
         <span className="dropzone__sub">
-          CSV, OFX, QFX or a PDF statement from your bank or card
+          {chosen
+            ? fileSummary(chosen.parsed)
+            : refused
+              ? holdings
+                ? "Investment holdings, not transactions · not imported"
+                : "Not imported · choose another file"
+              : "CSV, OFX, QFX or a PDF statement from your bank or card"}
         </span>
         <input
           ref={fileInput}
@@ -128,6 +145,12 @@ export function UploadStatement({
       {error ? (
         <p className="auth__error" role="alert">
           {error}
+          {holdings ? (
+            <>
+              {" "}
+              <Link to="/net-worth">Open Net worth</Link>
+            </>
+          ) : null}
         </p>
       ) : null}
       <div ref={accounts}>

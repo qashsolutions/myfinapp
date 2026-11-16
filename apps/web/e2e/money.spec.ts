@@ -9,7 +9,8 @@ test("import a statement, add an entry, your own category, Don't count, ranges a
   // Import: read on this device, columns matched, the card payment confirmed as a transfer.
   await page.goto("/import");
   await page.getByLabel(/Choose a statement file/).setInputFiles(statementThisMonth());
-  await expect(page.getByText("statement.csv · 4 rows")).toBeVisible();
+  await expect(page.getByText("statement.csv", { exact: true })).toBeVisible();
+  await expect(page.getByText("CSV · 4 rows")).toBeVisible();
   await page.getByRole("button", { name: "+ New account" }).click();
   await page.getByLabel("Account name").fill("Everyday checking");
   await page.getByRole("button", { name: "Add account" }).click();
