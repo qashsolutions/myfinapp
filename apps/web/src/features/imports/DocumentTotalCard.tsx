@@ -11,6 +11,8 @@ import {
   ASSET_GROUPS,
   DEBT_GROUPS,
   GROUP_LABEL,
+  isOtherGroup,
+  OWN_KIND_MAX,
   sameItems,
   saveFromDocument,
 } from "../networth/useNetWorth.ts";
@@ -37,10 +39,13 @@ export function DocumentTotalCard({
   const [amount, setAmount] = useState((total.cents / 100).toFixed(2));
   const [asOf, setAsOf] = useState(total.as_of ?? todayIso());
   const [group, setGroup] = useState(total.group);
+  const [ownKind, setOwnKind] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const nameBox = useRef<HTMLInputElement>(null);
   const amountBox = useRef<HTMLInputElement>(null);
+  const ownBox = useRef<HTMLInputElement>(null);
+  const isOther = isOtherGroup(group);
   const matches = sameItems(items ?? [], { kind: total.kind, label });
   const owed = total.kind === "debt";
 
@@ -64,6 +69,12 @@ export function DocumentTotalCard({
       amountBox.current?.focus();
       return;
     }
+    const own = ownKind.trim();
+    if (isOther && !own) {
+      setError("Say what it is in a word or two, like “Pension” or “Crypto”.");
+      ownBox.current?.focus();
+      return;
+    }
     setBusy(true);
     const id = await saveFromDocument(db, {
       id: updateId,
@@ -72,6 +83,7 @@ export function DocumentTotalCard({
       label: name.slice(0, 30),
       value_cents: cents,
       as_of: asOf || null,
+      own_kind: isOther ? own.slice(0, OWN_KIND_MAX) : null,
       file_name: fileName,
     });
     onSaved(id);
@@ -87,6 +99,7 @@ export function DocumentTotalCard({
         {total.as_of ? ` as of ${formatDate(total.as_of)}` : ""}. Check it, then add it to Net
         worth.
       </p>
+      {total.last4 ? <p className="doc-total__account">Account ••{total.last4}</p> : null}
       <label className="auth__field">
         <span className="auth__label">Name</span>
         <input
@@ -130,8 +143,33 @@ export function DocumentTotalCard({
         name={`${ids}-group`}
         options={groups.map(([k, l]) => [k, l])}
         value={group}
-        onPick={(v) => setGroup(v)}
+        onPick={(v) => {
+          setGroup(v);
+          setError(null);
+        }}
       />
+      <p className="auth__fineprint doc-total__why">
+        {total.kind_from
+          ? `Picked ${GROUP_LABEL[total.group] ?? total.group} because it says “${total.kind_from}”.`
+          : `Picked ${GROUP_LABEL[total.group] ?? total.group}: the document doesn't say which kind.`}{" "}
+        Change it if that's wrong.
+      </p>
+      {isOther ? (
+        <label className="auth__field">
+          <span className="auth__label">Your word for it</span>
+          <input
+            ref={ownBox}
+            className="auth__input"
+            maxLength={OWN_KIND_MAX}
+            placeholder={owed ? "Like “Family loan”" : "Like “Pension” or “Crypto”"}
+            value={ownKind}
+            onChange={(e) => {
+              setOwnKind(e.target.value);
+              setError(null);
+            }}
+          />
+        </label>
+      ) : null}
       {error ? (
         <p className="auth__error" role="alert">
           {error}
@@ -152,8 +190,9 @@ export function DocumentTotalCard({
         </Button>
       )}
       <p className="auth__fineprint">
-        Only the name, amount, date and kind ({GROUP_LABEL[group] ?? group}) are kept, on this
-        device. Not the file, the account number or the holdings.
+        Only the name, amount, date and kind (
+        {(isOther && ownKind.trim()) || GROUP_LABEL[group] || group}) are kept, on this device. Not
+        the file, the account number or the holdings.
       </p>
     </Card>
   );

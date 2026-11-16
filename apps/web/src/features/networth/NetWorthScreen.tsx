@@ -19,6 +19,9 @@ import {
   chooseFor,
   DEBT_GROUPS,
   GROUP_LABEL,
+  isOtherGroup,
+  kindLabel,
+  OWN_KIND_MAX,
   removeManual,
   STALE_DAYS,
   saveManual,
@@ -190,6 +193,8 @@ interface Editing {
   group: string;
   label: string;
   amount: string;
+  /** The person's own word when the kind is Other. */
+  ownKind: string;
 }
 
 /**
@@ -206,6 +211,7 @@ export function NetWorthScreen() {
   const ranged = useNetWorthRange(view.rows, range, today, back);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const ownBox = useRef<HTMLInputElement>(null);
   const s = view.summary;
 
   async function save() {
@@ -219,12 +225,18 @@ export function NetWorthScreen() {
       return setError("Enter an amount like 12,500.");
     }
     if (cents < 0) return setError("Enter the amount without a minus sign.");
+    if (isOtherGroup(editing.group) && !editing.ownKind.trim()) {
+      setError("Say what it is in a word or two, like “Pension” or “Crypto”.");
+      ownBox.current?.focus();
+      return;
+    }
     await saveManual(db, {
       id: editing.id,
       kind: editing.kind,
       group: editing.group,
       label: label.slice(0, 30),
       value_cents: cents,
+      own_kind: editing.ownKind.trim().slice(0, OWN_KIND_MAX),
     });
     setEditing(null);
   }
@@ -247,7 +259,7 @@ export function NetWorthScreen() {
           key={r.key}
           id={`worth-${r.key}`}
           label={r.label}
-          sublabel={`${GROUP_LABEL[r.group] ?? r.group} · ${where}`}
+          sublabel={`${kindLabel(r.group, r.ownKind)} · ${where}`}
           value={value}
           onClick={() =>
             setEditing({
@@ -256,6 +268,7 @@ export function NetWorthScreen() {
               group: r.group,
               label: r.label,
               amount: ((r.valueCents ?? 0) / 100).toFixed(2),
+              ownKind: r.ownKind ?? "",
             })
           }
           chevron
@@ -266,7 +279,7 @@ export function NetWorthScreen() {
         <div className="worth-row__text">
           <span className="worth-row__label">{r.label}</span>
           <span className="worth-row__sub">
-            {GROUP_LABEL[r.group] ?? r.group} · {where}
+            {kindLabel(r.group, r.ownKind)} · {where}
             {r.valueCents === null ? (
               <>
                 {" · "}
@@ -352,7 +365,13 @@ export function NetWorthScreen() {
             variant="secondary"
             block
             onClick={() =>
-              setEditing({ kind: "asset", group: "investments", label: "", amount: "" })
+              setEditing({
+                kind: "asset",
+                group: "investments",
+                label: "",
+                amount: "",
+                ownKind: "",
+              })
             }
           >
             + Something you own
@@ -367,7 +386,9 @@ export function NetWorthScreen() {
           <Button
             variant="secondary"
             block
-            onClick={() => setEditing({ kind: "debt", group: "mortgage", label: "", amount: "" })}
+            onClick={() =>
+              setEditing({ kind: "debt", group: "mortgage", label: "", amount: "", ownKind: "" })
+            }
           >
             + Something you owe
           </Button>
@@ -413,9 +434,30 @@ export function NetWorthScreen() {
                   l,
                 ])}
                 value={editing.group}
-                onPick={(v) => setEditing({ ...editing, group: v })}
+                onPick={(v) => {
+                  setEditing({ ...editing, group: v });
+                  setError(null);
+                }}
               />
             </fieldset>
+            {isOtherGroup(editing.group) ? (
+              <label className="auth__field">
+                <span className="auth__label">Your word for it</span>
+                <input
+                  ref={ownBox}
+                  className="auth__input"
+                  maxLength={OWN_KIND_MAX}
+                  placeholder={
+                    editing.kind === "debt" ? "Like “Family loan”" : "Like “Pension” or “Crypto”"
+                  }
+                  value={editing.ownKind}
+                  onChange={(e) => {
+                    setEditing({ ...editing, ownKind: e.target.value });
+                    setError(null);
+                  }}
+                />
+              </label>
+            ) : null}
             <label className="auth__field">
               <span className="auth__label">
                 {editing.kind === "debt" ? "Amount owed" : "What it's worth"}

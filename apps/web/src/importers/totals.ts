@@ -15,6 +15,10 @@ export interface DocumentTotal {
   /** YYYY-MM-DD the document says the total is from, or null when it doesn't say. */
   as_of: string | null;
   doc: "investments" | "loan";
+  /** The account number's last four, shown so the person knows which account; never kept. */
+  last4: string | null;
+  /** The words the kind was read from ("Rollover IRA"), or null when none matched. */
+  kind_from: string | null;
 }
 
 /** Words of a positions page or brokerage statement. */
@@ -151,8 +155,32 @@ function asOfDate(lines: string[]): string | null {
 }
 
 function kindOf(text: string, kinds: [RegExp, string, string][], fallback: [string, string]) {
-  for (const [re, label, group] of kinds) if (re.test(text)) return { label, group };
-  return { label: fallback[0], group: fallback[1] };
+  for (const [re, label, group] of kinds) if (re.test(text)) return { label, group, from: label };
+  return { label: fallback[0], group: fallback[1], from: null };
+}
+
+/** An account number printed masked: "Account ending in 1234", "Acct ****1234", "XXXX-1234". */
+const MASKED_ACCOUNT =
+  /(?:account|acct)[^\d]{0,24}?(?:[*xX•.]{2,}-?|ending in|ending)\s*(\d{4})\b/i;
+/** An account number printed whole, after "Account number:" or a kind of account and a colon. */
+const WHOLE_ACCOUNT = [
+  /\b(?:account|acct)\s*(?:number|no\.?|#)\s*[:#]?\s*([a-z]{0,3}[\d][\d -]{4,}\d)\b/i,
+  /\b(?:brokerage|ira|401\s?\(?k\)?|403\s?\(?b\)?|hsa|loan|mortgage)\s*(?:account|number|no\.?)?\s*[:#]\s*([a-z]{0,3}\d[\d -]{4,}\d)\b/i,
+];
+
+/** The last four of the account number a document prints, or null. Never more than four. */
+export function accountLast4(lines: string[]): string | null {
+  const head = lines.slice(0, 150);
+  for (const line of head) {
+    const m = MASKED_ACCOUNT.exec(line);
+    if (m) return m[1] ?? null;
+  }
+  for (const re of WHOLE_ACCOUNT)
+    for (const line of head) {
+      const digits = (re.exec(line)?.[1] ?? "").replace(/\D/g, "");
+      if (digits.length >= 6) return digits.slice(-4);
+    }
+  return null;
 }
 
 /**
@@ -180,8 +208,17 @@ export async function readDocumentTotal(
     for (const phrase of LOAN_TOTALS) {
       const cents = await read(amountAfter(lines, phrase));
       if (cents === null) continue;
-      const { label, group } = kindOf(head, LOAN_KINDS, ["Loan", "personal_loan"]);
-      return { kind: "debt", group, label, cents, as_of: asOfDate(lines), doc: "loan" };
+      const { label, group, from } = kindOf(head, LOAN_KINDS, ["Loan", "personal_loan"]);
+      return {
+        kind: "debt",
+        group,
+        label,
+        cents,
+        as_of: asOfDate(lines),
+        doc: "loan",
+        last4: accountLast4(lines),
+        kind_from: from,
+      };
     }
     return null;
   }
@@ -194,8 +231,17 @@ export async function readDocumentTotal(
   for (const phrase of INVESTMENT_TOTALS) {
     const cents = await read(amountAfter(lines, phrase));
     if (cents === null) continue;
-    const { label, group } = kindOf(head, ACCOUNT_KINDS, ["Investments", "investments"]);
-    return { kind: "asset", group, label, cents, as_of: asOfDate(lines), doc: "investments" };
+    const { label, group, from } = kindOf(head, ACCOUNT_KINDS, ["Investments", "investments"]);
+    return {
+      kind: "asset",
+      group,
+      label,
+      cents,
+      as_of: asOfDate(lines),
+      doc: "investments",
+      last4: accountLast4(lines),
+      kind_from: from,
+    };
   }
   return null;
 }
@@ -217,9 +263,11 @@ export async function readCsvTotal(
     .find((i) => i >= 0);
   if (symbol < 0 || value === undefined) return null;
   const accountCol = h.findIndex((x) => x === "account name" || x === "account");
+  const numberCol = h.findIndex((x) => x === "account number" || x === "account #");
   let cents = 0;
   let found = 0;
   const names = new Set<string>();
+  const numbers = new Set<string>();
   for (const row of rows) {
     const sym = (row[symbol] ?? "").trim();
     if (!sym || /pending|total/i.test(sym)) continue;
@@ -232,10 +280,12 @@ export async function readCsvTotal(
       // a value the engine can't read is left out
     }
     if (accountCol >= 0) names.add((row[accountCol] ?? "").trim());
+    if (numberCol >= 0) numbers.add((row[numberCol] ?? "").replace(/\D/g, ""));
   }
   if (found === 0 || cents <= 0) return null;
   const named = names.size === 1 ? ([...names][0] ?? "") : "";
-  const { label, group } = kindOf(named, ACCOUNT_KINDS, ["Investments", "investments"]);
+  const { label, group, from } = kindOf(named, ACCOUNT_KINDS, ["Investments", "investments"]);
+  const number = numbers.size === 1 ? ([...numbers][0] ?? "") : "";
   const allText = rows.map((r) => r.join(" ")).join(" ");
   const downloaded = /date downloaded\s*(.*)/i.exec(allText);
   return {
@@ -245,5 +295,7 @@ export async function readCsvTotal(
     cents,
     as_of: downloaded ? readDate(downloaded[1] ?? "") : null,
     doc: "investments",
+    last4: number.length >= 4 ? number.slice(-4) : null,
+    kind_from: from,
   };
 }

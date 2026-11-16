@@ -155,6 +155,19 @@ describe("Net worth (owner decision, October 19, 2026)", () => {
     expect(await screen.findByRole("region", { name: "$15,100.00" })).toBeInTheDocument();
     expect(screen.getByText(/Retirement · Updated/)).toBeInTheDocument();
 
+    // Other takes the person's own word, and never saves without one.
+    await user.click(screen.getByRole("button", { name: "+ Something you own" }));
+    const other = await screen.findByRole("dialog", { name: "Something you own" });
+    await user.type(within(other).getByLabelText("Name"), "Grandpa's watch");
+    await user.click(within(other).getByRole("radio", { name: "Other" }));
+    await user.type(within(other).getByLabelText("What it's worth"), "0");
+    await user.click(within(other).getByRole("button", { name: "Save" }));
+    expect(within(other).getByRole("alert")).toHaveTextContent("Say what it is");
+    expect(within(other).getByLabelText("Your word for it")).toHaveFocus();
+    await user.type(within(other).getByLabelText("Your word for it"), "Heirloom");
+    await user.click(within(other).getByRole("button", { name: "Save" }));
+    expect(await screen.findByText(/^Heirloom · Updated/)).toBeInTheDocument();
+
     // This month's snapshot follows the total, with the rules version stamped.
     await waitFor(async () =>
       expect((await db.net_worth_snapshots.get(todayIso().slice(0, 7)))?.net_cents).toBe(1510000),

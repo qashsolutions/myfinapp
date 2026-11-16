@@ -28,7 +28,37 @@ describe("reading a document's total", () => {
       cents: 125040,
       as_of: "2026-09-03",
       doc: "investments",
+      last4: "6789",
+      kind_from: "Rollover IRA",
     });
+  });
+
+  it("an account number masked or whole gives its last four only; a date never does", async () => {
+    const masked = await readDocumentTotal(
+      ["Roth IRA", "Account ending in 4321", "Account value as of 06/30/2026 $9,000.00"],
+      parseAmount,
+    );
+    expect(masked).toMatchObject({ last4: "4321", kind_from: "Roth IRA" });
+    const loan = await readDocumentTotal(
+      ["Mortgage Statement", "Loan number: 0012-345678", "Principal balance $200,000.00"],
+      parseAmount,
+    );
+    expect(loan).toMatchObject({ last4: "5678" });
+    const none = await readDocumentTotal(
+      [
+        "Example Brokerage",
+        "Statement date 10/31/2026",
+        "Total account value $1,000.00",
+        "Brokerage",
+      ],
+      parseAmount,
+    );
+    expect(none).toMatchObject({ last4: null, kind_from: "Brokerage" });
+    const guessed = await readDocumentTotal(
+      ["Positions", "Symbol Quantity Market value", "Account total $500.00"],
+      parseAmount,
+    );
+    expect(guessed).toMatchObject({ group: "investments", kind_from: null });
   });
 
   it("a monthly brokerage statement with its value on the next line", async () => {
@@ -78,6 +108,8 @@ describe("reading a document's total", () => {
       cents: 31245077,
       as_of: "2026-10-15",
       doc: "loan",
+      last4: null,
+      kind_from: "Mortgage",
     });
     const car = await readDocumentTotal(
       ["Auto loan statement", "Principal balance", "$14,980.00"],
@@ -127,7 +159,16 @@ describe("reading a document's total", () => {
       cents: 350050,
       as_of: "2026-09-03",
       doc: "investments",
+      last4: null,
+      kind_from: "Roth IRA",
     });
+    expect(
+      await readCsvTotal(
+        ["Account Number", "Symbol", "Current Value"],
+        [["Z98765432", "ABCD", "$10.00"]],
+        parseAmount,
+      ),
+    ).toMatchObject({ last4: "5432" });
     expect(await readCsvTotal(["Date", "Description", "Amount"], [["x"]], parseAmount)).toBeNull();
   });
 
