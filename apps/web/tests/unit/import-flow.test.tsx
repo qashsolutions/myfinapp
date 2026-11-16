@@ -62,7 +62,7 @@ describe("statement import, read on the device", () => {
     expect(await screen.findByText("statement_oct.csv")).toBeInTheDocument();
     expect(screen.getByText("CSV · 4 rows")).toBeInTheDocument();
     expect(
-      screen.getByText("Read on this device. The file is never uploaded."),
+      screen.getByText("Read on this device, one file at a time. Never uploaded."),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "+ New account" }));
@@ -843,6 +843,109 @@ describe("PDF statement (fast-follow 2)", () => {
         { label: "Rollover IRA", value_cents: 130000, as_of: "2026-10-01" },
       ]),
     );
+  });
+
+  it("several files: read one at a time, Do all adds what needs no question, Check does the rest", async () => {
+    vi.mocked(extractLines).mockResolvedValueOnce([
+      "Portfolio Positions",
+      "Positions",
+      "Rollover IRA",
+      "Overview As of Sep-03-2026",
+      "Symbol Last price Quantity Cost basis % of account",
+      "ABCD $10.00 5 $40.00",
+      "Account total $1,250.40",
+    ]);
+    const user = userEvent.setup();
+    const fake = await start();
+    const positions = new File(
+      [new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])],
+      "Positions_250044484.pdf",
+      {
+        type: "application/pdf",
+      },
+    );
+    await user.upload(screen.getByLabelText(/Choose a statement file/), [
+      positions,
+      fileOf("statement_oct.csv", "text/csv"),
+      new File(["hello"], "broken.ofx", { type: "application/x-ofx" }),
+    ]);
+    const list = await screen.findByRole("list", { name: "Files picked" });
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Your files" })).toHaveTextContent("Ready"),
+    );
+    const rows = within(list).getAllByRole("listitem");
+    expect(rows[0]).toHaveTextContent("Positions_••4484.pdf");
+    expect(rows[0]).toHaveTextContent("As of Sep 3, 2026");
+    expect(rows[0]).toHaveTextContent("Found · Rollover IRA · $1,250.40 · Retirement");
+    expect(rows[1]).toHaveTextContent("statement_oct.csv");
+    expect(rows[1]).toHaveTextContent("CSV · 4 rows · check to pick the account");
+    expect(rows[2]).toHaveTextContent("Not read: no transactions found in it");
+    expect(
+      within(rows[2] as HTMLElement).getByRole("button", { name: "Remove" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/1 need a quick check first: pick the account/)).toBeInTheDocument();
+
+    // Do all: the document goes to Net worth; the CSV waits for its check.
+    await user.click(screen.getByRole("button", { name: "Do all 1" }));
+    await waitFor(() => expect(rows[0]).toHaveTextContent("Rollover IRA, $1,250.40 → Net worth"));
+    const db = openDb("u1");
+    expect(await db.net_worth_items.toArray()).toMatchObject([
+      { label: "Rollover IRA", value_cents: 125040 },
+    ]);
+
+    // Check the CSV: the usual steps, then back to the files.
+    await user.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Check" }));
+    await user.click(await screen.findByRole("button", { name: "+ New account" }));
+    await user.type(screen.getByLabelText("Account name"), "Everyday checking");
+    await user.click(screen.getByRole("button", { name: "Add account" }));
+    await user.click(screen.getByRole("button", { name: "Read file" }));
+    await user.click(await screen.findByRole("button", { name: "Looks right" }));
+    await user.click(await screen.findByRole("button", { name: "Import 4 transactions" }));
+    const head = await screen.findByRole("region", { name: "Your files" });
+    await waitFor(() => expect(head).toHaveTextContent("Done2 files added. 1 not added."));
+    expect(screen.getByRole("list", { name: "Files picked" })).toHaveTextContent(
+      "4 transactions → Everyday checking",
+    );
+    expect(screen.getByRole("link", { name: "Net worth" })).toHaveAttribute("href", "/net-worth");
+    expect(screen.getByRole("link", { name: "Money in & out" })).toBeInTheDocument();
+    expect(await db.entries.count()).toBe(4);
+    // The names kept are masked; nothing of the files went anywhere.
+    expect(JSON.stringify(await db.document_imports.toArray())).not.toMatch(/250044484/);
+    expect(onlySessionReads(fake.calls)).toEqual([]);
+  });
+
+  it("over the plan's count: the rest wait for the next batch, said up front", async () => {
+    const user = userEvent.setup();
+    await start();
+    const many = Array.from(
+      { length: 7 },
+      (_, i) =>
+        new File(["Date,Description,Amount\n2026-10-01,X,-1.00\n"], `m${i + 1}.csv`, {
+          type: "text/csv",
+        }),
+    );
+    await user.upload(screen.getByLabelText(/Choose a statement file/), many);
+    // Private (the fake's plan) reads 5 at a time.
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "You picked 7 files. Private reads 5 at a time and 10 MB in all, so 2 wait for the next batch.",
+    );
+    const rows = within(screen.getByRole("list", { name: "Files picked" })).getAllByRole(
+      "listitem",
+    );
+    expect(rows[5]).toHaveTextContent("Left for the next batch");
+    expect(rows[6]).toHaveTextContent("Left for the next batch");
+  });
+
+  it("one file over 2 MB says so and keeps its name on screen", async () => {
+    const user = userEvent.setup();
+    await start();
+    const big = new File(["x"], "Brokerage_annual.pdf", { type: "application/pdf" });
+    Object.defineProperty(big, "size", { value: 3.4 * 1024 * 1024 });
+    await user.upload(screen.getByLabelText(/Choose a statement file/), big);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This file is 3.4 MB; files can be up to 2 MB. Download one month or a CSV instead.",
+    );
+    expect(screen.getByText("Brokerage_annual.pdf")).toBeInTheDocument();
   });
 
   it("a mortgage statement: the principal owed, as a debt", async () => {

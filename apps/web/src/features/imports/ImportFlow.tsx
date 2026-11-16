@@ -12,6 +12,9 @@ import { parseAmount } from "../../engine/bridge.ts";
 import { applyMapping } from "../../importers/csv.ts";
 import { maskFileName } from "../../importers/masking.ts";
 import { todayIso } from "../../lib/format.ts";
+import { useEntitlements } from "../billing/entitlements.ts";
+import { BatchImport, statementDone } from "./BatchImport.tsx";
+import { type BatchRow, planBatch } from "./batch.ts";
 import { ColumnMapper } from "./ColumnMapper.tsx";
 import { ImportPreview } from "./ImportPreview.tsx";
 import {
@@ -58,6 +61,19 @@ export function ImportFlow() {
   const [keepFile, setKeepFile] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Several files at once (November 16, 2026): the batch, and the statement being checked from it.
+  const { entitlements } = useEntitlements();
+  const [batch, setBatch] = useState<BatchRow[] | null>(null);
+  const [checkingId, setCheckingId] = useState<string | null>(null);
+
+  function backToBatch() {
+    setCheckingId(null);
+    setChosen(null);
+    setAccount(null);
+    setMapping(null);
+    setPrepared(null);
+    setStep(1);
+  }
 
   async function readFile() {
     if (!chosen || !account) return;
@@ -128,6 +144,16 @@ export function ImportFlow() {
         period: chosen.parsed.ofx?.period ?? chosen.parsed.pdf?.period,
         templateKey: chosen.parsed.pdf?.template_key ?? null,
       });
+      if (checkingId) {
+        // Checked from a batch: back to the files, this one marked with what it became.
+        const id = checkingId;
+        const note = statementDone(prepared.fresh, prepared.duplicates, account.label);
+        setBatch((rows) =>
+          rows ? rows.map((r) => (r.id === id ? { ...r, status: "done", note } : r)) : rows,
+        );
+        backToBatch();
+        return;
+      }
       navigate(landingFor(prepared), { replace: true });
     } catch {
       setError("The import didn't finish. Nothing was saved; try again.");
@@ -136,7 +162,26 @@ export function ImportFlow() {
     }
   }
 
-  const back = step === 1 ? "/" : undefined;
+  if (batch && !checkingId)
+    return (
+      <>
+        <ScreenHeader title="Import a statement" back="/" actions={null} />
+        <BatchImport
+          rows={batch}
+          setRows={(update) => setBatch((rows) => (rows ? update(rows) : rows))}
+          onCheckStatement={(row) => {
+            if (!row.parsed) return;
+            setChosen({ file: row.file, text: row.text ?? "", parsed: row.parsed });
+            setAccount(row.account ?? null);
+            setStep(1);
+            setCheckingId(row.id);
+          }}
+          onAddMore={() => setBatch(null)}
+        />
+      </>
+    );
+
+  const back = step === 1 && !checkingId ? "/" : undefined;
   return (
     <>
       <ScreenHeader
@@ -144,6 +189,11 @@ export function ImportFlow() {
         back={back}
         actions={<span className="import-step">{step} of 3</span>}
       />
+      {checkingId && step === 1 ? (
+        <button type="button" className="auth__link" onClick={backToBatch}>
+          ‹ Back to your files
+        </button>
+      ) : null}
       {step > 1 ? (
         <button
           type="button"
@@ -165,6 +215,7 @@ export function ImportFlow() {
           onFile={setChosen}
           onAccount={setAccount}
           onNext={readFile}
+          onBatch={(files) => setBatch(planBatch(files, entitlements))}
         />
       ) : null}
       {step === 2 && chosen?.parsed.csv && mapping && account ? (
