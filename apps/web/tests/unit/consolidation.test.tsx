@@ -2,7 +2,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Entry, openDb, seedDefaults } from "../../src/data/db.ts";
 import { todayIso } from "../../src/lib/format.ts";
-import { emitMoment } from "../../src/moments/bus.ts";
+import { emitMoment, momentListeners } from "../../src/moments/bus.ts";
 import { installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 
@@ -98,8 +98,12 @@ describe("one place for each thing (October 23, 2026)", () => {
     installFakeApi({ session: readySession() });
     renderApp("/");
     await screen.findByRole("navigation", { name: "Primary" });
+    // Emit only once the app shows moments: a moment emitted before anyone listens is gone
+    // (the bus keeps no queue), which on a slow CI machine made this fail now and then.
+    await waitFor(() => expect(momentListeners()).toBeGreaterThan(0));
     act(() => emitMoment("spending_up", { category: "Dining" }, "cat-dining"));
-    const link = await screen.findByRole("link", { name: "See where" });
+    // The once-a-month check writes to the device database before the toast shows.
+    const link = await screen.findByRole("link", { name: "See where" }, { timeout: 5000 });
     expect(link).toHaveAttribute("href", "/money");
   });
 });
