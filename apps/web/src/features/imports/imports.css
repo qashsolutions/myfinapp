@@ -279,3 +279,13 @@
 .doc-total__why {
   margin: -6px 0 0;
 }
+
+/* The same file added before (November 16, 2026). */
+.import-seen {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-card);
+  background: var(--c-pending-bg);
+  color: var(--c-pending-text);
+  font-size: var(--fs-small);
+}

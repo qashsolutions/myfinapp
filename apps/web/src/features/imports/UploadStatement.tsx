@@ -8,8 +8,10 @@ import { PdfError } from "../../importers/pdf/index.ts";
 import type { DocumentTotal } from "../../importers/totals.ts";
 import { useEntitlements } from "../billing/entitlements.ts";
 import { AccountPicker, type AccountSuggestion } from "./AccountPicker.tsx";
+import { AddedBefore } from "./AddedBefore.tsx";
 import { MB, sizeOf } from "./batch.ts";
 import { DocumentTotalCard } from "./DocumentTotalCard.tsx";
+import { useDocumentHistory } from "./documentHistory.ts";
 import { fileSummary } from "./fileSummary.ts";
 import { type ParsedFile, readPdfForImport, readTextForImport } from "./importFlow.ts";
 
@@ -57,6 +59,10 @@ export function UploadStatement({
   // A document with a total for Net worth (an investment account, a loan), and its file's name.
   const [found, setFound] = useState<{ name: string; total: DocumentTotal } | null>(null);
   const navigate = useNavigate();
+  const history = useDocumentHistory();
+  // The same file added before (matched on its masked name, which is all that is kept).
+  const current = chosen?.file.name ?? found?.name ?? null;
+  const before = current ? history?.find((r) => r.name === maskFileName(current)) : undefined;
   // Never a dead button: Read file stays tappable and says what's missing first.
   const [missing, setMissing] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -209,6 +215,14 @@ export function UploadStatement({
           ) : null}
         </p>
       ) : null}
+      {before ? (
+        <p className="import-seen" role="status">
+          Added before, on {before.added}: {before.became}.{" "}
+          {found
+            ? "Adding it again updates that line, never a second one unless you choose."
+            : "Importing it again skips what's already in Qash, so nothing counts twice."}
+        </p>
+      ) : null}
       {found ? (
         <DocumentTotalCard
           key={found.name}
@@ -242,6 +256,7 @@ export function UploadStatement({
       <p className="auth__fineprint">
         PDFs: text statements work, scans don't. If yours won't read, use CSV or OFX.
       </p>
+      {!chosen && !found && history ? <AddedBefore rows={history} /> : null}
     </>
   );
 }
