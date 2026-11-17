@@ -19,6 +19,7 @@ export type RowStatus =
   | "too_big" // over the per-file limit
   | "later" // over the plan's file count or batch size: for the next batch
   | "stopped" // the person stopped reading before this one
+  | "same" // this exact file, or the same total, was added before: `same` says which
   | "done"; // added: `note` says what it became
 
 export interface BatchRow {
@@ -31,6 +32,10 @@ export interface BatchRow {
   text?: string;
   /** A statement's account when it is known without asking: the only one with its last four. */
   account?: Account | null;
+  /** The file's SHA-256 (duplicates.fileSha256), kept with what it becomes. */
+  sha?: string | null;
+  /** A row marked "same": the Your documents id it repeats, and what it was read as. */
+  same?: { id: string; was: "total" | "statement" } | null;
 }
 
 export const MB = 1024 * 1024;
@@ -139,6 +144,7 @@ export async function importReady(
     prepared,
     transfers,
     keepFile: false,
+    fileSha: row.sha ?? null,
     period: parsed.ofx?.period ?? parsed.pdf?.period,
     templateKey,
   });

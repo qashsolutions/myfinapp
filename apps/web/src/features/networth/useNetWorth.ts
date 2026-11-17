@@ -360,6 +360,8 @@ export async function saveFromDocument(
     own_kind?: string | null;
     /** The file it came from, for Your documents; masked before it is kept. */
     file_name: string;
+    /** The file's SHA-256, kept to know the same file again. */
+    file_sha256?: string | null;
   },
 ): Promise<string> {
   const now = new Date().toISOString();
@@ -390,6 +392,7 @@ export async function saveFromDocument(
       cents: item.value_cents,
       as_of: item.as_of,
       own_kind: item.own_kind ?? null,
+      file_sha256: item.file_sha256 ?? null,
       net_worth_item_id: id,
       created_at: now,
     });

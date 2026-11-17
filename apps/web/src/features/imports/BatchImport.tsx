@@ -12,6 +12,8 @@ import { useEntitlements } from "../billing/entitlements.ts";
 import { GROUP_LABEL, saveFromDocument } from "../networth/useNetWorth.ts";
 import { accountFor, type BatchRow, importReady, limitsNote, sizeOf } from "./batch.ts";
 import { DocumentTotalCard } from "./DocumentTotalCard.tsx";
+import { type DocRow, useDocumentHistory } from "./documentHistory.ts";
+import { fileSha256, sameFile, sameTotal } from "./duplicates.ts";
 import { fileSummary } from "./fileSummary.ts";
 import { readPdfForImport, readTextForImport } from "./importFlow.ts";
 
@@ -59,6 +61,7 @@ export function BatchImport({
     [db],
   );
   const [checking, setChecking] = useState<BatchRow | null>(null);
+  const history = useDocumentHistory();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const reading = useRef(false);
@@ -79,13 +82,25 @@ export function BatchImport({
         const read = isPdf(next.file)
           ? await readPdfForImport(new Uint8Array(await next.file.arrayBuffer()))
           : await readTextForImport(next.file.name, text);
-        if ("total" in read) update(next.id, { status: "total", total: read.total, note: null });
-        else if (read.parsed.rowCount === 0)
+        const sha = await fileSha256(next.file);
+        const exact = await sameFile(db, sha);
+        if ("total" in read) {
+          const same = exact ?? (await sameTotal(db, read.total));
+          update(next.id, {
+            status: same ? "same" : "total",
+            total: read.total,
+            sha,
+            same: same ? { id: same, was: "total" } : null,
+            note: null,
+          });
+        } else if (read.parsed.rowCount === 0)
           // Nothing to check or import: say so instead of a Check that leads nowhere.
           update(next.id, { status: "refused", note: "Not read: no transactions found in it" });
         else
           update(next.id, {
-            status: "statement",
+            status: exact ? "same" : "statement",
+            same: exact ? { id: exact, was: "statement" } : null,
+            sha,
             parsed: read.parsed,
             text,
             account: accountFor(
@@ -111,6 +126,7 @@ export function BatchImport({
   const ready = rows.filter((r) => r.status === "total" || (r.status === "statement" && r.account));
   const toCheck = rows.filter((r) => r.status === "statement" && !r.account);
   const done = rows.filter((r) => r.status === "done");
+  const sameRows = rows.filter((r) => r.status === "same");
   const finished = left.length === 0 && ready.length === 0 && toCheck.length === 0;
   const position = inBatch.findIndex((r) => r.status === "reading") + 1;
   const usedMb = inBatch.reduce((n, r) => n + r.file.size, 0);
@@ -120,7 +136,9 @@ export function BatchImport({
     : finished
       ? done.length
         ? "Done"
-        : "Review"
+        : sameRows.length
+          ? "Same"
+          : "Review"
       : ready.length
         ? "Ready"
         : "Review";
@@ -129,7 +147,9 @@ export function BatchImport({
     : finished
       ? done.length
         ? `${done.length} ${done.length === 1 ? "file" : "files"} added.${rows.length > done.length ? ` ${rows.length - done.length} not added.` : ""}`
-        : "Nothing could be added from these files."
+        : sameRows.length
+          ? `${sameRows.length === 1 ? "It was" : "All of these were"} added before. Nothing new; Add anyway on a file to add it again.`
+          : "Nothing could be added from these files."
       : `${inBatch.length - left.length} of ${inBatch.length} files read. Check each, or do all at once.`;
 
   async function doAll() {
@@ -146,6 +166,7 @@ export function BatchImport({
             value_cents: r.total.cents,
             as_of: r.total.as_of,
             file_name: r.file.name,
+            file_sha256: r.sha ?? null,
           });
           update(r.id, { status: "done", note: totalLine(r) });
         } else if (r.account) {
@@ -215,7 +236,7 @@ export function BatchImport({
                 {maskFileName(r.file.name)}
               </span>
               <span className="batch-row__when">{whenOf(r)}</span>
-              <span className="batch-row__what">{whatOf(r)}</span>
+              <span className="batch-row__what">{whatOf(r, history)}</span>
             </span>
             {r.status === "total" ? (
               <Button size="sm" variant="secondary" onClick={() => setChecking(r)}>
@@ -224,6 +245,14 @@ export function BatchImport({
             ) : r.status === "statement" ? (
               <Button size="sm" variant="secondary" onClick={() => onCheckStatement(r)}>
                 Check
+              </Button>
+            ) : r.status === "same" && r.same ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => update(r.id, { status: r.same?.was ?? "total", same: null })}
+              >
+                Add anyway
               </Button>
             ) : r.status === "refused" || r.status === "too_big" ? (
               <Button
@@ -324,6 +353,7 @@ export function BatchImport({
           <DocumentTotalCard
             total={checking.total}
             fileName={checking.file.name}
+            fileSha={checking.sha ?? null}
             onSaved={() => {
               update(checking.id, { status: "done", note: totalLine(checking) });
               setChecking(null);
@@ -368,8 +398,14 @@ function whenOf(r: BatchRow): string {
   return size;
 }
 
-function whatOf(r: BatchRow): string {
+function whatOf(r: BatchRow, history: DocRow[] | undefined): string {
   switch (r.status) {
+    case "same": {
+      const earlier = history?.find((h) => h.id === r.same?.id);
+      return earlier
+        ? `Same as added ${earlier.added} · ${earlier.became} · Do all skips it`
+        : "Added before · Do all skips it";
+    }
     case "waiting":
       return "Waiting";
     case "reading":

@@ -1,17 +1,21 @@
 import { Button } from "@stackd/ui";
 import { useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { useDb } from "../../data/DbProvider.tsx";
 import type { Account } from "../../data/db.ts";
 import { readFileText } from "../../data/files.ts";
 import { maskFileName } from "../../importers/masking.ts";
 import { PdfError } from "../../importers/pdf/index.ts";
 import type { DocumentTotal } from "../../importers/totals.ts";
 import { useEntitlements } from "../billing/entitlements.ts";
+import { ENTRIES_PATH } from "../entries/paths.ts";
 import { AccountPicker, type AccountSuggestion } from "./AccountPicker.tsx";
 import { AddedBefore } from "./AddedBefore.tsx";
+import { AlreadyAdded } from "./AlreadyAdded.tsx";
 import { MB, sizeOf } from "./batch.ts";
 import { DocumentTotalCard } from "./DocumentTotalCard.tsx";
 import { useDocumentHistory } from "./documentHistory.ts";
+import { fileSha256, sameFile, sameTotal } from "./duplicates.ts";
 import { fileSummary } from "./fileSummary.ts";
 import { type ParsedFile, readPdfForImport, readTextForImport } from "./importFlow.ts";
 
@@ -30,6 +34,8 @@ export interface Chosen {
   file: File;
   text: string;
   parsed: ParsedFile;
+  /** The file's SHA-256 (duplicates.fileSha256), kept with the import. */
+  sha: string | null;
 }
 
 /** Step 1 of 3 (mockup F3Import): the file, read on this device, and the account it belongs to. */
@@ -57,12 +63,21 @@ export function UploadStatement({
   // The file picked last, kept on screen even when it couldn't be read, so it's clear which one.
   const [refused, setRefused] = useState<string | null>(null);
   // A document with a total for Net worth (an investment account, a loan), and its file's name.
-  const [found, setFound] = useState<{ name: string; total: DocumentTotal } | null>(null);
+  const [found, setFound] = useState<{
+    name: string;
+    total: DocumentTotal;
+    sha: string | null;
+  } | null>(null);
+  // Added before (owner decision, November 16, 2026): the Your documents id of the same file,
+  // or of the same total, until the person says Add it anyway.
+  const [same, setSame] = useState<{ id: string; why: string } | null>(null);
   const navigate = useNavigate();
+  const { db } = useDb();
   const history = useDocumentHistory();
   // The same file added before (matched on its masked name, which is all that is kept).
   const current = chosen?.file.name ?? found?.name ?? null;
   const before = current ? history?.find((r) => r.name === maskFileName(current)) : undefined;
+  const earlier = same ? history?.find((r) => r.id === same.id) : undefined;
   // Never a dead button: Read file stays tappable and says what's missing first.
   const [missing, setMissing] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -108,6 +123,7 @@ export function UploadStatement({
     setHoldings(false);
     setRefused(null);
     setFound(null);
+    setSame(null);
     setMissing(null);
     try {
       const pdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
@@ -115,12 +131,21 @@ export function UploadStatement({
       const read = pdf
         ? await readPdfForImport(new Uint8Array(await file.arrayBuffer()))
         : await readTextForImport(file.name, text);
+      const sha = await fileSha256(file);
+      const exact = await sameFile(db, sha);
       if ("total" in read) {
+        const total = exact ? null : await sameTotal(db, read.total);
         onFile(null);
-        setFound({ name: file.name, total: read.total });
+        setFound({ name: file.name, total: read.total, sha });
+        if (exact || total)
+          setSame({
+            id: (exact ?? total) as string,
+            why: exact ? "This exact file" : "The same total",
+          });
         return;
       }
-      onFile({ file, text, parsed: read.parsed });
+      onFile({ file, text, parsed: read.parsed, sha });
+      if (exact) setSame({ id: exact, why: "This exact file" });
     } catch (err) {
       onFile(null);
       setRefused(file.name);
@@ -215,7 +240,19 @@ export function UploadStatement({
           ) : null}
         </p>
       ) : null}
-      {before ? (
+      {same && earlier ? (
+        <AlreadyAdded
+          earlier={earlier}
+          why={same.why}
+          anywayNote={
+            found
+              ? "Adding it anyway lets you update that line or add a second one."
+              : "Adding it anyway never adds a transaction twice: what's already in Qash is skipped."
+          }
+          onKeep={() => navigate(earlier.id.startsWith("document:") ? "/net-worth" : ENTRIES_PATH)}
+          onAnyway={() => setSame(null)}
+        />
+      ) : before ? (
         <p className="import-seen" role="status">
           Added before, on {before.added}: {before.became}.{" "}
           {found
@@ -223,15 +260,16 @@ export function UploadStatement({
             : "Importing it again skips what's already in Qash, so nothing counts twice."}
         </p>
       ) : null}
-      {found ? (
+      {found && !same ? (
         <DocumentTotalCard
           key={found.name}
           total={found.total}
           fileName={found.name}
+          fileSha={found.sha}
           onSaved={(id) => navigate("/net-worth", { state: { highlight: `worth-manual:${id}` } })}
         />
       ) : null}
-      <div ref={accounts} hidden={found !== null}>
+      <div ref={accounts} hidden={found !== null || same !== null}>
         <AccountPicker
           value={account?.id ?? null}
           onChange={(a) => {
@@ -248,7 +286,7 @@ export function UploadStatement({
           {missing}
         </p>
       ) : null}
-      {found ? null : (
+      {found || same ? null : (
         <Button block onClick={next}>
           Read file
         </Button>

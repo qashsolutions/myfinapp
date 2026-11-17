@@ -140,6 +140,7 @@ export function ImportFlow() {
         mapping: mapping ?? undefined,
         rememberMapping: remember,
         file: chosen.file,
+        fileSha: chosen.sha,
         keepFile,
         period: chosen.parsed.ofx?.period ?? chosen.parsed.pdf?.period,
         templateKey: chosen.parsed.pdf?.template_key ?? null,
@@ -171,7 +172,12 @@ export function ImportFlow() {
           setRows={(update) => setBatch((rows) => (rows ? update(rows) : rows))}
           onCheckStatement={(row) => {
             if (!row.parsed) return;
-            setChosen({ file: row.file, text: row.text ?? "", parsed: row.parsed });
+            setChosen({
+              file: row.file,
+              text: row.text ?? "",
+              parsed: row.parsed,
+              sha: row.sha ?? null,
+            });
             setAccount(row.account ?? null);
             setStep(1);
             setCheckingId(row.id);

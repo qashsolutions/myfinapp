@@ -251,15 +251,62 @@ describe("statement import, read on the device", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Review import" }),
     ).toBeInTheDocument();
+    // Nothing new: it says it's the same, when it was added and what it became, and asks.
+    const same = await screen.findByRole("region", { name: "Same as before" });
+    expect(same).toHaveTextContent(
+      /Every one of its 4 transactions is already in Qash\. The last statement for Cash was added on .*: Cash · 4 transactions\. Nothing new in this file\./,
+    );
+    expect(within(same).getByRole("button", { name: "Keep what's there" })).toBeEnabled();
+    await user.click(within(same).getByRole("button", { name: "Add it anyway" }));
     const stats = screen.getByRole("group", { name: "Rows" });
     expect(
       within(stats)
         .getAllByText(/^\d+$/)
         .map((e) => e.textContent),
     ).toEqual(["4", "0", "4"]);
-    expect(screen.getByRole("button", { name: "Nothing new to import" })).toBeDisabled();
+    // Never a dead button: adding it anyway lists the file again and adds no transaction.
+    await user.click(screen.getByRole("button", { name: "Add it to Your documents" }));
+    await waitFor(async () => expect(await db.statement_imports.count()).toBe(2));
     expect(await db.entries.count()).toBe(4);
     expect(onlySessionReads(fake.calls)).toEqual([]);
+  });
+
+  it("the exact same file again says Same at once; Keep what's there adds nothing", async () => {
+    const user = userEvent.setup();
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await start();
+    const pickCash = async () => {
+      await user.upload(
+        (await screen.findAllByLabelText(/Choose a statement file/)).at(-1) as HTMLElement,
+        fileOf("statement_oct.csv", "text/csv"),
+      );
+    };
+    await pickCash();
+    await user.click(await screen.findByRole("radio", { name: /^Cash/ }));
+    await user.click(screen.getByRole("button", { name: "Read file" }));
+    await user.click(await screen.findByRole("button", { name: "Looks right" }));
+    await user.click(await screen.findByRole("button", { name: "Import 4 transactions" }));
+    await waitFor(async () => expect(await db.entries.count()).toBe(4));
+    const kept = await db.statement_imports.toArray();
+    expect(kept[0]?.file_sha256).toMatch(/^[0-9a-f]{64}$/);
+
+    // The same bytes under another name are still the same file.
+    cleanup();
+    renderApp("/import");
+    await user.upload(
+      (await screen.findAllByLabelText(/Choose a statement file/)).at(-1) as HTMLElement,
+      new File([fixture("statement_oct.csv")], "renamed.csv", { type: "text/csv" }),
+    );
+    const same = await screen.findByRole("region", { name: "Same as before" });
+    expect(same).toHaveTextContent(/This exact file was added on .*: Cash · 4 transactions\./);
+    expect(screen.queryByRole("button", { name: "Read file" })).toBeNull();
+    await user.click(within(same).getByRole("button", { name: "Keep what's there" }));
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Money in & out" }),
+    ).toBeInTheDocument();
+    expect(await db.statement_imports.count()).toBe(1);
+    expect(await db.entries.count()).toBe(4);
   });
 
   it("OFX skips column matching, masks the account number, anchors the balance, and finds the other side of a transfer", async () => {
@@ -816,7 +863,8 @@ describe("PDF statement (fast-follow 2)", () => {
     const user = userEvent.setup();
     const fake = await start();
     const pdf = (name: string) =>
-      new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])], name, {
+      // Each file's own bytes (the name inside), so two files are never the same file.
+      new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]), name], name, {
         type: "application/pdf",
       });
     await user.upload(screen.getByLabelText(/Choose a statement file/), pdf("Positions.pdf"));
@@ -883,7 +931,7 @@ describe("PDF statement (fast-follow 2)", () => {
     const next = (await screen.findAllByRole("region", { name: "Found in this document" })).at(
       -1,
     ) as HTMLElement;
-    await user.click(within(next).getByRole("button", { name: "Update “Rollover IRA”" }));
+    await user.click(await within(next).findByRole("button", { name: "Update “Rollover IRA”" }));
     await waitFor(async () =>
       expect(await db.net_worth_items.toArray()).toMatchObject([
         { label: "Rollover IRA", value_cents: 130000, as_of: "2026-10-01" },
@@ -898,9 +946,31 @@ describe("PDF statement (fast-follow 2)", () => {
       (await screen.findAllByLabelText(/Choose a statement file/)).at(-1) as HTMLElement,
       pdf("Positions.pdf"),
     );
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      /Added before, on .*: Net worth · Rollover IRA · \$1,250\.40 · Retirement\. Adding it again updates that line/,
+    // The same bytes: Same at once, and Keep what's there changes nothing.
+    const same = await screen.findByRole("region", { name: "Same as before" });
+    expect(same).toHaveTextContent(
+      /This exact file was added on .*: Net worth · Rollover IRA · \$1,250\.40 · Retirement\. Nothing new in this file\./,
     );
+    expect(screen.queryByRole("region", { name: "Found in this document" })).toBeNull();
+    await user.click(within(same).getByRole("button", { name: "Keep what's there" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Net worth" })).toBeInTheDocument();
+    expect(await db.document_imports.count()).toBe(2);
+
+    // Another file with the same total and date (downloaded again): the same total, and Add it
+    // anyway goes on to the usual card.
+    cleanup();
+    renderApp("/import");
+    vi.mocked(extractLines).mockResolvedValueOnce(positions("$1,300.00", "Oct-01-2026"));
+    await user.upload(
+      (await screen.findAllByLabelText(/Choose a statement file/)).at(-1) as HTMLElement,
+      pdf("Positions (1).pdf"),
+    );
+    const again = await screen.findByRole("region", { name: "Same as before" });
+    expect(again).toHaveTextContent(/The same total was added on .*\$1,300\.00/);
+    await user.click(within(again).getByRole("button", { name: "Add it anyway" }));
+    expect(
+      await screen.findByRole("button", { name: "Update “Rollover IRA”" }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Added before" })).toBeNull();
   });
 
@@ -971,6 +1041,43 @@ describe("PDF statement (fast-follow 2)", () => {
     // The names kept are masked; nothing of the files went anywhere.
     expect(JSON.stringify(await db.document_imports.toArray())).not.toMatch(/250044484/);
     expect(onlySessionReads(fake.calls)).toEqual([]);
+
+    // The same two files again: each says Same, Do all has nothing to do, Add anyway undoes it.
+    cleanup();
+    renderApp("/import");
+    vi.mocked(extractLines).mockResolvedValueOnce([
+      "Portfolio Positions",
+      "Positions",
+      "Rollover IRA",
+      "Overview As of Sep-03-2026",
+      "Symbol Last price Quantity Cost basis % of account",
+      "ABCD $10.00 5 $40.00",
+      "Account total $1,250.40",
+    ]);
+    await user.upload(
+      (await screen.findAllByLabelText(/Choose a statement file/)).at(-1) as HTMLElement,
+      [positions, fileOf("statement_oct.csv", "text/csv")],
+    );
+    const second = await screen.findByRole("region", { name: "Your files" });
+    await waitFor(() =>
+      expect(second).toHaveTextContent(
+        "SameAll of these were added before. Nothing new; Add anyway on a file to add it again.",
+      ),
+    );
+    const again = within(screen.getByRole("list", { name: "Files picked" })).getAllByRole(
+      "listitem",
+    );
+    expect(again[0]).toHaveTextContent(
+      /Same as added .* · Net worth · Rollover IRA · \$1,250\.40 · Retirement · Do all skips it/,
+    );
+    expect(again[1]).toHaveTextContent(
+      /Same as added .* · Everyday checking · 4 transactions · Do all skips it/,
+    );
+    expect(screen.queryByRole("button", { name: /^Do all/ })).toBeNull();
+    await user.click(within(again[0] as HTMLElement).getByRole("button", { name: "Add anyway" }));
+    expect(again[0]).toHaveTextContent("Found · Rollover IRA · $1,250.40 · Retirement");
+    expect(await screen.findByRole("button", { name: "Do all 1" })).toBeInTheDocument();
+    expect(await db.entries.count()).toBe(4);
   });
 
   it("over the plan's count: the rest wait for the next batch, said up front", async () => {
