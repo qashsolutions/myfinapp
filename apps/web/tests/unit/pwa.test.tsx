@@ -9,6 +9,7 @@ import { PullToRefresh } from "../../src/features/pwa/PullToRefresh.tsx";
 import { UpdateToast } from "../../src/features/pwa/UpdateToast.tsx";
 import {
   DISMISSED_KEY,
+  desktopBrowser,
   dismissInstall,
   recordVisit,
   shouldOfferInstall,
@@ -32,6 +33,23 @@ const IPHONE =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
 const CHROME =
   "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36";
+
+const MAC =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)";
+const DESKTOP = {
+  chrome: `${MAC} Chrome/142.0.0.0 Safari/537.36`,
+  edge: `${MAC} Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0`,
+  safari:
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15",
+  firefox: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:145.0) Gecko/20100101 Firefox/145.0",
+  opera: `${MAC} Chrome/142.0.0.0 Safari/537.36 OPR/120.0.0.0`,
+};
+
+function stepTitles() {
+  return within(screen.getByRole("list", { name: "Steps" }))
+    .getAllByRole("listitem")
+    .map((li) => li.querySelector("strong")?.textContent);
+}
 
 function setUserAgent(ua: string) {
   Object.defineProperty(navigator, "userAgent", { value: ua, configurable: true });
@@ -162,6 +180,95 @@ describe("PWA extras", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "You're all set" }),
     ).toBeInTheDocument();
+  });
+
+  it("reads which computer browser this is", () => {
+    expect(desktopBrowser(DESKTOP.chrome)).toBe("chrome");
+    expect(desktopBrowser(DESKTOP.edge)).toBe("edge");
+    expect(desktopBrowser(DESKTOP.safari)).toBe("safari");
+    expect(desktopBrowser(DESKTOP.firefox)).toBe("firefox");
+    expect(desktopBrowser(DESKTOP.opera)).toBe("other");
+  });
+
+  it("/install on a computer: Chrome points at the address bar's install icon, on this page, never a phone's words", async () => {
+    setUserAgent(DESKTOP.chrome);
+    installFakeApi();
+    renderApp("/install");
+    expect(
+      await screen.findByText("Opens from your Dock or taskbar, like any app. Free."),
+    ).toBeInTheDocument();
+    expect(stepTitles()).toEqual([
+      "Click the install icon",
+      "Click Install",
+      "Open Qash like any app",
+    ]);
+    expect(
+      screen.getByText(/at the right end of the address bar\. Not in a new tab\./),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("No icon? Open the menu ⋮ → Cast, save, and share → Install Qash."),
+    ).toBeInTheDocument();
+    const page = document.body.textContent ?? "";
+    expect(page).not.toMatch(/Home Screen|Home screen|\bTap\b|New tab/);
+  });
+
+  it("/install on a computer: Edge and Safari get their own menus; another browser is pointed at them", async () => {
+    setUserAgent(DESKTOP.edge);
+    installFakeApi();
+    const { unmount } = renderApp("/install");
+    await screen.findByRole("heading", { level: 1, name: "Install Qash" });
+    expect(stepTitles()).toEqual([
+      "Click ••• at the top right",
+      "Click Apps, then Install Qash",
+      "Click Install",
+      "Open Qash like any app",
+    ]);
+    unmount();
+
+    setUserAgent(DESKTOP.safari);
+    const second = renderApp("/install");
+    await screen.findByRole("heading", { level: 1, name: "Install Qash" });
+    expect(stepTitles()).toEqual([
+      "Click File in the menu bar",
+      "Click Add to Dock",
+      "Click Add",
+      "Open Qash from the Dock",
+    ]);
+    second.unmount();
+
+    setUserAgent(DESKTOP.opera);
+    renderApp("/install");
+    await screen.findByRole("heading", { level: 1, name: "Install Qash" });
+    expect(screen.getByText(/Or open this page in Chrome, Edge or Safari\./)).toBeInTheDocument();
+  });
+
+  it("/install in Firefox on a computer says it can't install and copies the link for another browser", async () => {
+    const user = userEvent.setup();
+    setUserAgent(DESKTOP.firefox);
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    installFakeApi();
+    renderApp("/install");
+    const card = await screen.findByRole("region", { name: "Open in another browser" });
+    expect(card).toHaveTextContent("Firefox can't install apps on a computer");
+    expect(screen.queryByRole("list", { name: "Steps" })).toBeNull();
+    await user.click(within(card).getByRole("button", { name: "Copy link" }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Link copied. Paste it into Chrome, Edge or Safari.",
+    );
+  });
+
+  it("/install on Android: the menu picture shows no New tab row to follow", async () => {
+    setUserAgent(CHROME);
+    installFakeApi();
+    renderApp("/install");
+    await screen.findByRole("heading", { level: 1, name: "Install Qash" });
+    expect(stepTitles()).toEqual([
+      "Tap ⋮ at the top",
+      "Tap Install app",
+      "Open Qash from your Home Screen",
+    ]);
+    expect(document.body.textContent).not.toContain("New tab");
   });
 
   it("shows the offline banner with what is waiting, and syncs when back online", async () => {

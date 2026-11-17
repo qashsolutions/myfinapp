@@ -7,12 +7,13 @@ import { APP_NAME } from "../../lib/brand.ts";
 import { isStandalone } from "../../lib/platform.ts";
 import {
   canPromptInstall,
+  desktopBrowser,
   installTarget,
   onInstallChange,
   promptInstall,
 } from "../../pwa/install.ts";
 import { AuthLayout } from "../auth/AuthLayout.tsx";
-import { IphoneSteps, MenuSteps, ShareIcon } from "./InstallSteps.tsx";
+import { DesktopSteps, IphoneSteps, MenuSteps, ShareIcon } from "./InstallSteps.tsx";
 
 const INSTALL_URL = "https://app.qash.solutions/install";
 
@@ -24,6 +25,7 @@ const INSTALL_URL = "https://app.qash.solutions/install";
  */
 export function InstallScreen() {
   const target = installTarget();
+  const browser = target === "desktop" ? desktopBrowser() : null;
   const [installed, setInstalled] = useState(isStandalone());
   const [canPrompt, setCanPrompt] = useState(canPromptInstall());
   const [note, setNote] = useState<string | null>(null);
@@ -38,9 +40,13 @@ export function InstallScreen() {
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(INSTALL_URL);
-      setNote("Link copied. Paste it into Safari.");
+      setNote(
+        `Link copied. Paste it into ${browser === "firefox" ? "Chrome, Edge or Safari" : "Safari"}.`,
+      );
     } catch {
-      setNote(`Open Safari and go to ${INSTALL_URL.replace("https://", "")}`);
+      setNote(
+        `Open ${browser === "firefox" ? "Chrome, Edge or Safari" : "Safari"} and go to ${INSTALL_URL.replace("https://", "")}`,
+      );
     }
   }
 
@@ -48,7 +54,9 @@ export function InstallScreen() {
     return (
       <AuthLayout brand>
         <h1 className="auth__title">You're all set</h1>
-        <p className="auth__lede">{APP_NAME} is on your Home Screen.</p>
+        <p className="auth__lede">
+          {APP_NAME} is on your {target === "desktop" ? "computer" : "Home Screen"}.
+        </p>
         <Link to="/" className={buttonClass({ block: true })}>
           Open {APP_NAME}
         </Link>
@@ -59,7 +67,11 @@ export function InstallScreen() {
   return (
     <AuthLayout brand>
       <h1 className="auth__title">Install {APP_NAME}</h1>
-      <p className="auth__lede">One tap from your Home Screen. Free.</p>
+      <p className="auth__lede">
+        {target === "desktop"
+          ? "Opens from your Dock or taskbar, like any app. Free."
+          : "One tap from your Home Screen. Free."}
+      </p>
       {target === "iphone_other" ? (
         <Card as="section" aria-label="Open in Safari">
           <p className="istep__title">Open this page in Safari</p>
@@ -80,7 +92,16 @@ export function InstallScreen() {
           </div>
         </>
       ) : null}
-      {target === "android" || target === "desktop" ? (
+      {browser === "firefox" ? (
+        <Card as="section" aria-label="Open in another browser">
+          <p className="istep__title">Open this page in Chrome, Edge or Safari</p>
+          <p className="istep__hint">Firefox can't install apps on a computer</p>
+          <Button block onClick={copyLink}>
+            Copy link
+          </Button>
+        </Card>
+      ) : null}
+      {target === "android" || (browser && browser !== "firefox") ? (
         <>
           {canPrompt ? (
             <Button block onClick={install}>
@@ -90,11 +111,11 @@ export function InstallScreen() {
           {canPrompt ? (
             <p className="istep__hint install-or">Nothing happened? Use these steps:</p>
           ) : null}
-          <MenuSteps desktop={target === "desktop"} />
-          {target === "desktop" ? (
-            <p className="istep__hint">On your phone, open {INSTALL_URL.replace("https://", "")}</p>
-          ) : null}
+          {browser && browser !== "firefox" ? <DesktopSteps browser={browser} /> : <MenuSteps />}
         </>
+      ) : null}
+      {target === "desktop" ? (
+        <p className="istep__hint">On your phone, open {INSTALL_URL.replace("https://", "")}</p>
       ) : null}
       {note ? (
         <p className="auth__hint" role="status">

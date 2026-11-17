@@ -181,6 +181,21 @@
   padding: 10px 12px;
   border-radius: 10px;
 }
+.mock-menu__row--blank {
+  height: 12px;
+  padding: 0;
+  margin: 6px 12px;
+  border-radius: 6px;
+  background: var(--c-line);
+}
+.mock-menu__row--end {
+  justify-content: flex-end;
+  gap: 12px;
+}
+.mock-bar__word {
+  padding: 4px 8px;
+  border-radius: 8px;
+}
 .mock-top {
   justify-content: space-between;
   gap: 8px;
