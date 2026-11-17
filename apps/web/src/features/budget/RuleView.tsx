@@ -51,7 +51,9 @@ export function RuleView({
               {b.bucket === "save"
                 ? fraction >= 1
                   ? "Ahead"
-                  : "Saving"
+                  : b.spent_cents > 0
+                    ? "Saving"
+                    : "Start"
                 : over
                   ? "Over"
                   : pace?.get(bucketLineId(b.bucket)) === "Close"

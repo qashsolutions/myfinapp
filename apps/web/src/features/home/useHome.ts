@@ -51,6 +51,8 @@ export interface HomeView {
   /** The top-priority jar behind its own pace, as the next move reads it; null when none is. */
   behindJar: NextMoveFacts["behind_goal"];
   jars: Goal[];
+  /** Each jar's money in so far: deposits less withdrawals. */
+  savedByJar: ReadonlyMap<string, number>;
   emergencyJar: Goal | null;
   challenge: GroupSummary | null;
   ready: boolean;
@@ -307,6 +309,15 @@ export function useHome(asOf: string): HomeView & { logSetAside: () => Promise<b
     asOf,
   ]);
 
+  const savedByJar = useMemo(() => {
+    const saved = new Map<string, number>();
+    for (const e of jarEvents ?? []) {
+      const sign = e.type === "deposit" ? 1 : -1;
+      saved.set(e.goal_id, (saved.get(e.goal_id) ?? 0) + sign * (e.amount_cents ?? 0));
+    }
+    return saved;
+  }, [jarEvents]);
+
   /** One tap on payday: record the suggested amount in the emergency jar (or the first jar). */
   async function logSetAside(): Promise<boolean> {
     const amount =
@@ -327,6 +338,7 @@ export function useHome(asOf: string): HomeView & { logSetAside: () => Promise<b
     forecast,
     ...computed,
     jars,
+    savedByJar,
     emergencyJar,
     challenge: groups.groups?.[0] ?? null,
     logSetAside,

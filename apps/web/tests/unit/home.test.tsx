@@ -1,8 +1,14 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
+import type { GroupSummary } from "../../src/data/api.ts";
 import { type Entry, openDb, seedDefaults } from "../../src/data/db.ts";
 import { addGoalEvent, moveMoney } from "../../src/features/goals/useGoals.ts";
-import { challengeDay, daysLeftInMonth } from "../../src/features/home/HomeCards.tsx";
+import {
+  ChallengeHomeCard,
+  challengeDay,
+  daysLeftInMonth,
+} from "../../src/features/home/HomeCards.tsx";
 import { installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 
@@ -111,8 +117,12 @@ describe("Home", () => {
 
     // Save target: 20% of $5,200 take-home = $1,040
     const aside = screen.getByRole("link", { name: "Set aside this month, open Goals" });
-    await waitFor(() => expect(aside).toHaveTextContent("Set aside $0.00 of $1,040.00 this month"));
-    expect(aside).toHaveTextContent("0 of 1 payday set aside so far");
+    // Nothing set aside yet: Start, never a green Saved at $0 (owner, November 17, 2026)
+    await waitFor(() =>
+      expect(aside).toHaveTextContent("$0.00 of $1,040.00 · 0 of 1 payday so far"),
+    );
+    expect(within(aside).getByText("Start")).toHaveClass("word--plain");
+    expect(within(aside).queryByText("Saved")).toBeNull();
 
     // Payday today: 20% of the $2,400 paycheck
     const move = await screen.findByRole("region", {
@@ -120,9 +130,9 @@ describe("Home", () => {
     });
     await user.click(within(move).getByRole("button", { name: "Log $480.00 set aside" }));
     await waitFor(() =>
-      expect(aside).toHaveTextContent("Set aside $480.00 of $1,040.00 this month"),
+      expect(aside).toHaveTextContent("$480.00 of $1,040.00 · 1 of 1 payday so far"),
     );
-    expect(aside).toHaveTextContent("1 of 1 payday set aside so far");
+    expect(within(aside).getByText("Saved")).toHaveClass("word--good");
     const events = await db.goal_events.toArray();
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({
@@ -168,9 +178,7 @@ describe("Home", () => {
     renderApp("/");
     // $600 put in; the $500 move is not new money set aside
     const aside = await screen.findByRole("link", { name: "Set aside this month, open Goals" });
-    await waitFor(() =>
-      expect(aside).toHaveTextContent("Set aside $600.00 of $1,040.00 this month"),
-    );
+    await waitFor(() => expect(aside).toHaveTextContent("$600.00 of $1,040.00"));
     // The emergency jar holds $100 after the move: $1,000 − $100
     const next = await screen.findByRole("region", { name: "Build your $1K starter fund" });
     expect(next).toHaveTextContent("$900.00 to go");
@@ -201,6 +209,37 @@ describe("Home", () => {
     const at = (prefix: string) => order.findIndex((t) => t.startsWith(prefix));
     expect(at("Budget")).toBeLessThan(at("Jars"));
     expect(at("Jars")).toBeLessThan(at("Where it went"));
+  });
+
+  it("never shows a green word before there is progress: jars and a challenge at $0 say Start", async () => {
+    await seedPayAndBudget();
+    installFakeApi({ session: readySession() });
+    renderApp("/");
+    const jars = await screen.findByRole("region", { name: "Jars · 1" });
+    expect(within(jars).getByText("Start")).toHaveClass("word--plain");
+    expect(jars).toHaveTextContent("Nothing in yet · tap a jar to add");
+    expect(within(jars).queryByText("Saving")).toBeNull();
+
+    const group = {
+      id: "g1",
+      name: "October save",
+      start_date: "2026-10-01",
+      end_date: "2026-10-31",
+      my_progress_bps: 0,
+    } as GroupSummary;
+    const { rerender } = render(
+      <MemoryRouter>
+        <ChallengeHomeCard group={group} today="2026-10-10" />
+      </MemoryRouter>,
+    );
+    const card = screen.getByRole("link", { name: "Open challenge October save" });
+    expect(within(card).getByText("Start")).toHaveClass("word--plain");
+    rerender(
+      <MemoryRouter>
+        <ChallengeHomeCard group={{ ...group, my_progress_bps: 2500 }} today="2026-10-10" />
+      </MemoryRouter>,
+    );
+    expect(within(card).getByText("Saving")).toHaveClass("word--good");
   });
 
   it("counts the days left in a month and a challenge's day", () => {

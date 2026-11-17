@@ -389,9 +389,7 @@ describe("a month through every money path (docs/invariants.md)", () => {
       expect(hero).toHaveTextContent("Got $3,000.00 · Spent $1,432.00 · Kept $1,568.00"),
     );
     const aside = await screen.findByRole("link", { name: "Set aside this month, open Goals" });
-    await waitFor(() =>
-      expect(aside).toHaveTextContent("Set aside $300.00 of $1,040.00 this month"),
-    );
+    await waitFor(() => expect(aside).toHaveTextContent("$300.00 of $1,040.00"));
   });
 
   it("Money in & out shows the same month", async () => {

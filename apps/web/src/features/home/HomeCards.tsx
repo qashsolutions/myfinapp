@@ -100,24 +100,30 @@ export function BudgetHomeCard({
 
 export function JarsHomeCard({
   jars,
+  saved,
   behind,
   today,
 }: {
   jars: Goal[];
+  saved: ReadonlyMap<string, number>;
   behind: NextMoveFacts["behind_goal"];
   today: string;
 }) {
   const shown = jars.slice(0, 3);
+  // A word of progress only once money is in a jar (owner, November 17, 2026).
+  const started = jars.some((g) => (saved.get(g.id) ?? 0) > 0);
   return (
     <Card as="section" aria-labelledby="home-jars">
       <h2 className="sk-card__title" id="home-jars">
         Jars · {jars.length}
       </h2>
-      <Word>{behind ? "Behind" : "Saving"}</Word>
+      <Word>{behind ? "Behind" : started ? "Saving" : "Start"}</Word>
       <p className="sk-card__eyebrow">
         {behind
           ? `${behind.title} is ${formatCents(behind.behind_cents)} behind its pace`
-          : `${shown[0]?.title ?? "Your jar"} leads · tap one to add`}
+          : started
+            ? `${shown[0]?.title ?? "Your jar"} leads · tap one to add`
+            : "Nothing in yet · tap a jar to add"}
       </p>
       <List aria-label="Your top jars">
         {shown.map((g) => (
@@ -133,6 +139,7 @@ export function JarsHomeCard({
 
 export function ChallengeHomeCard({ group, today }: { group: GroupSummary; today: string }) {
   const reached = group.my_progress_bps >= 10000;
+  const started = group.my_progress_bps > 0;
   const [day, total] = challengeDay(today, group.start_date, group.end_date);
   return (
     <Link
@@ -144,7 +151,7 @@ export function ChallengeHomeCard({ group, today }: { group: GroupSummary; today
         <h2 className="sk-card__title" id="home-challenge">
           Challenge
         </h2>
-        <Word>{reached ? "Reached" : "Saving"}</Word>
+        <Word>{reached ? "Reached" : started ? "Saving" : "Start"}</Word>
         <p className="sk-card__eyebrow">
           {group.name} · {percentText(group.my_progress_bps)} · day {day} of {total}
         </p>
