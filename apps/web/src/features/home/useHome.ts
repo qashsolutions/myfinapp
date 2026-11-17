@@ -48,6 +48,8 @@ export interface HomeView {
   setAside: SetAside | null;
   targetCents: number | null;
   move: NextMove | null;
+  /** The top-priority jar behind its own pace, as the next move reads it; null when none is. */
+  behindJar: NextMoveFacts["behind_goal"];
   jars: Goal[];
   emergencyJar: Goal | null;
   challenge: GroupSummary | null;
@@ -96,6 +98,7 @@ export function useHome(asOf: string): HomeView & { logSetAside: () => Promise<b
     setAside: SetAside | null;
     targetCents: number | null;
     move: NextMove | null;
+    behindJar: NextMoveFacts["behind_goal"];
     ready: boolean;
   }>({
     verdict: null,
@@ -103,6 +106,7 @@ export function useHome(asOf: string): HomeView & { logSetAside: () => Promise<b
     setAside: null,
     targetCents: null,
     move: null,
+    behindJar: null,
     ready: false,
   });
 
@@ -270,7 +274,15 @@ export function useHome(asOf: string): HomeView & { logSetAside: () => Promise<b
         asOf,
       );
       if (alive)
-        setComputed({ verdict, meterBps, setAside: aside, targetCents, move, ready: true });
+        setComputed({
+          verdict,
+          meterBps,
+          setAside: aside,
+          targetCents,
+          move,
+          behindJar: behindGoal,
+          ready: true,
+        });
     })().catch(ignoreClosed);
     return () => {
       alive = false;

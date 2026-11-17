@@ -23,8 +23,8 @@ describe("Customize Home (owner decision, October 19, 2026)", () => {
     const before = cardTitles();
     expect(before.indexOf("Next 30 days")).toBeGreaterThan(-1);
 
-    // Next 30 days up to the top: it is 7th (Your month sits second), six moves up
-    for (let i = 0; i < 6; i++)
+    // Next 30 days up to the top: it is 11th (Budget, Jars, Split bills and Challenge sit after Your month), ten moves up
+    for (let i = 0; i < 10; i++)
       await user.click(within(sheet).getByRole("button", { name: "Move Next 30 days up" }));
     expect(within(sheet).getByRole("status")).toHaveTextContent("Next 30 days moved to 1 of 15");
 

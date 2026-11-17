@@ -2,21 +2,28 @@ import { Card } from "@stackd/ui";
 import { Link } from "react-router";
 import { Word } from "../../app/layout/Word.tsx";
 import { formatCents } from "../../lib/format.ts";
+import { InOutBars } from "../insights/InsightCard.tsx";
 import { myBalance, namesOf, useSplits, useSplitViews } from "./useSplits.ts";
 
 /**
  * Home's `owed` card (spec "Split bills" → Where): "Owed +$68" / "Owe $18" across every group,
- * with the biggest payment that involves me. Hidden with no groups or when everyone's settled.
+ * with the biggest payment that involves me, and owed-to-me against I-owe as two bars. Hidden with no groups or when everyone's settled.
  */
 export function OwedHomeCard() {
   const { splits } = useSplits({ background: true });
   const views = useSplitViews(splits?.groups ?? null);
   if (!splits || splits.groups.length === 0) return null;
   let total = 0;
+  // The picture: what groups owe me (green) against what I owe in others (red).
+  let owedToMe = 0;
+  let iOwe = 0;
   let top: { text: string; cents: number } | null = null;
   for (const g of splits.groups) {
     const view = views.get(g.id);
-    total += myBalance(view, g);
+    const balance = myBalance(view, g);
+    total += balance;
+    if (balance > 0) owedToMe += balance;
+    else iOwe -= balance;
     const nameOf = namesOf(g);
     for (const p of view?.payments ?? []) {
       if (p.from !== g.my_member_id && p.to !== g.my_member_id) continue;
@@ -42,7 +49,8 @@ export function OwedHomeCard() {
           {total > 0 ? "+" : ""}
           {formatCents(Math.abs(total))}
         </p>
-        {top ? <p>{top.text}</p> : null}
+        {top ? <p className="sk-card__eyebrow">{top.text}</p> : null}
+        <InOutBars inCents={owedToMe} outCents={iOwe} />
       </Card>
     </Link>
   );

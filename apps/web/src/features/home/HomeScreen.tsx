@@ -1,6 +1,5 @@
 import { OwedHomeCard } from "../splits/OwedHomeCard.tsx";
 import "./home.css";
-import type { BudgetSummary } from "../../engine/bridge.ts";
 import { ENTRIES_PATH } from "../entries/paths.ts";
 import "../forecast/forecast.css";
 
@@ -16,12 +15,9 @@ import { nudgeCopy } from "../../moments/catalog.ts";
 import { publishWidgetSummary } from "../../native/widget.ts";
 import { useSession } from "../auth/useSession.tsx";
 import { TrialCard } from "../billing/TrialCard.tsx";
-import { BUCKET_LABELS } from "../budget/RuleView.tsx";
-import { splitLabel } from "../budget/split.ts";
 import { EntryRow } from "../entries/EntryList.tsx";
 import { useLookups, useRecentEntries } from "../entries/useEntries.ts";
 import { shortfallLine } from "../forecast/ForecastScreen.tsx";
-import { percentText } from "../groups/ChallengesTab.tsx";
 import { BalanceRunway } from "../insights/InsightCard.tsx";
 import { useSafeToSpend } from "../insights/useSafeToSpend.ts";
 import { MonthReviewHomeCard } from "../monthreview/MonthReviewCards.tsx";
@@ -32,8 +28,9 @@ import { SubCheckHomeCard } from "../subscriptions/SubscriptionCheckCard.tsx";
 import { CustomizeHome } from "./CustomizeHome.tsx";
 import { DebtFreeCard } from "./DebtFreeCard.tsx";
 import { FoundCard } from "./FoundCard.tsx";
+import { BudgetHomeCard, ChallengeHomeCard, JarsHomeCard } from "./HomeCards.tsx";
 import { BucketKey, CategoryBars, HeroBars } from "./HomeVisuals.tsx";
-import { type HomeCardId, TILE_CARDS, useHomeLayout } from "./homeLayout.ts";
+import { type HomeCardId, useHomeLayout } from "./homeLayout.ts";
 import { useHome } from "./useHome.ts";
 
 /**
@@ -75,7 +72,6 @@ export function HomeScreen() {
   const [customizing, setCustomizing] = useState(params.get("customize") === "1");
   const totals = home.month.totals;
   const hasMoney = Boolean(totals && totals.count > 0);
-  const over = home.budget.summary?.buckets.find((b) => b.left_cents < 0) ?? null;
   const projection = home.forecast.projection;
   const safe = useSafeToSpend(home.forecast, todayIso());
   const aside = home.setAside;
@@ -164,6 +160,7 @@ export function HomeScreen() {
               Where it went
             </h2>
             <Word>Spent</Word>
+            <p className="sk-card__eyebrow">{spentLine(totals, lookups?.categories)}</p>
             <CategoryBars byCategory={totals.by_category} categories={lookups?.categories} />
             <BucketKey />
           </Card>
@@ -327,68 +324,13 @@ export function HomeScreen() {
       ) : null,
     debt_free: <DebtFreeCard today={today} />,
     budget: home.budget.budget ? (
-      <Link to="/budget" className="card-link" aria-label="Open Budget">
-        <Card as="section" aria-labelledby="home-budget">
-          <h2 className="sk-card__title" id="home-budget">
-            Budget
-            {home.budget.budget
-              ? ` · ${home.budget.budget.method === "50_30_20" ? splitLabel(home.budget.budget.split_bps) : "Zero-based"}`
-              : ""}
-          </h2>
-          <Word>{over ? "Over" : "Steady"}</Word>
-          <p className="sk-card__eyebrow">
-            {!home.budget.budget
-              ? "Not set up yet"
-              : home.budget.budget.method === "zero_based"
-                ? zeroBasedLine(home.budget.summary)
-                : over
-                  ? `${BUCKET_LABELS[over.bucket][0]} ${formatCents(-over.left_cents)} over`
-                  : "On track"}
-          </p>
-        </Card>
-      </Link>
+      <BudgetHomeCard budget={home.budget.budget} summary={home.budget.summary} today={today} />
     ) : null,
     jars:
       myJars.length > 0 ? (
-        <Link to="/goals" className="card-link" aria-label="Open Goals">
-          <Card as="section" aria-labelledby="home-jars">
-            <h2 className="sk-card__title" id="home-jars">
-              Jars{home.jars.length ? ` · ${home.jars.length}` : ""}
-            </h2>
-            <Word>Saving</Word>
-            <p className="sk-card__eyebrow">
-              {home.jars.length
-                ? home.jars
-                    .filter((g) => g.group_id === null)
-                    .map((g) => g.title)
-                    .slice(0, 3)
-                    .join(", ") || "Challenge jars only"
-                : "No jars yet"}
-            </p>
-          </Card>
-        </Link>
+        <JarsHomeCard jars={myJars} behind={home.behindJar} today={today} />
       ) : null,
-    challenge: home.challenge ? (
-      <Link
-        to={home.challenge ? `/groups/${home.challenge.id}` : "/goals"}
-        className="card-link"
-        aria-label={home.challenge ? `Open challenge ${home.challenge.name}` : "Open challenges"}
-      >
-        <Card as="section" aria-labelledby="home-challenge">
-          <h2 className="sk-card__title" id="home-challenge">
-            Challenge
-          </h2>
-          <Word>
-            {home.challenge && home.challenge.my_progress_bps >= 10000 ? "Reached" : "Saving"}
-          </Word>
-          <p className="sk-card__eyebrow">
-            {home.challenge
-              ? `${home.challenge.name} · ${percentText(home.challenge.my_progress_bps)}`
-              : "None yet. Start one or join with a code."}
-          </p>
-        </Card>
-      </Link>
-    ) : null,
+    challenge: home.challenge ? <ChallengeHomeCard group={home.challenge} today={today} /> : null,
   };
   const hidden = new Set(layout.hidden);
   const shown = layout.order.filter(
@@ -396,32 +338,9 @@ export function HomeScreen() {
   );
   // A low-balance warning is never hidden: with Next move off it still leads.
   if (projection?.shortfall && hidden.has("move")) shown.unshift("move");
-  const homeCards: ReactNode[] = [];
-  let tiles: ReactNode[] = [];
-  let tilesKey = "";
-  const flush = () => {
-    // Keyed by the first tile in the group, so a card appearing above never remounts the tiles.
-    if (tiles.length)
-      homeCards.push(
-        <div className="tiles" key={`tiles-${tilesKey}`}>
-          {tiles}
-        </div>,
-      );
-    tiles = [];
-  };
-  for (const id of layout.ready ? shown : []) {
-    const card = cards[id];
-    if (!card) continue;
-    const keyed = <Fragment key={id}>{card}</Fragment>;
-    if (TILE_CARDS.has(id)) {
-      if (!tiles.length) tilesKey = id;
-      tiles.push(keyed);
-    } else {
-      flush();
-      homeCards.push(keyed);
-    }
-  }
-  flush();
+  const homeCards = (layout.ready ? shown : [])
+    .filter((id) => cards[id])
+    .map((id) => <Fragment key={id}>{cards[id]}</Fragment>);
 
   return (
     <>
@@ -476,16 +395,15 @@ export function HomeScreen() {
   );
 }
 
-/** Home's Budget tile for zero-based (October 23, 2026): what still needs a job, else what's over. */
-function zeroBasedLine(summary: BudgetSummary | null): string {
-  if (!summary) return "Zero-based";
-  const left = summary.left_to_assign_cents ?? 0;
-  if (left > 0) return `${formatCents(left)} left to assign`;
-  if (left < 0) return `${formatCents(-left)} over-assigned`;
-  const over = summary.categories.filter(
-    (c) => c.planned_cents !== null && c.spent_cents > c.planned_cents,
-  ).length;
-  return over
-    ? `${over} ${over === 1 ? "category" : "categories"} over plan`
-    : "Every dollar has a job";
+/** Where it went in one line: the month's spending so far and its biggest category. */
+function spentLine(
+  totals: {
+    out_cents: number;
+    by_category: Array<{ category_id: string | null; out_cents: number }>;
+  },
+  categories: Map<string, { name: string }> | undefined,
+): string {
+  const top = [...totals.by_category].sort((x, y) => y.out_cents - x.out_cents)[0];
+  const name = top?.category_id ? categories?.get(top.category_id)?.name : null;
+  return `${formatCents(totals.out_cents)} so far${name ? ` · most on ${name}` : ""}`;
 }

@@ -8,29 +8,29 @@ import {
 import type { StackdDb } from "../../data/db.ts";
 
 /** Home's cards, in their default order (owner decision, October 19, 2026: drag the ones you care
- * about into your own order and hide the rest). */
+ * about into your own order and hide the rest). What the person set up (Budget, Jars, Split bills,
+ * the challenge) comes right after This month, each a full card (owner, November 17, 2026); each
+ * stays hidden until there's something to show. */
 export const HOME_CARDS = [
   ["kept", "This month", "Kept, with money in and out"],
   ["month_review", "Your month", "Last month at a glance, in its first week"],
+  ["budget", "Budget", "On track or over, and what's left"],
+  ["jars", "Jars", "Your top jars and their pace"],
+  ["owed", "Split bills", "Who owes whom in your groups, when anyone does"],
+  ["challenge", "Challenge", "Your group challenge"],
   ["found", "Found in your statements", "Bills and pay to confirm"],
   ["where", "Where it went", "Spending by category"],
   ["aside", "Set aside", "This month's saving"],
   ["move", "Next move", "One thing worth doing now"],
   ["next30", "Next 30 days", "Safe to spend and your balance"],
-  ["owed", "Split bills", "Who owes whom in your groups, when anyone does"],
   ["debt_free", "Debt payoff", "When your debts are paid off"],
   ["sub_check", "Subscription check", "Still using it? Only when there's a question"],
   ["setup", "Make Qash yours", "Your next steps, if you want them"],
-  ["budget", "Budget", "On track or over"],
-  ["jars", "Jars", "Your saving jars"],
-  ["challenge", "Challenge", "Your group challenge"],
   ["recent", "Recent entries", "The latest money in and out"],
 ] as const;
 
 export type HomeCardId = (typeof HOME_CARDS)[number][0];
 export const DEFAULT_ORDER: HomeCardId[] = HOME_CARDS.map(([id]) => id);
-/** Small cards that sit side by side when they follow one another. */
-export const TILE_CARDS: ReadonlySet<HomeCardId> = new Set(["budget", "jars", "challenge"]);
 
 export type HomeLayout = CardLayout<HomeCardId>;
 
