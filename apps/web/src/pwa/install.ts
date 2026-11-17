@@ -81,6 +81,23 @@ export function installTarget(userAgent = navigator.userAgent): InstallTarget {
   return /Android/.test(userAgent) ? "android" : "desktop";
 }
 
+/**
+ * Which computer browser this is, for the install steps (November 17, 2026): each one hides
+ * install in a different place, and Firefox on a computer has no install at all. Edge, Opera and
+ * Brave carry "Chrome" too, so Edge and Opera are checked first; Brave reads as Chrome, whose
+ * steps it shares.
+ */
+export type DesktopBrowser = "chrome" | "edge" | "safari" | "firefox" | "other";
+
+export function desktopBrowser(userAgent = navigator.userAgent): DesktopBrowser {
+  if (/Edg\//.test(userAgent)) return "edge";
+  if (/OPR\//.test(userAgent)) return "other";
+  if (/Firefox\//.test(userAgent)) return "firefox";
+  if (/Chrome\//.test(userAgent)) return "chrome";
+  if (/Macintosh/.test(userAgent) && /Safari\//.test(userAgent)) return "safari";
+  return "other";
+}
+
 function read(key: string): string | null {
   try {
     return localStorage.getItem(key);
