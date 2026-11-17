@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Entry, openDb, seedDefaults } from "../../src/data/db.ts";
 import { addGoalEvent, moveMoney } from "../../src/features/goals/useGoals.ts";
+import { challengeDay, daysLeftInMonth } from "../../src/features/home/HomeCards.tsx";
 import { installFakeApi, readySession } from "../fakeApi.ts";
 import { renderApp } from "../render.tsx";
 
@@ -173,6 +174,41 @@ describe("Home", () => {
     // The emergency jar holds $100 after the move: $1,000 − $100
     const next = await screen.findByRole("region", { name: "Build your $1K starter fund" });
     expect(next).toHaveTextContent("$900.00 to go");
+  });
+
+  it("what the person set up leads Home: Budget and Jars each with a word, a line and a picture", async () => {
+    const db = await seedPayAndBudget();
+    await db.entries.bulkAdd([entry("e1", "2026-10-03", 20000, "Shoes")]);
+    await addGoalEvent(db, "jar-ef", "deposit", "2026-10-05", 25000);
+    installFakeApi({ session: readySession() });
+    renderApp("/");
+    const budget = await screen.findByRole("link", { name: "Open Budget" });
+    // 50/30/20 of $5,200: needs $2,600 + wants $1,560 = $4,160 to spend, $200 of wants used.
+    await waitFor(() => expect(budget).toHaveTextContent("$3,960.00 left · 22 days to go"));
+    expect(budget).toHaveTextContent("On track");
+    expect(budget.querySelector(".bucket-bars")).not.toBeNull();
+
+    const jars = screen.getByRole("region", { name: "Jars · 1" });
+    expect(jars).toHaveTextContent(/^Jars · 1Saving/);
+    expect(within(jars).getByRole("list", { name: "Your top jars" })).toHaveTextContent(
+      "Emergency fund",
+    );
+    await waitFor(() => expect(jars).toHaveTextContent("25%"));
+    expect(within(jars).getByRole("link", { name: "Open Goals" })).toBeInTheDocument();
+
+    // Right after This month, before Where it went and the rest.
+    const order = [...document.querySelectorAll("main h2")].map((h) => h.textContent ?? "");
+    const at = (prefix: string) => order.findIndex((t) => t.startsWith(prefix));
+    expect(at("Budget")).toBeLessThan(at("Jars"));
+    expect(at("Jars")).toBeLessThan(at("Where it went"));
+  });
+
+  it("counts the days left in a month and a challenge's day", () => {
+    expect(daysLeftInMonth("2026-10-10")).toBe(22);
+    expect(daysLeftInMonth("2026-02-28")).toBe(1);
+    expect(challengeDay("2026-10-10", "2026-10-08", "2026-10-14")).toEqual([3, 7]);
+    expect(challengeDay("2026-10-01", "2026-10-08", "2026-10-14")).toEqual([1, 7]);
+    expect(challengeDay("2026-10-20", "2026-10-08", "2026-10-14")).toEqual([7, 7]);
   });
 
   it("says when you spent more than you got, and asks for pay when none is set", async () => {
