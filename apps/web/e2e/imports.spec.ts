@@ -58,14 +58,24 @@ test("@phone statements: a PDF that reconciles, a QFX into the same account, and
   await expect(page.getByText("October 2026")).toBeVisible();
   await expect(page.getByText(/CORNER MKT/).first()).toBeVisible();
 
-  // The same file again: every row is already in Qash, so there is nothing to import.
+  // The same file again: Same at once, with when it was added and what it became.
   await page.goto("/import");
   await page.getByLabel(/Choose a statement file/).setInputFiles(qfx);
+  const same = page.getByRole("region", { name: "Same as before" });
+  await expect(same).toContainText(/This exact file was added on .*2 transactions/);
+  await expect(page.getByRole("button", { name: "Read file" })).toHaveCount(0);
+  // Add it anyway: every row is already in Qash, so it only lists the file again.
+  await same.getByRole("button", { name: "Add it anyway" }).click();
   await page.getByRole("button", { name: "Read file" }).click();
+  await expect(page.getByRole("region", { name: "Same as before" })).toBeVisible();
+  await page
+    .getByRole("region", { name: "Same as before" })
+    .getByRole("button", { name: "Add it anyway" })
+    .click();
   const skipped = page.locator(".stat", { hasText: "already in Qash · skipped" });
   await expect(skipped).toContainText("2");
   await expect(page.locator(".stat", { hasText: "new" }).first()).toContainText("0");
-  await expect(page.getByRole("button", { name: "Nothing new to import" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Add it to Your documents" })).toBeEnabled();
 
   // Statement rows stay on the device.
   for (const r of sent) {

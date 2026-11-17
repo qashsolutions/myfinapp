@@ -111,6 +111,8 @@ export interface StatementImport {
   rows_added: number;
   rows_skipped: number;
   file_key: string | null; // files.id while a copy is kept on the device
+  /** The file's SHA-256, to know the same file again (November 16, 2026); never the file. */
+  file_sha256?: string | null;
   status: "done";
   created_at: string;
 }
@@ -496,6 +498,8 @@ export interface DocumentImport {
   as_of: string | null;
   /** The person's own word when the kind is Other (unindexed). */
   own_kind?: string | null;
+  /** The file's SHA-256, to know the same file again (November 16, 2026); never the file. */
+  file_sha256?: string | null;
   net_worth_item_id: string;
   created_at: string;
 }

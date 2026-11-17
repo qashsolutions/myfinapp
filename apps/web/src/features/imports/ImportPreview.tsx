@@ -1,6 +1,14 @@
 import { Button, Card, Toggle } from "@stackd/ui";
+import { useLiveQuery } from "dexie-react-hooks";
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import { useDb } from "../../data/DbProvider.tsx";
 import type { Account, ImportFormat } from "../../data/db.ts";
 import { formatCents, formatDay } from "../../lib/format.ts";
+import { ENTRIES_PATH } from "../entries/paths.ts";
+import { AlreadyAdded } from "./AlreadyAdded.tsx";
+import { useDocumentHistory } from "./documentHistory.ts";
+import { lastStatementInto } from "./duplicates.ts";
 import type { Prepared } from "./importFlow.ts";
 import { TransferReview } from "./TransferReview.tsx";
 
@@ -30,6 +38,27 @@ export function ImportPreview({
   onImport: () => void;
 }) {
   const hinted = prepared.rows.filter((r) => !r.duplicate && (r.is_transfer_hint || r.match));
+  const { db } = useDb();
+  const navigate = useNavigate();
+  const history = useDocumentHistory();
+  // Every transaction already in Qash: the statement this repeats, until Add it anyway.
+  const nothingNew = prepared.fresh === 0 && prepared.found > 0;
+  const lastId = useLiveQuery(
+    () => (nothingNew ? lastStatementInto(db, account.id) : null),
+    [db, account.id, nothingNew],
+  );
+  const earlier = lastId ? history?.find((r) => r.id === lastId) : undefined;
+  const [anyway, setAnyway] = useState(false);
+  if (nothingNew && earlier && !anyway)
+    return (
+      <AlreadyAdded
+        earlier={earlier}
+        why={`Every one of its ${prepared.found} ${prepared.found === 1 ? "transaction" : "transactions"} is already in Qash. The last statement for ${account.label}`}
+        anywayNote="Adding it anyway only lists the file in Your documents; no transaction is added twice."
+        onKeep={() => navigate(ENTRIES_PATH)}
+        onAnyway={() => setAnyway(true)}
+      />
+    );
   return (
     <>
       <fieldset className="stats">
@@ -88,9 +117,9 @@ export function ImportPreview({
         checked={keepFile}
         onChange={onKeepFile}
       />
-      <Button block onClick={onImport} disabled={busy || prepared.fresh === 0}>
+      <Button block onClick={onImport} disabled={busy}>
         {prepared.fresh === 0
-          ? "Nothing new to import"
+          ? "Add it to Your documents"
           : `Import ${prepared.fresh} ${prepared.fresh === 1 ? "transaction" : "transactions"}`}
       </Button>
       <p className="auth__fineprint">

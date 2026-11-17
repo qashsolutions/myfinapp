@@ -25,11 +25,14 @@ import {
 export function DocumentTotalCard({
   total,
   fileName,
+  fileSha = null,
   onSaved,
 }: {
   total: DocumentTotal;
   /** The file it was read from, for Your documents (masked when kept). */
   fileName: string;
+  /** The file's SHA-256, kept with the record to know the same file again. */
+  fileSha?: string | null;
   onSaved: (itemId: string) => void;
 }) {
   const ids = useId();
@@ -85,6 +88,7 @@ export function DocumentTotalCard({
       as_of: asOf || null,
       own_kind: isOther ? own.slice(0, OWN_KIND_MAX) : null,
       file_name: fileName,
+      file_sha256: fileSha,
     });
     onSaved(id);
   }

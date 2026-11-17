@@ -361,6 +361,8 @@ export interface CommitInput {
   mapping?: CsvMapping;
   rememberMapping?: boolean;
   file?: File | null;
+  /** The file's SHA-256 (duplicates.fileSha256), kept to know the same file again. */
+  fileSha?: string | null;
   keepFile?: boolean;
   period?: { start: string | null; end: string | null };
   now?: Date;
@@ -410,6 +412,7 @@ export async function commitImport(db: StackdDb, input: CommitInput): Promise<St
     rows_added: entries.length,
     rows_skipped: input.prepared.duplicates,
     file_key: null,
+    file_sha256: input.fileSha ?? null,
     status: "done",
     created_at: stamp,
   };
