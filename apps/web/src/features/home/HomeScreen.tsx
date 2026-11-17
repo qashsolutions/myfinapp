@@ -170,15 +170,19 @@ export function HomeScreen() {
       <Link to="/goals" className="card-link" aria-label="Set aside this month, open Goals">
         <Card as="section" aria-labelledby="home-aside">
           <h2 className="sk-card__title" id="home-aside">
-            Set aside{" "}
-            {aside
-              ? aside.target_cents !== null
-                ? `${formatCents(aside.set_aside_cents)} of ${formatCents(aside.target_cents)}`
-                : formatCents(aside.set_aside_cents)
-              : ""}{" "}
-            this month
+            Set aside this month
           </h2>
-          <Word>Saved</Word>
+          {/* A word of progress only once something is set aside (owner, November 17, 2026). */}
+          <Word>{aside && aside.set_aside_cents > 0 ? "Saved" : "Start"}</Word>
+          <p className="sk-card__eyebrow">
+            {!aside
+              ? "Working it out…"
+              : aside.target_cents === null
+                ? `${formatCents(aside.set_aside_cents)} so far · set your pay in Budget for a target`
+                : aside.paydays_so_far > 0
+                  ? `${formatCents(aside.set_aside_cents)} of ${formatCents(aside.target_cents)} · ${aside.paydays_set_aside} of ${aside.paydays_so_far} ${aside.paydays_so_far === 1 ? "payday" : "paydays"} so far`
+                  : `${formatCents(aside.set_aside_cents)} of ${formatCents(aside.target_cents)} · jar deposits count here`}
+          </p>
           {aside?.target_cents !== null && aside?.target_cents !== undefined ? (
             <ProgressBar
               fraction={Math.min(1, (aside.progress_bps ?? 0) / 10000)}
@@ -186,15 +190,6 @@ export function HomeScreen() {
               valueText={`${Math.round((aside.progress_bps ?? 0) / 100)}% of ${formatCents(aside.target_cents)}`}
             />
           ) : null}
-          <p className="sk-card__eyebrow">
-            {!aside
-              ? "Working it out…"
-              : aside.target_cents === null
-                ? "Set your pay in Budget to get a monthly target."
-                : aside.paydays_so_far > 0
-                  ? `${aside.paydays_set_aside} of ${aside.paydays_so_far} ${aside.paydays_so_far === 1 ? "payday" : "paydays"} set aside so far`
-                  : "Jar deposits you log count here."}
-          </p>
         </Card>
       </Link>
     ) : null,
@@ -328,7 +323,7 @@ export function HomeScreen() {
     ) : null,
     jars:
       myJars.length > 0 ? (
-        <JarsHomeCard jars={myJars} behind={home.behindJar} today={today} />
+        <JarsHomeCard jars={myJars} saved={home.savedByJar} behind={home.behindJar} today={today} />
       ) : null,
     challenge: home.challenge ? <ChallengeHomeCard group={home.challenge} today={today} /> : null,
   };

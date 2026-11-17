@@ -114,7 +114,9 @@ export function GoalCard({ goal, asOf }: { goal: Goal; asOf: string }) {
             ? "Reached"
             : p?.status === "overdue"
               ? "Behind"
-              : "Saving"}
+              : !p || p.current <= 0
+                ? "Start"
+                : "Saving"}
       </Word>
       <span className="goal-card__sub">{goalSentence(goal)}</span>
       {goal.why_text ? <span className="goal-card__sub goal-why">“{goal.why_text}”</span> : null}
