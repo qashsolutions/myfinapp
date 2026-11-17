@@ -82,7 +82,7 @@ export function BudgetHomeCard({
     : over
       ? over
       : budget.method === "zero_based" && unassigned > 0
-        ? `${formatCents(unassigned)} still to give a job`
+        ? `${formatCents(unassigned)} left to assign`
         : `${formatCents(spendable)} left · ${days} ${days === 1 ? "day" : "days"} to go`;
   return (
     <Link to="/budget" className="card-link" aria-label="Open Budget">
