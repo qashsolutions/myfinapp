@@ -3,14 +3,19 @@ import "../entries/entries.css";
 import "../groups/groups.css";
 
 import { Button, Card, Toggle } from "@stackd/ui";
-import { useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { Link } from "react-router";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
 import type { NotificationSettingsOut } from "../../data/api.ts";
 import { addDaysIso } from "../../lib/dates.ts";
 import { todayIso } from "../../lib/format.ts";
 import { parseWholeNumber } from "../../lib/ownValues.ts";
-import { needsHomeScreen, pushOutcomeText, unsubscribeFromPush } from "../../pwa/pushSubscribe.ts";
+import {
+  needsHomeScreen,
+  pushOnHere,
+  pushOutcomeText,
+  unsubscribeFromPush,
+} from "../../pwa/pushSubscribe.ts";
 import { BudgetAlertOptions } from "../budget/BudgetAlertOptions.tsx";
 import { ChipsOrOwn, ChoiceChips } from "../goals/CustomValueSheet.tsx";
 import { NotificationPrePrompt } from "./NotificationPrePrompt.tsx";
@@ -53,6 +58,18 @@ export function NotificationSettings() {
   const { data, error, update, refresh } = useNotificationSettings();
   const [prePrompt, setPrePrompt] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // This browser's own subscription (invariant 93); null in the native shell, or until known.
+  const [here, setHere] = useState<boolean | null | undefined>(undefined);
+  const checkHere = useCallback(async () => {
+    try {
+      setHere(await pushOnHere());
+    } catch {
+      setHere(false);
+    }
+  }, []);
+  useEffect(() => {
+    void checkHere();
+  }, [checkHere]);
 
   if (!data) {
     return (
@@ -251,10 +268,12 @@ export function NotificationSettings() {
     <>
       <ScreenHeader title="Alerts" actions={null} back="/me" />
       <Card as="section" aria-label="Push" id="alerts-push">
-        {data.push.subscribed ? (
+        {here === undefined ? (
+          <p role="status">Checking this browser</p>
+        ) : (here ?? data.push.subscribed) ? (
           <>
             <p>
-              <strong>Push is on</strong> for this browser.
+              <strong>Push is on</strong> for this {here === null ? "device" : "browser"}.
             </p>
             <Button
               size="sm"
@@ -263,10 +282,11 @@ export function NotificationSettings() {
                 setNote(null);
                 try {
                   await unsubscribeFromPush();
+                  setNote(`Push is off for this ${here === null ? "device" : "browser"}.`);
                 } catch {
                   setNote("Couldn't turn push off on this device. Try again in a minute.");
                 }
-                await refresh();
+                await Promise.all([refresh(), checkHere()]);
               }}
             >
               Turn off on this device
@@ -275,11 +295,14 @@ export function NotificationSettings() {
         ) : (
           <>
             <p>
-              <strong>Push is off.</strong>{" "}
+              <strong>Push is off {here === null ? "on this device" : "in this browser"}.</strong>{" "}
               {needsHomeScreen()
                 ? "On iPhone, add Qash to your Home Screen first; then push works."
                 : "Turn it on to get these on this device."}
             </p>
+            {here === false && data.push.subscribed ? (
+              <p className="auth__hint">It's on in another browser or device.</p>
+            ) : null}
             <Button size="sm" onClick={() => setPrePrompt(true)} disabled={!data.push.available}>
               Turn on notifications
             </Button>
@@ -462,7 +485,7 @@ export function NotificationSettings() {
           // A failure stays in the sheet with what to try; the card keeps the same words.
           if (outcome === "subscribed") setPrePrompt(false);
           setNote(pushOutcomeText(outcome));
-          await refresh();
+          await Promise.all([refresh(), checkHere()]);
         }}
       />
     </>

@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { localStamp, syncAlertSchedule } from "../../data/alertSchedule.ts";
 import { useDb } from "../../data/DbProvider.tsx";
 import { todayIso } from "../../lib/format.ts";
+import { renewPushKey } from "../../pwa/pushSubscribe.ts";
 import { ALERT_OFF_SETTING } from "../budget/pace.ts";
 import { useBudget } from "../budget/useBudget.ts";
 import { useForecast } from "../forecast/useForecast.ts";
@@ -82,5 +83,8 @@ export function useAlertSchedule(): void {
 
 export function AlertScheduleSync() {
   useAlertSchedule();
+  useEffect(() => {
+    void renewPushKey(); // invariant 93: push made under an older key is renewed on open
+  }, []);
   return null;
 }

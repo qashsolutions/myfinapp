@@ -5,7 +5,7 @@
  * is on the Home Screen.
  */
 
-import { api, failureOf, OFFLINE_MESSAGE } from "../data/api.ts";
+import { api, clientFor, failureOf, OFFLINE_MESSAGE } from "../data/api.ts";
 import { APP_NAME } from "../lib/brand.ts";
 import { isAppleMobile, isNativePlatform, isStandalone } from "../lib/platform.ts";
 import { subscribeNativePush, unsubscribeNativePush } from "../native/push.ts";
@@ -125,6 +125,107 @@ export async function currentSubscription(): Promise<PushSubscription | null> {
   return registration ? registration.pushManager.getSubscription() : null;
 }
 
+/**
+ * Whether this browser itself holds a push subscription (invariant 93): the account may have
+ * push in another browser, which this one can neither show as its own nor turn off. `null` in
+ * the native shell, whose token the server's answer already describes.
+ */
+export async function pushOnHere(): Promise<boolean | null> {
+  if (isNativePlatform()) return null;
+  return (await currentSubscription()) !== null;
+}
+
+/**
+ * Whether `subscription` was made with `publicKey`; `null` when the browser doesn't say. A
+ * subscription under an older VAPID key is refused by the push service for every send.
+ */
+function madeWithKey(subscription: PushSubscription, publicKey: string): boolean | null {
+  const held = subscription.options?.applicationServerKey;
+  if (!held) return null;
+  const a = new Uint8Array(held);
+  const b = urlBase64ToBytes(publicKey);
+  return a.length === b.length && a.every((byte, i) => byte === b[i]);
+}
+
+/** Ends a subscription on the server and in the browser; a failure on either is let go. */
+async function dropSubscription(
+  subscription: PushSubscription,
+  client: Pick<typeof api, "POST">,
+): Promise<void> {
+  try {
+    await client.POST("/api/notifications/push/unsubscribe", {
+      body: { endpoint: subscription.endpoint },
+    });
+  } catch {
+    // the server forgets it anyway once the push service answers 404 / 410
+  }
+  try {
+    await subscription.unsubscribe();
+  } catch {
+    // nothing more to do: the next subscribe makes a new one
+  }
+}
+
+/** This browser's subscription to send, made under `publicKey`: kept, or made afresh. */
+async function subscriptionFor(
+  registration: ServiceWorkerRegistration,
+  publicKey: string,
+  client: Pick<typeof api, "POST">,
+): Promise<PushSubscription | null> {
+  const held = await registration.pushManager.getSubscription();
+  if (held && madeWithKey(held, publicKey) !== false) return held;
+  if (held) await dropSubscription(held, client);
+  return withinTime(
+    registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToBytes(publicKey).buffer as ArrayBuffer,
+    }),
+    PUSH_STEP_TIMEOUT_MS,
+  );
+}
+
+/** The subscription's endpoint and keys to the server; the outcome of saving them. */
+async function register(
+  subscription: PushSubscription,
+  client: Pick<typeof api, "POST">,
+): Promise<PushOutcome> {
+  const json = subscription.toJSON();
+  const keys = json.keys ?? {};
+  if (!json.endpoint || !keys.p256dh || !keys.auth) return "push_failed";
+  const r = await client.POST("/api/notifications/push", {
+    body: {
+      endpoint: json.endpoint,
+      keys: { p256dh: keys.p256dh, auth: keys.auth },
+      user_agent: navigator.userAgent.slice(0, 120),
+    },
+  });
+  const failure = failureOf(r);
+  return failure ? serverOutcome(failure) : "subscribed";
+}
+
+/**
+ * On opening the app (invariant 93): a browser whose push was made under a VAPID key the
+ * server no longer uses gets a new subscription under the current one, without asking again
+ * (the permission is already granted). Nothing happens where push was never on.
+ */
+export async function renewPushKey(): Promise<boolean> {
+  try {
+    if (isNativePlatform() || !pushSupported() || permissionNow() !== "granted") return false;
+    const registration = await withinTime(navigator.serviceWorker.ready, PUSH_STEP_TIMEOUT_MS);
+    if (!registration) return false;
+    const held = await registration.pushManager.getSubscription();
+    if (!held) return false;
+    const client = clientFor(true);
+    const key = await client.GET("/api/notifications/push/key");
+    const publicKey = failureOf(key) ? null : (key.data?.public_key ?? null);
+    if (!publicKey || madeWithKey(held, publicKey) !== false) return false;
+    const fresh = await subscriptionFor(registration, publicKey, client);
+    return fresh !== null && (await register(fresh, client)) === "subscribed";
+  } catch {
+    return false;
+  }
+}
+
 /** The permission the browser holds now; a browser that can't say reads as not asked. */
 function permissionNow(): NotificationPermission {
   try {
@@ -178,28 +279,9 @@ async function subscribeWebPush(): Promise<PushOutcome> {
   if (!publicKey) return "unavailable";
   const registration = await withinTime(navigator.serviceWorker.ready, PUSH_STEP_TIMEOUT_MS);
   if (!registration) return "push_failed";
-  const subscription =
-    (await registration.pushManager.getSubscription()) ??
-    (await withinTime(
-      registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToBytes(publicKey).buffer as ArrayBuffer,
-      }),
-      PUSH_STEP_TIMEOUT_MS,
-    ));
+  const subscription = await subscriptionFor(registration, publicKey, api);
   if (!subscription) return "push_failed";
-  const json = subscription.toJSON();
-  const keys = json.keys ?? {};
-  if (!json.endpoint || !keys.p256dh || !keys.auth) return "push_failed";
-  const r = await api.POST("/api/notifications/push", {
-    body: {
-      endpoint: json.endpoint,
-      keys: { p256dh: keys.p256dh, auth: keys.auth },
-      user_agent: navigator.userAgent.slice(0, 120),
-    },
-  });
-  const failure = failureOf(r);
-  return failure ? serverOutcome(failure) : "subscribed";
+  return register(subscription, api);
 }
 
 export async function unsubscribeFromPush(): Promise<void> {
