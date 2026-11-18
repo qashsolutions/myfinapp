@@ -784,6 +784,16 @@ written against both.
     another tap can help, and never leaves a disabled button. Found when a Chrome private
     window refused push and the sheet stayed open saying nothing.
     `notifications.test.tsx` invariant 63 · `native-features.test.tsx` invariant 63
+93. **Push on this device means this browser's own subscription, under the server's current
+    key** (November 18, 2026). Me → Alerts says on or off from the subscription this browser
+    holds (`pushSubscribe.pushOnHere`), never from the account's, so Turn off is offered only
+    where it can turn something off; when push is on in another browser only, the card says
+    so and offers Turn on. A subscription made under a VAPID key the server no longer uses is
+    dropped (server and browser) and made again under the current key, both when turning on
+    and on opening the app (`renewPushKey` in `AlertScheduleSync`, without asking again);
+    nothing happens where push was never on. Found when Turn off did nothing in a Chrome
+    private window, and when the VAPID keys were rotated.
+    `push-this-browser.test.tsx` invariant 93
 64. **A balance says where it came from** (October 29, 2026). One helper
     (`linking/anchorText.ts`) names a balance's source everywhere: a statement's date, the bank
     and when it last synced ("from First Platypus Bank · synced 5 min ago"), or "you entered".

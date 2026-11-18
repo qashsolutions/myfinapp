@@ -17,9 +17,14 @@ function fakePushBrowser() {
     }),
     unsubscribe: async () => true,
   };
+  // Like a browser: once subscribed, it holds the subscription.
+  let held: typeof subscription | null = null;
   const pushManager = {
-    getSubscription: vi.fn(async () => null),
-    subscribe: vi.fn(async () => subscription),
+    getSubscription: vi.fn(async () => held),
+    subscribe: vi.fn(async () => {
+      held = subscription;
+      return subscription;
+    }),
   };
   Object.defineProperty(navigator, "serviceWorker", {
     value: { ready: Promise.resolve({ pushManager }) },
