@@ -53,7 +53,7 @@ export function pushOutcomeText(outcome: PushOutcome): string {
     case "blocked":
       return "This browser didn't allow notifications. Private windows can't get them: try a normal window, or check the browser's site settings.";
     case "denied":
-      return "Notifications are blocked for this site. Allow them in the browser's site settings, then try again.";
+      return "Notifications are blocked for this site. Allow them in the browser's site settings, then try again. Private windows can't get notifications.";
     case "dismissed":
       return "The browser's question closed without an answer. Tap Turn on notifications to see it again.";
     case "push_failed":

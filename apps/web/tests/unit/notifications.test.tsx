@@ -205,7 +205,7 @@ describe("Notifications", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Notifications are on.");
   });
 
-  it("answering Block, and going offline before the device is saved, each say so (invariant 63)", async () => {
+  it("answering Block (or a private window answering it unasked), and going offline before the device is saved, each say so (invariant 63)", async () => {
     const user = userEvent.setup();
     const api = installFakeApi({ session: readySession() });
     fakePushBrowser();
@@ -216,8 +216,9 @@ describe("Notifications", () => {
     });
     const sheet = await openPrompt(user);
     await user.click(within(sheet).getByRole("button", { name: "Turn on notifications" }));
+    // Chrome's private window answers Block itself, without showing the question
     expect(await within(sheet).findByRole("alert")).toHaveTextContent(
-      "Notifications are blocked for this site.",
+      "Notifications are blocked for this site. Allow them in the browser's site settings, then try again. Private windows can't get notifications.",
     );
     expect(ask).toHaveBeenCalledTimes(1);
     await user.click(within(sheet).getByRole("button", { name: "Close" }));
