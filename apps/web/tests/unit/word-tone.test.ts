@@ -10,4 +10,9 @@ describe("wordTone (spec: One word first)", () => {
     expect(wordTone("Growing")).toBe("plain");
     expect(wordTone("Over")).toBe("bad");
   });
+
+  it("makes Reported red and keeps Double-check plain (owner, November 18, 2026)", () => {
+    expect(wordTone("Reported")).toBe("bad");
+    expect(wordTone("Double-check")).toBe("plain");
+  });
 });
