@@ -11,6 +11,7 @@ export const BAD_WORDS: ReadonlySet<string> = new Set([
   "Review",
   "Stalled",
   "Missed",
+  "Reported",
 ]);
 export const GOOD_WORDS: ReadonlySet<string> = new Set([
   "Kept",
