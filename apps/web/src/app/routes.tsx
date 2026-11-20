@@ -63,6 +63,8 @@ import { PaymentsConfirmed } from "../features/splits/PaymentsConfirmed.tsx";
 import { SplitGroupScreen } from "../features/splits/SplitGroupScreen.tsx";
 import { SplitPicker } from "../features/splits/SplitPicker.tsx";
 import { SplitsHome } from "../features/splits/SplitsHome.tsx";
+import { MilestonesScreen } from "../features/streaks/MilestonesScreen.tsx";
+import { PathScreen } from "../features/streaks/PathScreen.tsx";
 import { SubscriptionsScreen } from "../features/subscriptions/SubscriptionsScreen.tsx";
 import { SubscriptionWordsScreen } from "../features/subscriptions/SubscriptionWordsScreen.tsx";
 import { WhatIfScreen } from "../features/whatif/WhatIfScreen.tsx";
@@ -158,6 +160,8 @@ export function AppRoutes() {
           <Route path="forecast" element={<ForecastScreen />} />
           <Route path="bills" element={<BillsScreen />} />
           <Route path="emergency" element={<EmergencyScreen />} />
+          <Route path="path" element={<PathScreen />} />
+          <Route path="milestones" element={<MilestonesScreen />} />
           <Route path="import" element={<ImportFlow />} />
           <Route path="entries/:id" element={<AddEntrySheet />} />
           <Route path="*" element={<NotFound />} />

@@ -1,0 +1,26 @@
+{
+  "as_of": "2026-11-19",
+  "since": "2026-10-28",
+  "entries": [
+    {
+      "date": "2026-10-27",
+      "sorted": true
+    },
+    {
+      "date": "2026-10-30",
+      "sorted": true
+    },
+    {
+      "date": "2026-11-10",
+      "sorted": true
+    },
+    {
+      "date": "2026-11-14",
+      "sorted": false
+    },
+    {
+      "date": "2026-11-17",
+      "sorted": false
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "as_of": "2026-11-19",
+  "since": "2026-10-26",
+  "plans": [
+    {
+      "month": "2026-11",
+      "planned_cents": 300000
+    }
+  ],
+  "entries": [
+    {
+      "date": "2026-10-31",
+      "direction": "out",
+      "amount_cents": 2000
+    },
+    {
+      "date": "2026-11-01",
+      "direction": "out",
+      "amount_cents": 9000
+    },
+    {
+      "date": "2026-11-05",
+      "direction": "out",
+      "amount_cents": 75000
+    },
+    {
+      "date": "2026-11-06",
+      "direction": "in",
+      "amount_cents": 5000
+    },
+    {
+      "date": "2026-11-12",
+      "direction": "out",
+      "amount_cents": 80000
+    },
+    {
+      "date": "2026-11-17",
+      "direction": "out",
+      "amount_cents": 1000
+    }
+  ]
+}

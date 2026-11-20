@@ -1,0 +1,15 @@
+{
+  "as_of": "2026-11-19",
+  "since": "2026-11-01",
+  "plans": [
+    {
+      "month": "2026-11",
+      "planned_cents": 1
+    },
+    {
+      "month": "2026-11",
+      "planned_cents": 2
+    }
+  ],
+  "entries": []
+}

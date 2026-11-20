@@ -1,0 +1,252 @@
+/* Streaks, Your path and milestones (November 19, 2026; the "Qash Streaks" canvas). */
+.streak-strip {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 8px 0 0;
+}
+.streak-strip__w {
+  flex: 0 1 30px;
+  height: 10px;
+  border-radius: 5px;
+  box-sizing: border-box;
+  background: var(--c-line);
+}
+.streak-strip__w--kept {
+  background: var(--c-success);
+}
+.streak-strip__w--rest {
+  background: var(--c-card);
+  border: 2px solid var(--c-success);
+}
+.streak-strip__w--paused,
+.streak-strip__w--skipped {
+  background: var(--c-card);
+  border: 2px dashed var(--c-line);
+}
+.streak-strip__w--open {
+  background: var(--c-card);
+  border: 2px solid var(--c-line);
+}
+.streak-strip__w--missed {
+  background: var(--c-card);
+  border: 2px solid var(--c-sub);
+}
+.streak-strip__w--before {
+  background: transparent;
+}
+.streak-strip__w--on_time {
+  background: var(--c-success);
+}
+.streak-strip__now {
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+  margin-left: 4px;
+}
+.streak-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+  margin: 4px 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.streak-legend li {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.streak-legend .streak-strip__w {
+  flex: none;
+  width: 14px;
+  height: 8px;
+}
+.streak-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.streak-card__best {
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}
+.streak-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.streak-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  margin: 10px 0 4px;
+  padding: 0;
+  list-style: none;
+  text-align: center;
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}
+.streak-days__dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin: 0 auto 4px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 2px solid var(--c-line);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+.streak-days__dot--kept {
+  background: var(--c-success);
+  border-color: var(--c-success);
+  color: var(--c-on-accent);
+}
+.streak-days__dot--past {
+  background: var(--c-bg);
+  border-color: var(--c-bg);
+}
+.path-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.path-step {
+  display: flex;
+  gap: 14px;
+}
+.path-step__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 32px;
+  flex: none;
+}
+.path-step__dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 2px solid var(--c-line);
+  background: var(--c-card);
+  color: var(--c-sub);
+  font-size: var(--fs-small);
+  font-weight: 700;
+}
+.path-step__dot--done {
+  background: var(--c-success);
+  border-color: var(--c-success);
+  color: var(--c-on-accent);
+}
+.path-step__dot--current {
+  border-color: var(--c-success);
+  color: var(--c-ink);
+}
+.path-step__line {
+  width: 2px;
+  flex: 1;
+  min-height: 14px;
+  background: var(--c-line);
+}
+.path-step__line--done {
+  background: var(--c-success);
+}
+.path-step__body {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 0 14px;
+}
+.path-step__name {
+  margin: 0;
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+.path-step--next .path-step__name,
+.path-step--skipped .path-step__name {
+  color: var(--c-sub);
+}
+.path-step__line-text {
+  margin: 2px 0 0;
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}
+.path-adjust__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--c-line);
+}
+.path-adjust__moves {
+  display: flex;
+  gap: 6px;
+}
+.path-adjust__name {
+  width: 100%;
+  box-sizing: border-box;
+}
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+@media (min-width: 600px) {
+  .badge-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  padding: 12px 8px;
+  border-radius: var(--radius-card);
+  background: var(--c-card);
+  box-shadow: var(--shadow-card);
+  border: var(--border-card);
+}
+.badge__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 2px solid var(--c-success);
+  color: var(--c-ink);
+  font-size: var(--fs-small);
+  font-weight: 700;
+}
+.badge--todo .badge__mark {
+  border: 2px dashed var(--c-sub);
+  color: var(--c-sub);
+}
+.badge__name {
+  margin: 0;
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+.badge--todo .badge__name {
+  color: var(--c-sub);
+}
+.badge__when {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}

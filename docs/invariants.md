@@ -794,6 +794,17 @@ written against both.
     nothing happens where push was never on. Found when Turn off did nothing in a Chrome
     private window, and when the VAPID keys were rotated.
     `push-this-browser.test.tsx` invariant 93
+94. **A streak never shames and never leaves the device** (November 19, 2026). Streaks count
+    whole weeks, Monday to Sunday, from the person's own data through the engine
+    (`streaks.weekly`, `under_plan`, `sorted`, `on_time`); a missed week reads Fresh start
+    (plain), keeps the best, and offers a rest week (2 per streak per quarter) or Start again;
+    a paused week neither counts nor breaks; no push, email or red word is ever about a streak.
+    A path step or milestone is reached once and keeps its first day (`streaks.path`,
+    `streaks.milestones`, `settings` `path.reached` / `milestones.reached`); the first reading
+    stamps what is already true without a celebration, and each later one celebrates once.
+    Rest weeks, pauses and reached days are synced settings: they travel only inside the
+    encrypted backup and no request carries them.
+    `golden/streaks.*` · `streaks.test.tsx` invariant 94
 64. **A balance says where it came from** (October 29, 2026). One helper
     (`linking/anchorText.ts`) names a balance's source everywhere: a statement's date, the bank
     and when it last synced ("from First Platypus Bank · synced 5 min ago"), or "you entered".

@@ -1,0 +1,49 @@
+{
+  "shown": 4,
+  "dues": [
+    {
+      "due_date": "2026-11-05",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-07-05",
+      "result": "missed"
+    },
+    {
+      "due_date": "2026-06-01",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-06-05",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-06-20",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-07-05",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-08-05",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-09-05",
+      "result": "missed"
+    },
+    {
+      "due_date": "2026-09-12",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-10-05",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-10-12",
+      "result": "unknown"
+    }
+  ]
+}

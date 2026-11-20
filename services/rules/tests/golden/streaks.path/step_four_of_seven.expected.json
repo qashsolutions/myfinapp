@@ -1,0 +1,73 @@
+{
+  "steps": [
+    {
+      "id": "setup",
+      "state": "done",
+      "reached_on": "2026-06-02",
+      "met_now": true,
+      "clear": false,
+      "have": 3,
+      "need": 3
+    },
+    {
+      "id": "cushion",
+      "state": "done",
+      "reached_on": "2026-07-18",
+      "met_now": true,
+      "clear": false,
+      "have": 64000,
+      "need": 50000
+    },
+    {
+      "id": "starter",
+      "state": "done",
+      "reached_on": "2026-11-19",
+      "met_now": true,
+      "clear": false,
+      "have": 120000,
+      "need": 100000
+    },
+    {
+      "id": "paid_in_full",
+      "state": "current",
+      "reached_on": null,
+      "met_now": false,
+      "clear": false,
+      "have": 2,
+      "need": 3
+    },
+    {
+      "id": "debts",
+      "state": "next",
+      "reached_on": null,
+      "met_now": false,
+      "clear": false,
+      "have": 124000,
+      "need": 0
+    },
+    {
+      "id": "three_months",
+      "state": "next",
+      "reached_on": null,
+      "met_now": false,
+      "clear": false,
+      "have": 14,
+      "need": 30
+    },
+    {
+      "id": "later",
+      "state": "next",
+      "reached_on": null,
+      "met_now": false,
+      "clear": false,
+      "have": 0,
+      "need": 1
+    }
+  ],
+  "done": 3,
+  "total": 7,
+  "current": "paid_in_full",
+  "newly_reached": [
+    "starter"
+  ]
+}

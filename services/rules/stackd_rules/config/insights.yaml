@@ -40,3 +40,17 @@ month_review:
 regular_spending:
   intervals: [weekly, biweekly]
   categories: [cat-groceries, cat-dining, cat-transport, cat-shopping]
+# Streaks, Your path and milestones (owner decision and sign-off, November 19, 2026; docs/spec.md
+# "Streaks, Your path and milestones"). Weeks run Monday to Sunday.
+streaks:
+  weeks_shown: 8                # the strip under each streak
+  rest_weeks_per_quarter: 2     # per streak, per calendar quarter
+path:
+  cushion_cents: 50000          # a cushion in checking, when the person set no cushion of their own
+  starter_cents: 100000         # starter fund in the Emergency fund jar
+  paid_in_full_months: 3        # every card paid in full this many months in a row
+  runway_tenths: 30             # 3 months of essentials
+milestones:
+  streak_weeks: [12, 26, 52]    # Set aside streak lengths
+  on_time_payments: 12          # card payments on time in a row
+  jars_cents: 500000            # everything in jars together

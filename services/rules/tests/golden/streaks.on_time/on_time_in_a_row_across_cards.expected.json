@@ -1,0 +1,24 @@
+{
+  "current": 3,
+  "best": 4,
+  "checked": 10,
+  "last_missed": "2026-09-05",
+  "shown": [
+    {
+      "due_date": "2026-09-05",
+      "result": "missed"
+    },
+    {
+      "due_date": "2026-09-12",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-10-05",
+      "result": "on_time"
+    },
+    {
+      "due_date": "2026-11-05",
+      "result": "on_time"
+    }
+  ]
+}

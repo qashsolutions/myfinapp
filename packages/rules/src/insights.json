@@ -40,5 +40,24 @@
       "cat-transport",
       "cat-shopping"
     ]
+  },
+  "streaks": {
+    "weeks_shown": 8,
+    "rest_weeks_per_quarter": 2
+  },
+  "path": {
+    "cushion_cents": 50000,
+    "starter_cents": 100000,
+    "paid_in_full_months": 3,
+    "runway_tenths": 30
+  },
+  "milestones": {
+    "streak_weeks": [
+      12,
+      26,
+      52
+    ],
+    "on_time_payments": 12,
+    "jars_cents": 500000
   }
 }

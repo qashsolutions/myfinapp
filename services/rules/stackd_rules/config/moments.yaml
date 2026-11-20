@@ -62,6 +62,36 @@ events:
     push: "You reached a milestone"
     settings: "Milestone reached"
 
+  streak_kept:
+    when: "A deposit keeps the Set aside streak going this week, from 2 weeks on (once a week)"
+    vars: [weeks]
+    effects: {sound: chime, confetti: small}
+    once: always
+    toast:
+      - "{weeks} weeks in a row of setting money aside."
+      - "That's {weeks} weeks running. Steady does it."
+      - "{weeks} weeks of setting aside. It's a habit now."
+
+  path_step_reached:
+    when: "A step of Your path is reached for the first time"
+    vars: [step]
+    effects: {sound: chime, confetti: big}
+    once: always
+    action: {label: "See your path", to: "/path"}
+    toast:
+      - "Step done: {step}. On to the next one."
+      - "{step}: done. You're moving forward."
+
+  badge_reached:
+    when: "A milestone is reached for the first time"
+    vars: [milestone]
+    effects: {sound: chime, confetti: small}
+    once: always
+    action: {label: "See milestones", to: "/milestones"}
+    toast:
+      - "New milestone: {milestone}."
+      - "Milestone reached: {milestone}. Nicely done."
+
   debt_paid_down:
     when: "A payoff goal's balance is updated lower than before"
     vars: [amount, jar]

@@ -1,0 +1,31 @@
+{
+  "as_of": "2026-11-19",
+  "thresholds": {
+    "streak_weeks": [
+      12,
+      26,
+      52
+    ],
+    "starter_cents": 100000,
+    "on_time_payments": 12,
+    "paid_in_full_months": 3,
+    "runway_tenths": 30,
+    "jars_cents": 500000
+  },
+  "facts": {
+    "jars": 0,
+    "emergency_saved_cents": 0,
+    "best_set_aside": 0,
+    "last_month_kept_cents": 0,
+    "best_on_time": 0,
+    "entries": 0,
+    "to_sort": 0,
+    "challenges_reached": 0,
+    "has_cards": false,
+    "paid_in_full_months": null,
+    "debts_listed": false,
+    "debts_cents": 0,
+    "runway_tenths": null,
+    "jars_saved_cents": 0
+  }
+}

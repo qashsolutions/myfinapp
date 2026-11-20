@@ -1857,3 +1857,190 @@ export async function splitRepeatDates(
     await engine.call<{ dates: string[] }>("splits.repeat_dates", { start, every, as_of: asOf })
   ).dates;
 }
+
+// --- streaks, Your path and milestones (November 19, 2026; invariant 94) ---------------------
+
+export type WeekState = "kept" | "rest" | "paused" | "skipped" | "open" | "missed" | "before";
+
+export interface WeeklyStreak {
+  current: number;
+  best: number;
+  kept_weeks: number;
+  this_week: WeekState;
+  last_week: WeekState | null;
+  /** The run a rest week would keep, when last week was missed. */
+  held: number;
+  can_rest: boolean;
+  rest_left: number;
+  rests_renew: string;
+  weeks: Array<{ start: string; state: WeekState }>;
+}
+
+export interface StreakPause {
+  start: string;
+  end: string | null;
+}
+
+export async function streakWeekly(input: {
+  asOf: string;
+  since: string | null;
+  met: string[];
+  restQuota: number;
+  shown: number;
+  rests?: string[];
+  pauses?: StreakPause[];
+  skips?: string[];
+}): Promise<WeeklyStreak> {
+  return engine.call<WeeklyStreak>("streaks.weekly", {
+    as_of: input.asOf,
+    since: input.since,
+    met: input.met,
+    rest_quota: input.restQuota,
+    shown: input.shown,
+    rests: input.rests ?? [],
+    pauses: input.pauses ?? [],
+    skips: input.skips ?? [],
+  });
+}
+
+export interface WeekMarks {
+  met: string[];
+  skips: string[];
+}
+
+export async function streakUnderPlan(
+  asOf: string,
+  since: string | null,
+  plans: Array<{ month: string; planned_cents: number }>,
+  entries: Array<{ date: string; direction: "in" | "out"; amount_cents: number }>,
+): Promise<WeekMarks> {
+  return engine.call<WeekMarks>("streaks.under_plan", { as_of: asOf, since, plans, entries });
+}
+
+export async function streakSorted(
+  asOf: string,
+  since: string | null,
+  entries: Array<{ date: string; sorted: boolean }>,
+): Promise<WeekMarks> {
+  return engine.call<WeekMarks>("streaks.sorted", { as_of: asOf, since, entries });
+}
+
+export type DueResult = "on_time" | "missed" | "unknown";
+
+export interface OnTimeRun {
+  current: number;
+  best: number;
+  checked: number;
+  last_missed: string | null;
+  shown: Array<{ due_date: string; result: DueResult }>;
+}
+
+export async function streakOnTime(
+  dues: Array<{ due_date: string; result: DueResult }>,
+  shown: number,
+): Promise<OnTimeRun> {
+  return engine.call<OnTimeRun>("streaks.on_time", { dues, shown });
+}
+
+export type PathStepId =
+  | "setup"
+  | "cushion"
+  | "starter"
+  | "paid_in_full"
+  | "debts"
+  | "three_months"
+  | "later";
+
+export interface PathFacts {
+  pay_set: boolean;
+  budget_set: boolean;
+  balance_set: boolean;
+  cushion_cents: number | null;
+  balance_cents: number | null;
+  emergency_saved_cents: number;
+  has_cards: boolean;
+  paid_in_full_months: number | null;
+  debts_cents: number;
+  runway_tenths: number | null;
+  later_cents: number;
+}
+
+export interface PathStep {
+  id: PathStepId;
+  state: "done" | "current" | "next" | "skipped";
+  reached_on: string | null;
+  met_now: boolean;
+  clear: boolean;
+  have: number | null;
+  need: number;
+}
+
+export interface PathResult {
+  steps: PathStep[];
+  done: number;
+  total: number;
+  current: PathStepId | null;
+  newly_reached: PathStepId[];
+}
+
+export async function yourPath(input: {
+  asOf: string;
+  facts: PathFacts;
+  thresholds: Record<string, number>;
+  reached: Record<string, string>;
+  order: string[];
+  skipped: string[];
+}): Promise<PathResult> {
+  return engine.call<PathResult>("streaks.path", {
+    as_of: input.asOf,
+    facts: input.facts,
+    thresholds: input.thresholds,
+    reached: input.reached,
+    order: input.order,
+    skipped: input.skipped,
+  });
+}
+
+export interface MilestoneFacts {
+  jars: number;
+  emergency_saved_cents: number;
+  best_set_aside: number;
+  last_month_kept_cents: number;
+  best_on_time: number;
+  entries: number;
+  to_sort: number;
+  challenges_reached: number;
+  has_cards: boolean;
+  paid_in_full_months: number | null;
+  debts_listed: boolean;
+  debts_cents: number;
+  runway_tenths: number | null;
+  jars_saved_cents: number;
+}
+
+export interface Milestone {
+  id: string;
+  reached_on: string | null;
+  have: number | null;
+  need: number;
+}
+
+export interface MilestonesResult {
+  milestones: Milestone[];
+  reached: number;
+  newly_reached: string[];
+}
+
+export async function milestonesOf(input: {
+  asOf: string;
+  facts: MilestoneFacts;
+  thresholds: Record<string, number | number[]>;
+  reached: Record<string, string>;
+}): Promise<MilestonesResult> {
+  return engine.call<MilestonesResult>("streaks.milestones", {
+    as_of: input.asOf,
+    facts: input.facts,
+    thresholds: input.thresholds,
+    reached: input.reached,
+  });
+}
