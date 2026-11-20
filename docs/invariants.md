@@ -808,7 +808,8 @@ written against both.
     20, 2026). Each week reads only its own days (Under plan) or its own bucket (Sorted), so five years of
     entries take milliseconds, not seconds (November 20, 2026).
     `golden/streaks.*` · `streaks.long.test.ts` · `test_streaks_long.py` · `streaks.test.tsx`
-    invariant 94 · `e2e/streaks.spec.ts`
+    invariant 94 · `streaks-negative.test.tsx` · `e2e/streaks.spec.ts` (with a second device
+    restored from the backup)
 64. **A balance says where it came from** (October 29, 2026). One helper
     (`linking/anchorText.ts`) names a balance's source everywhere: a statement's date, the bank
     and when it last synced ("from First Platypus Bank · synced 5 min ago"), or "you entered".
