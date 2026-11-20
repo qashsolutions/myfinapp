@@ -1,0 +1,132 @@
+{
+  "milestones": [
+    {
+      "id": "first_jar",
+      "reached_on": "2022-11-15",
+      "have": 4,
+      "need": 1
+    },
+    {
+      "id": "starter_fund",
+      "reached_on": "2026-11-19",
+      "have": 900000,
+      "need": 100000
+    },
+    {
+      "id": "streak_12",
+      "reached_on": "2023-02-06",
+      "have": 210,
+      "need": 12
+    },
+    {
+      "id": "streak_26",
+      "reached_on": "2023-05-15",
+      "have": 210,
+      "need": 26
+    },
+    {
+      "id": "streak_52",
+      "reached_on": "2023-11-13",
+      "have": 210,
+      "need": 52
+    },
+    {
+      "id": "streak_104",
+      "reached_on": "2024-11-11",
+      "have": 210,
+      "need": 104
+    },
+    {
+      "id": "streak_208",
+      "reached_on": "2026-11-19",
+      "have": 210,
+      "need": 208
+    },
+    {
+      "id": "kept_month",
+      "reached_on": "2026-11-19",
+      "have": 40000,
+      "need": 1
+    },
+    {
+      "id": "on_time_12",
+      "reached_on": "2023-11-05",
+      "have": 48,
+      "need": 12
+    },
+    {
+      "id": "on_time_24",
+      "reached_on": "2026-11-19",
+      "have": 48,
+      "need": 24
+    },
+    {
+      "id": "on_time_48",
+      "reached_on": "2026-11-19",
+      "have": 48,
+      "need": 48
+    },
+    {
+      "id": "all_sorted",
+      "reached_on": null,
+      "have": 2,
+      "need": 0
+    },
+    {
+      "id": "challenge_done",
+      "reached_on": null,
+      "have": 0,
+      "need": 1
+    },
+    {
+      "id": "paid_in_full",
+      "reached_on": "2026-11-19",
+      "have": 3,
+      "need": 3
+    },
+    {
+      "id": "debts_gone",
+      "reached_on": "2026-11-19",
+      "have": 0,
+      "need": 0
+    },
+    {
+      "id": "three_months",
+      "reached_on": "2026-11-19",
+      "have": 45,
+      "need": 30
+    },
+    {
+      "id": "jars_5000",
+      "reached_on": "2026-11-19",
+      "have": 2500000,
+      "need": 500000
+    },
+    {
+      "id": "jars_10000",
+      "reached_on": "2026-11-19",
+      "have": 2500000,
+      "need": 1000000
+    },
+    {
+      "id": "jars_25000",
+      "reached_on": "2026-11-19",
+      "have": 2500000,
+      "need": 2500000
+    }
+  ],
+  "reached": 17,
+  "newly_reached": [
+    "starter_fund",
+    "streak_208",
+    "kept_month",
+    "on_time_24",
+    "on_time_48",
+    "paid_in_full",
+    "debts_gone",
+    "three_months",
+    "jars_5000",
+    "jars_10000",
+    "jars_25000"
+  ]
+}

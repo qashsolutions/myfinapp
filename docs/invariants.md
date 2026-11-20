@@ -804,7 +804,8 @@ written against both.
     stamps what is already true without a celebration, and each later one celebrates once.
     Rest weeks, pauses and reached days are synced settings: they travel only inside the
     encrypted backup and no request carries them.
-    Each week reads only its own days (Under plan) or its own bucket (Sorted), so five years of
+    Streaks count at most 4 years back and the best ever is kept, only ever raised (November
+    20, 2026). Each week reads only its own days (Under plan) or its own bucket (Sorted), so five years of
     entries take milliseconds, not seconds (November 20, 2026).
     `golden/streaks.*` · `streaks.long.test.ts` · `test_streaks_long.py` · `streaks.test.tsx`
     invariant 94 · `e2e/streaks.spec.ts`

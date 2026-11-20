@@ -43,7 +43,8 @@
   },
   "streaks": {
     "weeks_shown": 8,
-    "rest_weeks_per_quarter": 2
+    "rest_weeks_per_quarter": 2,
+    "history_months": 48
   },
   "path": {
     "cushion_cents": 50000,
@@ -55,9 +56,19 @@
     "streak_weeks": [
       12,
       26,
-      52
+      52,
+      104,
+      208
     ],
-    "on_time_payments": 12,
-    "jars_cents": 500000
+    "on_time_payments": [
+      12,
+      24,
+      48
+    ],
+    "jars_cents": [
+      500000,
+      1000000,
+      2500000
+    ]
   }
 }

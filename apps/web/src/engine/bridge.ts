@@ -1890,6 +1890,7 @@ export async function streakWeekly(input: {
   rests?: string[];
   pauses?: StreakPause[];
   skips?: string[];
+  historyMonths?: number;
 }): Promise<WeeklyStreak> {
   return engine.call<WeeklyStreak>("streaks.weekly", {
     as_of: input.asOf,
@@ -1900,6 +1901,7 @@ export async function streakWeekly(input: {
     rests: input.rests ?? [],
     pauses: input.pauses ?? [],
     skips: input.skips ?? [],
+    history_months: input.historyMonths ?? null,
   });
 }
 

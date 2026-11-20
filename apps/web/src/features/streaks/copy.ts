@@ -1,6 +1,6 @@
 import type { PathStepId, WeekState } from "../../engine/bridge.ts";
 import { formatCents, formatCentsTidy } from "../../lib/format.ts";
-import { MILESTONE_THRESHOLDS, PATH_THRESHOLDS } from "./config.ts";
+import { PATH_THRESHOLDS } from "./config.ts";
 import type { PathLayout, WeeklyStreakId } from "./streakSettings.ts";
 
 /** Each step's own words (owner decision, November 19, 2026; spec "Streaks, Your path …"). */
@@ -34,22 +34,31 @@ function tenths(n: number): string {
 
 export function milestoneName(id: string): string {
   const streak = /^streak_(\d+)$/.exec(id);
-  if (streak) return `${streak[1]}-week streak`;
+  if (streak) {
+    const weeks = Number(streak[1]);
+    // Whole years read as years: 52 → "1-year streak", 208 → "4-year streak".
+    return weeks % 52 === 0 ? `${weeks / 52}-year streak` : `${weeks}-week streak`;
+  }
   const onTime = /^on_time_(\d+)$/.exec(id);
   if (onTime) return `On time ${onTime[1]} times`;
+  const jars = /^jars_(\d+)$/.exec(id);
+  if (jars) return `${formatCentsTidy(Number(jars[1]) * 100)} in jars`;
   if (id === "paid_in_full") return `Paid in full ${PATH_THRESHOLDS.paid_in_full_months} months`;
   if (id === "three_months") return `${tenths(PATH_THRESHOLDS.runway_tenths ?? 0)} months saved`;
-  if (id === "jars_total")
-    return `${formatCentsTidy(Number(MILESTONE_THRESHOLDS.jars_cents))} in jars`;
   return MILESTONE_NAMES[id] ?? id;
 }
 
 /** A short mark drawn in the milestone's circle. */
 export function milestoneMark(id: string): string {
   const streak = /^streak_(\d+)$/.exec(id);
-  if (streak) return streak[1] ?? "";
+  if (streak) {
+    const weeks = Number(streak[1]);
+    return weeks % 52 === 0 ? `${weeks / 52}y` : String(weeks);
+  }
   const onTime = /^on_time_(\d+)$/.exec(id);
   if (onTime) return `×${onTime[1]}`;
+  const jars = /^jars_(\d+)$/.exec(id);
+  if (jars) return `$${Number(jars[1]) / 1000}k`;
   const marks: Record<string, string> = {
     first_jar: "1st",
     starter_fund: "$1k",
@@ -59,7 +68,6 @@ export function milestoneMark(id: string): string {
     paid_in_full: `${PATH_THRESHOLDS.paid_in_full_months}×`,
     debts_gone: "0",
     three_months: "3mo",
-    jars_total: "$5k",
   };
   return marks[id] ?? "";
 }
@@ -74,9 +82,9 @@ export function milestoneToGo(id: string, have: number | null, need: number): st
   if (/^streak_/.test(id)) return `${plural(Math.max(0, need - have), "week", "weeks")} to go`;
   if (/^on_time_/.test(id))
     return `${plural(Math.max(0, need - have), "payment", "payments")} to go`;
+  if (/^jars_/.test(id)) return `${formatCents(Math.max(0, need - have))} to go`;
   switch (id) {
     case "starter_fund":
-    case "jars_total":
       return `${formatCents(Math.max(0, need - have))} to go`;
     case "debts_gone":
       return have > 0 ? `${formatCents(have)} left` : "Add your debts to count";
