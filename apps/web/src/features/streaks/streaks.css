@@ -280,3 +280,38 @@
   flex: 1 1 220px;
   margin: 0;
 }
+.streak-strip--compact {
+  gap: 3px;
+  margin: 6px 0 0;
+}
+.streak-strip--compact .streak-strip__w {
+  flex: 1 1 0;
+  height: 6px;
+  border-radius: 3px;
+}
+.streak-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--c-line);
+  list-style: none;
+}
+.streak-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--c-bg);
+  min-width: 0;
+}
+.streak-tile__name {
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}
+.streak-tile__count {
+  font-size: var(--fs-title);
+  font-weight: 700;
+}

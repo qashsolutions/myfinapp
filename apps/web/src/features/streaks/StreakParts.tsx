@@ -2,14 +2,25 @@ import type { DueResult, WeekState } from "../../engine/bridge.ts";
 import { STATE_LABEL } from "./copy.ts";
 
 /** The last weeks as a strip, oldest first (kept, rest week, not yet), with one label for it all. */
-export function WeekStrip({ weeks }: { weeks: Array<{ start: string; state: WeekState }> }) {
+export function WeekStrip({
+  weeks,
+  compact = false,
+}: {
+  weeks: Array<{ start: string; state: WeekState }>;
+  /** A small tile's strip: thinner and without the "now" label. */
+  compact?: boolean;
+}) {
   const shown = weeks.filter((w) => w.state !== "before");
   const count = (s: WeekState) => shown.filter((w) => w.state === s).length;
   const label = `Last ${shown.length} ${shown.length === 1 ? "week" : "weeks"}: ${count("kept")} kept${
     count("rest") ? `, ${count("rest")} rest` : ""
   }${count("missed") ? `, ${count("missed")} not kept` : ""}`;
   return (
-    <p className="streak-strip" role="img" aria-label={label}>
+    <p
+      className={`streak-strip${compact ? " streak-strip--compact" : ""}`}
+      role="img"
+      aria-label={label}
+    >
       {weeks.map((w) => (
         <span
           key={w.start}
@@ -17,15 +28,23 @@ export function WeekStrip({ weeks }: { weeks: Array<{ start: string; state: Week
           title={STATE_LABEL[w.state]}
         />
       ))}
-      <span className="streak-strip__now" aria-hidden="true">
-        now
-      </span>
+      {compact ? null : (
+        <span className="streak-strip__now" aria-hidden="true">
+          now
+        </span>
+      )}
     </p>
   );
 }
 
 /** The latest card due dates as a strip: on time or missed. */
-export function DueStrip({ dues }: { dues: Array<{ due_date: string; result: DueResult }> }) {
+export function DueStrip({
+  dues,
+  compact = false,
+}: {
+  dues: Array<{ due_date: string; result: DueResult }>;
+  compact?: boolean;
+}) {
   const onTime = dues.filter((d) => d.result === "on_time").length;
   // Two cards can be due the same day: each mark gets its own key from its date and its turn.
   const seen = new Map<string, number>();
@@ -36,7 +55,7 @@ export function DueStrip({ dues }: { dues: Array<{ due_date: string; result: Due
   });
   return (
     <p
-      className="streak-strip"
+      className={`streak-strip${compact ? " streak-strip--compact" : ""}`}
       role="img"
       aria-label={`Last ${dues.length} due dates: ${onTime} on time`}
     >
