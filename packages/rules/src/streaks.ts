@@ -232,12 +232,15 @@ export function underPlan(
     parseDate(`${month}-01`);
     byMonth.set(month, assertInt(p.planned_cents, "invalid_amount"));
   }
-  const rows: { date: Day; cents: bigint }[] = [];
+  // One total per day, so each week reads at most a month of days, never every entry
+  // (5 years of entries in well under a second; November 20, 2026).
+  const daily = new Map<string, bigint>();
   for (const e of entryList(entries)) {
     const direction = e.direction;
     if (direction !== "in" && direction !== "out") throw new RuleError("invalid_direction");
     const cents = assertInt(e.amount_cents, "invalid_amount");
-    rows.push({ date: parseDate(e.date), cents: BigInt(direction === "out" ? cents : -cents) });
+    const day = iso(parseDate(e.date));
+    daily.set(day, (daily.get(day) ?? 0n) + BigInt(direction === "out" ? cents : -cents));
   }
   const met: string[] = [];
   const skips: string[] = [];
@@ -248,11 +251,8 @@ export function underPlan(
       skips.push(iso(week));
       continue;
     }
-    const start: Day = { y: end.y, m: end.m, d: 1 };
     let spent = 0n;
-    for (const r of rows) {
-      if (cmp(start, r.date) <= 0 && cmp(r.date, end) <= 0) spent += r.cents;
-    }
+    for (let d = 1; d <= end.d; d++) spent += daily.get(iso({ y: end.y, m: end.m, d })) ?? 0n;
     const allowed = roundDiv(mul(plan, end.d), daysInMonth(end));
     if (spent <= BigInt(allowed)) met.push(iso(week));
   }
@@ -262,19 +262,20 @@ export function underPlan(
 export function sortedWeeks(asOf: unknown, since: unknown, entries: unknown): WeekMarks {
   const today = parseDate(asOf);
   const first = sinceOf(since, today);
-  const rows: { date: Day; done: boolean }[] = [];
+  // Each week's entries are found once: week Monday -> every entry in it sorted.
+  const weeks = new Map<string, boolean>();
   for (const e of entryList(entries)) {
     const done = e.sorted;
     if (typeof done !== "boolean") throw new RuleError("invalid_entries");
-    rows.push({ date: parseDate(e.date), done });
+    const week = iso(monday(parseDate(e.date)));
+    weeks.set(week, (weeks.get(week) ?? true) && done);
   }
   const met: string[] = [];
   const skips: string[] = [];
   for (const week of completeWeeks(first, today)) {
-    const end = addDays(week, 6);
-    const mine = rows.filter((r) => cmp(week, r.date) <= 0 && cmp(r.date, end) <= 0);
-    if (mine.length === 0) skips.push(iso(week));
-    else if (mine.every((r) => r.done)) met.push(iso(week));
+    const all = weeks.get(iso(week));
+    if (all === undefined) skips.push(iso(week));
+    else if (all) met.push(iso(week));
   }
   return { met, skips };
 }

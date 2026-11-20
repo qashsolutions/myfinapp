@@ -207,13 +207,16 @@ def under_plan(as_of: str, since: object, plans: object, entries: object) -> dic
             raise RuleError("invalid_plans")
         parse_date(f"{month}-01")
         by_month[month] = _int(p.get("planned_cents"), "invalid_amount")
-    rows = []
+    # One total per day, so each week reads at most a month of days, never every entry
+    # (5 years of entries in well under a second; November 20, 2026).
+    daily: dict[date, int] = {}
     for e in _entries(entries):
         direction = e.get("direction")
         if direction not in ("in", "out"):
             raise RuleError("invalid_direction")
         cents = _int(e.get("amount_cents"), "invalid_amount")
-        rows.append((parse_date(e.get("date")), cents if direction == "out" else -cents))
+        day = parse_date(e.get("date"))
+        daily[day] = daily.get(day, 0) + (cents if direction == "out" else -cents)
     met, skips = [], []
     for week in _complete_weeks(first, today):
         end = add_days(week, 6)
@@ -221,8 +224,7 @@ def under_plan(as_of: str, since: object, plans: object, entries: object) -> dic
         if plan is None or plan <= 0:
             skips.append(week.isoformat())
             continue
-        start = end.replace(day=1)
-        spent = sum(c for d, c in rows if start <= d <= end)
+        spent = sum(daily.get(end.replace(day=d), 0) for d in range(1, end.day + 1))
         allowed = round_div(plan * end.day, days_in_month(end))
         if spent <= allowed:
             met.append(week.isoformat())
@@ -232,19 +234,19 @@ def under_plan(as_of: str, since: object, plans: object, entries: object) -> dic
 def sorted_weeks(as_of: str, since: object, entries: object) -> dict:
     today = parse_date(as_of)
     first = _since(since, today)
-    rows = []
+    # Each week's entries are found once: week Monday -> every entry in it sorted.
+    weeks: dict[date, bool] = {}
     for e in _entries(entries):
         done = e.get("sorted")
         if not isinstance(done, bool):
             raise RuleError("invalid_entries")
-        rows.append((parse_date(e.get("date")), done))
+        week = _monday(parse_date(e.get("date")))
+        weeks[week] = weeks.get(week, True) and done
     met, skips = [], []
     for week in _complete_weeks(first, today):
-        end = add_days(week, 6)
-        mine = [done for d, done in rows if week <= d <= end]
-        if not mine:
+        if week not in weeks:
             skips.append(week.isoformat())
-        elif all(mine):
+        elif weeks[week]:
             met.append(week.isoformat())
     return {"met": met, "skips": skips}
 
