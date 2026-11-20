@@ -80,7 +80,9 @@ describe("Streaks, Your path and milestones (invariant 94)", () => {
     renderApp("/");
     const card = await screen.findByRole("link", { name: "Streaks, open Streaks" });
     await waitFor(() => expect(card).toHaveTextContent("3 weeks"));
-    expect(card).toHaveTextContent("Done for this week.");
+    // The only streak with data leads; nothing else to tile.
+    expect(card).toHaveTextContent("Set aside · keep it going");
+    expect(within(card).queryByRole("list", { name: "Your other streaks" })).toBeNull();
     // Wednesday the 18th carries the deposit.
     const days = within(card).getByRole("list", { name: "This week" });
     expect(within(days).getAllByRole("listitem")[2]).toHaveTextContent("Set aside on W");
@@ -94,6 +96,46 @@ describe("Streaks, Your path and milestones (invariant 94)", () => {
     expect(await setAsideCard()).toHaveTextContent("3 weeks");
     // Opening the tab reads it again but never celebrates the same week twice.
     expect(momentsLog.filter((m) => m.type === "streak_kept")).toHaveLength(1);
+  });
+
+  it("Home leads with the longest streak going and tiles the others (H1 + H4)", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    // Sorted: entries with a category in the weeks of Oct 26, Nov 2 and Nov 9: three whole weeks.
+    await db.entries.bulkAdd(
+      ["2026-10-27", "2026-11-03", "2026-11-10"].map((date, i) => ({
+        id: `e${i}`,
+        date,
+        amount_cents: 1500,
+        direction: "out" as const,
+        merchant: "Grocer",
+        clean_description: "GROCER",
+        raw_description: "GROCER",
+        category_id: "cat-groceries",
+        account_id: "acct-chk",
+        source: "manual" as const,
+        receipt_id: null,
+        import_id: null,
+        is_transfer: false,
+        transfer_pair_id: null,
+        split_parent_id: null,
+        is_recurring: false,
+        created_at: `${date}T10:00:00Z`,
+        updated_at: `${date}T10:00:00Z`,
+      })),
+    );
+    // Set aside: Nov 9 and this week: two.
+    await seedJar(db, "2026-11-09", ["2026-11-10", "2026-11-18"]);
+    installFakeApi({ session: readySession() });
+    renderApp("/");
+    const card = await screen.findByRole("link", { name: "Streaks, open Streaks" });
+    await waitFor(() => expect(card).toHaveTextContent("Sorted · your longest going"));
+    expect(within(card).getByText("3 weeks")).toHaveClass("word");
+    // Sorted leads, so its weeks show instead of this week's days.
+    expect(within(card).queryByRole("list", { name: "This week" })).toBeNull();
+    const tiles = within(card).getByRole("list", { name: "Your other streaks" });
+    expect(within(tiles).getAllByRole("listitem")).toHaveLength(1);
+    expect(tiles).toHaveTextContent("Set aside2 weeks");
   });
 
   it("a missed week is a Fresh start, and a rest week keeps the run", async () => {

@@ -10,9 +10,11 @@ import type { StackdDb } from "../../data/db.ts";
 /** Home's cards, in their default order (owner decision, October 19, 2026: drag the ones you care
  * about into your own order and hide the rest). What the person set up (Budget, Jars, Split bills,
  * the challenge) comes right after This month, each a full card (owner, November 17, 2026); each
- * stays hidden until there's something to show. */
+ * stays hidden until there's something to show. Streaks sits second, right after the money
+ * (owner decision, November 19, 2026). */
 export const HOME_CARDS = [
   ["kept", "This month", "Kept, with money in and out"],
+  ["streak", "Streaks", "Your longest streak and the rest"],
   ["month_review", "Your month", "Last month at a glance, in its first week"],
   ["budget", "Budget", "On track or over, and what's left"],
   ["jars", "Jars", "Your top jars and their pace"],
@@ -21,7 +23,6 @@ export const HOME_CARDS = [
   ["found", "Found in your statements", "Bills and pay to confirm"],
   ["where", "Where it went", "Spending by category"],
   ["aside", "Set aside", "This month's saving"],
-  ["streak", "Streaks", "Weeks in a row of setting aside"],
   ["move", "Next move", "One thing worth doing now"],
   ["next30", "Next 30 days", "Safe to spend and your balance"],
   ["debt_free", "Debt payoff", "When your debts are paid off"],
