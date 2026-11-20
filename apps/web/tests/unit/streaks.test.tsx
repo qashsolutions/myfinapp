@@ -163,7 +163,7 @@ describe("Streaks, Your path and milestones (invariant 94)", () => {
     renderApp("/goals?tab=streaks");
     await setAsideCard();
     await user.click(await screen.findByRole("button", { name: "Pause streaks" }));
-    const summary = screen.getByRole("region", { name: "Streaks" });
+    const summary = screen.getByRole("region", { name: "Streaks summary" });
     await waitFor(() => expect(summary).toHaveTextContent("Paused"));
     expect(await setting(db, "streaks.pauses")).toEqual([{ start: "2026-11-19", end: null }]);
     await user.click(screen.getByRole("button", { name: "Resume streaks" }));
@@ -180,7 +180,7 @@ describe("Streaks, Your path and milestones (invariant 94)", () => {
     // Nothing set up: no cards (clear) and nothing owed (done) are reached; setup is current.
     const current = await screen.findByRole("region", { name: "Get set up" });
     expect(current).toHaveTextContent("0 of 3 set: pay, a budget and a balance");
-    expect(screen.getByRole("region", { name: "Where you are" })).toHaveTextContent("Step 1 of 7");
+    expect(screen.getByRole("region", { name: "Where you are" })).toHaveTextContent("2 of 7 done");
     expect(
       screen.getByText("A common order, not advice. Skip, reorder or rename any step."),
     ).toBeInTheDocument();
@@ -197,7 +197,7 @@ describe("Streaks, Your path and milestones (invariant 94)", () => {
     expect(
       await screen.findByRole("region", { name: "A cushion in checking" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Where you are" })).toHaveTextContent("Step 1 of 6");
+    expect(screen.getByRole("region", { name: "Where you are" })).toHaveTextContent("2 of 6 done");
     expect(screen.getByText("First $1,000")).toBeInTheDocument();
     expect(await setting(db, "path.layout")).toEqual({
       order: ["setup", "cushion", "starter", "paid_in_full", "debts", "three_months", "later"],
