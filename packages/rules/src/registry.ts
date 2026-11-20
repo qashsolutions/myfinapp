@@ -291,10 +291,10 @@ const BARE: Record<string, Rule> = {
     return { ...goalsCustom.milestones(target_cents, current_cents, checkpoints_bps) };
   },
   "streaks.weekly": (input) => {
-    const { as_of, since, met, rest_quota, shown, rests, pauses, skips } = args(
+    const { as_of, since, met, rest_quota, shown, rests, pauses, skips, history_months } = args(
       input,
       ["as_of", "since", "met", "rest_quota", "shown"],
-      ["rests", "pauses", "skips"],
+      ["rests", "pauses", "skips", "history_months"],
     );
     return {
       ...streaks.weekly(
@@ -306,6 +306,7 @@ const BARE: Record<string, Rule> = {
         rests ?? null,
         pauses ?? null,
         skips ?? null,
+        history_months ?? null,
       ),
     };
   },

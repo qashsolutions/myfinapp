@@ -31,6 +31,18 @@
       "need": 52
     },
     {
+      "id": "streak_104",
+      "reached_on": null,
+      "have": 12,
+      "need": 104
+    },
+    {
+      "id": "streak_208",
+      "reached_on": null,
+      "have": 12,
+      "need": 208
+    },
+    {
       "id": "kept_month",
       "reached_on": "2026-08-01",
       "have": 0,
@@ -41,6 +53,18 @@
       "reached_on": "2026-11-19",
       "have": 14,
       "need": 12
+    },
+    {
+      "id": "on_time_24",
+      "reached_on": null,
+      "have": 14,
+      "need": 24
+    },
+    {
+      "id": "on_time_48",
+      "reached_on": null,
+      "have": 14,
+      "need": 48
     },
     {
       "id": "all_sorted",
@@ -73,10 +97,22 @@
       "need": 30
     },
     {
-      "id": "jars_total",
+      "id": "jars_5000",
       "reached_on": null,
       "have": 312000,
       "need": 500000
+    },
+    {
+      "id": "jars_10000",
+      "reached_on": null,
+      "have": 312000,
+      "need": 1000000
+    },
+    {
+      "id": "jars_25000",
+      "reached_on": null,
+      "have": 312000,
+      "need": 2500000
     }
   ],
   "reached": 7,

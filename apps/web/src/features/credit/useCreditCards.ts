@@ -7,11 +7,14 @@ import { todayIso } from "../../lib/format.ts";
 import { byLabel, compareText } from "../../lib/order.ts";
 import { THRESHOLDS } from "../insights/thresholds.ts";
 import { LAST_SYNC_KEY } from "../linking/sync.ts";
+import { HISTORY_MONTHS } from "../streaks/config.ts";
 
 export interface CreditCardView {
   account: Account;
   /** null until the card has a due date to check against (linked facts or a due day). */
   habits: CreditHabits | null;
+  /** Up to 4 years of due dates with their results, for the On time streak. */
+  streakDues: CreditHabits["dues"];
   trend: CardTrend;
   /** The guide the limit used is read against: the person's own, else the config's. */
   guideBps: number;
@@ -86,11 +89,12 @@ export function useCreditCards(asOf: string): CreditCardView[] | undefined {
         const dues = account.linked ? source.dues.filter((d) => d.account_id === account.id) : [];
         const dueDay = account.due_day ?? null;
         let habits: CreditHabits | null = null;
+        let streakDues: CreditHabits["dues"] = [];
         if (dues.length > 0 || dueDay !== null) {
           const latest = source.anchors
             .filter((a) => a.account_id === account.id)
             .sort((a, b) => compareText(b.as_of, a.as_of))[0];
-          habits = await creditHabits({
+          const input = {
             dueDates: [],
             dueDay,
             payments: mine
@@ -137,9 +141,13 @@ export function useCreditCards(asOf: string): CreditCardView[] | undefined {
               ...source.imports.filter((i) => i.account_id === account.id).map((i) => i.period_end),
               account.linked ? source.lastSyncDay : null,
             ]),
-          });
+          };
+          habits = await creditHabits(input);
+          // The On time streak reads up to 4 years of due dates (owner decision, November 20,
+          // 2026); Credit habits itself stays a 12-month view.
+          streakDues = (await creditHabits({ ...input, months: HISTORY_MONTHS })).dues;
         }
-        out.push({ account, habits, trend, guideBps: source.guideBps });
+        out.push({ account, habits, streakDues, trend, guideBps: source.guideBps });
       }
       if (alive) setViews(out);
     })().catch(ignoreClosed);

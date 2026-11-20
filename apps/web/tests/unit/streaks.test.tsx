@@ -286,6 +286,62 @@ describe("Streaks, Your path and milestones (invariant 94)", () => {
     );
   });
 
+  it("counts at most four years back, and keeps the best ever (November 20, 2026)", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    // A deposit every Tuesday from Nov 23, 2021 through Nov 17, 2026: the window starts on the
+    // Monday of Nov 19, 2022 - 48 months, Nov 14, 2022, so 210 weeks count (Nov 14, 2022 through
+    // Nov 16, 2026: 1,463 days, 209 steps of a week, plus the first).
+    const days: string[] = [];
+    for (let t = Date.UTC(2021, 10, 23); t <= Date.UTC(2026, 10, 17); t += 7 * 86400000)
+      days.push(new Date(t).toISOString().slice(0, 10));
+    await seedJar(db, "2021-11-22", days);
+    // Another device once kept a best of 230.
+    await db.settings.put({ key: "streaks.best", value: { set_aside: 230 }, updated_at: "x" });
+    installFakeApi({ session: readySession() });
+    renderApp("/goals?tab=streaks");
+    const card = await setAsideCard();
+    await waitFor(() => expect(card).toHaveTextContent("210 weeks"));
+    expect(card).toHaveTextContent("Best 230 weeks");
+    expect(await setting(db, "streaks.best")).toEqual({ set_aside: 230 });
+  });
+
+  it("a longer run raises the kept best, never lowers it", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await seedJar(db, "2026-11-02", ["2026-11-03", "2026-11-10", "2026-11-18"]);
+    await db.settings.put({
+      key: "streaks.best",
+      value: { set_aside: 1, sorted: 9 },
+      updated_at: "x",
+    });
+    installFakeApi({ session: readySession() });
+    renderApp("/goals?tab=streaks");
+    const card = await setAsideCard();
+    await waitFor(() => expect(card).toHaveTextContent("Best 3 weeks"));
+    await waitFor(async () =>
+      expect(await setting(db, "streaks.best")).toEqual({ set_aside: 3, sorted: 9 }),
+    );
+  });
+
+  it("the $5,000 milestone reached under its old id stays reached and is not celebrated again", async () => {
+    const db = openDb("u1");
+    await seedDefaults(db);
+    await seedJar(db, "2026-11-02", ["2026-11-03"], "Trip", 600000);
+    await db.settings.put({
+      key: "milestones.reached",
+      value: { first_jar: "2026-11-03", jars_total: "2026-11-03" },
+      updated_at: "x",
+    });
+    installFakeApi({ session: readySession() });
+    renderApp("/milestones");
+    const list = await screen.findByRole("list", { name: "Milestones" });
+    await waitFor(() => expect(list).toHaveTextContent("Reached: $5,000 in jars"));
+    expect(list).toHaveTextContent("Not yet: $10,000 in jars");
+    expect(list).toHaveTextContent("Not yet: 4-year streak");
+    expect(momentsLog.filter((m) => m.type === "badge_reached")).toEqual([]);
+  });
+
   it("nothing about streaks, the path or milestones is ever sent", async () => {
     const user = userEvent.setup();
     const db = openDb("u1");

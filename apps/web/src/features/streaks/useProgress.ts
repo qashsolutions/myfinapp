@@ -38,9 +38,17 @@ import { isEmergencyJar } from "../home/useHome.ts";
 import { toRuleEntry } from "../money/ruleEntries.ts";
 import { useNetWorth } from "../networth/useNetWorth.ts";
 import { needsSorting } from "../review/review.ts";
-import { MILESTONE_THRESHOLDS, PATH_THRESHOLDS, REST_QUOTA, WEEKS_SHOWN } from "./config.ts";
+import {
+  HISTORY_MONTHS,
+  MILESTONE_THRESHOLDS,
+  PATH_THRESHOLDS,
+  REST_QUOTA,
+  WEEKS_SHOWN,
+} from "./config.ts";
 import { milestoneName, stepName } from "./copy.ts";
 import {
+  BEST_KEY,
+  type BestRecord,
   FRESH_SEEN_KEY,
   MILESTONES_REACHED_KEY,
   markCelebrated,
@@ -49,10 +57,13 @@ import {
   PAUSES_KEY,
   type PathLayout,
   RESTS_KEY,
+  readBest,
   readDates,
   readLayout,
   readPauses,
+  readReachedMilestones,
   readRests,
+  saveBest,
   stampReached,
 } from "./streakSettings.ts";
 
@@ -169,7 +180,7 @@ export function useStreaks(asOf: string): StreaksView {
       db.entries.toArray(),
       db.budgets.toArray(),
       db.budget_lines.toArray(),
-      db.settings.where("key").anyOf([RESTS_KEY, PAUSES_KEY, FRESH_SEEN_KEY]).toArray(),
+      db.settings.where("key").anyOf([RESTS_KEY, PAUSES_KEY, FRESH_SEEN_KEY, BEST_KEY]).toArray(),
     ]);
     return {
       goals,
@@ -205,6 +216,7 @@ export function useStreaks(asOf: string): StreaksView {
           rests: rests[key],
           pauses,
           skips,
+          historyMonths: HISTORY_MONTHS,
         });
 
       // Set aside: new money into any jar (Move money sets nothing new aside).
@@ -277,10 +289,29 @@ export function useStreaks(asOf: string): StreaksView {
       // On time: card due dates across every card.
       const withHabits = cards.filter((c) => c.habits !== null);
       const onTimeRun = await streakOnTime(
-        withHabits.flatMap((c) => c.habits?.dues ?? []),
+        withHabits.flatMap((c) => c.streakDues),
         WEEKS_SHOWN,
       );
       const onTime = onTimeRun.checked > 0 ? onTimeRun : null;
+
+      // The best ever is kept (owner decision, November 20, 2026): a run longer than the 4-year
+      // window, or one on data since removed, still shows. It only ever goes up.
+      const saved = readBest(setting.get(BEST_KEY));
+      const keep = <T extends { best: number }>(s: T | null, id: keyof BestRecord): T | null =>
+        s ? { ...s, best: Math.max(s.best, saved[id] ?? 0) } : null;
+      const higher: BestRecord = { ...saved };
+      let raised = false;
+      for (const [id, s] of [
+        ["set_aside", setAside],
+        ["under_plan", underPlan],
+        ["sorted", sorted],
+        ["on_time", onTime],
+      ] as const) {
+        if (s && s.best > (saved[id] ?? 0)) {
+          higher[id] = s.best;
+          raised = true;
+        }
+      }
 
       // What the path and milestones read from the same data.
       const savedIn = (goalId: string) =>
@@ -312,10 +343,10 @@ export function useStreaks(asOf: string): StreaksView {
       if (!alive) return;
       setView({
         ready: true,
-        setAside,
-        underPlan,
-        sorted,
-        onTime,
+        setAside: keep(setAside, "set_aside"),
+        underPlan: keep(underPlan, "under_plan"),
+        sorted: keep(sorted, "sorted"),
+        onTime: keep(onTime, "on_time"),
         paused: pauses.some((p) => p.end === null),
         freshSeen: readDates(setting.get(FRESH_SEEN_KEY)),
         depositDays: (asideInputs?.met ?? []).filter(
@@ -339,6 +370,7 @@ export function useStreaks(asOf: string): StreaksView {
               : null,
         },
       });
+      if (raised) await saveBest(db, higher);
       await celebrateWeek(db, setAside);
     })().catch(ignoreClosed);
     return () => {
@@ -464,7 +496,7 @@ export function useProgress(asOf: string): ProgressView {
           jars_saved_cents: f.jarsSavedCents,
         },
         thresholds: MILESTONE_THRESHOLDS,
-        reached: readDates(setting.get(MILESTONES_REACHED_KEY)),
+        reached: readReachedMilestones(setting.get(MILESTONES_REACHED_KEY)),
       });
       if (!alive) return;
       setExtra({ path, milestones, layout });

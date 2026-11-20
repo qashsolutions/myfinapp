@@ -512,8 +512,11 @@ def _streaks_weekly(
     rests: object = None,
     pauses: object = None,
     skips: object = None,
+    history_months: object = None,
 ) -> dict:
-    return streaks.weekly(as_of, since, met, rest_quota, shown, rests, pauses, skips)
+    return streaks.weekly(
+        as_of, since, met, rest_quota, shown, rests, pauses, skips, history_months
+    )
 
 
 def _streaks_under_plan(as_of: str, since: object, plans: list, entries: list) -> dict:

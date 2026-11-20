@@ -81,6 +81,7 @@ def weekly(
     rests: object = None,
     pauses: object = None,
     skips: object = None,
+    history_months: object = None,
 ) -> dict:
     today = parse_date(as_of)
     first = _since(since, today)
@@ -88,6 +89,14 @@ def weekly(
     count = _int(shown, "invalid_amount")
     if quota < 0 or not 1 <= count <= 52:
         raise RuleError("invalid_amount")
+    if history_months is not None:
+        # Count at most this many months back (owner decision, November 20, 2026: 4 years).
+        span = _int(history_months, "invalid_amount")
+        if span < 1:
+            raise RuleError("invalid_amount")
+        window = _monday(add_months(today, -span))
+        if first is not None and _monday(first) < window:
+            first = window
     met_weeks = {_monday(d) for d in _dates(met, "invalid_dates") if d <= today}
     skip_weeks = {_monday(d) for d in _dates(skips, "invalid_dates")}
     rest_weeks = sorted({_monday(d) for d in _dates(rests, "invalid_dates")})
@@ -358,6 +367,18 @@ def _path_facts(facts: object, thresholds: object) -> dict[str, dict]:
     }
 
 
+def _threshold_list(thresholds: object, key: str) -> list[int]:
+    if not isinstance(thresholds, dict):
+        raise RuleError("invalid_thresholds")
+    values = thresholds.get(key)
+    if not isinstance(values, list) or not values:
+        raise RuleError("invalid_thresholds")
+    out = [_int(n, "invalid_thresholds") for n in values]
+    if any(n < 0 for n in out):
+        raise RuleError("invalid_thresholds")
+    return out
+
+
 def path(
     as_of: str,
     facts: object,
@@ -424,15 +445,12 @@ def milestones(as_of: str, facts: object, thresholds: object, reached: object = 
     known = _reached(reached, today)
     if not isinstance(facts, dict) or not isinstance(thresholds, dict):
         raise RuleError("invalid_facts")
-    weeks = thresholds.get("streak_weeks")
-    if not isinstance(weeks, list) or not weeks:
-        raise RuleError("invalid_thresholds")
-    weeks = [_int(n, "invalid_thresholds") for n in weeks]
+    weeks = _threshold_list(thresholds, "streak_weeks")
     starter = _threshold(thresholds, "starter_cents")
-    on_time_need = _threshold(thresholds, "on_time_payments")
+    on_time_needs = _threshold_list(thresholds, "on_time_payments")
     months_need = _threshold(thresholds, "paid_in_full_months")
     runway_need = _threshold(thresholds, "runway_tenths")
-    jars_need = _threshold(thresholds, "jars_cents")
+    jars_needs = _threshold_list(thresholds, "jars_cents")
 
     jars = _int(facts.get("jars"), "invalid_facts")
     saved = _int(facts.get("emergency_saved_cents"), "invalid_facts")
@@ -456,7 +474,9 @@ def milestones(as_of: str, facts: object, thresholds: object, reached: object = 
     rows += [(f"streak_{n}", best_aside >= n, best_aside, n) for n in weeks]
     rows += [
         ("kept_month", kept_month > 0, kept_month, 1),
-        (f"on_time_{on_time_need}", best_on_time >= on_time_need, best_on_time, on_time_need),
+    ]
+    rows += [(f"on_time_{n}", best_on_time >= n, best_on_time, n) for n in on_time_needs]
+    rows += [
         ("all_sorted", entries >= 1 and to_sort == 0, to_sort, 0),
         ("challenge_done", challenges >= 1, challenges, 1),
         (
@@ -467,8 +487,8 @@ def milestones(as_of: str, facts: object, thresholds: object, reached: object = 
         ),
         ("debts_gone", listed and debts == 0, debts, 0),
         ("three_months", runway is not None and runway >= runway_need, runway, runway_need),
-        ("jars_total", jar_cents >= jars_need, jar_cents, jars_need),
     ]
+    rows += [(f"jars_{n // 100}", jar_cents >= n, jar_cents, n) for n in jars_needs]
     out = []
     newly = []
     for mid, met, have, need in rows:

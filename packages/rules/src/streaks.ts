@@ -95,12 +95,20 @@ export function weekly(
   rests: unknown = null,
   pauses: unknown = null,
   skips: unknown = null,
+  historyMonths: unknown = null,
 ): WeeklyStreak {
   const today = parseDate(asOf);
-  const first = sinceOf(since, today);
+  let first = sinceOf(since, today);
   const quota = assertInt(restQuota, "invalid_amount");
   const count = assertInt(shown, "invalid_amount");
   if (quota < 0 || count < 1 || count > 52) throw new RuleError("invalid_amount");
+  if (historyMonths !== null && historyMonths !== undefined) {
+    // Count at most this many months back (owner decision, November 20, 2026: 4 years).
+    const span = assertInt(historyMonths, "invalid_amount");
+    if (span < 1) throw new RuleError("invalid_amount");
+    const windowStart = monday(addMonths(today, -span));
+    if (first !== null && cmp(monday(first), windowStart) < 0) first = windowStart;
+  }
   const metWeeks = new Set(
     dateList(met, "invalid_dates")
       .filter((d) => cmp(d, today) <= 0)
@@ -350,6 +358,15 @@ function threshold(thresholds: unknown, key: string): number {
   return value;
 }
 
+function thresholdList(thresholds: unknown, key: string): number[] {
+  if (!isRecord(thresholds)) throw new RuleError("invalid_thresholds");
+  const values = thresholds[key];
+  if (!Array.isArray(values) || values.length === 0) throw new RuleError("invalid_thresholds");
+  const out = values.map((n) => assertInt(n, "invalid_thresholds"));
+  if (out.some((n) => n < 0)) throw new RuleError("invalid_thresholds");
+  return out;
+}
+
 interface StepFacts {
   met: boolean;
   have: number | null;
@@ -502,14 +519,12 @@ export function milestones(
   const today = parseDate(asOf);
   const known = reachedMap(reached, today);
   if (!isRecord(facts) || !isRecord(thresholds)) throw new RuleError("invalid_facts");
-  const rawWeeks = thresholds.streak_weeks;
-  if (!Array.isArray(rawWeeks) || rawWeeks.length === 0) throw new RuleError("invalid_thresholds");
-  const weeks = rawWeeks.map((n) => assertInt(n, "invalid_thresholds"));
+  const weeks = thresholdList(thresholds, "streak_weeks");
   const starter = threshold(thresholds, "starter_cents");
-  const onTimeNeed = threshold(thresholds, "on_time_payments");
+  const onTimeNeeds = thresholdList(thresholds, "on_time_payments");
   const monthsNeed = threshold(thresholds, "paid_in_full_months");
   const runwayNeed = threshold(thresholds, "runway_tenths");
-  const jarsNeed = threshold(thresholds, "jars_cents");
+  const jarsNeeds = thresholdList(thresholds, "jars_cents");
 
   const jars = assertInt(facts.jars, "invalid_facts");
   const saved = assertInt(facts.emergency_saved_cents, "invalid_facts");
@@ -526,24 +541,21 @@ export function milestones(
   const runway = optFact(facts, "runway_tenths");
   const jarCents = assertInt(facts.jars_saved_cents, "invalid_facts");
 
-  const rows: [string, boolean, number | null, number][] = [
+  type Row = [string, boolean, number | null, number];
+  const rows: Row[] = [
     ["first_jar", jars >= 1, jars, 1],
     ["starter_fund", saved >= starter, saved, starter],
-    ...weeks.map((n): [string, boolean, number | null, number] => [
-      `streak_${n}`,
-      bestAside >= n,
-      bestAside,
-      n,
-    ]),
+    ...weeks.map((n): Row => [`streak_${n}`, bestAside >= n, bestAside, n]),
     ["kept_month", keptMonth > 0, keptMonth, 1],
-    [`on_time_${onTimeNeed}`, bestOnTime >= onTimeNeed, bestOnTime, onTimeNeed],
+    ...onTimeNeeds.map((n): Row => [`on_time_${n}`, bestOnTime >= n, bestOnTime, n]),
     ["all_sorted", entries >= 1 && toSort === 0, toSort, 0],
     ["challenge_done", challenges >= 1, challenges, 1],
     ["paid_in_full", hasCards && months !== null && months >= monthsNeed, months, monthsNeed],
     ["debts_gone", listed && debts === 0, debts, 0],
     ["three_months", runway !== null && runway >= runwayNeed, runway, runwayNeed],
-    ["jars_total", jarCents >= jarsNeed, jarCents, jarsNeed],
+    ...jarsNeeds.map((n): Row => [`jars_${Math.floor(n / 100)}`, jarCents >= n, jarCents, n]),
   ];
+
   const out: Milestone[] = [];
   const newly: string[] = [];
   for (const [id, met, have, need] of rows) {

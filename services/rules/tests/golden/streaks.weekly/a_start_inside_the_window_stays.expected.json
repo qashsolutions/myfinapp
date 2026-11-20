@@ -1,0 +1,21 @@
+{
+  "current": 2,
+  "best": 2,
+  "kept_weeks": 2,
+  "this_week": "kept",
+  "last_week": "kept",
+  "held": 0,
+  "can_rest": false,
+  "rest_left": 2,
+  "rests_renew": "2027-01-01",
+  "weeks": [
+    {
+      "start": "2026-11-09",
+      "state": "kept"
+    },
+    {
+      "start": "2026-11-16",
+      "state": "kept"
+    }
+  ]
+}

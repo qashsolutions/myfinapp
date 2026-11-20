@@ -13,6 +13,9 @@ export const CELEBRATED_KEY = "streaks.celebrated"; // the Monday of the week la
 export const PATH_LAYOUT_KEY = "path.layout"; // {order, skipped, names}
 export const PATH_REACHED_KEY = "path.reached"; // {<step>: date}
 export const MILESTONES_REACHED_KEY = "milestones.reached"; // {<milestone>: date}
+export const BEST_KEY = "streaks.best"; // {<streak>: the longest run ever, only ever raised}
+
+export type BestRecord = Partial<Record<"set_aside" | "under_plan" | "sorted" | "on_time", number>>;
 
 export type WeeklyStreakId = "set_aside" | "under_plan" | "sorted";
 
@@ -64,6 +67,44 @@ export function readLayout(value: unknown): PathLayout {
     skipped: Array.isArray(v.skipped) ? v.skipped : [],
     names: typeof v.names === "object" && v.names !== null ? v.names : {},
   };
+}
+
+export function readBest(value: unknown): BestRecord {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
+  const out: BestRecord = {};
+  for (const id of ["set_aside", "under_plan", "sorted", "on_time"] as const) {
+    const n = (value as Record<string, unknown>)[id];
+    if (typeof n === "number" && Number.isInteger(n) && n > 0) out[id] = n;
+  }
+  return out;
+}
+
+/** Raises the kept bests; never lowers one another device kept higher. */
+export async function saveBest(
+  db: StackdDb,
+  best: BestRecord,
+  now: Date = new Date(),
+): Promise<void> {
+  await db.transaction("rw", db.settings, async () => {
+    const kept = readBest((await db.settings.get(BEST_KEY))?.value);
+    const merged: BestRecord = { ...kept };
+    for (const [id, n] of Object.entries(best) as Array<[keyof BestRecord, number]>) {
+      merged[id] = Math.max(n, kept[id] ?? 0);
+    }
+    await db.settings.put({ key: BEST_KEY, value: merged, updated_at: stamp(now) });
+  });
+}
+
+/**
+ * Reached milestones, with the first jar total's id from before the 4-year list (November 19,
+ * 2026: `jars_total` for $5,000) read as its new id, so nothing reached is celebrated twice.
+ */
+export function readReachedMilestones(value: unknown): Record<string, string> {
+  const dates = readDates(value);
+  const legacy = dates.jars_total;
+  if (legacy && !dates.jars_5000) dates.jars_5000 = legacy;
+  delete dates.jars_total;
+  return dates;
 }
 
 /** Turns the week just gone into a rest week for one streak. */

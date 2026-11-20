@@ -45,12 +45,15 @@ regular_spending:
 streaks:
   weeks_shown: 8                # the strip under each streak
   rest_weeks_per_quarter: 2     # per streak, per calendar quarter
+  history_months: 48            # count at most 4 years back (owner decision, November 20, 2026,
+                                # matching the Founding member term); the best stays kept
 path:
   cushion_cents: 50000          # a cushion in checking, when the person set no cushion of their own
   starter_cents: 100000         # starter fund in the Emergency fund jar
   paid_in_full_months: 3        # every card paid in full this many months in a row
   runway_tenths: 30             # 3 months of essentials
+# Past one year (owner decision, November 20, 2026): up to 4 years, the counting window.
 milestones:
-  streak_weeks: [12, 26, 52]    # Set aside streak lengths
-  on_time_payments: 12          # card payments on time in a row
-  jars_cents: 500000            # everything in jars together
+  streak_weeks: [12, 26, 52, 104, 208]   # Set aside streak lengths
+  on_time_payments: [12, 24, 48]         # card payments on time in a row
+  jars_cents: [500000, 1000000, 2500000] # everything in jars together
