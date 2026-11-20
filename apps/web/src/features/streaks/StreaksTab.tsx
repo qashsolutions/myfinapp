@@ -7,7 +7,14 @@ import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import { addDays, type WeeklyStreak } from "../../engine/bridge.ts";
 import { formatDay, todayIso } from "../../lib/format.ts";
-import { milestoneName, STREAK_LINES, STREAK_NAMES, stepName, weeksWord } from "./copy.ts";
+import {
+  milestoneName,
+  pathSummary,
+  STREAK_LINES,
+  STREAK_NAMES,
+  stepName,
+  weeksWord,
+} from "./copy.ts";
 import { DueStrip, StreakLegend, WeekStrip } from "./StreakParts.tsx";
 import {
   setStreaksPaused,
@@ -113,6 +120,9 @@ export function StreaksTab() {
   const going = weekly.filter((s) => s.current > 0).length + (onTime && onTime.current > 0 ? 1 : 0);
   const shownCount = weekly.length + (onTime ? 1 : 0);
   const current = path?.steps.find((s) => s.state === "current") ?? null;
+  const summary = path
+    ? pathSummary(path, current ? stepName(current.id, progress.layout) : null)
+    : null;
   const newest = (milestones?.milestones ?? [])
     .filter((m) => m.reached_on)
     .sort((a, b) => compareText(a.reached_on ?? "", b.reached_on ?? ""))
@@ -142,7 +152,7 @@ export function StreaksTab() {
             <p className="sk-card__eyebrow">
               {going > 0
                 ? `${going} ${going === 1 ? "streak" : "streaks"} going. Weeks run Monday to Sunday.`
-                : "A good week starts any day."}
+                : "Nothing running this week. Your bests are kept."}
             </p>
           </>
         )}
@@ -185,12 +195,8 @@ export function StreaksTab() {
                 <h2 className="sk-card__title" id="streaks-path">
                   Your path
                 </h2>
-                <Word>{current ? `${path.done} of ${path.total} done` : "Done"}</Word>
-                <p className="sk-card__eyebrow">
-                  {current
-                    ? `Next: ${stepName(current.id, progress.layout)}`
-                    : "Every step reached"}
-                </p>
+                <Word>{summary?.word ?? ""}</Word>
+                <p className="sk-card__eyebrow">{summary?.line}</p>
               </Card>
             </Link>
           ) : null}

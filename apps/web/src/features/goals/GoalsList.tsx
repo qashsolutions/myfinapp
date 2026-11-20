@@ -169,7 +169,7 @@ export function GoalsList() {
         }
       />
       {desktop ? null : (
-        <fieldset className="segmented" style={{ border: 0, margin: 0 }}>
+        <fieldset className="segmented segmented--3" style={{ border: 0, margin: 0 }}>
           <legend className="sr-only">Show</legend>
           {(
             [

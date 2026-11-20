@@ -231,6 +231,9 @@ describe("Streaks, Your path and milestones (invariant 94)", () => {
     const sheet = await screen.findByRole("dialog", { name: "Adjust your path" });
     const showSetup = within(sheet).getAllByRole("checkbox", { name: "Show this step" })[0];
     await user.click(showSetup as HTMLElement);
+    // Opening the sheet asks for no typing; Rename opens the box for that step.
+    expect(within(sheet).queryByRole("textbox")).toBeNull();
+    await user.click(within(sheet).getByRole("button", { name: "Rename Starter fund" }));
     const rename = within(sheet).getByRole("textbox", { name: "Name for Starter fund" });
     await user.clear(rename);
     await user.type(rename, "First $1,000");
@@ -266,7 +269,7 @@ describe("Streaks, Your path and milestones (invariant 94)", () => {
       expect(await setting(db, "milestones.reached")).toEqual({ first_jar: "2026-11-19" }),
     );
     expect(momentsLog.filter((m) => m.type === "badge_reached")).toEqual([]);
-    const list = screen.getByRole("list", { name: "Milestones" });
+    const list = screen.getByRole("list", { name: "Next up" });
     expect(within(list).getByText("$500.00 to go")).toBeInTheDocument(); // starter fund
 
     // $500 more makes $1,000 in the Emergency fund: the starter fund, celebrated once.
@@ -335,7 +338,7 @@ describe("Streaks, Your path and milestones (invariant 94)", () => {
     });
     installFakeApi({ session: readySession() });
     renderApp("/milestones");
-    const list = await screen.findByRole("list", { name: "Milestones" });
+    const list = await screen.findByRole("main");
     await waitFor(() => expect(list).toHaveTextContent("Reached: $5,000 in jars"));
     expect(list).toHaveTextContent("Not yet: $10,000 in jars");
     expect(list).toHaveTextContent("Not yet: 4-year streak");

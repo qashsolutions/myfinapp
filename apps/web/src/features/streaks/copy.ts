@@ -132,3 +132,14 @@ export const STATE_LABEL: Record<WeekState, string> = {
 export function weeksWord(n: number): string {
   return plural(n, "week", "weeks");
 }
+
+/** Your path's word and line, the same on the Streaks tab and the path screen. */
+export function pathSummary(
+  path: { done: number; total: number },
+  next: string | null,
+): { word: string; line: string } {
+  if (path.total === 0)
+    return { word: "Skipped", line: "Every step is skipped. Adjust to show some." };
+  if (next) return { word: `${path.done} of ${path.total} done`, line: `Next: ${next}` };
+  return { word: "Done", line: "Every step reached. Keep it going." };
+}
