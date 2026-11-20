@@ -1,0 +1,29 @@
+{
+  "current": 0,
+  "best": 1,
+  "kept_weeks": 1,
+  "this_week": "open",
+  "last_week": "missed",
+  "held": 1,
+  "can_rest": false,
+  "rest_left": 0,
+  "rests_renew": "2027-01-01",
+  "weeks": [
+    {
+      "start": "2026-10-05",
+      "state": "kept"
+    },
+    {
+      "start": "2026-10-12",
+      "state": "rest"
+    },
+    {
+      "start": "2026-10-19",
+      "state": "missed"
+    },
+    {
+      "start": "2026-10-26",
+      "state": "open"
+    }
+  ]
+}

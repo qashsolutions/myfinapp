@@ -32,6 +32,7 @@ from . import (
     notify,
     recurring,
     splits,
+    streaks,
     whatif,
 )
 from .errors import RuleError
@@ -502,6 +503,46 @@ def _forecast_project(
     return forecast.project(as_of, start_balance_cents, daily_cents, upcoming, buffer_cents, days)
 
 
+def _streaks_weekly(
+    as_of: str,
+    since: object,
+    met: list,
+    rest_quota: int,
+    shown: int,
+    rests: object = None,
+    pauses: object = None,
+    skips: object = None,
+) -> dict:
+    return streaks.weekly(as_of, since, met, rest_quota, shown, rests, pauses, skips)
+
+
+def _streaks_under_plan(as_of: str, since: object, plans: list, entries: list) -> dict:
+    return streaks.under_plan(as_of, since, plans, entries)
+
+
+def _streaks_sorted(as_of: str, since: object, entries: list) -> dict:
+    return streaks.sorted_weeks(as_of, since, entries)
+
+
+def _streaks_on_time(dues: list, shown: int) -> dict:
+    return streaks.on_time(dues, shown)
+
+
+def _streaks_path(
+    as_of: str,
+    facts: dict,
+    thresholds: dict,
+    reached: object = None,
+    order: object = None,
+    skipped: object = None,
+) -> dict:
+    return streaks.path(as_of, facts, thresholds, reached, order, skipped)
+
+
+def _streaks_milestones(as_of: str, facts: dict, thresholds: dict, reached: object = None) -> dict:
+    return streaks.milestones(as_of, facts, thresholds, reached)
+
+
 _BARE: dict[str, Rule] = {
     "money.parse_amount": _money_parse_amount,
     "money.round_div": _money_round_div,
@@ -570,6 +611,12 @@ _BARE: dict[str, Rule] = {
     "whatif.debt": _whatif_debt,
     "whatif.goal": _whatif_goal,
     "whatif.lump_sum": _whatif_lump_sum,
+    "streaks.weekly": _streaks_weekly,
+    "streaks.under_plan": _streaks_under_plan,
+    "streaks.sorted": _streaks_sorted,
+    "streaks.on_time": _streaks_on_time,
+    "streaks.path": _streaks_path,
+    "streaks.milestones": _streaks_milestones,
     "notify.decide": _notify_decide,
     "alerts.schedule": _alerts_schedule,
     "alerts.tag": _alerts_tag,

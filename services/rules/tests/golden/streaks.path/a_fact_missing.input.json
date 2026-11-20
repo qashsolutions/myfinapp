@@ -1,0 +1,12 @@
+{
+  "as_of": "2026-11-19",
+  "thresholds": {
+    "cushion_cents": 50000,
+    "starter_cents": 100000,
+    "paid_in_full_months": 3,
+    "runway_tenths": 30
+  },
+  "facts": {
+    "budget_set": true
+  }
+}

@@ -58,7 +58,10 @@ export type MomentType =
   | "card_plan"
   | "card_no_payday"
   | "card_past_due"
-  | "card_no_due_date";
+  | "card_no_due_date"
+  | "streak_kept"
+  | "path_step_reached"
+  | "badge_reached";
 
 export type Vars = Record<string, string>;
 

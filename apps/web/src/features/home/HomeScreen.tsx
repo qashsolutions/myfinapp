@@ -24,6 +24,7 @@ import { MonthReviewHomeCard } from "../monthreview/MonthReviewCards.tsx";
 import { useSetup } from "../onboarding/useSetup.ts";
 import { StorageCard } from "../pwa/StorageCard.tsx";
 import { RestoreOffer } from "../security/RestoreOffer.tsx";
+import { StreakHomeCard } from "../streaks/StreakHomeCard.tsx";
 import { SubCheckHomeCard } from "../subscriptions/SubscriptionCheckCard.tsx";
 import { CustomizeHome } from "./CustomizeHome.tsx";
 import { DebtFreeCard } from "./DebtFreeCard.tsx";
@@ -318,6 +319,7 @@ export function HomeScreen() {
         </Card>
       ) : null,
     debt_free: <DebtFreeCard today={today} />,
+    streak: <StreakHomeCard today={today} />,
     budget: home.budget.budget ? (
       <BudgetHomeCard budget={home.budget.budget} summary={home.budget.summary} today={today} />
     ) : null,

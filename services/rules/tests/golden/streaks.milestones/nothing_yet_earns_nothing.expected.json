@@ -1,0 +1,84 @@
+{
+  "milestones": [
+    {
+      "id": "first_jar",
+      "reached_on": null,
+      "have": 0,
+      "need": 1
+    },
+    {
+      "id": "starter_fund",
+      "reached_on": null,
+      "have": 0,
+      "need": 100000
+    },
+    {
+      "id": "streak_12",
+      "reached_on": null,
+      "have": 0,
+      "need": 12
+    },
+    {
+      "id": "streak_26",
+      "reached_on": null,
+      "have": 0,
+      "need": 26
+    },
+    {
+      "id": "streak_52",
+      "reached_on": null,
+      "have": 0,
+      "need": 52
+    },
+    {
+      "id": "kept_month",
+      "reached_on": null,
+      "have": 0,
+      "need": 1
+    },
+    {
+      "id": "on_time_12",
+      "reached_on": null,
+      "have": 0,
+      "need": 12
+    },
+    {
+      "id": "all_sorted",
+      "reached_on": null,
+      "have": 0,
+      "need": 0
+    },
+    {
+      "id": "challenge_done",
+      "reached_on": null,
+      "have": 0,
+      "need": 1
+    },
+    {
+      "id": "paid_in_full",
+      "reached_on": null,
+      "have": null,
+      "need": 3
+    },
+    {
+      "id": "debts_gone",
+      "reached_on": null,
+      "have": 0,
+      "need": 0
+    },
+    {
+      "id": "three_months",
+      "reached_on": null,
+      "have": null,
+      "need": 30
+    },
+    {
+      "id": "jars_total",
+      "reached_on": null,
+      "have": 0,
+      "need": 500000
+    }
+  ],
+  "reached": 0,
+  "newly_reached": []
+}

@@ -35,6 +35,13 @@ def compile_config() -> dict:
             "intervals": [str(k) for k in data["regular_spending"]["intervals"]],
             "categories": [str(k) for k in data["regular_spending"]["categories"]],
         },
+        "streaks": {str(k): int(v) for k, v in data["streaks"].items()},
+        "path": {str(k): int(v) for k, v in data["path"].items()},
+        "milestones": {
+            "streak_weeks": [int(v) for v in data["milestones"]["streak_weeks"]],
+            "on_time_payments": int(data["milestones"]["on_time_payments"]),
+            "jars_cents": int(data["milestones"]["jars_cents"]),
+        },
     }
 
 

@@ -21,6 +21,7 @@ export const HOME_CARDS = [
   ["found", "Found in your statements", "Bills and pay to confirm"],
   ["where", "Where it went", "Spending by category"],
   ["aside", "Set aside", "This month's saving"],
+  ["streak", "Streaks", "Weeks in a row of setting aside"],
   ["move", "Next move", "One thing worth doing now"],
   ["next30", "Next 30 days", "Safe to spend and your balance"],
   ["debt_free", "Debt payoff", "When your debts are paid off"],

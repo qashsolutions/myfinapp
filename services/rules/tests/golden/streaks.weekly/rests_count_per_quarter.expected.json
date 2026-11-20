@@ -1,0 +1,37 @@
+{
+  "current": 3,
+  "best": 3,
+  "kept_weeks": 3,
+  "this_week": "open",
+  "last_week": "rest",
+  "held": 0,
+  "can_rest": false,
+  "rest_left": 0,
+  "rests_renew": "2027-01-01",
+  "weeks": [
+    {
+      "start": "2026-09-07",
+      "state": "kept"
+    },
+    {
+      "start": "2026-09-14",
+      "state": "kept"
+    },
+    {
+      "start": "2026-09-21",
+      "state": "rest"
+    },
+    {
+      "start": "2026-09-28",
+      "state": "kept"
+    },
+    {
+      "start": "2026-10-05",
+      "state": "rest"
+    },
+    {
+      "start": "2026-10-12",
+      "state": "open"
+    }
+  ]
+}

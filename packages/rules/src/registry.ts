@@ -25,6 +25,7 @@ import * as nextMove from "./next_move.ts";
 import * as notify from "./notify.ts";
 import * as recurring from "./recurring.ts";
 import * as splits from "./splits.ts";
+import * as streaks from "./streaks.ts";
 import * as whatif from "./whatif.ts";
 
 export type JsonObject = Record<string, unknown>;
@@ -288,6 +289,55 @@ const BARE: Record<string, Rule> = {
       "checkpoints_bps",
     ]);
     return { ...goalsCustom.milestones(target_cents, current_cents, checkpoints_bps) };
+  },
+  "streaks.weekly": (input) => {
+    const { as_of, since, met, rest_quota, shown, rests, pauses, skips } = args(
+      input,
+      ["as_of", "since", "met", "rest_quota", "shown"],
+      ["rests", "pauses", "skips"],
+    );
+    return {
+      ...streaks.weekly(
+        as_of,
+        since,
+        met,
+        rest_quota,
+        shown,
+        rests ?? null,
+        pauses ?? null,
+        skips ?? null,
+      ),
+    };
+  },
+  "streaks.under_plan": (input) => {
+    const { as_of, since, plans, entries } = args(input, ["as_of", "since", "plans", "entries"]);
+    return { ...streaks.underPlan(as_of, since, plans, entries) };
+  },
+  "streaks.sorted": (input) => {
+    const { as_of, since, entries } = args(input, ["as_of", "since", "entries"]);
+    return { ...streaks.sortedWeeks(as_of, since, entries) };
+  },
+  "streaks.on_time": (input) => {
+    const { dues, shown } = args(input, ["dues", "shown"]);
+    return { ...streaks.onTime(dues, shown) };
+  },
+  "streaks.path": (input) => {
+    const { as_of, facts, thresholds, reached, order, skipped } = args(
+      input,
+      ["as_of", "facts", "thresholds"],
+      ["reached", "order", "skipped"],
+    );
+    return {
+      ...streaks.path(as_of, facts, thresholds, reached ?? null, order ?? null, skipped ?? null),
+    };
+  },
+  "streaks.milestones": (input) => {
+    const { as_of, facts, thresholds, reached } = args(
+      input,
+      ["as_of", "facts", "thresholds"],
+      ["reached"],
+    );
+    return { ...streaks.milestones(as_of, facts, thresholds, reached ?? null) };
   },
   "groups.rank": (input) => {
     const { members } = args(input, ["members"]);
