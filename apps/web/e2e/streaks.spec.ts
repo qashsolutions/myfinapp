@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { readyAccount } from "./helpers.ts";
+import { addPasskeyDevice, readyAccount, signInHere, syncPasskeys } from "./helpers.ts";
 
 /**
  * Streaks, Your path and milestones end to end (November 20, 2026; invariant 94). The browser's
@@ -260,4 +260,86 @@ test("@phone getting around: search, back buttons, the keyboard, and working off
   await page.getByRole("link", { name: "Milestones, open Milestones" }).click();
   await expect(page.getByRole("list", { name: "Reached · 1" })).toContainText("First jar");
   await page.context().setOffline(false);
+});
+
+test("@phone a second device restored from the backup has the same streaks, path and milestones", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  const sent = bodies(page);
+  await readyAccount(page, "sx-restore");
+
+  // Device one: deposits three and two weeks ago, none last week, then a rest week keeps 2.
+  await setDay(page, tuesday(3));
+  const jar = await newJar(page);
+  await deposit(page, jar, "25", "$25.00");
+  await setDay(page, tuesday(2));
+  await deposit(page, jar, "25", "$50.00");
+  await setDay(page, tuesday(0));
+  await openStreaks(page);
+  const aside = page.getByRole("region", { name: "Set aside" });
+  await aside.getByRole("button", { name: "Use a rest week · keep your 2" }).click();
+  await expect(aside.locator(".word")).toHaveText("2 weeks");
+
+  // Your path: Starter fund renamed, Get set up skipped.
+  await page.goto("/path");
+  await page.getByRole("button", { name: "Adjust" }).click();
+  const adjust = page.getByRole("dialog", { name: "Adjust your path" });
+  await adjust.getByRole("checkbox", { name: "Show this step" }).first().uncheck();
+  await adjust.getByRole("button", { name: "Rename Starter fund" }).click();
+  await adjust.getByRole("textbox", { name: "Name for Starter fund" }).fill("Rainy day $1k");
+  await adjust.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("region", { name: "Where you are" })).toContainText(/of 6 done/);
+
+  // Milestones read once here: First jar is kept with today's day.
+  await page.goto("/milestones");
+  await expect(page.getByRole("list", { name: "Reached · 1" })).toContainText("First jar");
+
+  // Backup on; the recovery key is shown once.
+  await page.goto("/me/security");
+  await page.getByRole("button", { name: "Turn on encrypted backup" }).click();
+  const keySheet = page.getByRole("dialog", { name: "Your recovery key" });
+  const recoveryKey = (await keySheet.locator(".invite-code").innerText())
+    .replace("Recovery key:", "")
+    .trim();
+  await keySheet.getByRole("button", { name: "I've saved it" }).click();
+  await expect(page.getByText(/Last backup: /)).toBeVisible();
+
+  // Device two, the same week: sign in with the synced passkey, restore with the key.
+  const second = await (await browser.newContext()).newPage();
+  const sentTwo = bodies(second);
+  await second.clock.setFixedTime(tuesday(0));
+  await addPasskeyDevice(second);
+  await syncPasskeys(page, second);
+  await signInHere(second);
+  await expect(second.getByText("Your backup is ready for this device")).toBeVisible();
+  await second.getByRole("button", { name: "Restore", exact: true }).click();
+  await second.getByLabel("Recovery key").fill(recoveryKey);
+  await second.getByRole("button", { name: "Unlock with the recovery key" }).click();
+  await expect(second.getByText(/^Restored \d+ items?\. This device now syncs\./)).toBeVisible();
+
+  // The run with its rest week, never a Fresh start, and the kept best.
+  await openStreaks(second);
+  const asideTwo = second.getByRole("region", { name: "Set aside" });
+  await expect(asideTwo.locator(".word")).toHaveText("2 weeks");
+  await expect(asideTwo).not.toContainText("Fresh start");
+  await expect(asideTwo.getByRole("img")).toHaveAccessibleName(/2 kept, 1 rest/);
+  await expect(asideTwo).toContainText("Best 2 weeks");
+
+  // Your path in the same order, with the same name and the same skip.
+  await second.goto("/path");
+  await expect(second.getByRole("region", { name: "Where you are" })).toContainText(/of 6 done/);
+  await expect(second.getByText("Rainy day $1k")).toBeVisible();
+
+  // Milestones: First jar already reached, and not celebrated again on this device.
+  await second.goto("/milestones");
+  await expect(second.getByRole("list", { name: "Reached · 1" })).toContainText("First jar");
+  await second.waitForTimeout(1500);
+  await expect(second.locator(".moment-toast").filter({ hasText: /milestone/i })).toHaveCount(0);
+
+  // Only ciphertext ever left either device.
+  noStreakData(sent);
+  noStreakData(sentTwo);
+  for (const b of [...sent, ...sentTwo]) expect(b).not.toContain("Rainy day");
 });
