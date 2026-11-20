@@ -250,3 +250,33 @@
   font-size: var(--fs-caption);
   color: var(--c-sub);
 }
+.streaks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.streaks .streak-legend {
+  margin: 10px 0 0;
+}
+.streaks__pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.streaks__pair .card-link,
+.streaks__pair .sk-card {
+  height: 100%;
+  box-sizing: border-box;
+}
+.streaks__pause {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 4px 4px 0;
+}
+.streaks__pause .sk-card__eyebrow {
+  flex: 1 1 220px;
+  margin: 0;
+}

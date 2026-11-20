@@ -65,6 +65,10 @@ export function StreakLegend() {
         <span className="streak-strip__w streak-strip__w--open" aria-hidden="true" />
         Not yet
       </li>
+      <li>
+        <span className="streak-strip__w streak-strip__w--skipped" aria-hidden="true" />
+        Nothing to count
+      </li>
     </ul>
   );
 }

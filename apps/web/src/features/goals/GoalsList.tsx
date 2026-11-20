@@ -17,7 +17,7 @@ import { setPriorities, useGoals } from "./useGoals.ts";
 
 /**
  * The Goals tab (mockup F4Goals): Jars (every goal kind), Challenges and Streaks (November 19,
- * 2026; on a computer Streaks sits under Challenges in the side pane). Splits moved to its own
+ * 2026; on a computer Streaks sits under Jars, so the two panes balance). Splits moved to its own
  * tab on November 11, 2026; an old `?tab=splits` link goes there. Jars are grouped so ten
  * stay tidy on a phone: the top one by priority as a full card, the rest in progress as one line
  * each, then Paused and Reached folded away. The plan's usage sits above ("Using 3 of 4");
@@ -199,16 +199,16 @@ export function GoalsList() {
               Jars · {mine.length}
             </h2>
             {jars}
+            <h2 className="section-title" id="streaks-pane-h">
+              Streaks
+            </h2>
+            <StreaksTab />
           </section>
           <section className="pane" aria-labelledby="challenges-pane-h">
             <h2 className="section-title" id="challenges-pane-h">
               Challenges
             </h2>
             <ChallengesTab />
-            <h2 className="section-title" id="streaks-pane-h">
-              Streaks
-            </h2>
-            <StreaksTab />
           </section>
         </div>
       ) : null}

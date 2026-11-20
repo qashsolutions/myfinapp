@@ -184,8 +184,6 @@ export function PathScreen() {
   const [adjusting, setAdjusting] = useState(false);
   const path = progress.path;
   const current = path?.steps.find((s) => s.state === "current") ?? null;
-  const counted = (path?.steps ?? []).filter((s) => s.state !== "skipped");
-  const number = current ? counted.findIndex((s) => s.id === current.id) + 1 : 0;
   return (
     <>
       <ScreenHeader
@@ -207,10 +205,10 @@ export function PathScreen() {
             <h2 className="sk-card__title" id="path-summary">
               Where you are
             </h2>
-            <Word>{current ? `Step ${number} of ${path.total}` : "Done"}</Word>
+            <Word>{current ? `${path.done} of ${path.total} done` : "Done"}</Word>
             <p className="sk-card__eyebrow">
               {current
-                ? `${path.done} done. ${stepName(current.id, progress.layout)} is next.`
+                ? `Next: ${stepName(current.id, progress.layout)}.`
                 : "Every step reached. Keep it going."}
             </p>
           </Card>

@@ -113,7 +113,6 @@ export function StreaksTab() {
   const going = weekly.filter((s) => s.current > 0).length + (onTime && onTime.current > 0 ? 1 : 0);
   const shownCount = weekly.length + (onTime ? 1 : 0);
   const current = path?.steps.find((s) => s.state === "current") ?? null;
-  const stepNumber = path ? path.done + (current ? 1 : 0) : 0;
   const newest = (milestones?.milestones ?? [])
     .filter((m) => m.reached_on)
     .sort((a, b) => compareText(a.reached_on ?? "", b.reached_on ?? ""))
@@ -126,10 +125,7 @@ export function StreaksTab() {
 
   return (
     <div className="streaks">
-      <Card as="section" aria-labelledby="streaks-summary">
-        <h2 className="sk-card__title" id="streaks-summary">
-          Streaks
-        </h2>
+      <Card as="section" aria-label="Streaks summary">
         {progress.paused ? (
           <>
             <Word>Paused</Word>
@@ -145,14 +141,14 @@ export function StreaksTab() {
             <Word>{going > 0 ? "Steady" : "Start"}</Word>
             <p className="sk-card__eyebrow">
               {going > 0
-                ? `${going} ${going === 1 ? "streak" : "streaks"} going.`
+                ? `${going} ${going === 1 ? "streak" : "streaks"} going. Weeks run Monday to Sunday.`
                 : "A good week starts any day."}
             </p>
           </>
         )}
+        {shownCount > 0 ? <StreakLegend /> : null}
       </Card>
 
-      {shownCount > 0 ? <StreakLegend /> : null}
       {setAside ? <StreakCard id="set_aside" streak={setAside} progress={progress} /> : null}
       {onTime ? (
         <Card as="section" aria-labelledby="streak-on_time">
@@ -181,52 +177,53 @@ export function StreaksTab() {
         />
       ) : null}
 
-      {path ? (
-        <Link to="/path" className="card-link" aria-label="Your path, open Your path">
-          <Card as="section" aria-labelledby="streaks-path">
-            <h2 className="sk-card__title" id="streaks-path">
-              Your path
-            </h2>
-            <Word>{current ? `Step ${stepNumber} of ${path.total}` : "Done"}</Word>
-            <p className="sk-card__eyebrow">
-              {current
-                ? `Next: ${stepName(current.id, progress.layout)}.`
-                : "Every step reached. Keep it going."}
-            </p>
-          </Card>
-        </Link>
-      ) : null}
-      {milestones ? (
-        <Link to="/milestones" className="card-link" aria-label="Milestones, open Milestones">
-          <Card as="section" aria-labelledby="streaks-milestones">
-            <h2 className="sk-card__title" id="streaks-milestones">
-              Milestones
-            </h2>
-            <Word>{milestones.reached > 0 ? `${milestones.reached} reached` : "Start"}</Word>
-            <p className="sk-card__eyebrow">
-              {newest
-                ? `Newest: ${milestoneName(newest.id)}.`
-                : "Your first one is close. See what's next."}
-            </p>
-          </Card>
-        </Link>
+      {path || milestones ? (
+        <div className="streaks__pair">
+          {path ? (
+            <Link to="/path" className="card-link" aria-label="Your path, open Your path">
+              <Card as="section" aria-labelledby="streaks-path">
+                <h2 className="sk-card__title" id="streaks-path">
+                  Your path
+                </h2>
+                <Word>{current ? `${path.done} of ${path.total} done` : "Done"}</Word>
+                <p className="sk-card__eyebrow">
+                  {current
+                    ? `Next: ${stepName(current.id, progress.layout)}`
+                    : "Every step reached"}
+                </p>
+              </Card>
+            </Link>
+          ) : null}
+          {milestones ? (
+            <Link to="/milestones" className="card-link" aria-label="Milestones, open Milestones">
+              <Card as="section" aria-labelledby="streaks-milestones">
+                <h2 className="sk-card__title" id="streaks-milestones">
+                  Milestones
+                </h2>
+                <Word>{milestones.reached > 0 ? `${milestones.reached} reached` : "Start"}</Word>
+                <p className="sk-card__eyebrow">
+                  {newest?.reached_on
+                    ? `Latest: ${milestoneName(newest.id)}, ${formatDay(newest.reached_on)}`
+                    : "Your first one is close"}
+                </p>
+              </Card>
+            </Link>
+          ) : null}
+        </div>
       ) : null}
 
-      <Card as="section" aria-labelledby="streaks-pause">
-        <h2 className="sk-card__title" id="streaks-pause">
-          {progress.paused ? "Streaks are paused" : "Going away or between jobs?"}
-        </h2>
-        <p className="sk-card__eyebrow">
-          {progress.paused
-            ? "Resume when you're ready. Nothing was lost."
-            : "Pause every streak. Nothing counts, nothing breaks."}
-        </p>
-        <div className="streak-card__actions">
-          <Button block variant="secondary" onClick={() => void togglePause()}>
+      {shownCount > 0 || progress.paused ? (
+        <div className="streaks__pause">
+          <p className="sk-card__eyebrow">
+            {progress.paused
+              ? "Streaks are paused. Resume when you're ready; nothing was lost."
+              : "Going away or between jobs? Pause every streak: nothing counts, nothing breaks."}
+          </p>
+          <Button size="sm" variant="secondary" onClick={() => void togglePause()}>
             {progress.paused ? "Resume streaks" : "Pause streaks"}
           </Button>
         </div>
-      </Card>
+      ) : null}
     </div>
   );
 }
