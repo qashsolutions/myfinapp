@@ -8,7 +8,7 @@ import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import type { PathStep, PathStepId } from "../../engine/bridge.ts";
 import { formatCents, formatDay, todayIso } from "../../lib/format.ts";
-import { STEP_NAMES, stepName } from "./copy.ts";
+import { pathSummary, STEP_NAMES, stepName } from "./copy.ts";
 import { NAME_MAX, type PathLayout, savePathLayout } from "./streakSettings.ts";
 import { useProgress } from "./useProgress.ts";
 
@@ -86,6 +86,7 @@ function AdjustSheet({
   const [names, setNames] = useState<Partial<Record<PathStepId, string>>>(() => ({
     ...layout.names,
   }));
+  const [editing, setEditing] = useState<PathStepId | null>(null);
   function move(index: number, delta: number) {
     const next = [...order];
     const target = index + delta;
@@ -111,55 +112,77 @@ function AdjustSheet({
     <Sheet open={open} onClose={onClose} title="Adjust your path">
       <p className="sk-card__eyebrow">Your order, your names. Skipped steps stay off the count.</p>
       <ol className="path-list" aria-label="Steps">
-        {order.map((id, i) => (
-          <li className="path-adjust__row" key={id}>
-            <div>
-              <label className="sr-only" htmlFor={`${ids}-${id}`}>
-                Name for {STEP_NAMES[id]}
-              </label>
-              <input
-                id={`${ids}-${id}`}
-                className="auth__input path-adjust__name"
-                value={names[id] ?? STEP_NAMES[id]}
-                maxLength={NAME_MAX}
-                onChange={(e) => setNames({ ...names, [id]: e.target.value })}
-              />
-              <label className="sk-card__eyebrow">
-                <input
-                  type="checkbox"
-                  checked={!skipped.has(id)}
-                  onChange={(e) => {
-                    const next = new Set(skipped);
-                    if (e.target.checked) next.delete(id);
-                    else next.add(id);
-                    setSkipped(next);
-                  }}
-                />{" "}
-                Show this step
-              </label>
-            </div>
-            <div className="path-adjust__moves">
-              <Button
-                size="sm"
-                variant="secondary"
-                aria-label={`Move ${names[id] ?? STEP_NAMES[id]} up`}
-                disabled={i === 0}
-                onClick={() => move(i, -1)}
-              >
-                ↑
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                aria-label={`Move ${names[id] ?? STEP_NAMES[id]} down`}
-                disabled={i === order.length - 1}
-                onClick={() => move(i, 1)}
-              >
-                ↓
-              </Button>
-            </div>
-          </li>
-        ))}
+        {order.map((id, i) => {
+          const name = names[id] ?? STEP_NAMES[id];
+          return (
+            <li className="path-adjust__row" key={id}>
+              <div>
+                {editing === id ? (
+                  <>
+                    <label className="sr-only" htmlFor={`${ids}-${id}`}>
+                      Name for {STEP_NAMES[id]}
+                    </label>
+                    <input
+                      id={`${ids}-${id}`}
+                      className="auth__input path-adjust__name"
+                      value={name}
+                      maxLength={NAME_MAX}
+                      // biome-ignore lint/a11y/noAutofocus: the person just asked to rename this step
+                      autoFocus
+                      onChange={(e) => setNames({ ...names, [id]: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") setEditing(null);
+                      }}
+                    />
+                  </>
+                ) : (
+                  <p className="path-adjust__label">{name.trim() || STEP_NAMES[id]}</p>
+                )}
+                <label className="sk-card__eyebrow">
+                  <input
+                    type="checkbox"
+                    checked={!skipped.has(id)}
+                    onChange={(e) => {
+                      const next = new Set(skipped);
+                      if (e.target.checked) next.delete(id);
+                      else next.add(id);
+                      setSkipped(next);
+                    }}
+                  />{" "}
+                  Show this step
+                </label>
+              </div>
+              <div className="path-adjust__moves">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  aria-label={`Rename ${name.trim() || STEP_NAMES[id]}`}
+                  onClick={() => setEditing(editing === id ? null : id)}
+                >
+                  {editing === id ? "Done" : "Rename"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  aria-label={`Move ${name.trim() || STEP_NAMES[id]} up`}
+                  disabled={i === 0}
+                  onClick={() => move(i, -1)}
+                >
+                  ↑
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  aria-label={`Move ${name.trim() || STEP_NAMES[id]} down`}
+                  disabled={i === order.length - 1}
+                  onClick={() => move(i, 1)}
+                >
+                  ↓
+                </Button>
+              </div>
+            </li>
+          );
+        })}
       </ol>
       <div className="streak-card__actions">
         <Button block onClick={() => void save()}>
@@ -184,6 +207,9 @@ export function PathScreen() {
   const [adjusting, setAdjusting] = useState(false);
   const path = progress.path;
   const current = path?.steps.find((s) => s.state === "current") ?? null;
+  const summary = path
+    ? pathSummary(path, current ? stepName(current.id, progress.layout) : null)
+    : null;
   return (
     <>
       <ScreenHeader
@@ -197,7 +223,7 @@ export function PathScreen() {
           ) : null
         }
       />
-      {!path ? (
+      {!path || !summary ? (
         <p className="sk-card__eyebrow">Reading your steps…</p>
       ) : (
         <>
@@ -205,12 +231,8 @@ export function PathScreen() {
             <h2 className="sk-card__title" id="path-summary">
               Where you are
             </h2>
-            <Word>{current ? `${path.done} of ${path.total} done` : "Done"}</Word>
-            <p className="sk-card__eyebrow">
-              {current
-                ? `Next: ${stepName(current.id, progress.layout)}.`
-                : "Every step reached. Keep it going."}
-            </p>
+            <Word>{summary.word}</Word>
+            <p className="sk-card__eyebrow">{summary.line}</p>
           </Card>
           <ol className="path-list" aria-label="Steps">
             {path.steps.map((step, i) => {

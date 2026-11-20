@@ -21,7 +21,7 @@ export function WeekStrip({
       role="img"
       aria-label={label}
     >
-      {weeks.map((w) => (
+      {shown.map((w) => (
         <span
           key={w.start}
           className={`streak-strip__w streak-strip__w--${w.state}`}

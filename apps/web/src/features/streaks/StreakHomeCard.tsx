@@ -109,6 +109,7 @@ export function StreakHomeCard({ today }: { today: string }) {
       day,
       kept: view.depositDays.includes(day),
       past: compareText(day, today) < 0,
+      today: day === today,
     };
   });
 
@@ -125,7 +126,7 @@ export function StreakHomeCard({ today }: { today: string }) {
             {days.map((d) => (
               <li key={d.day}>
                 <span
-                  className={`streak-days__dot${d.kept ? " streak-days__dot--kept" : d.past ? " streak-days__dot--past" : ""}`}
+                  className={`streak-days__dot${d.kept ? " streak-days__dot--kept" : d.past ? " streak-days__dot--past" : d.today ? " streak-days__dot--today" : ""}`}
                   aria-hidden="true"
                 >
                   {d.kept ? "$" : ""}

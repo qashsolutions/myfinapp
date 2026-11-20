@@ -8,6 +8,10 @@
   border-radius: 18px;
   background: var(--c-line);
 }
+/* Three choices on one row (Goals: Jars · Challenges · Streaks, November 20, 2026). */
+.segmented--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 .segmented__option {
   position: relative;
   display: flex;

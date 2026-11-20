@@ -26,7 +26,7 @@
 }
 .streak-strip__w--open {
   background: var(--c-card);
-  border: 2px solid var(--c-line);
+  border: 2px dotted var(--c-sub);
 }
 .streak-strip__w--missed {
   background: var(--c-card);
@@ -109,8 +109,10 @@
   color: var(--c-on-accent);
 }
 .streak-days__dot--past {
-  background: var(--c-bg);
-  border-color: var(--c-bg);
+  border-style: dashed;
+}
+.streak-days__dot--today {
+  border-color: var(--c-sub);
 }
 .path-list {
   list-style: none;
@@ -314,4 +316,18 @@
 .streak-tile__count {
   font-size: var(--fs-title);
   font-weight: 700;
+}
+.path-adjust__label {
+  margin: 0 0 4px;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.badge-more > summary {
+  cursor: pointer;
+  list-style-position: inside;
+  margin: 8px 0;
+}
+.badge-more[open] > summary {
+  margin-bottom: 12px;
 }

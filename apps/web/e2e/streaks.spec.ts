@@ -64,6 +64,21 @@ async function openStreaks(page: Page): Promise<void> {
   await expect(page.getByRole("region", { name: "Streaks summary" })).toBeVisible();
 }
 
+/** With SHOTS_PREFIX set (a local run only), full-page shots in light and dark for review. */
+async function shots(page: Page, name: string): Promise<void> {
+  const prefix = process.env.SHOTS_PREFIX;
+  if (!prefix) return;
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.waitForTimeout(400);
+    await page.screenshot({
+      path: `${prefix}${name}-${test.info().project.name}-${colorScheme}.png`,
+      fullPage: true,
+    });
+  }
+  await page.emulateMedia({ colorScheme: "light" });
+}
+
 function noStreakData(sent: string[]): void {
   for (const b of sent) expect(b).not.toMatch(/streak|milestone|rest week|path\.(layout|reached)/i);
 }
@@ -93,18 +108,22 @@ test("@phone streaks build a week at a time: celebrated once, Home leads, path a
   await expect(card).toContainText("3 weeks");
   await expect(card).toContainText("Set aside · keep it going");
   await expect(card.getByRole("list", { name: "This week" })).toContainText("Set aside on T");
+  await shots(page, "home");
 
   await card.click();
   await expect(page.getByRole("region", { name: "Set aside" })).toContainText("3 weeks");
   await expect(page.getByRole("region", { name: "Streaks summary" })).toContainText("Steady");
+  await shots(page, "streaks-tab");
 
   // Your path: the summary, then Adjust skips a step, which stays skipped after a reload.
   await page.getByRole("link", { name: "Your path, open Your path" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Your path" })).toBeVisible();
   const where = page.getByRole("region", { name: "Where you are" });
   await expect(where).toContainText(/\d of 7 done/);
+  await shots(page, "path");
   await page.getByRole("button", { name: "Adjust" }).click();
   const sheet = page.getByRole("dialog", { name: "Adjust your path" });
+  await shots(page, "path-adjust");
   await sheet.getByRole("checkbox", { name: "Show this step" }).first().uncheck();
   await sheet.getByRole("button", { name: "Save" }).click();
   await expect(where).toContainText(/\d of 6 done/);
@@ -115,10 +134,13 @@ test("@phone streaks build a week at a time: celebrated once, Home leads, path a
   // Milestones: the first jar is reached, with what's still to go dashed below.
   await page.goto("/milestones");
   await expect(page.getByRole("region", { name: "So far" })).toContainText(/\d+ reached/);
-  const shelf = page.getByRole("list", { name: "Milestones" });
+  // Reached first, then the closest few; the rest folded under More milestones.
+  await expect(page.getByRole("list", { name: "Reached · 1" })).toContainText("First jar");
+  const shelf = page.getByRole("main");
   await expect(shelf).toContainText("Reached: First jar");
   await expect(shelf).toContainText("Not yet: 12-week streak");
   await expect(shelf).toContainText("9 weeks to go");
+  await shots(page, "milestones");
 
   noStreakData(sent);
 });
@@ -144,6 +166,7 @@ test("@phone a missed week: Fresh start, a rest week keeps the run, pause holds,
   // Never red: a missed week is plain.
   await expect(aside.locator(".word")).toHaveClass(/word--plain/);
   await expect(aside).toContainText("Your best stays 2 weeks.");
+  await shots(page, "fresh-start");
 
   // A rest week keeps the run of 2; it stays after a reload.
   await aside.getByRole("button", { name: "Use a rest week · keep your 2" }).click();
@@ -181,4 +204,60 @@ test("@phone a missed week: Fresh start, a rest week keeps the run, pause holds,
   );
 
   noStreakData(sent);
+});
+
+test("@phone getting around: search, back buttons, the keyboard, and working offline", async ({
+  page,
+}) => {
+  test.setTimeout(150_000);
+  await readyAccount(page, "sx-nav");
+  await setDay(page, tuesday(1));
+  const jar = await newJar(page);
+  await deposit(page, jar, "10", "$10.00");
+  await setDay(page, tuesday(0));
+  await deposit(page, jar, "10", "$20.00");
+
+  // Search finds each place by everyday words.
+  await page.goto("/");
+  for (const [words, heading] of [
+    ["streak", "Goals"],
+    ["badges", "Milestones"],
+    ["next step", "Your path"],
+  ] as const) {
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    const box = page.getByRole("dialog", { name: "Search" }).getByRole("combobox", {
+      name: "Search Qash",
+    });
+    await box.fill(words);
+    await box.press("Enter");
+    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+  }
+
+  // Back from Milestones and Your path lands on Goals → Streaks.
+  await page.getByRole("link", { name: "Back" }).click();
+  await expect(page.getByRole("region", { name: "Streaks summary" })).toBeVisible();
+  await page.getByRole("link", { name: "Milestones, open Milestones" }).click();
+  await page.getByRole("link", { name: "Back" }).click();
+  await expect(page.getByRole("region", { name: "Set aside" })).toContainText("2 weeks");
+
+  // The keyboard: Adjust opens without a text box in the way; Escape leaves without saving.
+  await page.goto("/path");
+  await page.getByRole("button", { name: "Adjust" }).click();
+  const sheet = page.getByRole("dialog", { name: "Adjust your path" });
+  await expect(sheet.getByRole("textbox")).toHaveCount(0);
+  await sheet.getByRole("checkbox", { name: "Show this step" }).first().uncheck();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+  await expect(page.getByRole("region", { name: "Where you are" })).toContainText(/of 7 done/);
+
+  // Offline: everything here is on this device, so it all still opens.
+  await page.goto("/goals?tab=streaks");
+  await expect(page.getByRole("region", { name: "Set aside" })).toContainText("2 weeks");
+  await page.context().setOffline(true);
+  await page.getByRole("link", { name: "Your path, open Your path" }).click();
+  await expect(page.getByRole("region", { name: "Where you are" })).toBeVisible();
+  await page.getByRole("link", { name: "Back" }).click();
+  await page.getByRole("link", { name: "Milestones, open Milestones" }).click();
+  await expect(page.getByRole("list", { name: "Reached · 1" })).toContainText("First jar");
+  await page.context().setOffline(false);
 });

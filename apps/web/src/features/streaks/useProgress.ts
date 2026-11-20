@@ -521,7 +521,8 @@ export function useProgress(asOf: string): ProgressView {
 
   return {
     ...streaks,
-    ready: streaks.ready && extra !== null,
+    // Streaks show as soon as they are counted; the path and milestones join when ready.
+    ready: streaks.ready,
     path: extra?.path ?? null,
     milestones: extra?.milestones ?? null,
     layout: extra?.layout ?? { order: [], skipped: [], names: {} },
