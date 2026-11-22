@@ -79,8 +79,12 @@ def _deliver(db: DbSession, user_id: uuid.UUID, payload: dict, now: datetime) ->
             PushSubscription.user_id == user_id, PushSubscription.revoked_at.is_(None)
         )
     ):
+        subscription = push.open_subscription(sub.payload_encrypted)
+        if subscription is None:
+            sub.revoked_at = now  # sealed under an older secret: nothing for a person to do
+            continue
         try:
-            status = push.deliver(push.decrypt_subscription(sub.payload_encrypted), payload)
+            status = push.deliver(subscription, payload)
         except Exception as exc:  # noqa: BLE001 - one bad endpoint must not stop the run
             log.exception("push failed")
             # A bad VAPID key or a refused host fails every push: a person hears of it

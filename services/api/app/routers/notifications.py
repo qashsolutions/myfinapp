@@ -378,8 +378,12 @@ def push_test(
             PushSubscription.user_id == caller.user.id, PushSubscription.revoked_at.is_(None)
         )
     ):
+        subscription = push.open_subscription(sub.payload_encrypted)
+        if subscription is None:
+            sub.revoked_at = datetime.now(UTC)  # sealed under an older secret (invariant 95)
+            continue
         status_code = push.deliver(
-            push.decrypt_subscription(sub.payload_encrypted),
+            subscription,
             {
                 "title": TITLE,
                 "body": "Notifications are on",

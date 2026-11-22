@@ -656,6 +656,98 @@ def test_push_failures_reach_the_admins_but_a_gone_endpoint_does_not(monkeypatch
     assert not [r for r in reports if "410" in r[1]]
 
 
+def test_a_subscription_saved_under_an_older_secret_is_dropped_quietly(monkeypatch) -> None:
+    """Invariant 95: after STACKD_SECRET_KEY is rotated, a subscription saved before it can no
+    longer be opened (Fernet InvalidToken). It is revoked, the other devices still get the push,
+    the test push still answers, and no admin email goes: nobody can do anything about it, and
+    the browser makes a fresh one on its next open (invariant 93)."""
+    from cryptography.fernet import Fernet
+
+    from app.services import ops_alerts
+
+    reports: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        ops_alerts, "report", lambda kind, where, exc, **_: reports.append((kind, where)) or True
+    )
+    client, user_id = member("rotated")
+    browser = FakeBrowser()
+    push.transport_override = browser.transport()
+    assert client.post("/api/notifications/push", json=browser.subscription()).status_code == 201
+    old = FakeBrowser()
+    assert client.post("/api/notifications/push", json=old.subscription()).status_code == 201
+    with get_session_factory()() as s:
+        row = s.scalar(
+            select(PushSubscription).where(
+                PushSubscription.endpoint_hash == push.endpoint_hash(old.endpoint)
+            )
+        )
+        assert row is not None
+        row.payload_encrypted = (
+            Fernet(Fernet.generate_key()).encrypt(json.dumps(old.subscription()).encode()).decode()
+        )
+        s.commit()
+    client.put(
+        "/api/notifications/settings",
+        json={"settings": {"quiet_start": "00:00", "quiet_end": "00:00", "timezone": "UTC"}},
+    )
+    now = datetime(2026, 10, 10, 12, 0, tzinfo=UTC)
+    items = [
+        {
+            "due_at": (now - timedelta(minutes=5)).isoformat(),
+            "type": "upcoming_expense",
+            "dedupe_key": "upcoming:rotated:2026-10-25",
+        }
+    ]
+    assert client.put("/api/alerts/schedule", json={"items": items}).status_code == 200
+    with get_session_factory()() as s:
+        counts = dispatch_due(s, now=now)
+    assert counts["sent"] == 1 and len(browser.received) == 1
+    assert reports == []
+    with get_session_factory()() as s:
+        revoked = {
+            sub.endpoint_hash: sub.revoked_at is not None
+            for sub in s.scalars(
+                select(PushSubscription).where(PushSubscription.user_id == uuid.UUID(user_id))
+            )
+        }
+    assert revoked == {
+        push.endpoint_hash(browser.endpoint): False,
+        push.endpoint_hash(old.endpoint): True,
+    }
+    r = client.post("/api/notifications/push/test")
+    assert r.status_code == 200 and r.json() == {"delivered": 1}
+
+
+def test_the_test_push_skips_an_unreadable_subscription() -> None:
+    """Invariant 95, the sibling path: the test push revokes it too instead of answering 500."""
+    from cryptography.fernet import Fernet
+
+    client, user_id = member("rotated2")
+    browser = FakeBrowser()
+    push.transport_override = browser.transport()
+    assert client.post("/api/notifications/push", json=browser.subscription()).status_code == 201
+    old = FakeBrowser()
+    assert client.post("/api/notifications/push", json=old.subscription()).status_code == 201
+    with get_session_factory()() as s:
+        row = s.scalar(
+            select(PushSubscription).where(
+                PushSubscription.endpoint_hash == push.endpoint_hash(old.endpoint)
+            )
+        )
+        assert row is not None
+        row.payload_encrypted = Fernet(Fernet.generate_key()).encrypt(b"{}").decode()
+        s.commit()
+    r = client.post("/api/notifications/push/test")
+    assert r.status_code == 200 and r.json() == {"delivered": 1}
+    with get_session_factory()() as s:
+        row = s.scalar(
+            select(PushSubscription).where(
+                PushSubscription.endpoint_hash == push.endpoint_hash(old.endpoint)
+            )
+        )
+        assert row is not None and row.revoked_at is not None
+
+
 def test_weekly_recap_by_email_is_scheduled_by_the_server_and_sent_once() -> None:
     client, user_id = member("maya")
     r = client.put(

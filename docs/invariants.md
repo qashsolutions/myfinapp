@@ -810,6 +810,15 @@ written against both.
     `golden/streaks.*` · `streaks.long.test.ts` · `test_streaks_long.py` · `streaks.test.tsx`
     invariant 94 · `streaks-negative.test.tsx` · `e2e/streaks.spec.ts` (with a second device
     restored from the backup)
+95. **A saved push subscription the server can no longer open is dropped, not reported**
+    (November 22, 2026). Subscriptions are sealed under a key derived from `STACKD_SECRET_KEY`;
+    after that secret is rotated, the ones saved before it can't be opened (`InvalidToken`).
+    `push.open_subscription` answers None for them and every sender (the dispatch job, the
+    test push, recovery's pushes through it) revokes the row and carries on to the person's
+    other devices, with no admin email, since nobody can do anything about it; the browser
+    makes a fresh subscription on its next open (invariant 93). Found when the November 18
+    rotation left old rows that failed every dispatch with `push_failed`.
+    `test_notifications.py` invariant 95
 64. **A balance says where it came from** (October 29, 2026). One helper
     (`linking/anchorText.ts`) names a balance's source everywhere: a statement's date, the bank
     and when it last synced ("from First Platypus Bank · synced 5 min ago"), or "you entered".
