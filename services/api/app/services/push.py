@@ -16,7 +16,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx2
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from py_vapid import Vapid
 from pywebpush import WebPusher
 
@@ -39,6 +39,16 @@ def encrypt_subscription(subscription: dict[str, Any]) -> str:
 
 def decrypt_subscription(text: str) -> dict[str, Any]:
     return json.loads(_fernet().decrypt(text.encode()))
+
+
+def open_subscription(text: str) -> dict[str, Any] | None:
+    """The saved subscription, or None when it was sealed under an earlier STACKD_SECRET_KEY
+    (invariant 95): nobody can open it again, so the caller revokes it and the browser makes a
+    fresh one on its next open (invariant 93)."""
+    try:
+        return decrypt_subscription(text)
+    except InvalidToken:
+        return None
 
 
 def endpoint_hash(endpoint: str) -> str:
