@@ -27,6 +27,7 @@ router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 UPDATES = {("TRANSACTIONS", "SYNC_UPDATES_AVAILABLE")}
 LOGIN_REQUIRED = {("ITEM", "ERROR"), ("ITEM", "PENDING_EXPIRATION"), ("ITEM", "PENDING_DISCONNECT")}
 REVOKED = {("ITEM", "USER_PERMISSION_REVOKED"), ("ITEM", "USER_ACCOUNT_REVOKED")}
+NEW_ACCOUNTS = ("ITEM", "NEW_ACCOUNTS_AVAILABLE")  # invariant 96: offer "Add them"
 
 
 class Ack(BaseModel):
@@ -72,6 +73,9 @@ def _apply(db: DbSession, payload: dict) -> Ack:
     elif kind in REVOKED:
         set_status(db, row, "revoked")
         outcome = "revoked"
+    elif kind == NEW_ACCOUNTS:
+        row.new_accounts_at = datetime.now(UTC)
+        outcome = "new_accounts"
     elif kind == ("ITEM", "LOGIN_REPAIRED"):
         set_status(db, row, "ok")
         outcome = "repaired"

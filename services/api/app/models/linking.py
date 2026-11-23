@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, Text, Uuid
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, String, Text, Uuid, false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, StackdRow
@@ -43,6 +43,9 @@ class BankConnection(Base, StackdRow):
     status: Mapped[str] = mapped_column(String(20), default="ok", server_default="ok")
     last_synced_at: Mapped[datetime | None]  # the device's last successful pull (chunk 3.3)
     updates_available_at: Mapped[datetime | None]  # webhook sets, sync clears
+    # Plaid's NEW_ACCOUNTS_AVAILABLE: the person opened an account at this bank. Linked banks
+    # offers "Add them"; finishing that trip, or Not now, clears it (migration 0048).
+    new_accounts_at: Mapped[datetime | None]
 
 
 class LinkSession(Base, StackdRow):
@@ -58,5 +61,7 @@ class LinkSession(Base, StackdRow):
     connection_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("bank_connections.id", ondelete="CASCADE")
     )
+    # Update mode with account selection: the person shares accounts the bank has added.
+    add_accounts: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     expires_at: Mapped[datetime]
     finished_at: Mapped[datetime | None]

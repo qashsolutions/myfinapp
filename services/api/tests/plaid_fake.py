@@ -35,6 +35,9 @@ class FakePlaid:
         self.accounts_error: str | None = None
         self.accounts_failures = 0
         self.item_id: str | None = None  # make the next exchange return this item id
+        self.exited: set[str] = set()  # link tokens whose update-mode trip the user left
+        self.extra_accounts: list[dict[str, Any]] = []  # accounts the bank added since
+        self.token_get_error: str | None = None  # an error_code for /link/token/get
         self.signing_key = ec.generate_private_key(ec.SECP256R1())
         self.key_expired = False  # Plaid marks a retired key with expired_at
         self.key_id = "kid-test-1"
@@ -81,13 +84,18 @@ class FakePlaid:
                     },
                 )
             if path == "/link/token/get":
-                adds = self.sessions.get(body["link_token"], [])
+                if self.token_get_error:
+                    return httpx2.Response(400, json={"error_code": self.token_get_error})
+                if body["link_token"] in self.exited:
+                    session = {
+                        "finished_at": "2026-11-23T12:00:00Z",
+                        "exit": {"error": None, "metadata": {"status": "requires_credentials"}},
+                    }
+                else:
+                    adds = self.sessions.get(body["link_token"], [])
+                    session = {"results": {"item_add_results": adds}}
                 return httpx2.Response(
-                    200,
-                    json={
-                        "link_token": body["link_token"],
-                        "link_sessions": [{"results": {"item_add_results": adds}}],
-                    },
+                    200, json={"link_token": body["link_token"], "link_sessions": [session]}
                 )
             if path == "/item/public_token/exchange":
                 n = uuid.uuid4().hex[:12]  # item ids are unique across Plaid, so across runs here
@@ -120,6 +128,7 @@ class FakePlaid:
                                 "subtype": "credit card",
                                 "balances": {"current": 410, "limit": 2000},
                             },
+                            *self.extra_accounts,
                         ]
                     },
                 )

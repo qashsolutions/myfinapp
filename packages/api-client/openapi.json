@@ -1082,6 +1082,11 @@
             ],
             "title": "Last Synced At"
           },
+          "new_accounts": {
+            "default": false,
+            "title": "New Accounts",
+            "type": "boolean"
+          },
           "status": {
             "default": "ok",
             "title": "Status",
@@ -2812,6 +2817,11 @@
               }
             ],
             "title": "Last Synced At"
+          },
+          "new_accounts": {
+            "default": false,
+            "title": "New Accounts",
+            "type": "boolean"
           },
           "status": {
             "default": "ok",
@@ -7455,6 +7465,50 @@
         ]
       }
     },
+    "/api/linking/{connection_id}/add-accounts": {
+      "post": {
+        "description": "Update mode with account selection (invariant 96): the person picks accounts the bank\nadded since they linked it. Step-up and the recovery hold, like a new link, because it\nshares more than before. Same item, so no new connection and no second monthly fee.",
+        "operationId": "add_accounts_api_linking__connection_id__add_accounts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__routers__linking__StartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Accounts",
+        "tags": [
+          "linking"
+        ]
+      }
+    },
     "/api/linking/{connection_id}/cards": {
       "post": {
         "description": "Pass-through, like sync: the card facts go to the device and nowhere else.",
@@ -7494,6 +7548,43 @@
           }
         },
         "summary": "Cards",
+        "tags": [
+          "linking"
+        ]
+      }
+    },
+    "/api/linking/{connection_id}/new-accounts/dismiss": {
+      "post": {
+        "description": "Not now: the offer goes until Plaid says the bank added another account.",
+        "operationId": "dismiss_new_accounts_api_linking__connection_id__new_accounts_dismiss_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dismiss New Accounts",
         "tags": [
           "linking"
         ]

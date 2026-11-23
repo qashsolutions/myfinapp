@@ -98,10 +98,15 @@ def _ident(value: Any) -> str:
 
 
 def create_link_token(
-    client_user_id: str, completion_redirect_uri: str, *, access_token: str | None = None
+    client_user_id: str,
+    completion_redirect_uri: str,
+    *,
+    access_token: str | None = None,
+    account_selection: bool = False,
 ) -> dict[str, str]:
     """A link token and the Hosted Link URL the browser is sent to. With `access_token` it is
-    Plaid's update mode: the user signs in to the same bank again, no new item, no products."""
+    Plaid's update mode: the user signs in to the same bank again, no new item, no products.
+    `account_selection` (update mode only) also lets them share accounts the bank added."""
     settings = get_settings()
     body: dict[str, Any] = {
         "client_name": settings.rp_name,
@@ -115,6 +120,8 @@ def create_link_token(
     }
     if access_token:
         body["access_token"] = access_token
+        if account_selection:
+            body["update"] = {"account_selection_enabled": True}
     else:
         body["products"] = PRODUCTS
         body["optional_products"] = OPTIONAL_PRODUCTS
@@ -147,6 +154,23 @@ def link_results(link_token: str) -> list[ItemAdd]:
                     )
                 )
     return adds
+
+
+def update_finished(link_token: str) -> bool:
+    """Whether the person went through an update-mode trip to the end. False when they never
+    opened it or left it (every finished session ended in `exit`), so a prompt that trip was
+    for stays (invariant 96)."""
+    data = _post("/link/token/get", {"link_token": link_token})
+    done = False
+    for session in data.get("link_sessions") or []:
+        results = session.get("results") or {}
+        if session.get("on_success") or results.get("item_add_results"):
+            return True
+        if session.get("exit"):
+            continue
+        if session.get("finished_at") or results:
+            done = True
+    return done
 
 
 def exchange(public_token: str) -> tuple[str, str]:

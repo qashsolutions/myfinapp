@@ -4,12 +4,21 @@ import { Button, Card, List, ListRow, Sheet } from "@stackd/ui";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { ScreenHeader } from "../../app/layout/ScreenHeader.tsx";
+import { Word } from "../../app/layout/Word.tsx";
 import { useDb } from "../../data/DbProvider.tsx";
 import { shortDate, shortTime } from "../../lib/dates.ts";
 import { formatDate } from "../../lib/format.ts";
 import { PlanLimit } from "../billing/PlanLimit.tsx";
 import { useStepUp } from "../security/StepUpPrompt.tsx";
-import { disconnect, linkErrorText, startLink, startRelink, useLinking } from "./linking.ts";
+import {
+  disconnect,
+  dismissNewAccounts,
+  linkErrorText,
+  startAddAccounts,
+  startLink,
+  startRelink,
+  useLinking,
+} from "./linking.ts";
 import { describeReport, syncAll } from "./sync.ts";
 
 /**
@@ -59,6 +68,24 @@ export function LinkedAccounts() {
     const failure = await startRelink(id);
     setBusy(false);
     if (failure) setNote(linkErrorText(failure.code));
+  }
+
+  async function addAccounts(id: string) {
+    setNote(null);
+    if (!(await stepUp.confirm("Sharing more accounts"))) return;
+    setBusy(true);
+    const failure = await startAddAccounts(id);
+    setBusy(false);
+    if (failure) setNote(linkErrorText(failure.code));
+  }
+
+  async function notNow(id: string) {
+    setNote(null);
+    setBusy(true);
+    const failure = await dismissNewAccounts(id);
+    setBusy(false);
+    if (failure && failure.status !== 404) setNote(linkErrorText(failure.code));
+    await refresh();
   }
 
   async function confirmDisconnect() {
@@ -116,6 +143,28 @@ export function LinkedAccounts() {
       {status?.available && cap === 0 ? (
         <PlanLimit>Linking banks and cards comes with Connected, up to 3 connections.</PlanLimit>
       ) : null}
+
+      {connections
+        .filter((c) => c.new_accounts)
+        .map((c) => (
+          <Card
+            as="div"
+            key={`new-${c.id}`}
+            role="group"
+            aria-label={`New accounts at ${c.institution_name}`}
+          >
+            <Word>Found</Word>
+            <p>New accounts at {c.institution_name}. Pick which ones Qash can read.</p>
+            <span className="link-actions">
+              <Button size="sm" onClick={() => addAccounts(c.id)} disabled={busy}>
+                Add them
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => notNow(c.id)} disabled={busy}>
+                Not now
+              </Button>
+            </span>
+          </Card>
+        ))}
 
       {connections.length > 0 ? (
         <section aria-labelledby="link-list-h">

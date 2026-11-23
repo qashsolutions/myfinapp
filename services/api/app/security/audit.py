@@ -50,6 +50,7 @@ class AuditAction(StrEnum):
     SPLIT_UNBLOCKED = "split_unblocked"  # support lifted a block (stackd-api split-unblock)
     BANK_CONNECTED = "bank_connected"  # Phase 3
     BANK_DISCONNECTED = "bank_disconnected"  # Phase 3
+    BANK_ACCOUNTS_ADDED = "bank_accounts_added"  # invariant 96: more accounts at a linked bank
     BANK_AUTO_REVOKED = "bank_auto_revoked"  # chunk 3.4: 60 days without opening the app
     LOCK_CHANGED = "lock_changed"  # the auto-lock window (5 to 60 minutes)
     PURCHASE_CONSENT = "purchase_consent"  # "Before you subscribe" ticked (October 14, 2026)

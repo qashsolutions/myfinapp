@@ -89,3 +89,40 @@ test("@phone linking: connect through Hosted Link, transactions and card details
   expect(responses.length).toBeGreaterThan(0);
   for (const body of responses) expect(body).not.toContain("access-sandbox");
 });
+
+test("@phone a bank's new card is offered, added through Plaid on the same bank, and Not now holds", async ({
+  page,
+  request,
+}) => {
+  await hostedLink(page);
+  await readyAccount(page, "newacct", "Connected");
+  await page.goto("/me/linking");
+  await page.getByRole("button", { name: "Connect a bank or card" }).click();
+  await page.getByRole("link", { name: "Continue to Qash" }).click();
+  await expect(page.getByText(`${BANK} is linked.`)).toBeVisible();
+  await page.getByRole("button", { name: "Done" }).click();
+  const offer = page.getByRole("group", { name: `New accounts at ${BANK}` });
+  await expect(page.getByText(BANK)).toBeVisible();
+  await expect(offer).toBeHidden(); // nothing new yet
+
+  // Plaid says the person opened a card at the same bank: offered, then Not now hides it.
+  const hook = await request.post(`${API}/__e2e/plaid/new_accounts`);
+  expect((await hook.json()).outcome).toBe("new_accounts");
+  await page.reload();
+  await expect(offer).toBeVisible();
+  await offer.getByRole("button", { name: "Not now" }).click();
+  await expect(offer).toBeHidden();
+  await page.reload();
+  await expect(offer).toBeHidden();
+
+  // It comes back only with the next news; Add them goes through Plaid on the same bank.
+  await request.post(`${API}/__e2e/plaid/new_accounts`);
+  await page.reload();
+  await offer.getByRole("button", { name: "Add them" }).click();
+  await page.getByRole("link", { name: "Continue to Qash" }).click();
+  await expect(page.getByText(`${BANK} is linked.`)).toBeVisible();
+  await expect(page.getByText("Plaid Rewards Card ••4444")).toBeVisible();
+  await page.getByRole("button", { name: "Done" }).click();
+  await expect(offer).toBeHidden();
+  await expect(page.getByRole("button", { name: "Disconnect" })).toHaveCount(1); // one bank
+});

@@ -131,6 +131,7 @@ describe("linked banks & cards (chunk 3.2)", () => {
         created_at: "",
         status: "ok",
         updates_available: false,
+        new_accounts: false,
         accounts: PLATYPUS.accounts,
       },
     ]);
@@ -146,6 +147,7 @@ describe("linked banks & cards (chunk 3.2)", () => {
         created_at: "",
         status: "ok",
         updates_available: false,
+        new_accounts: false,
         accounts: PLATYPUS.accounts,
       },
     ]);
@@ -177,5 +179,143 @@ describe("linked banks & cards (chunk 3.2)", () => {
     renderApp("/me/linking");
     expect(await screen.findByText(/comes with Connected/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Connect a bank or card" })).toBeNull();
+  });
+});
+
+describe("new accounts at a linked bank (invariant 96)", () => {
+  beforeEach(() => {
+    billingState.lastUrl = null;
+  });
+
+  const NEW_CARD = {
+    account_id: "acc-new",
+    name: "Plaid Rewards Card",
+    mask: "4444",
+    type: "credit",
+    subtype: "credit card",
+  };
+
+  function withBank(newAccounts: boolean, status = "ok") {
+    const api = installFakeApi({
+      session: readySession({ passkey_verified_at: "2026-01-01T00:00:00Z" }),
+      billing: connectedBilling(),
+    });
+    api.linking.connections.push({
+      id: "bc1",
+      institution_name: "First Platypus Bank",
+      created_at: "2026-10-01T12:00:00Z",
+      status,
+      updates_available: false,
+      last_synced_at: null,
+      new_accounts: newAccounts,
+    });
+    return api;
+  }
+
+  const offer = () => screen.findByRole("group", { name: "New accounts at First Platypus Bank" });
+  const callsTo = (api: ReturnType<typeof withBank>, end: string) =>
+    api.calls.filter((c) => c.path.endsWith(end));
+
+  it("offers them, asks for the passkey, then opens Plaid on the same bank", async () => {
+    const api = withBank(true);
+    api.stepUpStale = true;
+    renderApp("/me/linking");
+    const card = await offer();
+    expect(within(card).getByText("Found")).toBeTruthy();
+    expect(within(card).getByText(/Pick which ones Qash can read/)).toBeTruthy();
+    await userEvent.click(within(card).getByRole("button", { name: "Add them" }));
+    expect(await screen.findByText(/Sharing more accounts needs a quick check/)).toBeTruthy();
+    api.stepUpStale = false;
+    await userEvent.click(screen.getByRole("button", { name: /^Confirm with/ }));
+    await waitFor(() => expect(billingState.lastUrl).toBe("https://hosted.plaid.com/link/la1"));
+    expect(callsTo(api, "/start")).toHaveLength(0); // never a second connection
+  });
+
+  it("cancelling the passkey check opens nothing", async () => {
+    const api = withBank(true);
+    api.stepUpStale = true;
+    renderApp("/me/linking");
+    await userEvent.click(within(await offer()).getByRole("button", { name: "Add them" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+    expect(callsTo(api, "/add-accounts")).toHaveLength(0);
+    expect(billingState.lastUrl).toBeNull();
+    expect(await offer()).toBeTruthy(); // still offered
+  });
+
+  it("Not now hides the offer without opening Plaid", async () => {
+    const api = withBank(true);
+    renderApp("/me/linking");
+    await userEvent.click(within(await offer()).getByRole("button", { name: "Not now" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("group", { name: /New accounts at/ })).toBeNull(),
+    );
+    expect(callsTo(api, "/new-accounts/dismiss")).toHaveLength(1);
+    expect(callsTo(api, "/add-accounts")).toHaveLength(0);
+    expect(billingState.lastUrl).toBeNull();
+  });
+
+  it("offers nothing when the bank has nothing new", async () => {
+    withBank(false);
+    renderApp("/me/linking");
+    expect(await screen.findByText("First Platypus Bank")).toBeTruthy();
+    expect(screen.queryByRole("group", { name: /New accounts at/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add them" })).toBeNull();
+  });
+
+  it("on return, the new card joins this device and nothing is duplicated", async () => {
+    const api = withBank(true);
+    api.linking.addAccounts = [...PLATYPUS.accounts, NEW_CARD];
+    const db = openDb("u1");
+    await attachAccounts(db, [
+      {
+        id: "bc1",
+        institution_name: "First Platypus Bank",
+        created_at: "",
+        status: "ok",
+        updates_available: false,
+        new_accounts: true,
+        accounts: PLATYPUS.accounts,
+      },
+    ]);
+    api.linking.adds.la7 = "bc1";
+    renderApp("/me/linking/done?session=la7");
+    expect(await screen.findByText("First Platypus Bank is linked.")).toBeTruthy();
+    await waitFor(async () => {
+      const linked = (await db.accounts.toArray()).filter((a) => a.linked);
+      expect(linked.map((a) => a.last4).sort()).toEqual(["0000", "3333", "4444"]);
+    });
+    expect(api.linking.connections).toHaveLength(1);
+    expect(api.linking.connections[0]?.new_accounts).toBe(false);
+  });
+
+  it("leaving Plaid's page links nothing and keeps the offer", async () => {
+    const api = withBank(true);
+    api.linking.addExited = true;
+    api.linking.adds.la7 = "bc1";
+    renderApp("/me/linking/done?session=la7");
+    expect(await screen.findByText(/Nothing was linked/)).toBeTruthy();
+    expect(api.linking.connections[0]?.new_accounts).toBe(true);
+    expect((await openDb("u1").accounts.toArray()).filter((a) => a.linked)).toHaveLength(0);
+  });
+
+  it("says what to do when the bank withdrew access meanwhile", async () => {
+    const api = withBank(true);
+    renderApp("/me/linking");
+    const card = await offer();
+    const conn = api.linking.connections[0];
+    if (conn) conn.status = "revoked"; // withdrawn at the bank after the screen loaded
+    await userEvent.click(within(card).getByRole("button", { name: "Add them" }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Confirm with/ }));
+    expect(await screen.findByText(/Access was withdrawn at the bank. Disconnect it/)).toBeTruthy();
+    expect(billingState.lastUrl).toBeNull();
+  });
+
+  it("never sends an account, amount or merchant to open the offer", async () => {
+    const api = withBank(true);
+    renderApp("/me/linking");
+    await userEvent.click(within(await offer()).getByRole("button", { name: "Add them" }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Confirm with/ }));
+    await waitFor(() => expect(billingState.lastUrl).not.toBeNull());
+    for (const call of callsTo(api, "/add-accounts")) expect(call.raw).toBe("");
   });
 });

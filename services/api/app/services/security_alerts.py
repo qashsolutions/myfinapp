@@ -29,6 +29,7 @@ class SecurityEvent(StrEnum):
     PLAN_CHANGED = "plan_changed"
     BANK_CONNECTED = "bank_connected"  # Phase 3
     BANK_DISCONNECTED = "bank_disconnected"  # Phase 3
+    BANK_ACCOUNTS_ADDED = "bank_accounts_added"  # invariant 96
     BANK_AUTO_REVOKED = "bank_auto_revoked"  # chunk 3.4
     DEVICE_LINKED = "device_linked"  # "Link with your phone" (October 19, 2026)
     CODES_LOCKED = "codes_locked"  # October 24, 2026
@@ -132,6 +133,10 @@ TEMPLATES: dict[SecurityEvent, tuple[str, str]] = {
     SecurityEvent.BANK_DISCONNECTED: (
         "A bank was disconnected",
         "A bank was disconnected on {device} at {when}.",
+    ),
+    SecurityEvent.BANK_ACCOUNTS_ADDED: (
+        "Your shared bank accounts changed",
+        "You chose which accounts a linked bank shares with Qash on {device} at {when}.",
     ),
     SecurityEvent.BANK_AUTO_REVOKED: (
         "We turned off a bank connection",

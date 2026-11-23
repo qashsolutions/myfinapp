@@ -11,6 +11,9 @@
   dates, minimum, last payment, limit and APR, passed through and not kept (chunk 3.5)
 - POST /api/linking/{id}/relink: a Hosted Link trip in update mode, when the bank asks the
   user to sign in again (chunk 3.4); finished through /finish like a new link
+- POST /api/linking/{id}/add-accounts: update mode with account selection, after Plaid's
+  NEW_ACCOUNTS_AVAILABLE (invariant 96); step-up, since it shares more than before
+- POST /api/linking/{id}/new-accounts/dismiss: Not now on that offer
 - DELETE /api/linking/{id}: revoke the token at the provider, then delete the connection; if the
   provider is down the connection is hidden at once and the revoke retried (chunk 3.4)
 """
@@ -54,6 +57,7 @@ class ConnectionOut(BaseModel):
     created_at: datetime
     status: str = "ok"  # ok | login_required | revoked
     updates_available: bool = False  # the provider's webhook says there is something to pull
+    new_accounts: bool = False  # the bank has accounts the person hasn't shared (invariant 96)
     last_synced_at: datetime | None = None
 
 
@@ -227,6 +231,7 @@ def linking_status(
                 created_at=r.created_at,
                 status=r.status,
                 updates_available=r.updates_available_at is not None,
+                new_accounts=_offers_new_accounts(r),
                 last_synced_at=r.last_synced_at,
             )
             for r in rows
@@ -264,6 +269,39 @@ def start(
     return StartOut(session_id=session_id, url=link["hosted_link_url"])
 
 
+def _offers_new_accounts(row: BankConnection) -> bool:
+    """Linked banks offers "Add them" only on a connection that still reads (invariant 96)."""
+    return row.new_accounts_at is not None and row.status in ("ok", "login_required")
+
+
+def _update_mode(
+    db: DbSession, caller: Caller, request: Request, row: BankConnection, *, add_accounts: bool
+) -> StartOut:
+    session_id = uuid.uuid4()
+    try:
+        link = plaid.create_link_token(
+            _client_user_id(caller.user.id),
+            f"{_origin(request)}/me/linking/done?session={session_id}",
+            access_token=token_vault.open_(row.access_token_encrypted),
+            account_selection=add_accounts,
+        )
+    except plaid.LinkError as exc:
+        raise _bad_gateway(exc) from exc
+    row = _still_live(db, row.id)
+    db.add(
+        LinkSession(
+            id=session_id,
+            user_id=caller.user.id,
+            connection_id=row.id,
+            add_accounts=add_accounts,
+            link_token_encrypted=token_vault.seal(link["link_token"]),
+            expires_at=datetime.now(UTC) + timedelta(hours=6),
+        )
+    )
+    db.commit()
+    return StartOut(session_id=session_id, url=link["hosted_link_url"])
+
+
 @router.post("/{connection_id}/relink", dependencies=[Depends(rate_limited("link_start"))])
 def relink(
     connection_id: uuid.UUID,
@@ -275,30 +313,42 @@ def relink(
     step-up: it restores what the user already allowed and reads nothing new."""
     _require_linking(db, caller)
     row = _live(db, connection_id, caller)
-    session_id = uuid.uuid4()
-    try:
-        link = plaid.create_link_token(
-            _client_user_id(caller.user.id),
-            f"{_origin(request)}/me/linking/done?session={session_id}",
-            access_token=token_vault.open_(row.access_token_encrypted),
-        )
-    except plaid.LinkError as exc:
-        raise _bad_gateway(exc) from exc
-    row = _still_live(db, row.id)
-    db.add(
-        LinkSession(
-            id=session_id,
-            user_id=caller.user.id,
-            connection_id=row.id,
-            link_token_encrypted=token_vault.seal(link["link_token"]),
-            expires_at=datetime.now(UTC) + timedelta(hours=6),
-        )
-    )
+    return _update_mode(db, caller, request, row, add_accounts=False)
+
+
+@router.post("/{connection_id}/add-accounts", dependencies=[Depends(rate_limited("link_start"))])
+def add_accounts(
+    connection_id: uuid.UUID,
+    caller: Annotated[Caller, Depends(require_step_up)],
+    request: Request,
+    db: Annotated[DbSession, Depends(get_db)],
+) -> StartOut:
+    """Update mode with account selection (invariant 96): the person picks accounts the bank
+    added since they linked it. Step-up and the recovery hold, like a new link, because it
+    shares more than before. Same item, so no new connection and no second monthly fee."""
+    hold_if_recovered(caller.user)
+    _require_linking(db, caller)
+    row = _live(db, connection_id, caller)
+    if row.status == "revoked":  # consent withdrawn at the bank: Disconnect, then link again
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="connection_revoked")
+    return _update_mode(db, caller, request, row, add_accounts=True)
+
+
+@router.post("/{connection_id}/new-accounts/dismiss", status_code=status.HTTP_204_NO_CONTENT)
+def dismiss_new_accounts(
+    connection_id: uuid.UUID,
+    caller: Annotated[Caller, Depends(require_unlocked)],
+    db: Annotated[DbSession, Depends(get_db)],
+) -> None:
+    """Not now: the offer goes until Plaid says the bank added another account."""
+    row = _live(db, connection_id, caller)
+    row.new_accounts_at = None
     db.commit()
-    return StartOut(session_id=session_id, url=link["hosted_link_url"])
 
 
-def _finish_relink(db: DbSession, link_session: LinkSession, now: datetime) -> FinishOut:
+def _finish_relink(
+    db: DbSession, link_session: LinkSession, now: datetime, caller: Caller, request: Request
+) -> FinishOut:
     """After update mode: if the provider reads the item again, it is repaired."""
     row = db.get(BankConnection, link_session.connection_id)
     link_session.finished_at = now
@@ -306,6 +356,11 @@ def _finish_relink(db: DbSession, link_session: LinkSession, now: datetime) -> F
         db.commit()
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="not_found")
     try:
+        if link_session.add_accounts and not plaid.update_finished(
+            token_vault.open_(link_session.link_token_encrypted)
+        ):
+            db.commit()  # they left Plaid's page: the offer stays (invariant 96)
+            return FinishOut(status="cancelled", connections=[])
         shared = plaid.accounts(token_vault.open_(row.access_token_encrypted))
     except plaid.LinkError as exc:
         db.commit()
@@ -314,7 +369,26 @@ def _finish_relink(db: DbSession, link_session: LinkSession, now: datetime) -> F
         raise _bad_gateway(exc) from exc
     set_status(db, row, "ok")
     row.last_used_at = now
+    if link_session.add_accounts:
+        # Only the news this trip answered: a NEW_ACCOUNTS_AVAILABLE that came after the trip
+        # started is about another account, so its offer stays.
+        if row.new_accounts_at is not None and row.new_accounts_at <= link_session.created_at:
+            row.new_accounts_at = None
+        record(
+            db,
+            actor_id=link_session.user_id,
+            action=AuditAction.BANK_ACCOUNTS_ADDED,
+            target=f"bank_connection:{row.id}",
+            ip=client_ip(request),
+        )
     db.commit()
+    if link_session.add_accounts:
+        send_alert(
+            caller.user.email,
+            SecurityEvent.BANK_ACCOUNTS_ADDED,
+            device_label=caller.session.device_label,
+            at=now,
+        )
     return FinishOut(
         status="linked",
         connections=[
@@ -352,7 +426,7 @@ def finish(
     if link_session.expires_at < now:
         raise HTTPException(status.HTTP_410_GONE, detail="session_expired")
     if link_session.connection_id is not None:
-        return _finish_relink(db, link_session, now)
+        return _finish_relink(db, link_session, now, caller, request)
     try:
         adds = plaid.link_results(token_vault.open_(link_session.link_token_encrypted))
     except plaid.LinkError as exc:
