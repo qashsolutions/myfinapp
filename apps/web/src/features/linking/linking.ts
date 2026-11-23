@@ -64,6 +64,28 @@ export async function startRelink(connectionId: string): Promise<ApiFailure | nu
   return null;
 }
 
+/**
+ * "Add them" (invariant 96): Plaid's update mode with account selection on a bank that has
+ * opened accounts the person hasn't shared. Call after `useStepUp().confirm`.
+ */
+export async function startAddAccounts(connectionId: string): Promise<ApiFailure | null> {
+  const r = await api.POST("/api/linking/{connection_id}/add-accounts", {
+    params: { path: { connection_id: connectionId } },
+  });
+  const failure = failureOf(r);
+  if (failure) return failure;
+  goExternal((r.data as { url: string }).url);
+  return null;
+}
+
+/** "Not now" on that offer: it comes back only when the bank adds another account. */
+export async function dismissNewAccounts(connectionId: string): Promise<ApiFailure | null> {
+  const r = await api.POST("/api/linking/{connection_id}/new-accounts/dismiss", {
+    params: { path: { connection_id: connectionId } },
+  });
+  return failureOf(r);
+}
+
 export async function finishLink(sessionId: string): Promise<FinishOut | ApiFailure> {
   const r = await api.POST("/api/linking/finish", { body: { session_id: sessionId } });
   return failureOf(r) ?? (r.data as FinishOut);
@@ -160,6 +182,8 @@ export const LINK_ERRORS: Record<string, string> = {
   session_expired: "That link took too long. Start again from Linked banks & cards.",
   not_found: "We couldn't find that link. Start again from Linked banks & cards.",
   login_required: "Your bank needs you to sign in again. Tap Sign in again next to it.",
+  connection_revoked: "Access was withdrawn at the bank. Disconnect it, then link it again.",
+  recently_recovered: RECOVERY_HOLD_MESSAGE,
   offline: OFFLINE_MESSAGE,
 };
 

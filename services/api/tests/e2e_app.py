@@ -12,6 +12,8 @@ so the bank-linking journey (apps/web/e2e/linking.spec.ts) runs the real app and
   due in ten days, so the journey passes on any date.
 - `POST /__e2e/plaid/login_required` makes the bank ask for a sign-in again, as Plaid's
   ITEM_LOGIN_REQUIRED does; signing in again through update mode clears it.
+- `POST /__e2e/plaid/new_accounts` opens a rewards card at the newest linked bank and sends
+  Plaid's signed NEW_ACCOUNTS_AVAILABLE webhook through the real webhook route (invariant 96).
 
 Run as `uv run uvicorn tests.e2e_app:app`.
 """
@@ -113,6 +115,39 @@ def _liabilities() -> dict:
 fake = E2EPlaid()
 plaid.transport_override = fake.transport()
 app = create_app()
+
+
+NEW_CARD = {
+    "account_id": "acc-new",
+    "name": "Plaid Rewards Card",
+    "mask": "4444",
+    "type": "credit",
+    "subtype": "credit card",
+    "balances": {"current": 0, "limit": 5000},
+}
+
+
+@app.post("/__e2e/plaid/new_accounts", include_in_schema=False)
+def _new_accounts() -> dict:
+    from fastapi.testclient import TestClient
+    from sqlalchemy import select
+
+    from app.db import get_session_factory
+    from app.models.linking import BankConnection
+    from tests.test_linking_sync import sign
+
+    with get_session_factory()() as db:
+        item_id = db.scalar(
+            select(BankConnection.item_id).order_by(BankConnection.created_at.desc()).limit(1)
+        )
+    fake.extra_accounts = [NEW_CARD]
+    body = json.dumps(
+        {"webhook_type": "ITEM", "webhook_code": "NEW_ACCOUNTS_AVAILABLE", "item_id": item_id}
+    ).encode()
+    r = TestClient(app).post(
+        "/api/webhooks/plaid", content=body, headers={"Plaid-Verification": sign(fake, body)}
+    )
+    return {"outcome": r.json().get("outcome")}
 
 
 @app.post("/__e2e/plaid/login_required", include_in_schema=False)

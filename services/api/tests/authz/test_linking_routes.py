@@ -38,6 +38,12 @@ def test_connections_are_private(_infra: FakePlaid) -> None:
     assert bob.delete(f"/api/linking/{conn['id']}").status_code == 404
     assert bob.post(f"/api/linking/{conn['id']}/sync", json={}).status_code == 404
     assert bob.post(f"/api/linking/{conn['id']}/cards").status_code == 404
+    creates = len(_infra.bodies("/link/token/create"))
+    origin = {"Origin": "http://localhost:5173"}
+    assert bob.post(f"/api/linking/{conn['id']}/relink", headers=origin).status_code == 404
+    assert bob.post(f"/api/linking/{conn['id']}/add-accounts", headers=origin).status_code == 404
+    assert bob.post(f"/api/linking/{conn['id']}/new-accounts/dismiss").status_code == 404
+    assert len(_infra.bodies("/link/token/create")) == creates
     assert _infra.bodies("/transactions/sync") == []
     assert _infra.bodies("/liabilities/get") == []
     assert _infra.removed == []

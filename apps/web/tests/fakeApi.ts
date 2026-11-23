@@ -98,6 +98,8 @@ export interface FakeConnection {
   status: string;
   updates_available: boolean;
   last_synced_at: string | null;
+  /** Invariant 96: the bank has accounts the person hasn't shared. */
+  new_accounts?: boolean;
 }
 
 export interface FakeSyncPage {
@@ -120,6 +122,11 @@ export interface FakeLinking {
   cursors: Array<{ connection_id: string; cursor: string | null }>;
   /** Chunk 3.4: "sign in again" sessions, by session id → connection id. */
   relinks: Record<string, string>;
+  /** Invariant 96: "Add them" sessions (session id → connection id), what finishing one
+   * returns, and whether the person left Plaid's page instead. */
+  adds: Record<string, string>;
+  addAccounts: FakeLinkedAccount[];
+  addExited: boolean;
   /** Chunk 3.5: what /cards answers per connection (the issuer's statement facts). */
   cards: Record<string, Array<components["schemas"]["CardDetail"]>>;
 }
@@ -134,6 +141,9 @@ export function emptyLinking(): FakeLinking {
     syncPages: {},
     cursors: [],
     relinks: {},
+    adds: {},
+    addAccounts: [],
+    addExited: false,
     cards: {},
   };
 }
@@ -997,6 +1007,43 @@ export function installFakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
       const id = `ls${state.linking.seq}`;
       state.linking.sessions.push(id);
       return json({ session_id: id, url: `https://hosted.plaid.com/link/${id}` });
+    }
+    const addMatch = path.match(/^\/api\/linking\/([^/]+)\/add-accounts$/);
+    if (method === "POST" && addMatch) {
+      if (state.stepUpStale) return json({ detail: "step_up_required" }, 403);
+      const conn = state.linking.connections.find((c) => c.id === addMatch[1]);
+      if (!conn) return json({ detail: "not_found" }, 404);
+      if (conn.status === "revoked") return json({ detail: "connection_revoked" }, 409);
+      state.linking.seq += 1;
+      const id = `la${state.linking.seq}`;
+      state.linking.adds[id] = conn.id;
+      return json({ session_id: id, url: `https://hosted.plaid.com/link/${id}` });
+    }
+    const dismissMatch = path.match(/^\/api\/linking\/([^/]+)\/new-accounts\/dismiss$/);
+    if (method === "POST" && dismissMatch) {
+      const conn = state.linking.connections.find((c) => c.id === dismissMatch[1]);
+      if (!conn) return json({ detail: "not_found" }, 404);
+      conn.new_accounts = false;
+      return new Response(null, { status: 204 });
+    }
+    if (
+      method === "POST" &&
+      path === "/api/linking/finish" &&
+      state.linking.adds[String(b.session_id)]
+    ) {
+      const conn = state.linking.connections.find(
+        (c) => c.id === state.linking.adds[String(b.session_id)],
+      );
+      delete state.linking.adds[String(b.session_id)];
+      if (!conn) return json({ detail: "not_found" }, 404);
+      if (state.linking.addExited)
+        return json({ status: "cancelled", connections: [], already_linked: [], failed: [] });
+      conn.status = "ok";
+      conn.new_accounts = false;
+      return json({
+        status: "linked",
+        connections: [{ ...conn, accounts: state.linking.addAccounts }],
+      });
     }
     const relinkMatch = path.match(/^\/api\/linking\/([^/]+)\/relink$/);
     if (method === "POST" && relinkMatch) {

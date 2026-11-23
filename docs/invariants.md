@@ -819,6 +819,18 @@ written against both.
     makes a fresh subscription on its next open (invariant 93). Found when the November 18
     rotation left old rows that failed every dispatch with `push_failed`.
     `test_notifications.py` invariant 95
+96. **A bank's new accounts are offered, never added unasked** (November 23, 2026). Plaid's
+    `NEW_ACCOUNTS_AVAILABLE` only marks the connection (`bank_connections.new_accounts_at`);
+    nothing new is read until the person picks the accounts in Plaid's update mode with account
+    selection (`POST /api/linking/{id}/add-accounts`: step-up and the recovery hold, the same
+    item, never a second connection or fee). Finishing that trip clears the offer, audits and
+    emails; leaving Plaid's page, Plaid failing, or a webhook that arrived after the trip began
+    keeps it; Not now clears it until the next webhook; a revoked or removed connection is
+    never offered or opened; another person's connection is 404. Sign in again neither asks
+    for accounts nor clears the offer.
+    `test_linking_new_accounts.py` · `test_linking_states.py` (new_accounts,
+    add_accounts_finished) · `authz/test_linking_routes.py` · `linking.test.tsx` invariant 96 ·
+    `e2e/linking.spec.ts`
 64. **A balance says where it came from** (October 29, 2026). One helper
     (`linking/anchorText.ts`) names a balance's source everywhere: a statement's date, the bank
     and when it last synced ("from First Platypus Bank · synced 5 min ago"), or "you entered".

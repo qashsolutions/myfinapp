@@ -89,7 +89,8 @@ WEBHOOKS = {
     "user_permission_revoked": ("ITEM", "USER_PERMISSION_REVOKED", None),
     "user_account_revoked": ("ITEM", "USER_ACCOUNT_REVOKED", None),
     "login_repaired": ("ITEM", "LOGIN_REPAIRED", None),
-    "unknown_code": ("ITEM", "NEW_ACCOUNTS_AVAILABLE", None),
+    "new_accounts": ("ITEM", "NEW_ACCOUNTS_AVAILABLE", None),  # flags only (invariant 96)
+    "unknown_code": ("ITEM", "WEBHOOK_UPDATE_ACKNOWLEDGED", None),
 }
 LOGIN = {"ok": "login_required", "login_required": "login_required", "revoked": "login_required"}
 EXPECTED: dict[str, dict[str, str]] = {
@@ -101,6 +102,7 @@ EXPECTED: dict[str, dict[str, str]] = {
     "user_permission_revoked": {"ok": "revoked", "login_required": "revoked", "revoked": "revoked"},
     "user_account_revoked": {"ok": "revoked", "login_required": "revoked", "revoked": "revoked"},
     "login_repaired": {"ok": "ok", "login_required": "ok", "revoked": "ok"},
+    "new_accounts": {"ok": "ok", "login_required": "login_required", "revoked": "revoked"},
     "unknown_code": {"ok": "ok", "login_required": "login_required", "revoked": "revoked"},
     # The person's own routes. Sync and cards read a revoked connection as 409 and change nothing.
     "sync_ok": {"ok": "ok", "login_required": "ok", "revoked": "revoked"},
@@ -116,6 +118,8 @@ EXPECTED: dict[str, dict[str, str]] = {
         "revoked": "revoked",
     },
     "relink_finished": {"ok": "ok", "login_required": "ok", "revoked": "ok"},
+    # Adding accounts repairs a sign-in too; a revoked one is refused (409) and stays.
+    "add_accounts_finished": {"ok": "ok", "login_required": "ok", "revoked": "revoked"},
     "disconnect_plaid_up": {"ok": GONE, "login_required": GONE, "revoked": GONE},
     "disconnect_plaid_down": {
         "ok": "revoke_pending",
@@ -138,9 +142,10 @@ def _happen(client, fake: FakePlaid, conn_id: str, event: str) -> None:
     elif event.startswith("cards"):
         fake.liabilities_error = "ITEM_LOGIN_REQUIRED" if event == "cards_login_required" else None
         client.post(f"/api/linking/{conn_id}/cards")
-    elif event == "relink_finished":
+    elif event in ("relink_finished", "add_accounts_finished"):
+        route = "relink" if event == "relink_finished" else "add-accounts"
         r = client.post(
-            f"/api/linking/{conn_id}/relink", headers={"Origin": "http://localhost:5173"}
+            f"/api/linking/{conn_id}/{route}", headers={"Origin": "http://localhost:5173"}
         )
         if r.status_code == 200:
             client.post("/api/linking/finish", json={"session_id": r.json()["session_id"]})
@@ -225,6 +230,7 @@ RACES = {
     "cards": "/liabilities/get",
     "cards_login_required": "/liabilities/get",
     "relink": "/link/token/create",
+    "add_accounts": "/link/token/create",
 }
 # Finishing a relink holds its link session FOR UPDATE, and the connection's delete waits on
 # that row (the foreign key), so a revoke can't delete the row under a finishing relink.
@@ -255,6 +261,7 @@ def test_a_call_waiting_on_plaid_when_the_revoke_deletes_the_row_answers_404(
     elif event.startswith("cards"):
         r = client.post(f"/api/linking/{conn_id}/cards")
     else:
-        r = client.post(f"/api/linking/{conn_id}/relink", headers=origin)
+        route = "relink" if event == "relink" else "add-accounts"
+        r = client.post(f"/api/linking/{conn_id}/{route}", headers=origin)
     assert r.status_code == 404, r.text
     assert _status(conn_id) == GONE

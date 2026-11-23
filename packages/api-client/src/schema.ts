@@ -1213,6 +1213,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/linking/{connection_id}/add-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Accounts
+         * @description Update mode with account selection (invariant 96): the person picks accounts the bank
+         *     added since they linked it. Step-up and the recovery hold, like a new link, because it
+         *     shares more than before. Same item, so no new connection and no second monthly fee.
+         */
+        post: operations["add_accounts_api_linking__connection_id__add_accounts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/linking/{connection_id}/cards": {
         parameters: {
             query?: never;
@@ -1227,6 +1249,26 @@ export interface paths {
          * @description Pass-through, like sync: the card facts go to the device and nowhere else.
          */
         post: operations["cards_api_linking__connection_id__cards_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/linking/{connection_id}/new-accounts/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss New Accounts
+         * @description Not now: the offer goes until Plaid says the bank added another account.
+         */
+        post: operations["dismiss_new_accounts_api_linking__connection_id__new_accounts_dismiss_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2644,6 +2686,11 @@ export interface components {
             /** Last Synced At */
             last_synced_at?: string | null;
             /**
+             * New Accounts
+             * @default false
+             */
+            new_accounts: boolean;
+            /**
              * Status
              * @default ok
              */
@@ -3352,6 +3399,11 @@ export interface components {
             institution_name: string;
             /** Last Synced At */
             last_synced_at?: string | null;
+            /**
+             * New Accounts
+             * @default false
+             */
+            new_accounts: boolean;
             /**
              * Status
              * @default ok
@@ -6088,6 +6140,37 @@ export interface operations {
             };
         };
     };
+    add_accounts_api_linking__connection_id__add_accounts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__routers__linking__StartOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     cards_api_linking__connection_id__cards_post: {
         parameters: {
             query?: never;
@@ -6107,6 +6190,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CardsOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dismiss_new_accounts_api_linking__connection_id__new_accounts_dismiss_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
