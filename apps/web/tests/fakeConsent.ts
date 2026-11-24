@@ -12,7 +12,7 @@ type ConsentText = components["schemas"]["ConsentTextOut"];
 type Point = ConsentText["points"][number];
 type Interval = "monthly" | "yearly";
 
-export const FAKE_CONSENT_VERSION = "2026-11-24";
+export const FAKE_CONSENT_VERSION = "2026-11-24b";
 
 const PRICES = {
   private: { monthly: 300, yearly: 2000 },
@@ -176,6 +176,10 @@ export function cancelConsent(
     { head: "No charges", text: "Nothing more is billed after that." },
     { head: "7-day grace", text: "Then subscribe again or download your data." },
     { head: "Then deleted", text: "Account and data go; leftover credit is refunded." },
+    {
+      head: "Money back",
+      text: "Cancelling refunds nothing. Any refund goes back to the card you paid with, Apple Pay included.",
+    },
   ];
   if (refundCents > 0)
     points.push({

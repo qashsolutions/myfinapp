@@ -94,6 +94,12 @@
   flex: none;
   accent-color: var(--c-a1);
 }
+.plan-card__ends {
+  margin: 0;
+  font-size: var(--fs-small);
+  font-weight: 700;
+  color: var(--c-ink);
+}
 .plan-card__sub {
   margin: 0;
   font-size: var(--fs-small);

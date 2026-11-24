@@ -149,7 +149,7 @@ def test_checkout_sends_the_price_and_the_user_to_stripe() -> None:
         ("private", "yearly", 2000),
         ("founding", None, 15000),
     ]
-    assert rows[0].terms_version == "2026-11-24"
+    assert rows[0].terms_version == "2026-11-24b"
     assert rows[0].terms_text.startswith("$20.00 today, then every year.\n")
     assert rows[0].terms_text.endswith("charges the months used at the monthly price.")
     assert rows[0].email_hash and "@" not in rows[0].email_hash
