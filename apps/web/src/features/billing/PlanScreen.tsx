@@ -801,6 +801,12 @@ export function PlanScreen() {
                 billing.plan === p.key &&
                 access?.state !== "trial" &&
                 (!paid || billing.interval === interval);
+              // A cancelled plan says when it ends right on its card, and keeping it is one tap
+              // there too (owner, November 24, 2026).
+              const endsOn =
+                current && billing.cancel_at_period_end && billing.renews_at
+                  ? formatDate(billing.renews_at)
+                  : null;
               const locked = downFrom !== null && isDown(p.key, interval);
               const price = priceCents(billing, p.key, interval);
               const save = interval === "yearly" ? yearlySave(p.key) : 0;
@@ -809,7 +815,9 @@ export function PlanScreen() {
                   <div className="plan-card">
                     <div className="plan-card__top">
                       <span className="plan-card__name">{p.name}</span>
-                      {current ? (
+                      {endsOn ? (
+                        <Chip tone="warning">Ends {endsOn}</Chip>
+                      ) : current ? (
                         <Chip tone="success">Current</Chip>
                       ) : p.popular ? (
                         <Chip tone="accent">Most popular</Chip>
@@ -846,19 +854,23 @@ export function PlanScreen() {
                     {p.note ? <p className="plan-card__note">{p.note}</p> : null}
                     <Button
                       block
-                      variant={current || locked ? "secondary" : "primary"}
-                      disabled={current || busy || !billing.available || clearing}
+                      variant={(current && !endsOn) || locked ? "secondary" : "primary"}
+                      disabled={(current && !endsOn) || busy || !billing.available || clearing}
                       onClick={() =>
-                        locked
-                          ? setLockedFor(interval === "monthly" ? `${p.name} monthly` : p.name)
-                          : void choose(p.key)
+                        endsOn
+                          ? void setRenewal(null)
+                          : locked
+                            ? setLockedFor(interval === "monthly" ? `${p.name} monthly` : p.name)
+                            : void choose(p.key)
                       }
                     >
-                      {current
-                        ? "Current plan"
-                        : locked
-                          ? `Switch to ${p.name} from ${downFrom}`
-                          : `Choose ${p.name}`}
+                      {endsOn
+                        ? `Keep ${p.name}`
+                        : current
+                          ? "Current plan"
+                          : locked
+                            ? `Switch to ${p.name} from ${downFrom}`
+                            : `Choose ${p.name}`}
                     </Button>
                   </div>
                 </Card>
