@@ -1465,6 +1465,23 @@ a.lp-way:hover {
   font-size: 0.9rem;
   color: var(--c-sub);
 }
+.pr-plan__note {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: var(--c-sub);
+}
+.pr-every {
+  padding-top: 0;
+  padding-bottom: 8px;
+}
+.pr-every .lp-h2 {
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+}
+.pr-switch {
+  display: flex;
+  justify-content: center;
+  padding: 32px 0 0;
+}
 .pr-plan__value {
   margin: 12px 0 4px;
   font-weight: 700;
@@ -2423,4 +2440,20 @@ a.lp-way:hover {
 .lp-promise__icon .icon {
   width: 28px;
   height: 28px;
+}
+
+/* Pricing's "On every plan": two by two on a phone so the plans stay near the top. */
+@media (max-width: 759px) {
+  .pr-every .lp-promises {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .pr-every .lp-promise {
+    padding: 14px;
+    font-size: 0.85rem;
+  }
+  .pr-every .lp-promise__icon {
+    width: 36px;
+    height: 36px;
+  }
 }

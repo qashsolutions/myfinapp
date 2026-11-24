@@ -24,12 +24,12 @@ from tests.test_billing_cancel import sub_row
 from tests.test_billing_change import FakeStripe as ChangeStripe
 from tests.test_billing_change import started_days_ago
 
-VERSION = "2026-10-24"
-PAY_WITH = (
-    "A credit or debit card issued by a US bank (Visa, Mastercard, Amex, Discover), or a US bank "
-    "account. Paid through Stripe; we never see your card or bank details. A bank payment takes "
-    "up to 4 business days to clear, and the plan starts when it does."
-)
+VERSION = "2026-11-24"
+PAY_WITH = [
+    "A card from a US bank (Visa, Mastercard, Amex, Discover) or a US bank account.",
+    "Paid through Stripe. We never see your card or bank details.",
+    "A bank payment takes up to 4 business days; your plan starts then.",
+]
 PRIVATE_YEARLY = [
     "$20.00 today, then every year.",
     "Renews automatically each year until you cancel.",
@@ -38,7 +38,7 @@ PRIVATE_YEARLY = [
     "Switch up any time for the difference. Switch down from 30 days in; the rest becomes credit.",
     "Delete your account early: the months used, this one included, cost the monthly price "
     "($3.00); the rest of the year comes back, less Stripe's fee.",
-    PAY_WITH,
+    *PAY_WITH,
 ]
 AGREE_YEARLY = (
     "I understand my plan renews every year until I cancel, cancelling refunds nothing, and "
@@ -50,7 +50,7 @@ CONNECTED_MONTHLY = [
     "Cancel any time in Me → Plan. It runs to the month's end.",
     "Switch up any time for the difference. Switch down from 30 days in; the rest becomes credit.",
     "Delete your account: we keep this month; any credit comes back, less Stripe's fee.",
-    PAY_WITH,
+    *PAY_WITH,
 ]
 AGREE_MONTHLY = "I understand my plan renews every month until I cancel."
 FOUNDING = [
@@ -58,7 +58,7 @@ FOUNDING = [
     "4 years of Connected, every feature.",
     "Before it ends, you pick a plan. Nothing is deleted.",
     "Delete your account: we keep this month and refund the rest, less Stripe's fee.",
-    PAY_WITH,
+    *PAY_WITH,
 ]
 AGREE_FOUNDING = "I understand this is one payment for the whole term, and it doesn't renew."
 
@@ -118,6 +118,8 @@ def test_checkout_keeps_only_the_servers_words() -> None:
         "renew",
         "refund",
         "card",
+        "lock",
+        "clock",
     ]
     r = client.post(
         "/api/billing/checkout",

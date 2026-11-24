@@ -276,8 +276,8 @@ CHECKOUT_MAX = timedelta(hours=24)  # Stripe's longest payment page (and its def
 CHECKOUT_MINUTES = ANCHOR_MIN
 
 CARD_NOTE = (
-    "A credit or debit card issued by a US bank (Visa, Mastercard, Amex, Discover), or a US bank "
-    "account. A bank payment takes up to 4 business days; your plan starts when it clears."
+    "A card from a US bank (Visa, Mastercard, Amex, Discover) or a US bank account. A bank "
+    "payment takes up to 4 business days; your plan starts then."
 )
 
 

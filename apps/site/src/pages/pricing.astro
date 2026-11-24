@@ -1,4 +1,5 @@
 ---
+import Icon from "../components/visuals/Icon.astro";
 import PlanIcon from "../components/visuals/PlanIcon.astro";
 import Base from "../layouts/Base.astro";
 import { dollars, FOUNDING, PLANS, yearlySavingPercent } from "../data/plans.ts";
@@ -19,9 +20,18 @@ const foundingPct = Math.round((100 * foundingSaving) / foundingTerm);
 const wholeDollars = (cents: number) => `$${Math.floor(cents / 100)}`;
 const terms = [
   { icon: "card", t: "No card during the trial" },
-  { icon: "renew", t: "Renews until you cancel" },
-  { icon: "cancel", t: "Cancel anytime in the app" },
-  { icon: "card", t: "A US credit or debit card (Visa, Mastercard, Amex, Discover) or a US bank account. Paid through Stripe; we never see your card or bank details." },
+  { icon: "renew", t: "Renews until you cancel, anytime in the app" },
+  { icon: "card", t: "A card from a US bank (Visa, Mastercard, Amex, Discover) or a US bank account" },
+  { icon: "private", t: "Paid through Stripe. We never see your card or bank details." },
+] as const;
+// What every plan promises, where people decide (owner, November 24, 2026). Word for word true:
+// the server keeps no money data; on Connected, bank data passes through it and isn't kept,
+// which the Connected card's note says.
+const everyPlan = [
+  { icon: "noai", t: "No AI", d: "Your money is never sent to an AI." },
+  { icon: "nosell", t: "No ads, no analytics", d: "Nothing tracks you." },
+  { icon: "device", t: "We can't see your money", d: "It's kept on your device; backups are locked before they leave." },
+  { icon: "bank", t: "Read-only", d: "Qash can't move a cent." },
 ] as const;
 ---
 
@@ -29,12 +39,28 @@ const terms = [
   <section class="pr-hero">
     <p class="lp-pill">Try free · no card needed</p>
     <h1 class="lp-title">Pick your <span class="lp-grad">plan</span></h1>
+  </section>
+
+  <section class="lp-section pr-every" aria-labelledby="every-plan">
+    <h2 id="every-plan" class="lp-h2">On every plan</h2>
+    <ul class="lp-promises">
+      {everyPlan.map((p) => (
+        <li class="lp-promise">
+          <span class="lp-promise__icon"><Icon name={p.icon} /></span>
+          <strong>{p.t}</strong>
+          <span>{p.d}</span>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <div class="pr-switch">
     <fieldset class="segmented pr-period" id="period">
       <legend class="sr-only">Billing period</legend>
       <label><input type="radio" name="period" value="yearly" checked /> Yearly · save {saving}%</label>
       <label><input type="radio" name="period" value="monthly" /> Monthly</label>
     </fieldset>
-  </section>
+  </div>
 
   <div class="pr-plans">
     {PLANS.map((p) => (
@@ -65,6 +91,9 @@ const terms = [
             <li><span class="pr-plan__ficon"><PlanIcon name={f.icon} /></span>{f.t}</li>
           ))}
         </ul>
+        {p.key === "connected" && (
+          <p class="pr-plan__note">Linked bank data passes through our server to your device and isn't kept.</p>
+        )}
         {APP_LIVE && <a class="button pr-plan__cta" href={APP_URL}>{p.cta}</a>}
       </article>
     ))}

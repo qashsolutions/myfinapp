@@ -102,6 +102,14 @@ export function PlanScreen() {
   const [interval, setInterval] = useState<Interval>("yearly");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Shown from the tap until Stripe's page replaces this one (owner, November 24, 2026: the
+  // hand-off takes a second or two). Cleared when the browser brings this page back.
+  const [opening, setOpening] = useState<string | null>(null);
+  useEffect(() => {
+    const back = () => setOpening(null);
+    window.addEventListener("pageshow", back);
+    return () => window.removeEventListener("pageshow", back);
+  }, []);
   // The "If you cancel" lines, from the server; the sheet is open while they are here.
   const [cancelConsent, setCancelConsent] = useState<ConsentText | null>(null);
   // Ticked before cancelling (owner decision, October 18, 2026), kept like a purchase's.
@@ -291,9 +299,11 @@ export function PlanScreen() {
     setStatus(null);
     if (!(await stepUp.confirm("Changing your plan"))) return;
     setBusy(true);
+    setOpening("Opening Stripe's secure payment page…");
     const failure = await startCheckout(plan, plan === "founding" ? null : iv, consent);
     setBusy(false);
     if (!failure) return;
+    setOpening(null);
     setStatus(
       failure.code === "already_founding"
         ? "You're a Founding member: Connected is yours for the whole term."
@@ -364,9 +374,11 @@ export function PlanScreen() {
     setStatus(null);
     if (!(await stepUp.confirm(what))) return;
     setBusy(true);
+    setOpening("Opening Stripe's secure billing page…");
     const failure = await openPortal();
     setBusy(false);
     if (!failure) return;
+    setOpening(null);
     setStatus(
       failure.status === 0
         ? "You're offline. Try again when connected."
@@ -460,6 +472,7 @@ export function PlanScreen() {
     value: string;
     features: string[];
     popular?: boolean;
+    note?: string;
   }> = [
     {
       key: "private",
@@ -484,6 +497,7 @@ export function PlanScreen() {
         "Couples: one price covers you both",
         "Everything in Private",
       ],
+      note: "Linked bank data passes through our server to your device and isn't kept.",
     },
   ];
   const access = limits?.access ?? null;
@@ -756,6 +770,7 @@ export function PlanScreen() {
         </Card>
       ) : (
         <>
+          <EveryPlan />
           <h2 className="section-title">Choose a plan</h2>
           <fieldset className="segmented" style={{ border: 0, margin: "0 0 12px" }}>
             <legend className="sr-only">Billing period</legend>
@@ -828,6 +843,7 @@ export function PlanScreen() {
                         </li>
                       ))}
                     </ul>
+                    {p.note ? <p className="plan-card__note">{p.note}</p> : null}
                     <Button
                       block
                       variant={current || locked ? "secondary" : "primary"}
@@ -936,6 +952,15 @@ export function PlanScreen() {
       )}
 
       <PlanHistory refreshKey={billing} />
+
+      {opening ? (
+        <div className="plan-opening" role="status">
+          <div className="plan-opening__box">
+            <span className="plan-opening__dot" aria-hidden="true" />
+            <p>{opening}</p>
+          </div>
+        </div>
+      ) : null}
 
       <Sheet open={pending !== null} onClose={() => setPending(null)} title="Before you subscribe">
         {pending ? (
@@ -1049,6 +1074,62 @@ const TESTER_NAMES = {
 
 const TIERS = { private: 1, connected: 2 } as const;
 
+/** What every plan promises, where people decide (owner, November 24, 2026). Word for word
+ * true: the server keeps no money data; on Connected, bank data passes through it and isn't
+ * kept, which the Connected card's note says. The website's pricing page says the same. */
+const EVERY_PLAN = [
+  {
+    t: "No AI",
+    d: "Your money is never sent to an AI.",
+    icon: "M5 5h14v14H5zM9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3M5 19 19 5",
+  },
+  {
+    t: "No ads, no analytics",
+    d: "Nothing tracks you.",
+    icon: "M3 3l18 18M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 6 9 6a16 16 0 0 1-2.6 3.2M6.6 6.6C4.3 8.2 3 12 3 12s4 6 9 6a8.6 8.6 0 0 0 4.4-1.2M9.9 9.9a3 3 0 0 0 4.2 4.2",
+  },
+  {
+    t: "We can't see your money",
+    d: "It's kept on this device; backups are locked before they leave.",
+    icon: "M6 11h12v10H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3",
+  },
+  {
+    t: "Read-only",
+    d: "Qash can't move a cent.",
+    icon: "M3 9.5 12 4l9 5.5M5 10v7M9.5 10v7M14.5 10v7M19 10v7M3 20h18",
+  },
+] as const;
+
+function EveryPlan() {
+  return (
+    <section className="every-plan" aria-labelledby="every-plan-title">
+      <h2 id="every-plan-title" className="section-title">
+        On every plan
+      </h2>
+      <ul className="every-plan__list">
+        {EVERY_PLAN.map((p) => (
+          <li key={p.t}>
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d={p.icon}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span>
+              <strong>{p.t}</strong>
+              <span>{p.d}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /** The server's lines for an offer, each with its icon (October 28, 2026: never written here). */
 function ConsentPoints({ consent }: { consent: ConsentText }) {
   return (
@@ -1073,6 +1154,8 @@ function ConsentIcon({ kind }: { kind: ConsentKind }) {
       "M4 12a8 8 0 0 1 13.7-5.6L20 8.7M20 4v4.7h-4.7M20 12a8 8 0 0 1-13.7 5.6L4 15.3M4 20v-4.7h4.7",
     cancel: "M6 4h12v16H6zM9 9l6 6M15 9l-6 6",
     card: "M3 7h18v11H3zM3 11h18M7 15h3",
+    lock: "M6 11h12v10H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3M12 15v2.5",
+    clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 7.5V12l3 2",
     term: "M5 5h14v15H5zM5 9h14M9 3v4M15 3v4",
     refund: "M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3",
     unlink: "M9 15l6-6M10 6l1-1a4 4 0 0 1 6 6l-1 1M14 18l-1 1a4 4 0 0 1-6-6l1-1",

@@ -66,7 +66,7 @@ describe("Plans & billing", () => {
     const api = installFakeApi({ session: readySession(), billing: freeBilling() });
     const fake = globalThis.fetch;
     const words = {
-      version: "2026-10-24",
+      version: "2026-11-24",
       points: [
         { icon: "price", text: "Words only the server wrote." },
         { icon: null, text: "A second line, also the server's." },
@@ -161,6 +161,15 @@ describe("Plans & billing", () => {
     expect(founding).toHaveTextContent("147 of 250 places left");
     expect(screen.queryByText("Receipts & invoices")).not.toBeInTheDocument();
     expect(screen.getByText(/how to cancel|you can do here any time/)).toBeInTheDocument();
+    // What every plan promises, above the plans; Connected says its bank data isn't kept
+    // (owner, November 24, 2026).
+    const every = screen.getByRole("region", { name: "On every plan" });
+    for (const promise of ["No AI", "No ads, no analytics", "We can't see your money", "Read-only"])
+      expect(within(every).getByText(promise)).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Connected" })).toHaveTextContent(
+      "Linked bank data passes through our server to your device and isn't kept.",
+    );
+    expect(priv).not.toHaveTextContent("passes through our server");
 
     await user.click(within(priv).getByRole("button", { name: "Choose Private" }));
     // Before you subscribe: the terms are read and ticked before the payment page.
@@ -173,12 +182,14 @@ describe("Plans & billing", () => {
     await user.click(within(sheet).getByRole("checkbox"));
     await user.click(pay);
     await waitFor(() => expect(billingState.lastUrl).toMatch(/^https:\/\/checkout\.stripe\.com\//));
+    // Something on screen while Stripe's page loads (owner, November 24, 2026).
+    expect(screen.getByText("Opening Stripe's secure payment page…")).toBeInTheDocument();
     // The server gets what was read and ticked, to keep as the record of consent.
     expect(api.calls.find((c) => c.path === "/api/billing/checkout")?.body).toEqual({
       plan: "private",
       interval: "yearly",
       consent: {
-        version: "2026-10-24",
+        version: "2026-11-24",
         lines: [
           "$20.00 today, then every year.",
           "Renews automatically each year until you cancel.",
@@ -186,7 +197,9 @@ describe("Plans & billing", () => {
           "Cancel any time in Me → Plan. It runs to the end of the paid year; nothing is refunded.",
           "Switch up any time for the difference. Switch down from 30 days in; the rest becomes credit.",
           "Delete your account early: the months used, this one included, cost the monthly price ($3.00); the rest of the year comes back, less Stripe's fee.",
-          "A credit or debit card issued by a US bank (Visa, Mastercard, Amex, Discover), or a US bank account. Paid through Stripe; we never see your card or bank details. A bank payment takes up to 4 business days to clear, and the plan starts when it does.",
+          "A card from a US bank (Visa, Mastercard, Amex, Discover) or a US bank account.",
+          "Paid through Stripe. We never see your card or bank details.",
+          "A bank payment takes up to 4 business days; your plan starts then.",
         ],
         agreement:
           "I understand my plan renews every year until I cancel, cancelling refunds nothing, and deleting my account early charges the months used at the monthly price.",

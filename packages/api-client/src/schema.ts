@@ -2751,7 +2751,7 @@ export interface components {
             /** Head */
             head?: string | null;
             /** Icon */
-            icon?: ("price" | "renew" | "cancel" | "card" | "term" | "refund" | "unlink") | null;
+            icon?: ("price" | "renew" | "cancel" | "card" | "lock" | "clock" | "term" | "refund" | "unlink") | null;
             /** Text */
             text: string;
         };
