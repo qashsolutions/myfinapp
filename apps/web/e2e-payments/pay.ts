@@ -40,25 +40,32 @@ export async function toCheckout(
   await sheet.getByRole("checkbox").check();
   await sheet.getByRole("button", { name: "Continue to secure payment" }).click();
   await page.waitForURL(/checkout\.stripe\.com/, { timeout: 60_000 });
-  await expect(page.getByRole("heading", { name: "Payment method" })).toBeVisible();
+  await expect(stripeForm(page).getByRole("button", { name: "Card" })).toBeVisible();
+}
+
+/** Stripe's payment form. Since November 2026 Checkout draws it inside its own frame, with
+ * Card and US bank account as buttons and new field names. */
+export function stripeForm(page: Page) {
+  return page.frameLocator('iframe[src*="elements-inner-habanero"]');
 }
 
 /** Fill Stripe's card form and press its pay button. */
 export async function payByCard(page: Page, number: string): Promise<void> {
-  await page.getByTestId("card-accordion-item-button").dispatchEvent("click");
-  await page.getByRole("textbox", { name: "Card number" }).fill(number);
-  await page.getByRole("textbox", { name: "Expiration" }).fill("12 / 34");
-  await page.getByRole("textbox", { name: "Credit or debit card CVC/CVV" }).fill("123");
-  await page.getByRole("textbox", { name: "Cardholder name" }).fill("E2E Tester");
-  const zip = page.getByRole("textbox", { name: "ZIP" });
+  const form = stripeForm(page);
+  await form.getByRole("button", { name: "Card" }).click();
+  await form.getByRole("textbox", { name: "Card number" }).fill(number);
+  await form.getByRole("textbox", { name: /^Expiration/ }).fill("12 / 34");
+  await form.getByRole("textbox", { name: "Security code" }).fill("123");
+  await form.getByRole("textbox", { name: "Name on card" }).fill("E2E Tester");
+  const zip = form.getByRole("textbox", { name: /ZIP/ });
   if (await zip.isVisible()) await zip.fill("94107");
   // Link's "save my information" box is ticked by default and then wants a phone number.
-  const link = page.getByRole("checkbox", { name: /Save my information with Link/ });
+  const link = form.getByRole("checkbox", { name: /^Save my information/ });
   for (let i = 0; i < 3 && (await link.isChecked().catch(() => false)); i++) {
     await link.dispatchEvent("click");
     await page.waitForTimeout(300);
   }
-  await page.getByTestId("hosted-payment-submit-button").click();
+  await payButton(form).click();
 }
 
 /** Back on the Plan screen after Stripe says the payment went through. */
@@ -68,7 +75,9 @@ export async function backFromStripe(page: Page): Promise<void> {
 
 /** Stripe's page shows an error and keeps the person there. */
 export async function stripeSays(page: Page, text: RegExp): Promise<void> {
-  await expect(page.getByText(text).first()).toBeVisible({ timeout: 45_000 });
+  await expect(stripeForm(page).getByText(text).or(page.getByText(text)).first()).toBeVisible({
+    timeout: 45_000,
+  });
   expect(page.url()).toContain("checkout.stripe.com");
 }
 
@@ -77,9 +86,10 @@ export async function payByBank(
   page: Page,
   account: "Success ••••6789" | "Failure ••••1116" | "Insufficient Funds ••••2227",
 ): Promise<void> {
-  await page.getByTestId("us_bank_account-accordion-item-button").dispatchEvent("click");
-  await page.getByRole("textbox", { name: "Full name" }).fill("E2E Tester");
-  await page.getByRole("button", { name: "Test (Non-OAuth)" }).click();
+  const form = stripeForm(page);
+  await form.getByRole("button", { name: "US bank account" }).click();
+  await form.getByRole("textbox", { name: "Full name" }).fill("E2E Tester");
+  await form.getByRole("menuitem", { name: "Test (Non-OAuth)" }).click();
   const fc = page.frameLocator('iframe[src*="linked-accounts-inner"]');
   // Stripe varies what comes first between runs: a consent page, Link's sign-in ("Continue as
   // guest"), or (since October 2026) straight to choosing the account. Step through whichever
@@ -103,7 +113,15 @@ export async function payByBank(
   await done.or(noSave).first().waitFor({ timeout: 60_000 });
   if (await noSave.isVisible()) await noSave.click();
   await done.click({ timeout: 60_000 });
-  await page.getByTestId("hosted-payment-submit-button").click();
+  // The chosen account shows in the form once Stripe's bank window has closed; a tap on
+  // Subscribe before then is lost.
+  await expect(form.getByRole("button", { name: "More actions" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.frameLocator('iframe[src*="linked-accounts-inner"]').locator("body"))
+    .toBeHidden({
+      timeout: 30_000,
+    })
+    .catch(() => {});
+  await payButton(form).click();
 }
 
 /** The app's own API from inside the page (same origin, the session's cookie). */
@@ -159,4 +177,9 @@ export async function answer3ds(page: Page, choice: "Complete" | "Fail"): Promis
     await page.waitForTimeout(500);
   }
   throw new Error("the 3-D Secure test page never appeared");
+}
+
+/** Stripe's pay button inside its form: Subscribe, Pay, or Start trial by what is bought. */
+function payButton(form: ReturnType<typeof stripeForm>) {
+  return form.getByRole("button", { name: /^(Subscribe|Pay|Start trial)/ }).last();
 }
