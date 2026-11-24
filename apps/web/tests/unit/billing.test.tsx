@@ -355,6 +355,11 @@ describe("Plans & billing", () => {
     expect(await screen.findByRole("region", { name: "Current plan" })).toHaveTextContent(
       "$20.00 a year · ends Oct 9, 2027; renew to keep your data",
     );
+    // The plan's own card says when it ends and keeps it in one tap (owner, November 24, 2026).
+    const ending = screen.getByRole("article", { name: "Private" });
+    expect(within(ending).getByText("Ends Oct 9, 2027")).toBeInTheDocument();
+    expect(within(ending).queryByText("Current")).toBeNull();
+    expect(within(ending).getByRole("button", { name: "Keep Private" })).toBeEnabled();
 
     // Plan history, newest first (owner decision, October 18, 2026).
     await waitFor(() =>
@@ -376,10 +381,16 @@ describe("Plans & billing", () => {
     expect(history).toHaveTextContent("Runs until Oct 9, 2027");
     expect(history).toHaveTextContent("$23.88 a year"); // what was paid then
 
-    await user.click(screen.getByText("Keep my plan"));
+    expect(screen.getByText("Keep my plan")).toBeInTheDocument();
+    await user.click(within(ending).getByRole("button", { name: "Keep Private" }));
     expect(
       await screen.findByText("Kept. Private renews on Oct 9, 2027 as usual."),
     ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("article", { name: "Private" })).getByText("Current"),
+      ).toBeInTheDocument(),
+    );
     await waitFor(() =>
       expect(
         within(screen.getByRole("region", { name: "Plan history" })).getAllByRole("listitem")[0],
