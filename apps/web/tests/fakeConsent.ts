@@ -12,15 +12,21 @@ type ConsentText = components["schemas"]["ConsentTextOut"];
 type Point = ConsentText["points"][number];
 type Interval = "monthly" | "yearly";
 
-export const FAKE_CONSENT_VERSION = "2026-10-24";
+export const FAKE_CONSENT_VERSION = "2026-11-24";
 
 const PRICES = {
   private: { monthly: 300, yearly: 2000 },
   connected: { monthly: 700, yearly: 6500 },
 } as const;
 const NAMES = { private: "Private", connected: "Connected" } as const;
-const PAY_WITH =
-  "A credit or debit card issued by a US bank (Visa, Mastercard, Amex, Discover), or a US bank account. Paid through Stripe; we never see your card or bank details. A bank payment takes up to 4 business days to clear, and the plan starts when it does.";
+const PAY_WITH: Point[] = [
+  {
+    icon: "card",
+    text: "A card from a US bank (Visa, Mastercard, Amex, Discover) or a US bank account.",
+  },
+  { icon: "lock", text: "Paid through Stripe. We never see your card or bank details." },
+  { icon: "clock", text: "A bank payment takes up to 4 business days; your plan starts then." },
+];
 
 function text(points: Point[], agreement: string): ConsentText {
   return {
@@ -66,7 +72,7 @@ export function purchaseConsent(
           icon: "refund",
           text: "Delete your account: we keep this month and refund the rest, less Stripe's fee.",
         },
-        { icon: "card", text: PAY_WITH },
+        ...PAY_WITH,
       ],
       agreement(plan, null),
     );
@@ -108,7 +114,7 @@ export function purchaseConsent(
       text: "Switch up any time for the difference. Switch down from 30 days in; the rest becomes credit.",
     },
     refund(plan, iv),
-    { icon: "card", text: PAY_WITH },
+    ...PAY_WITH,
   );
   return text(points, agreement(plan, iv));
 }

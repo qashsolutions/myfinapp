@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # The "Before you subscribe" wording. Bump it whenever any line below changes; an app holding
 # an older version gets 409 consent_outdated and loads the terms again.
-CONSENT_VERSION = "2026-10-24"
+CONSENT_VERSION = "2026-11-24"
 
 # During a trial the first charge is on the trial-end day (owner decision, October 28, 2026),
 # through Stripe's trial or, closer than 49 hours, a billing cycle anchored on the trial end.
@@ -29,10 +29,11 @@ ANCHOR_MIN = timedelta(minutes=31)
 
 SHORT = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
+# How to pay, as three short lines (owner, November 24, 2026; was one paragraph).
 PAY_WITH = (
-    "A credit or debit card issued by a US bank (Visa, Mastercard, Amex, Discover), or a US bank "
-    "account. Paid through Stripe; we never see your card or bank details. A bank payment takes "
-    "up to 4 business days to clear, and the plan starts when it does."
+    ("A card from a US bank (Visa, Mastercard, Amex, Discover) or a US bank account.", "card"),
+    ("Paid through Stripe. We never see your card or bank details.", "lock"),
+    ("A bank payment takes up to 4 business days; your plan starts then.", "clock"),
 )
 CANCEL_AGREEMENT = "I have read and understood these terms."
 
@@ -40,7 +41,7 @@ CANCEL_AGREEMENT = "I have read and understood these terms."
 @dataclass(frozen=True)
 class Point:
     text: str
-    icon: str | None = None  # price, renew, cancel, card, term, refund, unlink
+    icon: str | None = None  # price, renew, cancel, card, lock, clock, term, refund, unlink
     head: str | None = None  # the cancel sheet's one- or two-word headline
 
 
@@ -116,6 +117,10 @@ def _refund_point(plans: dict[str, Any], plan: str, interval: str) -> Point:
     )
 
 
+def _pay_with() -> list[Point]:
+    return [Point(text, icon) for text, icon in PAY_WITH]
+
+
 def _switch_point(plans: dict[str, Any]) -> Point:
     days = int(plans["changes"]["downgrade_after_days"])
     return Point(
@@ -149,7 +154,7 @@ def purchase(
                     "fee.",
                     "refund",
                 ),
-                Point(PAY_WITH, "card"),
+                *_pay_with(),
             ],
             agreement(plan, None),
         )
@@ -189,7 +194,7 @@ def purchase(
         ]
     else:
         points.append(Point("Cancel any time in Me → Plan. It runs to the month's end.", "cancel"))
-    points += [_switch_point(plans), _refund_point(plans, plan, interval), Point(PAY_WITH, "card")]
+    points += [_switch_point(plans), _refund_point(plans, plan, interval), *_pay_with()]
     return ConsentText(points, agreement(plan, interval))
 
 

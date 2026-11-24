@@ -132,7 +132,9 @@ class ConsentIn(BaseModel):
     tz: str | None = Field(default=None, max_length=64)
 
 
-ConsentIcon = Literal["price", "renew", "cancel", "card", "term", "refund", "unlink"]
+ConsentIcon = Literal[
+    "price", "renew", "cancel", "card", "lock", "clock", "term", "refund", "unlink"
+]
 
 
 class ConsentPointOut(BaseModel):

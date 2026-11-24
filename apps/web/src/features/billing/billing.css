@@ -412,3 +412,91 @@
   flex-shrink: 0;
   color: var(--c-success);
 }
+
+/* What every plan promises, above the plans (owner, November 24, 2026). */
+.every-plan {
+  margin: 0 0 20px;
+}
+.every-plan__list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+  list-style: none;
+  border: var(--border-card, 1px solid var(--c-line));
+  border-radius: var(--radius-card, 20px);
+  background: var(--c-card);
+}
+@media (min-width: 900px) {
+  .every-plan__list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.every-plan__list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: var(--fs-small);
+}
+.every-plan__list svg {
+  flex-shrink: 0;
+  color: var(--c-a1);
+}
+.every-plan__list strong {
+  display: block;
+  font-size: var(--fs-body);
+  color: var(--c-ink);
+}
+.every-plan__list span span {
+  color: var(--c-sub);
+}
+.plan-card__note {
+  margin: 0 0 8px;
+  font-size: var(--fs-caption);
+  color: var(--c-sub);
+}
+
+/* From the tap until Stripe's page replaces this one (owner, November 24, 2026). */
+.plan-opening {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--c-ink) 35%, transparent);
+}
+.plan-opening__box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 360px;
+  padding: 20px 24px;
+  border-radius: var(--radius-card, 20px);
+  background: var(--c-card);
+  color: var(--c-ink);
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+.plan-opening__box p {
+  margin: 0;
+}
+.plan-opening__dot {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--c-line);
+  border-top-color: var(--c-a1);
+  border-radius: 50%;
+  animation: plan-opening-spin 0.8s linear infinite;
+}
+@keyframes plan-opening-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan-opening__dot {
+    animation: none;
+  }
+}
