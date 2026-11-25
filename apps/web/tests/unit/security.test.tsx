@@ -27,7 +27,7 @@ const devices = [
   },
 ];
 
-describe("Me → Security & backup", () => {
+describe("Me → Sign-in & security", () => {
   it("lists passkeys and devices from the server", async () => {
     installFakeApi({ session: readySession(), passkeys, devices });
     renderApp("/me/security");

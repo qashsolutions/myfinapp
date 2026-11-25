@@ -33,7 +33,7 @@ describe("background calls are marked; a person's calls are not", () => {
   it("the shell's alert schedule and entitlements are background; a screen's own read is not", async () => {
     const api = installFakeApi({ session: readySession() });
     renderApp("/me/security");
-    await screen.findByRole("heading", { level: 1, name: "Security & backup" });
+    await screen.findByRole("heading", { level: 1, name: "Sign-in & security" });
     await waitFor(() =>
       expect(api.calls.some((c) => c.method === "PUT" && c.path === "/api/alerts/schedule")).toBe(
         true,

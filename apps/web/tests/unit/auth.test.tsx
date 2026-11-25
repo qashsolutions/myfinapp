@@ -154,7 +154,7 @@ describe("auto-lock", () => {
   it("a `locked` answer from any request shows the lock screen", async () => {
     const fake = installFakeApi({ session: readySession(), passkeys: [] });
     renderApp("/me/security");
-    await screen.findByRole("heading", { level: 1, name: "Security & backup" });
+    await screen.findByRole("heading", { level: 1, name: "Sign-in & security" });
     fake.session = { ...fake.session, locked: true };
     // the next data call answers 403 locked; the app reacts without a reload
     await act(async () => {

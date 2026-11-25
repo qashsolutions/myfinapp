@@ -112,7 +112,7 @@ const signedIn: Array<[string, string | RegExp]> = [
   ["/money?view=transactions", "Money in & out"],
   ["/import", "Import a statement"],
   ["/me", "Me"],
-  ["/me/security", "Security & backup"],
+  ["/me/security", "Sign-in & security"],
   ["/link", "Link a device"],
   ["/net-worth", "Net worth"],
   ["/tags", "Tags"],

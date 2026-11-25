@@ -36,7 +36,7 @@ function subjectsTo(email: string): string[] {
 
 async function security(page: Page) {
   await page.goto("/me/security");
-  await expect(page.getByRole("heading", { level: 1, name: "Security & backup" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Sign-in & security" })).toBeVisible();
 }
 
 test("@phone sign-in: a computer signed in by the phone, signed out from it, a second passkey, a new email", async ({
