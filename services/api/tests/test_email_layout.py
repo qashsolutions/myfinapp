@@ -1,6 +1,7 @@
 """Every email goes out as plain text and in the Qash layout (owner, November 24, 2026)."""
 
 from email import message_from_bytes
+from email import policy as email_policy
 
 import pytest
 
@@ -15,7 +16,7 @@ def test_the_layout_has_the_logo_the_words_and_escapes_what_it_is_given() -> Non
         text="First line & more.\n\nOpen https://app.example/me/plan now.",
     )
     page = m.html
-    assert "/icons/logo.png" in page and 'alt="Qash"' in page
+    assert 'src="cid:qash-logo"' in page and 'alt="Qash"' in page
     assert "Hello &lt;there&gt;" in page and "First line &amp; more." in page
     assert '<a href="https://app.example/me/plan"' in page
     assert "support@qash.solutions" in page
@@ -52,7 +53,13 @@ def test_smtp_sends_text_and_html_together(monkeypatch: pytest.MonkeyPatch) -> N
 
     monkeypatch.setattr(email.smtplib, "SMTP", FakeSmtp)
     SmtpEmailSender().send(Message(to="a@example.com", subject="S", text="Words."))
-    parsed = message_from_bytes(sent[0])
+    parsed = message_from_bytes(sent[0], policy=email_policy.default)
     assert parsed.get_content_type() == "multipart/alternative"
-    kinds = [part.get_content_type() for part in parsed.get_payload()]
-    assert kinds == ["text/plain", "text/html"]
+    plain, rich = parsed.get_payload()
+    assert plain.get_content_type() == "text/plain"
+    # The HTML travels with the logo inside it, so no mail app fetches an image.
+    assert rich.get_content_type() == "multipart/related"
+    page, logo = rich.get_payload()
+    assert page.get_content_type() == "text/html" and 'src="cid:qash-logo"' in page.get_content()
+    assert logo.get_content_type() == "image/png" and logo["Content-ID"] == "<qash-logo>"
+    assert logo.get_payload(decode=True) == email.logo_png()

@@ -15,6 +15,7 @@ import smtplib
 from dataclasses import dataclass
 from email.message import EmailMessage
 from functools import lru_cache
+from importlib.resources import files
 from typing import Protocol
 
 from app.config import get_settings
@@ -46,6 +47,16 @@ BRAND = "#4339FF"  # the logo's blue (apps/web/public/icons/logo.png)
 INK = "#1B1B2F"
 SUB = "#5B5B70"
 LINE = "#E6E6EF"
+# The logo travels inside each email as an inline image (cid), so no mail app has to fetch
+# it: Gmail's image proxy showed it broken when it was a link (November 24, 2026).
+LOGO_CID = "qash-logo"
+
+
+@lru_cache
+def logo_png() -> bytes:
+    return files("app").joinpath("static/email-logo.png").read_bytes()
+
+
 _URL = re.compile(r"https?://[^\s<>\"]+")
 
 
@@ -57,10 +68,9 @@ def _paragraph(text: str) -> str:
 
 
 def render_html(message: Message) -> str:
-    """The Qash layout every email shares: the logo from the app's own host (no third-party
-    image), the subject as the heading, the words, any table and buttons, a short footer.
+    """The Qash layout every email shares: the logo carried inside the email (cid, nothing
+    fetched), the subject as the heading, the words, any table and buttons, a short footer.
     Inline styles and tables only, as mail apps need."""
-    origin = get_settings().origins[0].rstrip("/")
     paragraphs = [p.strip() for p in (message.html_text or message.text).split("\n\n")]
     body = "".join(
         f'<p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:{INK}">{_paragraph(p)}</p>'
@@ -102,7 +112,7 @@ def render_html(message: Message) -> str:
         f'<table role="presentation" cellpadding="0" cellspacing="0" width="100%" '
         f'style="max-width:560px;background:#FFFFFF;border-radius:16px">'
         f'<tr><td style="padding:28px 28px 8px">'
-        f'<img src="{origin}/icons/logo.png" width="104" height="31" alt="Qash" '
+        f'<img src="cid:{LOGO_CID}" width="104" height="31" alt="Qash" '
         f'style="display:block;border:0"></td></tr>'
         f'<tr><td style="padding:12px 28px 12px;font-family:-apple-system,BlinkMacSystemFont,'
         f"'Segoe UI',Roboto,Helvetica,Arial,sans-serif\">"
@@ -144,6 +154,9 @@ class SmtpEmailSender:
         msg["Subject"] = message.subject
         msg.set_content(message.text)
         msg.add_alternative(message.html, subtype="html")
+        msg.get_payload()[1].add_related(
+            logo_png(), maintype="image", subtype="png", cid=f"<{LOGO_CID}>"
+        )
         with smtplib.SMTP(s.smtp_host, s.smtp_port, timeout=10) as smtp:
             if s.smtp_starttls:
                 smtp.starttls()
