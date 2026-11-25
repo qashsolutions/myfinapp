@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
 from app.models.user import User
-from app.services.email import Message, get_sender
+from app.services.email import Message, app_link, get_sender, security_link, with_urls
 from app.services.otp import OtpError
 
 
@@ -81,9 +81,9 @@ TEMPLATES: dict[SecurityEvent, tuple[str, str]] = {
         "Someone asked to get back into your Qash account",
         "On {device} at {when}, someone signed in with an email code and asked to get back in "
         "without a passkey. It goes through in 24 hours, or sooner if your household partner "
-        "approves it.\n\nIf this was you, there's nothing to do. If it wasn't, open Qash on a "
-        "device you're signed in on: using your passkey there cancels it, or go to Me, then "
-        "Sign-in & security, then Cancel. These alerts are always on.",
+        "approves it.\n\nIf this was you, there's nothing to do. If it wasn't, [open Qash]"
+        "({app}) on a device you're signed in on: using your passkey there cancels it, or "
+        "[open Sign-in & security]({security}) and tap Cancel. These alerts are always on.",
     ),
     SecurityEvent.RECOVERY_CANCELLED: (
         "A request to get back in was cancelled",
@@ -94,7 +94,7 @@ TEMPLATES: dict[SecurityEvent, tuple[str, str]] = {
         "Your household partner was asked to let you back in",
         "On {device} at {when}, someone signed in with an email code asked your household "
         "partner to let them back into your account. If this wasn't you, tell your partner not "
-        "to approve, and open Qash with your passkey to cancel it.",
+        "to approve, and [open Qash]({app}) with your passkey to cancel it.",
     ),
     SecurityEvent.RECOVERY_PARTNER_APPROVED: (
         "Your household partner let you back in",
@@ -146,9 +146,11 @@ TEMPLATES: dict[SecurityEvent, tuple[str, str]] = {
     ),
 }
 
+# Someone who didn't do it may not know where Qash is: the words link straight to the screen
+# where a device is signed out (owner, November 25, 2026).
 FOOTER = (
-    "\n\nIf this was you, there's nothing to do. If it wasn't, open Qash, go to Me, then "
-    "Security, and sign out the device you don't recognise. These alerts are always on."
+    "\n\nIf this was you, there's nothing to do. If it wasn't, [open Sign-in & security in "
+    "Qash]({security}) and sign out the device you don't recognise. These alerts are always on."
 )
 
 
@@ -165,9 +167,10 @@ def send_alert(to: str, event: SecurityEvent, *, device_label: str, at: datetime
         SecurityEvent.RECOVERY_PARTNER_ASKED,
     }
     footer = "" if event in no_footer else FOOTER
-    message = Message(
-        to=to, subject=subject, text=line.format(device=device_label, when=when) + footer
+    body = (line + footer).format(
+        device=device_label, when=when, app=app_link(), security=security_link()
     )
+    message = Message(to=to, subject=subject, text=with_urls(body), html_text=body)
     get_sender().send(message)
     return message
 
