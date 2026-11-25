@@ -147,12 +147,18 @@ def test_cancel_keeps_the_plan_until_the_paid_period_ends_and_resume_undoes_it()
     # Keeping it says so: the plan, the price, the next charge and that it renews.
     (kept_mail,) = [m for m in outbox() if m.subject == "Your Qash plan will renew"]
     assert dict(kept_mail.rows) == {
+        "Account": kept_mail.to,  # which account (owner, November 25, 2026)
         "Plan": "Connected · monthly",
         "Price": "$7.00 a month",
         "Next charge": f"$7.00 on {until}",
         "Renews": "Every month until you cancel",
     }
     assert "You kept your Qash plan" in kept_mail.text and "This was done on " in kept_mail.text
+    # "Cancel any time" links to the Plan screen; where it was done sits in grey under a line.
+    assert '">Cancel any time</a> on the Plan screen' in kept_mail.html
+    assert "[Cancel any time]" not in kept_mail.text
+    assert kept_mail.fine_print and kept_mail.fine_print.startswith("This was done on ")
+    assert kept_mail.html.index("This was done on") > kept_mail.html.index("View your invoices")
     assert not any(m.subject == "Your plan changed" for m in outbox())
     _, resumed = next(c for c in reversed(stripe.calls) if c[0].startswith("/v1/subscriptions/"))
     assert resumed == {"cancel_at_period_end": ["false"]}

@@ -37,6 +37,8 @@ class Message:
     rows: tuple[tuple[str, str], ...] = ()
     actions: tuple[tuple[str, str], ...] = ()
     html_text: str | None = None
+    # Small grey print under a line, after the buttons (where a change was done).
+    fine_print: str | None = None
 
     @property
     def html(self) -> str:
@@ -60,11 +62,37 @@ def logo_png() -> bytes:
 _URL = re.compile(r"https?://[^\s<>\"]+")
 
 
+_LINK = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
+
+
+def plain(text: str) -> str:
+    """The plain-text reading of `[words](link)`: the words alone."""
+    return _LINK.sub(lambda m: m.group(1), text)
+
+
 def _paragraph(text: str) -> str:
-    """Escaped, links clickable, single line breaks kept."""
+    """Escaped, links clickable, single line breaks kept; `[words](link)` links the words."""
+    parts: list[str] = []
+    at = 0
+    for m in _LINK.finditer(text):
+        parts.append(_autolink(text[at : m.start()]))
+        url = html.escape(m.group(2), quote=True)
+        parts.append(
+            f'<a href="{url}" style="color:{BRAND};font-weight:600">{html.escape(m.group(1))}</a>'
+        )
+        at = m.end()
+    parts.append(_autolink(text[at:]))
+    return "".join(parts).replace("\n", "<br>")
+
+
+def _autolink(text: str) -> str:
     out = html.escape(text)
-    out = _URL.sub(lambda m: f'<a href="{m.group(0)}" style="color:{BRAND}">{m.group(0)}</a>', out)
-    return out.replace("\n", "<br>")
+    return _URL.sub(lambda m: f'<a href="{m.group(0)}" style="color:{BRAND}">{m.group(0)}</a>', out)
+
+
+def app_link() -> str:
+    """The app's Home, where the logo in every email goes."""
+    return f"{get_settings().origins[0].rstrip('/')}/"
 
 
 def render_html(message: Message) -> str:
@@ -99,6 +127,12 @@ def render_html(message: Message) -> str:
         f"{html.escape(label)}</a></p>"
         for i, (label, url) in enumerate(message.actions)
     )
+    fine = (
+        f'<p style="margin:20px 0 0;padding-top:14px;border-top:1px solid {LINE};'
+        f'font-size:13px;line-height:1.5;color:{SUB}">{_paragraph(message.fine_print)}</p>'
+        if message.fine_print
+        else ""
+    )
     # The table sits after the first paragraph, which says what happened.
     first, _, rest = body.partition("</p>")
     content = f"{first}</p>{table}{rest}" if first else table + body
@@ -112,12 +146,13 @@ def render_html(message: Message) -> str:
         f'<table role="presentation" cellpadding="0" cellspacing="0" width="100%" '
         f'style="max-width:560px;background:#FFFFFF;border-radius:16px">'
         f'<tr><td style="padding:28px 28px 8px">'
+        f'<a href="{html.escape(app_link(), quote=True)}" style="display:inline-block">'
         f'<img src="cid:{LOGO_CID}" width="104" height="31" alt="Qash" '
-        f'style="display:block;border:0"></td></tr>'
+        f'style="display:block;border:0"></a></td></tr>'
         f'<tr><td style="padding:12px 28px 12px;font-family:-apple-system,BlinkMacSystemFont,'
         f"'Segoe UI',Roboto,Helvetica,Arial,sans-serif\">"
         f'<h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:{INK}">'
-        f"{html.escape(message.subject)}</h1>{content}{buttons}</td></tr>"
+        f"{html.escape(message.subject)}</h1>{content}{buttons}{fine}</td></tr>"
         f'<tr><td style="padding:16px 28px 28px;border-top:1px solid {LINE};'
         f"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,"
         f'sans-serif;font-size:13px;color:{SUB}">Qash Solutions Inc. · '
@@ -624,10 +659,11 @@ def plan_cancelled_message(
         "Your Qash plan is cancelled",
         first,
         rows,
-        [after, keep, refunds, security_line(done_on)],
+        [after, keep, refunds],
         [("Keep my plan", link)],
         link,
         invoice_link,
+        security_line(done_on),
     )
 
 
@@ -651,9 +687,11 @@ def _plan_message(
     actions: list[tuple[str, str]],
     link: str,
     invoice_link: str | None,
+    fine_print: str,
 ) -> Message:
     """One plan email (owner, November 24, 2026): what happened in one line, then a table of
     the plan, the money and the dates, then what to know, the buttons and where it was done."""
+    rows = [("Account", to), *rows]  # which account this was (owner, November 25, 2026)
     table = "\n".join(f"{k}: {v}" for k, v in rows)
     links = f"Your plan: {link}\n" + (f"Your invoices: {invoice_link}\n" if invoice_link else "")
     if invoice_link:
@@ -662,10 +700,11 @@ def _plan_message(
     return Message(
         to=to,
         subject=subject,
-        text=f"{first}\n\n{table}\n\n{prose}\n\n{links}",
+        text=f"{first}\n\n{table}\n\n{plain(prose)}\n\n{links}\n{fine_print}\n",
         rows=tuple(rows),
         actions=tuple(actions),
         html_text=f"{first}\n\n{prose}",
+        fine_print=fine_print,
     )
 
 
@@ -693,13 +732,13 @@ def plan_subscribed_message(
         "Thanks for subscribing. Your plan is on.",
         rows,
         [
-            "Cancel any time on the Plan screen; your plan runs to the end of the period you "
-            "paid for, and cancelling refunds nothing.",
-            security_line(None),
+            f"[Cancel any time]({link}) on the Plan screen; your plan runs to the end of the "
+            "period you paid for, and cancelling refunds nothing.",
         ],
         [("Your plan", link)],
         link,
         invoice_link,
+        security_line(None),
     )
 
 
@@ -725,10 +764,11 @@ def founding_subscribed_message(
         "You're a Qash founding member",
         "Thanks for being one of our first members. Connected is on.",
         rows,
-        [security_line(None)],
+        [],
         [("Your plan", link)],
         link,
         invoice_link,
+        security_line(None),
     )
 
 
@@ -756,13 +796,13 @@ def plan_kept_message(
         "You kept your Qash plan. It renews as before.",
         rows,
         [
-            "Cancel any time on the Plan screen; your plan runs to the end of the period you "
-            "paid for.",
-            security_line(done_on),
+            f"[Cancel any time]({link}) on the Plan screen; your plan runs to the end of the "
+            "period you paid for.",
         ],
         [("Your plan", link)],
         link,
         invoice_link,
+        security_line(done_on),
     )
 
 
@@ -798,10 +838,11 @@ def plan_switched_message(
         f"Your Qash plan is now {now.split(',')[0]}",
         f"You switched your Qash plan. {now.split(' · ')[0]} starts now.",
         rows,
-        [banks, security_line(done_on)],
+        [banks],
         [("Your plan", link)],
         link,
         invoice_link,
+        security_line(done_on),
     )
 
 
@@ -818,10 +859,11 @@ def tester_plan_message(to: str, link: str, *, plan: str | None, done_on: str) -
         "Your test plan changed",
         first,
         rows,
-        ["Your real plan, its charges and its dates didn't change.", security_line(done_on)],
+        ["Your real plan, its charges and its dates didn't change."],
         [("Your plan", link)],
         link,
         None,
+        security_line(done_on),
     )
 
 
