@@ -125,10 +125,11 @@ def test_cancel_keeps_the_plan_until_the_paid_period_ends_and_resume_undoes_it()
     assert rows["Cancelled"] == today
     assert rows["Charged so far"] == "$0.00"
     assert rows["Started"].endswith(f"(free until {until})")
-    assert rows["Stays on until"] == f"{until}, free, and you won't be charged again"
+    assert rows["Stays on until"] == f"{until}, free. You won't be charged."
     assert f"It stays on until {until}" in told[0].text
     assert "Charged so far: $0.00" in told[0].text  # the table in the plain text too
-    assert "Apple Pay included" in told[0].text and "7 days to subscribe again" in told[0].text
+    # Nothing paid, so no refund line to contradict itself (owner, November 25, 2026).
+    assert "refund" not in told[0].text.lower() and "7 days to subscribe again" in told[0].text
     assert [label for label, _ in told[0].actions] == ["Keep my plan", "View your invoices"]
     assert INVOICE_URL in told[0].text
     assert "cid:qash-logo" in told[0].html and "Charged so far" in told[0].html

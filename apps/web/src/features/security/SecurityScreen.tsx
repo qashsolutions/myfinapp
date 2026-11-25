@@ -9,11 +9,11 @@ import { ManagePasskeys } from "./ManagePasskeys.tsx";
 import { RecentActivity } from "./RecentActivity.tsx";
 import { PendingRecovery } from "./RecoveryCards.tsx";
 
-/** Me → Sign-in & security ("Security & backup" in mockup F6Security). */
+/** Me → Sign-in & security ("Security & backup" in mockup F6Security; renamed to match Me and the emails, November 25, 2026). */
 export function SecurityScreen() {
   return (
     <>
-      <ScreenHeader title="Security & backup" actions={null} back="/me" />
+      <ScreenHeader title="Sign-in & security" actions={null} back="/me" />
       <PendingRecovery />
       <BackupSettings />
       <ManagePasskeys />

@@ -644,12 +644,14 @@ def plan_cancelled_message(
     rows.append(("Cancelled", cancelled))
     if charged is not None:
         rows.append(("Charged so far", charged))
+    # Nothing charged yet reads "won't be charged", never "again" (owner, November 25, 2026).
     free_now = charged == "$0.00"
     rows.append(
         (
             "Stays on until",
-            f"{until}, {'free' if free_now else 'already paid for'}, and you won't be charged "
-            "again",
+            f"{until}, free. You won't be charged."
+            if free_now
+            else f"{until}, already paid for. You won't be charged again.",
         )
     )
     after = (
@@ -659,9 +661,14 @@ def plan_cancelled_message(
         "account and data are deleted."
     )
     keep = f"Changed your mind? Tap Keep my plan on the Plan screen before {until}."
+    # With nothing paid there is nothing to refund, so no refund line at all.
     refunds = (
-        "Cancelling refunds nothing. Any refund goes back to the card you paid with, Apple Pay "
-        "included."
+        []
+        if free_now
+        else [
+            "Cancelling doesn't refund what you've already paid. Any refund we do make goes "
+            "back to the card you paid with, Apple Pay included."
+        ]
     )
     first = f"You cancelled your Qash plan. It stays on until {until}."
     return _plan_message(
@@ -669,7 +676,7 @@ def plan_cancelled_message(
         "Your Qash plan is cancelled",
         first,
         rows,
-        [after, keep, refunds],
+        [after, keep, *refunds],
         [("Keep my plan", link)],
         link,
         invoice_link,
