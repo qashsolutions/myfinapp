@@ -86,3 +86,31 @@ def test_smtp_sends_text_and_html_together(monkeypatch: pytest.MonkeyPatch) -> N
     assert page.get_content_type() == "text/html" and 'src="cid:qash-logo"' in page.get_content()
     assert logo.get_content_type() == "image/png" and logo["Content-ID"] == "<qash-logo>"
     assert logo.get_payload(decode=True) == email.logo_png()
+
+
+def test_if_it_wasnt_you_links_straight_to_sign_in_and_security() -> None:
+    """Someone who didn't do it may not know where Qash is (owner, November 25, 2026)."""
+    from app.services.email import plan_kept_message, security_link
+    from app.services.security_alerts import SecurityEvent, send_alert
+
+    m = plan_kept_message(
+        "a@example.com",
+        "https://app.example/me/plan",
+        plan="Private · monthly",
+        price="$3.00 a month",
+        next_charge="$3.00 on Dec 2, 2026",
+        every="month",
+        invoice_link=None,
+        done_on="Chrome on Mac, Nov 25, 2026 at 3:28 PM CST",
+    )
+    link = security_link()
+    assert f'<a href="{link}"' in m.html and ">open Sign-in &amp; security in Qash</a>" in m.html
+    assert f"open Sign-in & security in Qash ({link})" in m.text and "[" not in m.text
+    alert = send_alert(
+        "a@example.com",
+        SecurityEvent.NEW_SIGN_IN,
+        device_label="Chrome on Mac",
+        at=__import__("datetime").datetime(2026, 11, 25),
+    )
+    assert f'<a href="{link}"' in alert.html
+    assert f"({link})" in alert.text and "[open" not in alert.text

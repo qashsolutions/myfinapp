@@ -70,6 +70,11 @@ def plain(text: str) -> str:
     return _LINK.sub(lambda m: m.group(1), text)
 
 
+def with_urls(text: str) -> str:
+    """The plain-text email's reading of `[words](link)`: the words, then the link."""
+    return _LINK.sub(lambda m: f"{m.group(1)} ({m.group(2)})", text)
+
+
 def _paragraph(text: str) -> str:
     """Escaped, links clickable, single line breaks kept; `[words](link)` links the words."""
     parts: list[str] = []
@@ -93,6 +98,11 @@ def _autolink(text: str) -> str:
 def app_link() -> str:
     """The app's Home, where the logo in every email goes."""
     return f"{get_settings().origins[0].rstrip('/')}/"
+
+
+def security_link() -> str:
+    """Sign-in & security, where a device you don't recognise is signed out."""
+    return f"{get_settings().origins[0].rstrip('/')}/me/security"
 
 
 def render_html(message: Message) -> str:
@@ -673,8 +683,8 @@ def security_line(done_on: str | None) -> str:
     if done_on is None:
         return "Didn't do this? Reply to this email and we'll sort it out."
     return (
-        f"This was done on {done_on}. If it wasn't you, open Qash, go to Me, then Sign-in & "
-        "security, and sign out the device you don't recognise."
+        f"This was done on {done_on}. If it wasn't you, [open Sign-in & security in Qash]"
+        f"({security_link()}) and sign out the device you don't recognise."
     )
 
 
@@ -700,7 +710,7 @@ def _plan_message(
     return Message(
         to=to,
         subject=subject,
-        text=f"{first}\n\n{table}\n\n{plain(prose)}\n\n{links}\n{fine_print}\n",
+        text=f"{first}\n\n{table}\n\n{plain(prose)}\n\n{links}\n{with_urls(fine_print)}\n",
         rows=tuple(rows),
         actions=tuple(actions),
         html_text=f"{first}\n\n{prose}",
