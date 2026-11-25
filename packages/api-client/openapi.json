@@ -3901,6 +3901,24 @@
         "title": "RemindInviteIn",
         "type": "object"
       },
+      "ResumeIn": {
+        "properties": {
+          "tz": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tz"
+          }
+        },
+        "title": "ResumeIn",
+        "type": "object"
+      },
       "ScheduleIn": {
         "properties": {
           "items": {
@@ -6506,6 +6524,23 @@
       "post": {
         "description": "Undo a cancellation before the period ends: renewal continues as before.",
         "operationId": "resume_api_billing_resume_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ResumeIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -6516,6 +6551,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Resume",

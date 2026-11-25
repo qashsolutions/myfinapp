@@ -110,7 +110,8 @@ def test_cancel_keeps_the_plan_until_the_paid_period_ends_and_resume_undoes_it()
     assert path == f"/v1/subscriptions/{sub_row(user_id).external_id}"
     assert form == {"cancel_at_period_end": ["true"]}
     assert client.get("/api/billing/entitlements").json()["plan"] == "connected"
-    assert any("plan" in m.subject.lower() for m in outbox())  # the always-on alert
+    # One email that says what changed replaces the bare "Your plan changed" (November 24).
+    assert not any(m.subject == "Your plan changed" for m in outbox())
     # What cancelling means, by email too (owner, November 24, 2026): the end date, nothing
     # more charged, how to keep it and where refunds go.
     told = [m for m in outbox() if m.subject == "Your Qash plan is cancelled"]
@@ -131,6 +132,7 @@ def test_cancel_keeps_the_plan_until_the_paid_period_ends_and_resume_undoes_it()
     assert [label for label, _ in told[0].actions] == ["Keep my plan", "View your invoices"]
     assert INVOICE_URL in told[0].text
     assert "cid:qash-logo" in told[0].html and "Charged so far" in told[0].html
+    assert "This was done on " in told[0].text and "sign out the device" in told[0].text
 
     # Cancelling twice changes nothing and asks Stripe nothing.
     again = cancel_body(client)
@@ -139,10 +141,21 @@ def test_cancel_keeps_the_plan_until_the_paid_period_ends_and_resume_undoes_it()
     assert len(stripe.calls) == n
 
     assert len([m for m in outbox() if m.subject == "Your Qash plan is cancelled"]) == 1
-    r = client.post("/api/billing/resume")
+    r = client.post("/api/billing/resume", json={"tz": "UTC"})
     assert r.status_code == 200 and r.json()["cancel_at_period_end"] is False
     assert len([m for m in outbox() if m.subject == "Your Qash plan is cancelled"]) == 1
-    assert stripe.calls[-1][1] == {"cancel_at_period_end": ["false"]}
+    # Keeping it says so: the plan, the price, the next charge and that it renews.
+    (kept_mail,) = [m for m in outbox() if m.subject == "Your Qash plan will renew"]
+    assert dict(kept_mail.rows) == {
+        "Plan": "Connected · monthly",
+        "Price": "$7.00 a month",
+        "Next charge": f"$7.00 on {until}",
+        "Renews": "Every month until you cancel",
+    }
+    assert "You kept your Qash plan" in kept_mail.text and "This was done on " in kept_mail.text
+    assert not any(m.subject == "Your plan changed" for m in outbox())
+    _, resumed = next(c for c in reversed(stripe.calls) if c[0].startswith("/v1/subscriptions/"))
+    assert resumed == {"cancel_at_period_end": ["false"]}
 
 
 def test_when_the_period_ends_the_account_is_free_and_nothing_is_deleted() -> None:

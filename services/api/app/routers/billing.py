@@ -63,11 +63,24 @@ from app.security.csrf import same_site_only
 from app.security.hashing import pseudonym
 from app.security.principal import Caller, require_step_up, require_unlocked
 from app.security.rate_limit import rate_limited, session_or_ip
-from app.services import consent_text, deletion, native_billing, plan_history, stripe_billing
+from app.services import (
+    consent_text,
+    deletion,
+    native_billing,
+    plan_emails,
+    plan_history,
+    stripe_billing,
+)
 from app.services.consent_text import CONSENT_VERSION
-from app.services.email import get_sender, plan_cancelled_message, plan_link
+from app.services.email import (
+    get_sender,
+    plan_cancelled_message,
+    plan_kept_message,
+    plan_link,
+    plan_switched_message,
+    tester_plan_message,
+)
 from app.services.plan_end import EndReason, end_reason
-from app.services.security_alerts import SecurityEvent, send_alert
 
 router = APIRouter(prefix="/api/billing", tags=["billing"], dependencies=[Depends(same_site_only)])
 
@@ -666,6 +679,7 @@ def change(
         # Charged (positive) or left as credit (negative), from the switch's own invoice.
         amount_cents=int(invoice["total"]) if isinstance(invoice, dict) else None,
     )
+    live_plan, live_interval = sub.plan, sub.interval
     sub.plan, sub.interval = body.plan, body.interval
     sub.cancel_at_period_end = False
     sub.renews_at = stripe_billing.period_end(obj) or sub.renews_at
@@ -694,12 +708,30 @@ def change(
         target=f"subscription:{sub.id}",
         ip=client_ip(request),
     )
+    was = plan_emails.plan_name(live_plan, live_interval)
     db.commit()
-    send_alert(
-        caller.user.email,
-        SecurityEvent.PLAN_CHANGED,
-        device_label=caller.session.device_label,
-        at=datetime.now(UTC),
+    tz = plan_emails.zone_for(db, caller.user.id, body.consent.tz)
+    price = plan_emails.price_line(body.plan, body.interval)
+    next_on = f", next on {consent_text.day(sub.renews_at, tz)}" if sub.renews_at else ""
+    get_sender().send(
+        plan_switched_message(
+            caller.user.email,
+            plan_link(),
+            was=was,
+            now=plan_emails.plan_name(body.plan, body.interval),
+            today=(
+                f"{consent_text.money(due)} charged"
+                if due > 0
+                else f"Nothing charged; {consent_text.money(credit)} credit pays your next bills"
+                if credit > 0
+                else "Nothing charged"
+            ),
+            then=price + next_on + (", less your credit" if credit > 0 else ""),
+            every=plan_emails.every(body.interval),
+            disconnected=disconnects,
+            invoice_link=plan_emails.invoice_link(sub.external_id),
+            done_on=plan_emails.done_on(caller.session.device_label, tz),
+        )
     )
     return _out(db, caller)
 
@@ -906,11 +938,22 @@ def set_tester_plan(
         ip=client_ip(request),
     )
     db.commit()
-    send_alert(
-        caller.user.email,
-        SecurityEvent.PLAN_CHANGED,
-        device_label=caller.session.device_label,
-        at=datetime.now(UTC),
+    plans = load_plans()
+    get_sender().send(
+        tester_plan_message(
+            caller.user.email,
+            plan_link(),
+            plan=None
+            if body.plan is None
+            else str(
+                plans["founding"]["label"]
+                if body.plan == "founding"
+                else plans["plans"][body.plan]["label"]
+            ),
+            done_on=plan_emails.done_on(
+                caller.session.device_label, plan_emails.zone_for(db, caller.user.id, None)
+            ),
+        )
     )
     return _out(db, caller)
 
@@ -1001,6 +1044,7 @@ def _change_renewal(
     *,
     cancel: bool,
     consent: ConsentIn | None = None,
+    tz_name: str | None = None,
 ) -> BillingOut:
     plan, sub = effective_plan(db, caller.user.id, tester=False)
     if sub is None or plan == "free":
@@ -1051,15 +1095,31 @@ def _change_renewal(
         ip=client_ip(request),
     )
     db.commit()
+    # One email that says what changed, and where (owner, November 24, 2026).
     if cancel:
         _send_cancelled(db, caller, sub, obj, consent.tz if consent else None)
-    send_alert(
-        caller.user.email,
-        SecurityEvent.PLAN_CHANGED,
-        device_label=caller.session.device_label,
-        at=datetime.now(UTC),
-    )
+    else:
+        _send_kept(db, caller, sub, tz_name)
     return _out(db, caller)
+
+
+def _send_kept(db: DbSession, caller: Caller, sub: Subscription, tz_name: str | None) -> None:
+    tz = plan_emails.zone_for(db, caller.user.id, tz_name)
+    amount = consent_text.money(plan_emails.price_cents(sub.plan, sub.interval))
+    get_sender().send(
+        plan_kept_message(
+            caller.user.email,
+            plan_link(),
+            plan=plan_emails.plan_name(sub.plan, sub.interval),
+            price=plan_emails.price_line(sub.plan, sub.interval),
+            next_charge=f"{amount} on {consent_text.day(sub.renews_at, tz)}"
+            if sub.renews_at
+            else amount,
+            every=plan_emails.every(sub.interval),
+            invoice_link=plan_emails.invoice_link(sub.external_id),
+            done_on=plan_emails.done_on(caller.session.device_label, tz),
+        )
+    )
 
 
 def _send_cancelled(
@@ -1067,7 +1127,7 @@ def _send_cancelled(
 ) -> None:
     """The cancellation email (owner, November 24, 2026): the plan, its dates, what it charged,
     the invoice. Stripe out of reach leaves the charges and the invoice link out."""
-    tz = consent_text.zone(tz_name)
+    tz = plan_emails.zone_for(db, caller.user.id, tz_name)
     now = datetime.now(UTC)
     plans = load_plans()
     interval = sub.interval or "monthly"
@@ -1105,6 +1165,7 @@ def _send_cancelled(
             charged=charged,
             invoice_link=invoice_link,
             covered_by=_shown_name(partner)[0] if partner else None,
+            done_on=plan_emails.done_on(caller.session.device_label, tz, now),
         )
     )
 
@@ -1122,11 +1183,16 @@ def cancel(
     return _change_renewal(db, caller, request, cancel=True, consent=body.consent)
 
 
+class ResumeIn(BaseModel):
+    tz: str | None = Field(default=None, max_length=64)  # the device's, for the email's dates
+
+
 @router.post("/resume", dependencies=[STRIPE_LIMIT])
 def resume(
     caller: Annotated[Caller, Depends(require_step_up)],
     request: Request,
     db: Annotated[DbSession, Depends(get_db)],
+    body: ResumeIn | None = None,
 ) -> BillingOut:
     """Undo a cancellation before the period ends: renewal continues as before."""
-    return _change_renewal(db, caller, request, cancel=False)
+    return _change_renewal(db, caller, request, cancel=False, tz_name=body.tz if body else None)

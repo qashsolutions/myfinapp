@@ -114,6 +114,7 @@ export function PlanScreen() {
   const [cancelConsent, setCancelConsent] = useState<ConsentText | null>(null);
   // Ticked before cancelling (owner decision, October 18, 2026), kept like a purchase's.
   const [cancelAgreed, setCancelAgreed] = useState(false);
+  const [cancelMissing, setCancelMissing] = useState(false);
   const cancelAgreeId = useId();
   // A switch down that isn't open yet: the sheet says when and why (October 18, 2026).
   const [lockedFor, setLockedFor] = useState<string | null>(null);
@@ -220,6 +221,7 @@ export function PlanScreen() {
       return;
     }
     setCancelAgreed(false);
+    setCancelMissing(false);
     setCancelConsent(consent);
   }
 
@@ -1051,24 +1053,39 @@ export function PlanScreen() {
             id={cancelAgreeId}
             type="checkbox"
             checked={cancelAgreed}
-            onChange={(e) => setCancelAgreed(e.target.checked)}
+            onChange={(e) => {
+              setCancelAgreed(e.target.checked);
+              setCancelMissing(false);
+            }}
           />
           <span>{cancelConsent?.agreement}</span>
         </label>
-        <Button block onClick={() => setCancelConsent(null)}>
+        {cancelMissing ? (
+          <p className="plan-alert" role="alert">
+            Tick the box above to cancel.
+          </p>
+        ) : null}
+        {/* Keeping is the calm choice; cancelling is red (owner, November 24, 2026). The red
+            button stays tappable and says what's missing (never a dead button). */}
+        <Button block variant="secondary" onClick={() => setCancelConsent(null)}>
           Keep {billing.label}
         </Button>
         <Button
           block
-          variant="ghost"
-          disabled={busy || !cancelAgreed}
+          variant="danger"
+          disabled={busy}
           onClick={() => {
+            if (!cancelAgreed) {
+              setCancelMissing(true);
+              document.getElementById(cancelAgreeId)?.focus();
+              return;
+            }
             const consent = cancelConsent;
             setCancelConsent(null);
             void setRenewal(consent);
           }}
         >
-          <span style={cancelAgreed ? { color: "var(--c-danger)" } : undefined}>Cancel plan</span>
+          Cancel plan
         </Button>
       </Sheet>
     </>

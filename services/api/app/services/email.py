@@ -586,6 +586,7 @@ def plan_cancelled_message(
     charged: str | None,
     invoice_link: str | None,
     covered_by: str | None = None,
+    done_on: str | None = None,
 ) -> Message:
     """Cancelled in the app (owner, November 24, 2026): the plan, when it started and was
     cancelled, what was charged, when it ends and that nothing more is charged, how to keep it
@@ -618,18 +619,209 @@ def plan_cancelled_message(
         "included."
     )
     first = f"You cancelled your Qash plan. It stays on until {until}."
+    return _plan_message(
+        to,
+        "Your Qash plan is cancelled",
+        first,
+        rows,
+        [after, keep, refunds, security_line(done_on)],
+        [("Keep my plan", link)],
+        link,
+        invoice_link,
+    )
+
+
+def security_line(done_on: str | None) -> str:
+    """The last paragraph of every plan email: where it was done, and what to do if it wasn't
+    you. A change Stripe told us about (a purchase) has no device to name."""
+    if done_on is None:
+        return "Didn't do this? Reply to this email and we'll sort it out."
+    return (
+        f"This was done on {done_on}. If it wasn't you, open Qash, go to Me, then Sign-in & "
+        "security, and sign out the device you don't recognise."
+    )
+
+
+def _plan_message(
+    to: str,
+    subject: str,
+    first: str,
+    rows: list[tuple[str, str]],
+    notes: list[str],
+    actions: list[tuple[str, str]],
+    link: str,
+    invoice_link: str | None,
+) -> Message:
+    """One plan email (owner, November 24, 2026): what happened in one line, then a table of
+    the plan, the money and the dates, then what to know, the buttons and where it was done."""
     table = "\n".join(f"{k}: {v}" for k, v in rows)
     links = f"Your plan: {link}\n" + (f"Your invoices: {invoice_link}\n" if invoice_link else "")
-    actions = [("Keep my plan", link)]
     if invoice_link:
-        actions.append(("View your invoices", invoice_link))
+        actions = [*actions, ("View your invoices", invoice_link)]
+    prose = "\n\n".join(n for n in notes if n)
     return Message(
         to=to,
-        subject="Your Qash plan is cancelled",
-        text=f"{first}\n\n{table}\n\n{after}\n\n{keep}\n\n{refunds}\n\n{links}",
+        subject=subject,
+        text=f"{first}\n\n{table}\n\n{prose}\n\n{links}",
         rows=tuple(rows),
         actions=tuple(actions),
-        html_text=f"{first}\n\n{after}\n\n{keep}\n\n{refunds}",
+        html_text=f"{first}\n\n{prose}",
+    )
+
+
+def plan_subscribed_message(
+    to: str,
+    link: str,
+    *,
+    plan: str,
+    price: str,
+    started: str,
+    free_until: str | None,
+    next_charge: str,
+    every: str,
+    invoice_link: str | None,
+) -> Message:
+    """A renewing plan bought (the checkout webhook): the plan, the price, the free days left
+    and the first charge, and that it renews until cancelled."""
+    rows = [("Plan", plan), ("Price", price), ("Started", started)]
+    if free_until:
+        rows.append(("Free until", free_until))
+    rows += [("Next charge", next_charge), ("Renews", f"Every {every} until you cancel")]
+    return _plan_message(
+        to,
+        f"You're subscribed to Qash {plan.split(' · ')[0]}",
+        "Thanks for subscribing. Your plan is on.",
+        rows,
+        [
+            "Cancel any time on the Plan screen; your plan runs to the end of the period you "
+            "paid for, and cancelling refunds nothing.",
+            security_line(None),
+        ],
+        [("Your plan", link)],
+        link,
+        invoice_link,
+    )
+
+
+def founding_subscribed_message(
+    to: str,
+    link: str,
+    *,
+    price: str,
+    started: str,
+    until: str,
+    years: int,
+    invoice_link: str | None,
+) -> Message:
+    rows = [
+        ("Plan", f"Founding member: {years} years of Connected"),
+        ("Paid", f"{price} once"),
+        ("Started", started),
+        ("Runs until", until),
+        ("Renews", "Never. Before it ends, you pick a plan."),
+    ]
+    return _plan_message(
+        to,
+        "You're a Qash founding member",
+        "Thanks for being one of our first members. Connected is on.",
+        rows,
+        [security_line(None)],
+        [("Your plan", link)],
+        link,
+        invoice_link,
+    )
+
+
+def plan_kept_message(
+    to: str,
+    link: str,
+    *,
+    plan: str,
+    price: str,
+    next_charge: str,
+    every: str,
+    invoice_link: str | None,
+    done_on: str,
+) -> Message:
+    """Keep my plan after cancelling: it renews again, when and for how much."""
+    rows = [
+        ("Plan", plan),
+        ("Price", price),
+        ("Next charge", next_charge),
+        ("Renews", f"Every {every} until you cancel"),
+    ]
+    return _plan_message(
+        to,
+        "Your Qash plan will renew",
+        "You kept your Qash plan. It renews as before.",
+        rows,
+        [
+            "Cancel any time on the Plan screen; your plan runs to the end of the period you "
+            "paid for.",
+            security_line(done_on),
+        ],
+        [("Your plan", link)],
+        link,
+        invoice_link,
+    )
+
+
+def plan_switched_message(
+    to: str,
+    link: str,
+    *,
+    was: str,
+    now: str,
+    today: str,
+    then: str,
+    every: str,
+    disconnected: bool,
+    invoice_link: str | None,
+    done_on: str,
+) -> Message:
+    """A switch in the app: from what to what, what today cost or left as credit, then what."""
+    rows = [
+        ("Was", was),
+        ("Now", now),
+        ("Today", today),
+        ("Then", then),
+        ("Renews", f"Every {every} until you cancel"),
+    ]
+    banks = (
+        f"{now.split(' · ')[0]} doesn't link banks, so your linked banks were disconnected. "
+        "Your accounts and entries stay on this device."
+        if disconnected
+        else ""
+    )
+    return _plan_message(
+        to,
+        f"Your Qash plan is now {now.split(',')[0]}",
+        f"You switched your Qash plan. {now.split(' · ')[0]} starts now.",
+        rows,
+        [banks, security_line(done_on)],
+        [("Your plan", link)],
+        link,
+        invoice_link,
+    )
+
+
+def tester_plan_message(to: str, link: str, *, plan: str | None, done_on: str) -> Message:
+    """Tester tools (admins only): which plan is on now, and that nothing was charged."""
+    if plan is None:
+        first = "Tester tools are off. You're back on your real plan."
+        rows = [("Now", "Your real plan"), ("Charged", "Nothing")]
+    else:
+        first = f"Tester tools: you're testing {plan} for free."
+        rows = [("Testing", plan), ("Charged", "Nothing; Stripe isn't involved")]
+    return _plan_message(
+        to,
+        "Your test plan changed",
+        first,
+        rows,
+        ["Your real plan, its charges and its dates didn't change.", security_line(done_on)],
+        [("Your plan", link)],
+        link,
+        None,
     )
 
 

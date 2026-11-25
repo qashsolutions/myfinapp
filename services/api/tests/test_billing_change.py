@@ -240,7 +240,20 @@ def test_an_upgrade_is_immediate_and_charges_only_the_difference() -> None:
     assert sent["payment_behavior"] == "error_if_incomplete"
     assert sent["proration_date"] == str(preview["proration_date"])
     assert client.get("/api/billing/entitlements").json()["plan"] == "connected"
-    assert len(outbox()) == mails + 1  # the always-on "your plan changed" alert
+    # One email says what changed (owner, November 24, 2026): from what to what, what today
+    # cost, then what, and where it was done.
+    assert len(outbox()) == mails + 1
+    switched = outbox()[-1]
+    assert switched.subject == "Your Qash plan is now Connected · monthly"
+    rows = dict(switched.rows)
+    assert (rows["Was"], rows["Now"], rows["Today"]) == (
+        "Private · monthly",
+        "Connected · monthly",
+        "$5.12 charged",
+    )
+    assert rows["Then"].startswith("$7.00 a month")
+    assert rows["Renews"] == "Every month until you cancel"
+    assert "This was done on " in switched.text
     latest = client.get("/api/billing/history").json()[0]
     assert (latest["kind"], latest["plan"], latest["amount_cents"]) == (
         "switched",

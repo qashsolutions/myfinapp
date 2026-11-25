@@ -164,7 +164,7 @@ export async function openPortal(): Promise<ApiFailure | null> {
 export async function changeRenewal(cancel: ConsentText | null): Promise<BillingOut | ApiFailure> {
   const r = cancel
     ? await api.POST("/api/billing/cancel", { body: { consent: ticked(cancel) } })
-    : await api.POST("/api/billing/resume");
+    : await api.POST("/api/billing/resume", { body: { tz: deviceZone() } });
   return failureOf(r) ?? (r.data as BillingOut);
 }
 
