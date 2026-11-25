@@ -801,8 +801,8 @@ export function PlanScreen() {
                 billing.plan === p.key &&
                 access?.state !== "trial" &&
                 (!paid || billing.interval === interval);
-              // A cancelled plan says when it ends right on its card, and keeping it is one tap
-              // there too (owner, November 24, 2026).
+              // A cancelled plan stays Current, says under it when it cancels and that nothing more is
+              // charged, and keeping it is one tap there too (owner, November 24, 2026).
               const endsOn =
                 current && billing.cancel_at_period_end && billing.renews_at
                   ? formatDate(billing.renews_at)
@@ -815,15 +815,18 @@ export function PlanScreen() {
                   <div className="plan-card">
                     <div className="plan-card__top">
                       <span className="plan-card__name">{p.name}</span>
-                      {endsOn ? (
-                        <Chip tone="warning">Ends {endsOn}</Chip>
-                      ) : current ? (
+                      {current ? (
                         <Chip tone="success">Current</Chip>
                       ) : p.popular ? (
                         <Chip tone="accent">Most popular</Chip>
                       ) : null}
                       {save > 0 ? <span className="plan-card__save">Save {save}%</span> : null}
                     </div>
+                    {endsOn ? (
+                      <p className="plan-card__ends">
+                        Cancels on {endsOn}. You won't be charged again.
+                      </p>
+                    ) : null}
                     <p className="plan-card__price">
                       {formatCents(price)}
                       <span className="plan-card__per"> {perLabel}</span>

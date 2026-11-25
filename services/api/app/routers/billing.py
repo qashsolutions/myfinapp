@@ -65,6 +65,7 @@ from app.security.principal import Caller, require_step_up, require_unlocked
 from app.security.rate_limit import rate_limited, session_or_ip
 from app.services import consent_text, deletion, native_billing, plan_history, stripe_billing
 from app.services.consent_text import CONSENT_VERSION
+from app.services.email import get_sender, plan_cancelled_message, plan_link
 from app.services.plan_end import EndReason, end_reason
 from app.services.security_alerts import SecurityEvent, send_alert
 
@@ -1050,6 +1051,22 @@ def _change_renewal(
         ip=client_ip(request),
     )
     db.commit()
+    if cancel:
+        partner = covers_instead(db, caller.user)
+        until = (
+            consent_text.day(sub.renews_at, consent_text.zone(consent.tz if consent else None))
+            if sub.renews_at
+            else "the end of the period you paid for"
+        )
+        get_sender().send(
+            plan_cancelled_message(
+                caller.user.email,
+                str(load_plans()["plans"][plan]["label"]),
+                until,
+                plan_link(),
+                covered_by=_shown_name(partner)[0] if partner else None,
+            )
+        )
     send_alert(
         caller.user.email,
         SecurityEvent.PLAN_CHANGED,

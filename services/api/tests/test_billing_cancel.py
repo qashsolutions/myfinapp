@@ -96,6 +96,15 @@ def test_cancel_keeps_the_plan_until_the_paid_period_ends_and_resume_undoes_it()
     assert form == {"cancel_at_period_end": ["true"]}
     assert client.get("/api/billing/entitlements").json()["plan"] == "connected"
     assert any("plan" in m.subject.lower() for m in outbox())  # the always-on alert
+    # What cancelling means, by email too (owner, November 24, 2026): the end date, nothing
+    # more charged, how to keep it and where refunds go.
+    told = [m for m in outbox() if m.subject == "Your Qash plan is cancelled"]
+    assert len(told) == 1
+    end = datetime.fromtimestamp(PERIOD_END, tz=UTC)
+    assert f"It stays on until {end:%b} {end.day}, {end.year}" in told[0].text
+    assert "you won't be charged again" in told[0].text
+    assert "Keep my plan" in told[0].text and "Apple Pay included" in told[0].text
+    assert "7 days to subscribe again" in told[0].text
 
     # Cancelling twice changes nothing and asks Stripe nothing.
     again = cancel_body(client)
@@ -103,8 +112,10 @@ def test_cancel_keeps_the_plan_until_the_paid_period_ends_and_resume_undoes_it()
     assert client.post("/api/billing/cancel", json=again).json()["cancel_at_period_end"] is True
     assert len(stripe.calls) == n
 
+    assert len([m for m in outbox() if m.subject == "Your Qash plan is cancelled"]) == 1
     r = client.post("/api/billing/resume")
     assert r.status_code == 200 and r.json()["cancel_at_period_end"] is False
+    assert len([m for m in outbox() if m.subject == "Your Qash plan is cancelled"]) == 1
     assert stripe.calls[-1][1] == {"cancel_at_period_end": ["false"]}
 
 

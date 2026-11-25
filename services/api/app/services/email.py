@@ -470,6 +470,32 @@ def foreign_card_refunded_message(to: str, link: str) -> Message:
     )
 
 
+def plan_cancelled_message(
+    to: str, label: str, until: str, link: str, *, covered_by: str | None = None
+) -> Message:
+    """Cancelled in the app (owner, November 24, 2026): when it ends, that nothing more is
+    charged, how to keep it, and where money goes. The same facts as "If you cancel"."""
+    after = (
+        f"After that, {covered_by}'s plan covers you in your household.\n\n"
+        if covered_by
+        else "After that you have 7 days to subscribe again or download your data, then your "
+        "account and data are deleted.\n\n"
+    )
+    return Message(
+        to=to,
+        subject="Your Qash plan is cancelled",
+        text=(
+            f"You cancelled {label}. It stays on until {until}, and you won't be charged "
+            "again.\n\n"
+            + after
+            + "Changed your mind? Tap Keep my plan on the Plan screen before then.\n\n"
+            "Cancelling refunds nothing. Any refund goes back to the card you paid with, Apple "
+            "Pay included.\n\n"
+            f"Your plan: {link}\n"
+        ),
+    )
+
+
 def plan_resumed_message(to: str, link: str) -> Message:
     return Message(
         to=to,

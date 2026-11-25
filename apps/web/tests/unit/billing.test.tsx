@@ -66,7 +66,7 @@ describe("Plans & billing", () => {
     const api = installFakeApi({ session: readySession(), billing: freeBilling() });
     const fake = globalThis.fetch;
     const words = {
-      version: "2026-11-24",
+      version: "2026-11-24b",
       points: [
         { icon: "price", text: "Words only the server wrote." },
         { icon: null, text: "A second line, also the server's." },
@@ -189,7 +189,7 @@ describe("Plans & billing", () => {
       plan: "private",
       interval: "yearly",
       consent: {
-        version: "2026-11-24",
+        version: "2026-11-24b",
         lines: [
           "$20.00 today, then every year.",
           "Renews automatically each year until you cancel.",
@@ -357,8 +357,10 @@ describe("Plans & billing", () => {
     );
     // The plan's own card says when it ends and keeps it in one tap (owner, November 24, 2026).
     const ending = screen.getByRole("article", { name: "Private" });
-    expect(within(ending).getByText("Ends Oct 9, 2027")).toBeInTheDocument();
-    expect(within(ending).queryByText("Current")).toBeNull();
+    expect(within(ending).getByText("Current")).toBeInTheDocument();
+    expect(
+      within(ending).getByText("Cancels on Oct 9, 2027. You won't be charged again."),
+    ).toBeInTheDocument();
     expect(within(ending).getByRole("button", { name: "Keep Private" })).toBeEnabled();
 
     // Plan history, newest first (owner decision, October 18, 2026).
@@ -388,9 +390,12 @@ describe("Plans & billing", () => {
     ).toBeInTheDocument();
     await waitFor(() =>
       expect(
-        within(screen.getByRole("article", { name: "Private" })).getByText("Current"),
-      ).toBeInTheDocument(),
+        within(screen.getByRole("article", { name: "Private" })).queryByText(/^Cancels on/),
+      ).toBeNull(),
     );
+    expect(
+      within(screen.getByRole("article", { name: "Private" })).getByText("Current"),
+    ).toBeInTheDocument();
     await waitFor(() =>
       expect(
         within(screen.getByRole("region", { name: "Plan history" })).getAllByRole("listitem")[0],
