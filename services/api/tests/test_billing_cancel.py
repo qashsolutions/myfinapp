@@ -19,6 +19,7 @@ from tests.conftest import stripe_default_transport
 from tests.test_billing import member, post_event
 
 PERIOD_END = int(time.time()) + 20 * 86400  # 20 days of the paid month left
+INVOICE_URL = "https://invoice.stripe.com/i/test_1"  # net-allow: an emailed link, never fetched
 
 
 @pytest.fixture(autouse=True)
@@ -45,6 +46,20 @@ class FakeStripe:
                         "status": "active",
                         "cancel_at_period_end": form.get("cancel_at_period_end") == ["true"],
                         "current_period_end": PERIOD_END,
+                    },
+                )
+            if request.url.path == "/v1/invoices":
+                # A plan bought in a trial: one $0 invoice so far.
+                return httpx2.Response(
+                    200,
+                    json={
+                        "data": [
+                            {
+                                "amount_paid": 0,
+                                "created": int(time.time()) - 60,
+                                "hosted_invoice_url": INVOICE_URL,
+                            }
+                        ]
                     },
                 )
             return httpx2.Response(404, json={"error": "nope"})
@@ -91,7 +106,7 @@ def test_cancel_keeps_the_plan_until_the_paid_period_ends_and_resume_undoes_it()
     assert body["renews_at"].startswith(
         datetime.fromtimestamp(PERIOD_END, tz=UTC).date().isoformat()
     )
-    path, form = stripe.calls[-1]
+    path, form = next(c for c in reversed(stripe.calls) if c[0].startswith("/v1/subscriptions/"))
     assert path == f"/v1/subscriptions/{sub_row(user_id).external_id}"
     assert form == {"cancel_at_period_end": ["true"]}
     assert client.get("/api/billing/entitlements").json()["plan"] == "connected"
@@ -101,10 +116,21 @@ def test_cancel_keeps_the_plan_until_the_paid_period_ends_and_resume_undoes_it()
     told = [m for m in outbox() if m.subject == "Your Qash plan is cancelled"]
     assert len(told) == 1
     end = datetime.fromtimestamp(PERIOD_END, tz=UTC)
-    assert f"It stays on until {end:%b} {end.day}, {end.year}" in told[0].text
-    assert "you won't be charged again" in told[0].text
-    assert "Keep my plan" in told[0].text and "Apple Pay included" in told[0].text
-    assert "7 days to subscribe again" in told[0].text
+    until = f"{end:%b} {end.day}, {end.year}"
+    now = datetime.now(UTC)
+    today = f"{now:%b} {now.day}, {now.year}"
+    rows = dict(told[0].rows)
+    assert rows["Plan"] == "Connected · monthly, $7.00 a month"
+    assert rows["Cancelled"] == today
+    assert rows["Charged so far"] == "$0.00"
+    assert rows["Started"].endswith(f"(free until {until})")
+    assert rows["Stays on until"] == f"{until}, free, and you won't be charged again"
+    assert f"It stays on until {until}" in told[0].text
+    assert "Charged so far: $0.00" in told[0].text  # the table in the plain text too
+    assert "Apple Pay included" in told[0].text and "7 days to subscribe again" in told[0].text
+    assert [label for label, _ in told[0].actions] == ["Keep my plan", "View your invoices"]
+    assert INVOICE_URL in told[0].text
+    assert "/icons/logo.png" in told[0].html and "Charged so far" in told[0].html
 
     # Cancelling twice changes nothing and asks Stripe nothing.
     again = cancel_body(client)

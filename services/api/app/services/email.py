@@ -8,7 +8,9 @@ for tests.
 
 from __future__ import annotations
 
+import html
 import logging
+import re
 import smtplib
 from dataclasses import dataclass
 from email.message import EmailMessage
@@ -22,9 +24,97 @@ log = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class Message:
+    """One email. `text` is the whole message as plain text, always sent. Every message also
+    goes out as HTML in the Qash layout (owner, November 24, 2026: the logo, the same words);
+    `rows` (label, value) draw as a table and `actions` (label, link) as buttons there, and
+    `html_text`, when given, is the prose the HTML shows instead of `text` (so the rows and
+    links aren't said twice)."""
+
     to: str
     subject: str
     text: str
+    rows: tuple[tuple[str, str], ...] = ()
+    actions: tuple[tuple[str, str], ...] = ()
+    html_text: str | None = None
+
+    @property
+    def html(self) -> str:
+        return render_html(self)
+
+
+BRAND = "#4339FF"  # the logo's blue (apps/web/public/icons/logo.png)
+INK = "#1B1B2F"
+SUB = "#5B5B70"
+LINE = "#E6E6EF"
+_URL = re.compile(r"https?://[^\s<>\"]+")
+
+
+def _paragraph(text: str) -> str:
+    """Escaped, links clickable, single line breaks kept."""
+    out = html.escape(text)
+    out = _URL.sub(lambda m: f'<a href="{m.group(0)}" style="color:{BRAND}">{m.group(0)}</a>', out)
+    return out.replace("\n", "<br>")
+
+
+def render_html(message: Message) -> str:
+    """The Qash layout every email shares: the logo from the app's own host (no third-party
+    image), the subject as the heading, the words, any table and buttons, a short footer.
+    Inline styles and tables only, as mail apps need."""
+    origin = get_settings().origins[0].rstrip("/")
+    paragraphs = [p.strip() for p in (message.html_text or message.text).split("\n\n")]
+    body = "".join(
+        f'<p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:{INK}">{_paragraph(p)}</p>'
+        for p in paragraphs
+        if p
+    )
+    table = ""
+    if message.rows:
+        cells = "".join(
+            f'<tr><td style="padding:10px 12px;border-top:1px solid {LINE};color:{SUB};'
+            f'font-size:14px;white-space:nowrap;vertical-align:top">{html.escape(k)}</td>'
+            f'<td style="padding:10px 12px;border-top:1px solid {LINE};color:{INK};'
+            f'font-size:15px;font-weight:600">{html.escape(v)}</td></tr>'
+            for k, v in message.rows
+        )
+        table = (
+            f'<table role="presentation" cellpadding="0" cellspacing="0" width="100%" '
+            f'style="border-collapse:collapse;border:1px solid {LINE};border-radius:12px;'
+            f'margin:0 0 20px">{cells}</table>'
+        )
+    buttons = "".join(
+        f'<p style="margin:0 0 12px"><a href="{html.escape(url, quote=True)}" '
+        f'style="display:inline-block;padding:12px 22px;border-radius:999px;'
+        f"background:{BRAND if i == 0 else '#FFFFFF'};color:{'#FFFFFF' if i == 0 else BRAND};"
+        f'border:2px solid {BRAND};font-weight:700;font-size:15px;text-decoration:none">'
+        f"{html.escape(label)}</a></p>"
+        for i, (label, url) in enumerate(message.actions)
+    )
+    # The table sits after the first paragraph, which says what happened.
+    first, _, rest = body.partition("</p>")
+    content = f"{first}</p>{table}{rest}" if first else table + body
+    return (
+        '<!doctype html><html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        f"<title>{html.escape(message.subject)}</title></head>"
+        f'<body style="margin:0;padding:0;background:#F4F4F8">'
+        f'<table role="presentation" cellpadding="0" cellspacing="0" width="100%" '
+        f'style="background:#F4F4F8"><tr><td align="center" style="padding:24px 12px">'
+        f'<table role="presentation" cellpadding="0" cellspacing="0" width="100%" '
+        f'style="max-width:560px;background:#FFFFFF;border-radius:16px">'
+        f'<tr><td style="padding:28px 28px 8px">'
+        f'<img src="{origin}/icons/logo.png" width="104" height="31" alt="Qash" '
+        f'style="display:block;border:0"></td></tr>'
+        f'<tr><td style="padding:12px 28px 12px;font-family:-apple-system,BlinkMacSystemFont,'
+        f"'Segoe UI',Roboto,Helvetica,Arial,sans-serif\">"
+        f'<h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:{INK}">'
+        f"{html.escape(message.subject)}</h1>{content}{buttons}</td></tr>"
+        f'<tr><td style="padding:16px 28px 28px;border-top:1px solid {LINE};'
+        f"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,"
+        f'sans-serif;font-size:13px;color:{SUB}">Qash Solutions Inc. · '
+        f'<a href="mailto:support@qash.solutions" style="color:{SUB}">'
+        f"support@qash.solutions</a></td></tr>"
+        "</table></td></tr></table></body></html>"
+    )
 
 
 class EmailSender(Protocol):
@@ -53,6 +143,7 @@ class SmtpEmailSender:
         msg["To"] = message.to
         msg["Subject"] = message.subject
         msg.set_content(message.text)
+        msg.add_alternative(message.html, subtype="html")
         with smtplib.SMTP(s.smtp_host, s.smtp_port, timeout=10) as smtp:
             if s.smtp_starttls:
                 smtp.starttls()
@@ -471,28 +562,61 @@ def foreign_card_refunded_message(to: str, link: str) -> Message:
 
 
 def plan_cancelled_message(
-    to: str, label: str, until: str, link: str, *, covered_by: str | None = None
+    to: str,
+    link: str,
+    *,
+    plan: str,
+    started: str,
+    free_until: str | None,
+    cancelled: str,
+    until: str,
+    charged: str | None,
+    invoice_link: str | None,
+    covered_by: str | None = None,
 ) -> Message:
-    """Cancelled in the app (owner, November 24, 2026): when it ends, that nothing more is
-    charged, how to keep it, and where money goes. The same facts as "If you cancel"."""
+    """Cancelled in the app (owner, November 24, 2026): the plan, when it started and was
+    cancelled, what was charged, when it ends and that nothing more is charged, how to keep it
+    and where refunds go. The same facts as "If you cancel". `charged` and `invoice_link` are
+    None when Stripe couldn't be asked; the email then leaves those out."""
+    rows = [
+        ("Plan", plan),
+        ("Started", started + (f" (free until {free_until})" if free_until else "")),
+    ]
+    rows.append(("Cancelled", cancelled))
+    if charged is not None:
+        rows.append(("Charged so far", charged))
+    free_now = charged == "$0.00"
+    rows.append(
+        (
+            "Stays on until",
+            f"{until}, {'free' if free_now else 'already paid for'}, and you won't be charged "
+            "again",
+        )
+    )
     after = (
-        f"After that, {covered_by}'s plan covers you in your household.\n\n"
+        f"After that, {covered_by}'s plan covers you in your household."
         if covered_by
         else "After that you have 7 days to subscribe again or download your data, then your "
-        "account and data are deleted.\n\n"
+        "account and data are deleted."
     )
+    keep = f"Changed your mind? Tap Keep my plan on the Plan screen before {until}."
+    refunds = (
+        "Cancelling refunds nothing. Any refund goes back to the card you paid with, Apple Pay "
+        "included."
+    )
+    first = f"You cancelled your Qash plan. It stays on until {until}."
+    table = "\n".join(f"{k}: {v}" for k, v in rows)
+    links = f"Your plan: {link}\n" + (f"Your invoices: {invoice_link}\n" if invoice_link else "")
+    actions = [("Keep my plan", link)]
+    if invoice_link:
+        actions.append(("View your invoices", invoice_link))
     return Message(
         to=to,
         subject="Your Qash plan is cancelled",
-        text=(
-            f"You cancelled {label}. It stays on until {until}, and you won't be charged "
-            "again.\n\n"
-            + after
-            + "Changed your mind? Tap Keep my plan on the Plan screen before then.\n\n"
-            "Cancelling refunds nothing. Any refund goes back to the card you paid with, Apple "
-            "Pay included.\n\n"
-            f"Your plan: {link}\n"
-        ),
+        text=f"{first}\n\n{table}\n\n{after}\n\n{keep}\n\n{refunds}\n\n{links}",
+        rows=tuple(rows),
+        actions=tuple(actions),
+        html_text=f"{first}\n\n{after}\n\n{keep}\n\n{refunds}",
     )
 
 
