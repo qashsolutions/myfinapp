@@ -130,7 +130,7 @@ def test_cancel_keeps_the_plan_until_the_paid_period_ends_and_resume_undoes_it()
     assert "Apple Pay included" in told[0].text and "7 days to subscribe again" in told[0].text
     assert [label for label, _ in told[0].actions] == ["Keep my plan", "View your invoices"]
     assert INVOICE_URL in told[0].text
-    assert "/icons/logo.png" in told[0].html and "Charged so far" in told[0].html
+    assert "cid:qash-logo" in told[0].html and "Charged so far" in told[0].html
 
     # Cancelling twice changes nothing and asks Stripe nothing.
     again = cancel_body(client)
