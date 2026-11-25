@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session as DbSession
 from app.config import get_settings
 from app.db import get_db
 from app.security.audit import AuditAction, record
-from app.services import stripe_billing
+from app.services import ops_alerts, plan_emails, stripe_billing
 from app.webhooks.failures import failed
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
@@ -39,10 +39,11 @@ async def stripe_webhook(request: Request, db: Annotated[DbSession, Depends(get_
     except stripe_billing.BillingError as exc:
         raise failed("stripe", exc) from exc
     event_id, event_type = str(event.get("id") or ""), str(event.get("type") or "")
+    obj = (event.get("data") or {}).get("object") or {}
+    user_id = None
     try:
         outcome = stripe_billing.apply_event(db, event)
         if outcome not in ("ignored", "duplicate"):
-            obj = (event.get("data") or {}).get("object") or {}
             user_id = stripe_billing._user_id(  # noqa: SLF001 - same package, deliberate
                 obj.get("client_reference_id") or (obj.get("metadata") or {}).get("user_id")
             )
@@ -59,4 +60,12 @@ async def stripe_webhook(request: Request, db: Annotated[DbSession, Depends(get_
         # it in full (invariant 60).
         db.rollback()
         raise failed("stripe", exc, event_id=event_id, event_type=event_type) from exc
+    if outcome in ("subscribed", "founding") and user_id is not None:
+        # The welcome email names the plan, price, free days and first charge (owner,
+        # November 24, 2026). Sent after the commit, once per event; a failure here is
+        # reported, never answered as a failed event (that would apply it twice).
+        try:
+            plan_emails.send_subscribed(db, user_id, obj)
+        except Exception as exc:  # noqa: BLE001
+            ops_alerts.report("email", "stripe_webhook.subscribed", exc)
     return Ack(received=True, outcome=outcome)

@@ -3794,6 +3794,11 @@ export interface components {
              */
             email: string;
         };
+        /** ResumeIn */
+        ResumeIn: {
+            /** Tz */
+            tz?: string | null;
+        };
         /** ScheduleIn */
         ScheduleIn: {
             /** Items */
@@ -5395,7 +5400,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ResumeIn"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -5404,6 +5413,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BillingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

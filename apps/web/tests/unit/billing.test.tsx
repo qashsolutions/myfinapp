@@ -322,8 +322,18 @@ describe("Plans & billing", () => {
     expect(sheet).toHaveTextContent(
       /Want money back\?Delete your account instead: \$[\d.,]+ back\./,
     );
-    // Nothing cancels until the box is ticked (owner decision, October 18, 2026).
-    expect(within(sheet).getByRole("button", { name: "Cancel plan" })).toBeDisabled();
+    // Nothing cancels until the box is ticked (owner decision, October 18, 2026); the red
+    // button stays tappable and says what's missing (never a dead button).
+    await user.click(within(sheet).getByRole("button", { name: "Cancel plan" }));
+    expect(within(sheet).getByRole("alert")).toHaveTextContent("Tick the box above to cancel.");
+    expect(within(sheet).getByLabelText("I have read and understood these terms.")).toHaveFocus();
+    expect(api.calls.some((c) => c.path === "/api/billing/cancel")).toBe(false);
+    expect(within(sheet).getByRole("button", { name: "Cancel plan" })).toHaveClass(
+      "sk-btn--danger",
+    );
+    expect(within(sheet).getByRole("button", { name: "Keep Private" })).toHaveClass(
+      "sk-btn--secondary",
+    );
     await user.click(within(sheet).getByRole("button", { name: "Keep Private" }));
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "If you cancel" })).not.toBeInTheDocument(),
@@ -332,7 +342,7 @@ describe("Plans & billing", () => {
 
     await user.click(screen.getByText("Cancel plan"));
     const again = await screen.findByRole("dialog", { name: "If you cancel" });
-    expect(within(again).getByRole("button", { name: "Cancel plan" })).toBeDisabled();
+    expect(within(again).queryByRole("alert")).not.toBeInTheDocument();
     await user.click(within(again).getByLabelText("I have read and understood these terms."));
     await user.click(within(again).getByRole("button", { name: "Cancel plan" }));
     // Cancelled in the app, no Stripe page: the plan runs to the end of the paid year.

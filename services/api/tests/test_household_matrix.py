@@ -385,7 +385,6 @@ def test_both_people_in_every_plan_state(case: Case) -> None:
     run(datetime.now(UTC), asha_id, ben_id)  # now: after the case was set up
     for email, expected in ((hmail, case.notices[0]), (omail, case.notices[1])):
         sent = _sent(email, before[email])
-        sent = [s for s in sent if s != "Your plan changed"]
         assert len(sent) == len(expected), (email, sent)
         assert all(s.startswith(e) for s, e in zip(sent, expected, strict=True)), sent
         ended = [x for x in _subjects(email) if any(e in x for e in ENDED_SUBJECTS)]

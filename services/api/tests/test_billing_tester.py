@@ -56,7 +56,11 @@ def test_an_admin_switches_to_every_plan_for_free_and_back() -> None:
         ent = client.get("/api/billing/entitlements").json()
         assert ent["plan"] == plan and ent["bank_links_max"] == links
         assert ent["access"]["state"] == "subscribed"  # never locked while testing
-        assert len(outbox()) == mails + 1  # the always-on "your plan changed" alert
+        assert len(outbox()) == mails + 1
+        told = outbox()[-1]  # which plan is on, that nothing was charged, where it was done
+        assert told.subject == "Your test plan changed"
+        assert dict(told.rows)["Charged"].startswith("Nothing")
+        assert "This was done on " in told.text
     r = client.post("/api/billing/tester", json={"plan": None})
     assert (r.json()["plan"], r.json()["tester_plan"]) == ("private", None)
     with get_session_factory()() as db:

@@ -183,6 +183,13 @@ def test_webhooks_are_verified_and_applied_once() -> None:
     r = post_event(client, event)
     assert r.status_code == 200 and r.json()["outcome"] == "subscribed"
     assert post_event(client, event).json()["outcome"] == "duplicate"
+    # One welcome email that names the plan, the price and that it renews (November 24, 2026),
+    # not sent again for the redelivery.
+    (welcome,) = [m for m in outbox() if m.subject == "You're subscribed to Qash Private"]
+    rows = dict(welcome.rows)
+    assert (rows["Plan"], rows["Price"]) == ("Private · yearly", "$20.00 a year")
+    assert rows["Next charge"].startswith("$20.00")
+    assert rows["Renews"] == "Every year until you cancel"
     data = client.get("/api/billing").json()
     assert data["plan"] == "private" and data["status"] == "active" and data["interval"] == "yearly"
     assert data["entitlements"]["goals_active_max"] == 4 and data["has_customer"] is True
