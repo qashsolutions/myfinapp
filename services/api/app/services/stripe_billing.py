@@ -877,6 +877,16 @@ def _status(stripe_status: str) -> str:
     return "canceled"
 
 
+def invoice_summary(subscription_id: str) -> tuple[int, str | None]:
+    """What a subscription has charged so far (its invoices' amount paid) and the newest
+    invoice's page on Stripe, for the cancellation email (owner, November 24, 2026)."""
+    found = _get("/invoices", {"subscription": subscription_id, "limit": "100"})
+    rows = found.get("data") or []
+    paid = sum(int(row.get("amount_paid") or 0) for row in rows)
+    newest = max(rows, key=lambda row: int(row.get("created") or 0), default=None)
+    return paid, (newest or {}).get("hosted_invoice_url")
+
+
 def period_end(obj: dict[str, Any]) -> datetime | None:
     if obj.get("current_period_end"):
         return _epoch(obj["current_period_end"])

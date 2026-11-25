@@ -1052,21 +1052,7 @@ def _change_renewal(
     )
     db.commit()
     if cancel:
-        partner = covers_instead(db, caller.user)
-        until = (
-            consent_text.day(sub.renews_at, consent_text.zone(consent.tz if consent else None))
-            if sub.renews_at
-            else "the end of the period you paid for"
-        )
-        get_sender().send(
-            plan_cancelled_message(
-                caller.user.email,
-                str(load_plans()["plans"][plan]["label"]),
-                until,
-                plan_link(),
-                covered_by=_shown_name(partner)[0] if partner else None,
-            )
-        )
+        _send_cancelled(db, caller, sub, obj, consent.tz if consent else None)
     send_alert(
         caller.user.email,
         SecurityEvent.PLAN_CHANGED,
@@ -1074,6 +1060,53 @@ def _change_renewal(
         at=datetime.now(UTC),
     )
     return _out(db, caller)
+
+
+def _send_cancelled(
+    db: DbSession, caller: Caller, sub: Subscription, obj: dict[str, Any], tz_name: str | None
+) -> None:
+    """The cancellation email (owner, November 24, 2026): the plan, its dates, what it charged,
+    the invoice. Stripe out of reach leaves the charges and the invoice link out."""
+    tz = consent_text.zone(tz_name)
+    now = datetime.now(UTC)
+    plans = load_plans()
+    interval = sub.interval or "monthly"
+    per = "year" if interval == "yearly" else "month"
+    price = consent_text.money(int(plans["plans"][sub.plan]["price_cents"][interval]))
+    try:
+        paid, invoice_link = stripe_billing.invoice_summary(sub.external_id or "")
+        charged: str | None = consent_text.money(paid)
+    except stripe_billing.BillingError:
+        paid, invoice_link, charged = -1, None, None
+    started_at = (
+        datetime.fromtimestamp(int(obj["start_date"]), UTC)
+        if obj.get("start_date")
+        else sub.created_at
+    )
+    until = consent_text.day(sub.renews_at, tz) if sub.renews_at else "the end of the paid period"
+    trial_end = int(obj.get("trial_end") or 0)
+    free_until = (
+        consent_text.day(datetime.fromtimestamp(trial_end, UTC), tz)
+        if trial_end and trial_end > now.timestamp()
+        else until
+        if paid == 0 and sub.renews_at
+        else None
+    )
+    partner = covers_instead(db, caller.user)
+    get_sender().send(
+        plan_cancelled_message(
+            caller.user.email,
+            plan_link(),
+            plan=f"{plans['plans'][sub.plan]['label']} · {interval}, {price} a {per}",
+            started=consent_text.day(started_at, tz),
+            free_until=free_until,
+            cancelled=consent_text.day(now, tz),
+            until=until,
+            charged=charged,
+            invoice_link=invoice_link,
+            covered_by=_shown_name(partner)[0] if partner else None,
+        )
+    )
 
 
 @router.post("/cancel", dependencies=[STRIPE_LIMIT])
