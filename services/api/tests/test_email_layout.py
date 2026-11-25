@@ -37,6 +37,29 @@ def test_rows_and_buttons_draw_and_html_text_replaces_the_prose() -> None:
     assert 'href="https://app.example/me/plan?a=1&amp;b=2"' in page and ">Keep my plan</a>" in page
 
 
+def test_the_logo_opens_the_app_words_link_and_fine_print_sits_under_a_line() -> None:
+    m = Message(
+        to="a@example.com",
+        subject="S",
+        text="t",
+        html_text="[Cancel <any> time](https://app.example/me/plan) on the Plan screen.",
+        actions=(("Your plan", "https://app.example/me/plan"),),
+        fine_print="This was done on Chrome on Mac.",
+    )
+    page = m.html
+    app = email.app_link()
+    assert f'<a href="{app}" style="display:inline-block"><img src="cid:qash-logo"' in page
+    assert ">Cancel &lt;any&gt; time</a> on the Plan screen." in page
+    assert "[Cancel" not in page
+    fine = page.index("This was done on Chrome on Mac.")
+    assert fine > page.index(">Your plan</a>")
+    assert (
+        "border-top:1px solid" in page[fine - 200 : fine]
+        and "font-size:13px" in page[fine - 200 : fine]
+    )
+    assert email.plain("[Cancel any time](https://x.example/) now") == "Cancel any time now"
+
+
 def test_smtp_sends_text_and_html_together(monkeypatch: pytest.MonkeyPatch) -> None:
     sent: list[bytes] = []
 
