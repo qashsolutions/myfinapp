@@ -24,7 +24,7 @@ from tests.test_billing_cancel import sub_row
 from tests.test_billing_change import FakeStripe as ChangeStripe
 from tests.test_billing_change import started_days_ago
 
-VERSION = "2026-11-24b"
+VERSION = "2026-11-26"
 PAY_WITH = [
     "A card from a US bank (Visa, Mastercard, Amex, Discover) or a US bank account.",
     "Paid through Stripe. We never see your card or bank details.",
@@ -220,8 +220,8 @@ def test_cancelling_keeps_only_the_servers_words() -> None:
         "No charges: Nothing more is billed after that.",
         "7-day grace: Then subscribe again or download your data.",
         "Then deleted: Account and data go; leftover credit is refunded.",
-        "Money back: Cancelling refunds nothing. Any refund goes back to the card you paid "
-        "with, Apple Pay included.",
+        "Money back: Cancelling doesn't refund what you've already paid. Any refund we do make "
+        "goes back to the card you paid with, Apple Pay included.",
     ]
     agreement = "I have read and understood these terms."
     offer = client.get("/api/billing/consent/cancel").json()

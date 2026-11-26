@@ -66,7 +66,7 @@ describe("Plans & billing", () => {
     const api = installFakeApi({ session: readySession(), billing: freeBilling() });
     const fake = globalThis.fetch;
     const words = {
-      version: "2026-11-24b",
+      version: "2026-11-26",
       points: [
         { icon: "price", text: "Words only the server wrote." },
         { icon: null, text: "A second line, also the server's." },
@@ -189,7 +189,7 @@ describe("Plans & billing", () => {
       plan: "private",
       interval: "yearly",
       consent: {
-        version: "2026-11-24b",
+        version: "2026-11-26",
         lines: [
           "$20.00 today, then every year.",
           "Renews automatically each year until you cancel.",

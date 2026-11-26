@@ -33,7 +33,7 @@ def grant_plan(user_id: str, plan: str, *, interval: str = "yearly") -> None:
 # built for the offer, as the app does. PLACEHOLDER_CONSENT is for requests refused before the
 # words are compared (no plan, a plan already held, blocked, a stale version, unticked).
 PLACEHOLDER_CONSENT = {
-    "version": "2026-11-24b",
+    "version": "2026-11-26",
     "lines": ["Words the server never wrote."],
     "agreement": "I agree.",
     "accepted": True,
