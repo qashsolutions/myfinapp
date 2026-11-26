@@ -73,6 +73,11 @@
   .sk-btn--block {
     max-width: 420px;
   }
+  /* In a sheet the capped buttons sit centred under the wider content (a box to tick, a
+     list), never hanging off its left edge (owner, November 26, 2026). */
+  .sk-sheet .sk-btn--block {
+    margin-inline: auto;
+  }
 }
 
 /* Card ------------------------------------------------------------------- */
