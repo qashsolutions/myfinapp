@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # The "Before you subscribe" wording. Bump it whenever any line below changes; an app holding
 # an older version gets 409 consent_outdated and loads the terms again.
-CONSENT_VERSION = "2026-11-24b"
+CONSENT_VERSION = "2026-11-26"
 
 # During a trial the first charge is on the trial-end day (owner decision, October 28, 2026),
 # through Stripe's trial or, closer than 49 hours, a billing cycle anchored on the trial end.
@@ -294,8 +294,8 @@ def cancel(
     # Where money goes, said before it ever moves (owner, November 24, 2026).
     points.append(
         Point(
-            "Cancelling refunds nothing. Any refund goes back to the card you paid with, Apple "
-            "Pay included.",
+            "Cancelling doesn't refund what you've already paid. Any refund we do make goes "
+            "back to the card you paid with, Apple Pay included.",
             head="Money back",
         )
     )

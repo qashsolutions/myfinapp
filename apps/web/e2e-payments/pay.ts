@@ -147,7 +147,7 @@ export async function appFetch(
 /** For requests refused before the words are compared (already subscribed, blocked, a stale
  * version, no step-up): the server builds the real lines and refuses any others. */
 export const CONSENT = {
-  version: "2026-11-24b",
+  version: "2026-11-26",
   lines: ["$3.00 today, then every month."],
   agreement: "I have read and understood these terms.",
   accepted: true,
