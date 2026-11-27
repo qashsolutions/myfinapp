@@ -46,7 +46,7 @@ test("A1 a card pays for Private monthly: the plan starts and Stripe charged $3.
   // The consent was stored before Stripe opened.
   expect(
     sql(`SELECT count(*) FROM purchase_consents c JOIN users u ON u.id = c.user_id
-         WHERE u.email = ${quote(email)} AND c.terms_version = '2026-10-24'`),
+         WHERE u.email = ${quote(email)} AND c.terms_version = ${quote(CONSENT.version)}`),
   ).toBe("1");
 });
 

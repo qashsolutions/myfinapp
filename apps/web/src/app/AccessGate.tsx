@@ -15,7 +15,8 @@ const JOIN_SPLIT = "/splits/join";
 
 /**
  * A split-bill guest's app (spec "Guests"): Splits and Me, with How friends pay me, Payments I
- * confirmed, Alerts, the plan (to try Qash), export and deletion. Every group screen is open.
+ * confirmed, Alerts, the plan (to try Qash), export and deletion, Linked banks and Sign-in &
+ * security (invariant 97). Every group screen is open.
  */
 export const GUEST_OPEN = new Set([
   "/splits",
@@ -29,12 +30,17 @@ export const GUEST_OPEN = new Set([
   "/me/help",
   "/me/split-pay",
   "/me/split-payments",
+  "/me/linking",
+  "/me/security",
 ]);
 const GUEST_PREFIXES = ["/splits/"];
 
 /**
  * Open while there is no plan to use: the plan (to subscribe, and receipts), Me, Money & data
- * (export), deletion, and joining a household whose plan would cover them.
+ * (export), deletion, Linked banks (to disconnect a bank: whoever holds a connection can always
+ * drop it, invariant 97), Sign-in & security (every security email's "If it wasn't you" opens
+ * it, so devices and passkeys can always be removed) and joining a household whose plan would
+ * cover them.
  * Every other screen sends the person to `home` for their state.
  */
 export const LAPSED_OPEN = new Set([
@@ -42,6 +48,8 @@ export const LAPSED_OPEN = new Set([
   "/me",
   "/me/data",
   "/me/delete",
+  "/me/linking",
+  "/me/security",
   JOIN_HOUSEHOLD,
   JOIN_SPLIT,
 ]);
@@ -76,7 +84,15 @@ export function accessRoutes(access: Access | null | undefined): {
         ? { home: "/start", open: new Set([...LAPSED_OPEN, "/start"]) }
         : {
             home: "/start",
-            open: new Set(["/start", "/me", "/me/data", "/me/delete", JOIN_HOUSEHOLD, JOIN_SPLIT]),
+            open: new Set([
+              "/start",
+              "/me",
+              "/me/data",
+              "/me/delete",
+              "/me/security",
+              JOIN_HOUSEHOLD,
+              JOIN_SPLIT,
+            ]),
           };
     // A plan that ended, a disputed payment (October 24, 2026) and a lost dispute (October 25,
     // 2026): subscribe (where allowed), export or delete; never deleted for a dispute.

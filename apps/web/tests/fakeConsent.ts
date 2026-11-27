@@ -12,7 +12,7 @@ type ConsentText = components["schemas"]["ConsentTextOut"];
 type Point = ConsentText["points"][number];
 type Interval = "monthly" | "yearly";
 
-export const FAKE_CONSENT_VERSION = "2026-11-26";
+export const FAKE_CONSENT_VERSION = "2026-11-26.2";
 
 const PRICES = {
   private: { monthly: 300, yearly: 2000 },

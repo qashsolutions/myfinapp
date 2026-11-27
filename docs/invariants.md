@@ -831,6 +831,32 @@ written against both.
     `test_linking_new_accounts.py` · `test_linking_states.py` (new_accounts,
     add_accounts_finished) · `authz/test_linking_routes.py` · `linking.test.tsx` invariant 96 ·
     `e2e/linking.spec.ts`
+97. **Whoever holds access can always take it away** (November 26, 2026; found by the
+    Connected payments regression: a plan that ended, a payment on hold or a lost dispute locked
+    the app to the plan, export and delete, so Linked banks couldn't open and the bank stayed
+    readable by Qash until 60 days unused, against `DELETE /api/linking/{id}`'s promise that no
+    one is stuck with a connection; the sibling check found Sign-in & security shut the same
+    way, though every security email's "If it wasn't you" opens it). Linked banks and Sign-in &
+    security open in every access state, split guests' included (`AccessGate.LAPSED_OPEN`,
+    `GUEST_OPEN`, the choose list), Disconnect needs no plan, and a plan that doesn't read banks
+    shows the plan limit with no Check button that could only fail.
+    `linking.test.tsx` invariant 97 · `trials.test.tsx` (the access table) · `search.test.tsx` ·
+    `e2e-payments/connected-linking.spec.ts` L9
+98. **A live plan that doesn't link holds no bank connection, and says so first** (November
+    26, 2026; owner decision the same day; hard constraint 3; found by the Connected payments
+    regression: a Connected trial with a bank, then Private bought at checkout, kept the bank
+    connected at Plaid, unread, until 60 days unused, while switching down said so and
+    disconnected at once). One rule, `routers/linking.disconnect_for_plan`, called wherever a
+    plan starts: switching down, a Stripe checkout once it is paid (a US bank payment only when
+    it clears, never while it may still fail), and a live App Store or Google Play plan. Each
+    connection is audited and revoked at Plaid, or marked `revoke_pending` when Plaid is down.
+    "Before you subscribe" carries the switch-down sheet's line ("Private doesn't link banks:
+    yours are disconnected now. Accounts and entries stay.") only when the person holds a
+    connection (`CONSENT_VERSION` 2026-11-26.2). A plan that ends is not a plan that starts: a
+    lapsed or paused account keeps its banks unread for a return (invariant 97 keeps
+    Disconnect open).
+    `test_billing_private_links.py` · `test_billing_change.py` ·
+    `e2e-payments/connected-linking.spec.ts` L3, L4
 64. **A balance says where it came from** (October 29, 2026). One helper
     (`linking/anchorText.ts`) names a balance's source everywhere: a statement's date, the bank
     and when it last synced ("from First Platypus Bank · synced 5 min ago"), or "you entered".

@@ -34,7 +34,7 @@ from app.models.plan_event import PlanEvent
 from app.models.trial_claim import TrialClaim, trial_hashes
 from app.models.user import User
 from app.routers.groups import _shown_name
-from app.routers.linking import revoke_all
+from app.routers.linking import disconnect_for_plan
 from app.rules_server.entitlements import (
     TRIAL_PLANS,
     access,
@@ -479,6 +479,7 @@ def checkout(
             trial_ends_at=trial_ends_at,
             now=datetime.now(UTC),
             tz=consent_text.zone(body.consent.tz),
+            disconnects_banks=_disconnects_banks(db, caller, body.plan),
         ),
     )
     try:
@@ -537,10 +538,18 @@ def _kind(caller: Caller, sub: Subscription, target: ChangeTarget) -> str:
 
 
 def _disconnects_banks(db: DbSession, caller: Caller, plan: str) -> bool:
-    if load_plans()["plans"][plan]["bank_links_max"] != 0:
+    """Whether starting `plan` disconnects a bank the person can see (invariant 98). Founding
+    is Connected; a connection already being revoked is no longer theirs to lose."""
+    limits = load_plans()["plans"].get(plan)
+    if limits is None or limits["bank_links_max"] != 0:
         return False
     return (
-        db.scalar(select(BankConnection.id).where(BankConnection.user_id == caller.user.id))
+        db.scalar(
+            select(BankConnection.id).where(
+                BankConnection.user_id == caller.user.id,
+                BankConnection.status != "revoke_pending",
+            )
+        )
         is not None
     )
 
@@ -684,19 +693,8 @@ def change(
     sub.cancel_at_period_end = False
     sub.renews_at = stripe_billing.period_end(obj) or sub.renews_at
     sub.plan_changed_at = datetime.now(UTC)
-    if load_plans()["plans"][body.plan]["bank_links_max"] == 0:
-        # Private never links (hard constraint 3): its banks go now, as the sheet said.
-        for row in db.scalars(
-            select(BankConnection).where(BankConnection.user_id == caller.user.id)
-        ):
-            record(
-                db,
-                actor_id=caller.user.id,
-                action=AuditAction.BANK_DISCONNECTED,
-                target=f"bank_connection:{row.id}",
-                ip=client_ip(request),
-            )
-        revoke_all(db, caller.user.id)
+    # Private never links (hard constraint 3): its banks go now, as the sheet said.
+    disconnect_for_plan(db, caller.user.id, body.plan, ip=client_ip(request))
     # A plan without household no longer covers the partner: their own 7 days start now, with
     # the plan job's email, never a fresh trial (invariants 54, 69).
     end_lost_cover(db, covered, now=datetime.now(UTC))
@@ -885,6 +883,7 @@ def purchase_consent(
             else None,
             now=datetime.now(UTC),
             tz=consent_text.zone(tz),
+            disconnects_banks=_disconnects_banks(db, caller, plan),
         )
     )
 

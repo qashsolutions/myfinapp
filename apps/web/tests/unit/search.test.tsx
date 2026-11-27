@@ -166,10 +166,13 @@ describe("results follow what the person can open", () => {
     expect(labels("venmo", guest)).toContain("How friends pay me");
   });
 
-  it("with no plan to use: only the plans, export and deletion", () => {
+  it("with no plan to use: only the plans, export, deletion, banks and security", () => {
     const lapsed = ctx("private", { state: "lapsed" });
     const paths = new Set(reachable(lapsed).map((r) => r.path.split("?")[0]));
-    for (const p of paths) expect(["/me/plan", "/me", "/me/data", "/me/delete"]).toContain(p);
+    const open = ["/me/plan", "/me", "/me/data", "/me/delete", "/me/linking", "/me/security"];
+    for (const p of paths) expect(open).toContain(p);
+    // Invariant 97: a bank can always be dropped, and a device signed out.
+    expect(paths.has("/me/security")).toBe(true);
     expect(labels("delete", lapsed)).toContain("Delete account");
     expect(labels("export", lapsed)).toContain("Download all my data");
     expect(labels("goals", lapsed)).toEqual([]);

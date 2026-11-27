@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # The "Before you subscribe" wording. Bump it whenever any line below changes; an app holding
 # an older version gets 409 consent_outdated and loads the terms again.
-CONSENT_VERSION = "2026-11-26"
+CONSENT_VERSION = "2026-11-26.2"
 
 # During a trial the first charge is on the trial-end day (owner decision, October 28, 2026),
 # through Stripe's trial or, closer than 49 hours, a billing cycle anchored on the trial end.
@@ -130,6 +130,15 @@ def _switch_point(plans: dict[str, Any]) -> Point:
     )
 
 
+def _unlink_point(plans: dict[str, Any], plan: str) -> Point:
+    """A plan that doesn't link, for someone holding a bank connection (hard constraint 3)."""
+    return Point(
+        f"{_label(plans, plan)} doesn't link banks: yours are disconnected now. Accounts and "
+        "entries stay.",
+        "unlink",
+    )
+
+
 def purchase(
     plans: dict[str, Any],
     plan: str,
@@ -138,8 +147,11 @@ def purchase(
     trial_ends_at: datetime | None,
     now: datetime,
     tz: tzinfo,
+    disconnects_banks: bool = False,
 ) -> ConsentText:
-    """ "Before you subscribe": what a new plan costs, how it renews, cancels and refunds."""
+    """ "Before you subscribe": what a new plan costs, how it renews, cancels and refunds.
+    `disconnects_banks`: the person holds a bank connection and this plan doesn't link, so it
+    goes when the plan starts (invariant 98), said in the switch-down sheet's own words."""
     if plan == "founding":
         founding = plans["founding"]
         return ConsentText(
@@ -179,6 +191,8 @@ def purchase(
         ),
         Point(f"Renews automatically each {per} until you cancel.", "renew"),
     ]
+    if disconnects_banks:
+        points.append(_unlink_point(plans, plan))
     if interval == "yearly":
         twelve = money(12 * _price(plans, plan, "monthly"))
         points += [
@@ -239,13 +253,7 @@ def change(
             Point(f"{name} · {interval} starts now.", "term"),
         ]
     if disconnects_banks:
-        points.append(
-            Point(
-                f"{name} doesn't link banks: yours are disconnected now. Accounts and entries "
-                "stay.",
-                "unlink",
-            )
-        )
+        points.append(_unlink_point(plans, plan))
     if ends_cover_for:
         grace = int(plans["trials"]["grace_days"])
         points.append(

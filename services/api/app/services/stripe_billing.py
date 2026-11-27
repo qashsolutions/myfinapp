@@ -1192,6 +1192,11 @@ def _checkout_completed(
         # dates and cancel flag, and only fill in the customer.
         row.customer_id = row.customer_id or customer
         db.flush()
+    # Private never links (invariant 98): a trial's banks go as the plan starts, as "Before you
+    # subscribe" said; never while a bank payment is still clearing.
+    from app.routers.linking import disconnect_for_plan  # noqa: PLC0415 - router import cycle
+
+    disconnect_for_plan(db, user_id, plan)
     prices = load_plans()["plans"][plan]["price_cents"]
     plan_history.add(
         db,

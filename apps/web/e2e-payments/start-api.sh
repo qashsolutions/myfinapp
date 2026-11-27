@@ -1,7 +1,8 @@
 #!/bin/sh
 # The payments e2e stack (October 24, 2026): the e2e API (stackd_e2e, :8100) with Stripe's test
 # keys from services/api/.env, and `stripe listen` forwarding real, signed test-mode webhooks to
-# it under the secret it prints. Refuses anything but a test key. Prints no secrets.
+# it under the secret it prints. Plaid is the e2e fake (tests/e2e_app.py), never the network.
+# Refuses anything but a test key. Prints no secrets.
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 cd "$here/../../../services/api"
@@ -24,4 +25,6 @@ stripe listen --api-key "$key" --events "$events" \
   | sed -l -E 's/whsec_[A-Za-z0-9]+/whsec_(masked)/g' > "$out/stripe.log" &
 trap 'kill 0' EXIT INT TERM
 uv run stackd-api migrate >/dev/null
-uv run uvicorn app.main:app --port 8100
+# tests/e2e_app.py: the real app with Plaid faked (made-up keys, no network to Plaid), so the
+# Connected journeys can link a bank on a plan paid for through Stripe test mode.
+uv run uvicorn tests.e2e_app:app --port 8100

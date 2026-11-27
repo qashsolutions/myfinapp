@@ -210,6 +210,13 @@ def _owner(
     return resolved
 
 
+def _disconnect_if_no_links(db: Any, owner: uuid.UUID, plan: str) -> None:
+    """A live store plan that doesn't link holds no connection (invariant 98)."""
+    from app.routers.linking import disconnect_for_plan  # noqa: PLC0415 - router import cycle
+
+    disconnect_for_plan(db, owner, plan)
+
+
 def _upsert(
     db: Any,
     *,
@@ -305,6 +312,8 @@ def apply_apple_transaction(
         cancel_at_period_end=auto_renew_off and status == "active",
     ).last_event_at = signed
     db.flush()
+    if status != "canceled":
+        _disconnect_if_no_links(db, owner, plan)
     end_lost_cover(db, covered, now=now)  # ends the partner's cover, with notice (invariant 69)
     store_entitlements(db, owner)
     return "synced"
@@ -458,6 +467,8 @@ def apply_play_subscription(
         ends_at=ends_at,
         cancel_at_period_end=cancel,
     )
+    if status != "canceled":
+        _disconnect_if_no_links(db, owner, plan)
     end_lost_cover(db, covered, now=now)  # ends the partner's cover, with notice (invariant 69)
     store_entitlements(db, owner)
     return "synced"

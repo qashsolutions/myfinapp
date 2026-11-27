@@ -24,7 +24,7 @@ from tests.test_billing_cancel import sub_row
 from tests.test_billing_change import FakeStripe as ChangeStripe
 from tests.test_billing_change import started_days_ago
 
-VERSION = "2026-11-26"
+VERSION = "2026-11-26.2"
 PAY_WITH = [
     "A card from a US bank (Visa, Mastercard, Amex, Discover) or a US bank account.",
     "Paid through Stripe. We never see your card or bank details.",
