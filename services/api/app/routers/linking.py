@@ -37,7 +37,7 @@ from app.linking import plaid, token_vault
 from app.linking.status import set_status
 from app.models.linking import BankConnection, LinkSession
 from app.models.user import User
-from app.rules_server.entitlements import check_limit, entitlements
+from app.rules_server.entitlements import check_limit, entitlements, load_plans
 from app.security.audit import AuditAction, record
 from app.security.authz import get_owned, owned_by
 from app.security.client import client_ip
@@ -658,6 +658,36 @@ def disconnect(
         device_label=caller.session.device_label,
         at=datetime.now(UTC),
     )
+
+
+def disconnect_for_plan(
+    db: DbSession, user_id: uuid.UUID, plan: str, *, ip: str | None = None
+) -> bool:
+    """A live plan that doesn't link never holds a connection (hard constraint 3, invariant
+    98): every path that starts one (switching down, buying Private at checkout or in a store)
+    calls this, and the sheet before it says so. Each connection is audited and revoked at
+    Plaid now, or marked for `stackd-api revoke-links` when Plaid is down. A plan that ends
+    (lapsed, paused) is not one: its banks stay unread for a return, and Disconnect stays open
+    (invariant 97). True when something was disconnected."""
+    limits = load_plans()["plans"].get(plan)  # Founding is Connected: not under "plans"
+    if limits is None or limits["bank_links_max"] != 0:
+        return False
+    rows = db.scalars(
+        select(BankConnection).where(
+            BankConnection.user_id == user_id, BankConnection.status != "revoke_pending"
+        )
+    ).all()
+    for row in rows:
+        record(
+            db,
+            actor_id=user_id,
+            action=AuditAction.BANK_DISCONNECTED,
+            target=f"bank_connection:{row.id}",
+            ip=ip,
+        )
+    if rows:
+        revoke_all(db, user_id)
+    return bool(rows)
 
 
 def revoke_all(db: DbSession, user_id: uuid.UUID) -> None:

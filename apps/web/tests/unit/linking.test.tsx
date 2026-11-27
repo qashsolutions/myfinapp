@@ -182,6 +182,43 @@ describe("linked banks & cards (chunk 3.2)", () => {
   });
 });
 
+// Invariant 97: whoever holds a connection can always drop it. A plan that ended (or a payment
+// on hold, or a lost dispute) locks the app to the plan, export and delete, and before this the
+// lock kept Linked banks out too, so the bank stayed readable by Qash until 60 days unused.
+describe("disconnecting with no plan that links (invariant 97)", () => {
+  const linked = {
+    id: "bc1",
+    institution_name: "First Platypus Bank",
+    created_at: "2026-11-01T00:00:00Z",
+    status: "ok",
+    updates_available: false,
+    last_synced_at: "2026-11-20T00:00:00Z",
+  };
+
+  it.each(["lapsed", "paused", "ended"] as const)(
+    "%s: Linked banks opens, Disconnect works, and nothing offers to read the bank",
+    async (state) => {
+      const api = installFakeApi({ session: readySession() });
+      api.access = { state, plan: "free", ended_at: "2026-11-20T00:00:00Z", delete_at: null };
+      api.linking.connections.push({ ...linked });
+      renderApp("/me/linking");
+      expect(await screen.findByRole("heading", { name: "Linked banks & cards" })).toBeTruthy();
+      expect(await screen.findByText("First Platypus Bank")).toBeTruthy();
+      // The plan doesn't read banks: no Check button that would only fail.
+      expect(screen.queryByRole("button", { name: "Check for new transactions" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Connect a bank or card" })).toBeNull();
+      await userEvent.click(screen.getByRole("button", { name: "Disconnect" }));
+      await act(async () => {
+        await userEvent.click(
+          within(await screen.findByRole("dialog")).getByRole("button", { name: "Disconnect" }),
+        );
+      });
+      expect(await screen.findByText(/First Platypus Bank is disconnected/)).toBeTruthy();
+      expect(api.linking.connections).toEqual([]);
+    },
+  );
+});
+
 describe("new accounts at a linked bank (invariant 96)", () => {
   beforeEach(() => {
     billingState.lastUrl = null;

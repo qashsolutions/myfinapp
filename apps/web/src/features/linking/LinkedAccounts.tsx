@@ -202,9 +202,11 @@ export function LinkedAccounts() {
               );
             })}
           </List>
-          <Button block variant="secondary" onClick={syncNow} disabled={busy}>
-            {busy ? "Checking…" : "Check for new transactions"}
-          </Button>
+          {cap !== 0 ? (
+            <Button block variant="secondary" onClick={syncNow} disabled={busy}>
+              {busy ? "Checking…" : "Check for new transactions"}
+            </Button>
+          ) : null}
         </section>
       ) : null}
 

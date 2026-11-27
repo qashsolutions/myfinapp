@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { accessRoutes } from "../../src/app/AccessGate.tsx";
+import { accessRoutes, mayOpen } from "../../src/app/AccessGate.tsx";
 import { openDb, seedDefaults } from "../../src/data/db.ts";
 import { type Access, resetEntitlements } from "../../src/features/billing/entitlements.ts";
 import { emailHash, keptAccount, rememberKept } from "../../src/lib/keptAccount.ts";
@@ -338,6 +338,8 @@ describe("trials", () => {
       "/me/plan",
       "/me/data",
       "/me/delete",
+      "/me/linking",
+      "/me/security",
       "/household/join",
     ];
     const where = (a: Access | null) =>
@@ -356,6 +358,9 @@ describe("trials", () => {
       "/me/plan": "→ /start",
       "/me/data": "open",
       "/me/delete": "open",
+      "/me/linking": "→ /start",
+      // Every security email's "If it wasn't you" opens Sign-in & security, in every state.
+      "/me/security": "open",
       // Invariant 54: a household's plan covers the partner, so an invite opens before a trial.
       "/household/join": "open",
     });
@@ -368,6 +373,9 @@ describe("trials", () => {
       "/me/plan": "open",
       "/me/data": "open",
       "/me/delete": "open",
+      // Invariant 97: a bank can always be disconnected.
+      "/me/linking": "open",
+      "/me/security": "open",
       "/household/join": "open",
     };
     expect(where(make("choose", true))).toEqual({
@@ -377,6 +385,12 @@ describe("trials", () => {
       "/start": "open",
     });
     for (const s of ["lapsed", "paused", "ended"] as const) expect(where(make(s))).toEqual(noPlan);
+    // A split guest (a plan that ended inside a split group) can drop a bank and reach security.
+    for (const s of ["choose", "lapsed"] as const) {
+      const guest = accessRoutes({ ...make(s, true), split_guest: true });
+      expect(guest && mayOpen(guest, "/me/linking")).toBe(true);
+      expect(guest && mayOpen(guest, "/me/security")).toBe(true);
+    }
     // trial and subscribed: everything (the gate sends /start home separately)
     for (const s of ["trial", "subscribed"] as const)
       expect(Object.values(where(make(s))).every((v) => v === "open")).toBe(true);
